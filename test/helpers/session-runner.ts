@@ -173,13 +173,9 @@ export async function runSkillTest(options: {
   // restores operator MCP along with the operator env.
   if (isHermeticEnabled()) args.push('--strict-mcp-config');
 
-  // Write prompt to a temp file OUTSIDE workingDirectory to avoid race conditions
-  // where afterAll cleanup deletes the dir before cat reads the file (especially
-  // with --concurrent --retry). Using os.tmpdir() + unique suffix keeps it stable.
-  const promptFile = path.join(os.tmpdir(), `.prompt-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  fs.writeFileSync(promptFile, prompt);
-
-  const proc = Bun.spawn(['sh', '-c', `cat "${promptFile}" | claude ${args.map(a => `"${a}"`).join(' ')}`], {
+  // Spawn claude directly with array-form args (no shell interpolation).
+  // Prompt is piped via stdin using a Blob to avoid temp files and shell escaping.
+  const proc = Bun.spawn(['claude', ...args], {
     cwd: workingDirectory,
     // Hermetic by default (see test/helpers/hermetic-env.ts): operator
     // session context (CONDUCTOR_*, CLAUDECODE, ~/.claude config, ~/.gstack)
@@ -189,6 +185,7 @@ export async function runSkillTest(options: {
     // suite exercising the INTERACTIVE prose-fallback path opts out by passing
     // `env: { GSTACK_HEADLESS: '' }` — extraEnv wins because it spreads last.
     env: hermeticChildEnv({ GSTACK_HEADLESS: '1', ...extraEnv }),
+    stdin: new Blob([prompt]),
     stdout: 'pipe',
     stderr: 'pipe',
   });
@@ -313,8 +310,6 @@ export async function runSkillTest(options: {
   ]);
   const exitCode = await proc.exited;
   clearTimeout(timeoutId);
-
-  try { fs.unlinkSync(promptFile); } catch { /* non-fatal */ }
 
   if (timedOut) {
     exitReason = 'timeout';
