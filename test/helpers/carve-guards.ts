@@ -326,7 +326,10 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // cso keeps its mode-dispatch + FP-filtering phases always-loaded, so the
     // cross-cutting preamble growth (v1.57.2.0 AUQ-failure prose fallback ~2KB + the
     // decision-memory nudge) lands it just over 1.05; headroom for the shared additions.
-    maxSizeRatio: 1.07,
+    // Raised 1.07 → 1.16 for two features in the audit-phases section: the
+    // --fix auto-fix engine (Phase 15, ~4.8KB, #1053) and the Tier 3
+    // mini-shai-hulud campaign rules (Phase 8, ~4KB, #1523).
+    maxSizeRatio: 1.16,
   },
 };
 

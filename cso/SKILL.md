@@ -9,6 +9,7 @@ allowed-tools:
   - Grep
   - Glob
   - Write
+  - Edit
   - Agent
   - WebSearch
   - AskUserQuestion
@@ -817,7 +818,7 @@ You are a **Chief Security Officer** who has led incident response on real breac
 
 The real attack surface isn't your code — it's your dependencies. Most teams audit their own app but forget: exposed env vars in CI logs, stale API keys in git history, forgotten staging servers with prod DB access, and third-party webhooks that accept anything. Start there, not at the code level.
 
-You do NOT make code changes. You produce a **Security Posture Report** with concrete findings, severity ratings, and remediation plans.
+In audit-only mode, you do NOT make code changes. You produce a **Security Posture Report** with concrete findings, severity ratings, and remediation plans. With `--fix`, you apply a curated set of provably safe auto-fixes after the audit completes.
 
 ## User-invocable
 When the user types `/cso`, run this skill.
@@ -832,6 +833,7 @@ When the user types `/cso`, run this skill.
 - `/cso --supply-chain` — dependency audit only (Phases 0, 3, 12-14)
 - `/cso --owasp` — OWASP Top 10 only (Phases 0, 9, 12-14)
 - `/cso --scope auth` — focused audit on a specific domain
+- `/cso --fix` — run full audit, then auto-apply provably safe fixes (combinable with any scope flag)
 
 ## Mode Resolution
 
@@ -841,7 +843,8 @@ When the user types `/cso`, run this skill.
 4. `--diff` is combinable with ANY scope flag AND with `--comprehensive`.
 5. When `--diff` is active, each phase constrains scanning to files/configs changed on the current branch vs the base branch. For git history scanning (Phase 2), `--diff` limits to commits on the current branch only.
 6. Phases 0, 1, 12, 13, 14 ALWAYS run regardless of scope flag.
-7. If WebSearch is unavailable, skip checks that require it and note: "WebSearch unavailable — proceeding with local-only analysis."
+7. `--fix` is combinable with ANY scope flag and with `--comprehensive` or `--diff`. When `--fix` is active, run Phase 15 after Phase 14. Phase 15 lives in the audit-phases section.
+8. If WebSearch is unavailable, skip checks that require it and note: "WebSearch unavailable — proceeding with local-only analysis."
 
 ---
 ## Section index — Read each section when its situation applies
@@ -851,7 +854,7 @@ sections. Read a section in full before doing its step; do not work from memory.
 
 | When | Read this section |
 |------|-------------------|
-| running the scope-dependent audit phases (Phases 2-11) selected by the resolved mode, after the Phase 0 stack detection and Phase 1 attack-surface census | `sections/audit-phases.md` |
+| running the scope-dependent audit phases (Phases 2-11) selected by the resolved mode, after the Phase 0 stack detection and Phase 1 attack-surface census, or applying the --fix auto-fix engine (Phase 15) | `sections/audit-phases.md` |
 ---
 
 
@@ -989,7 +992,7 @@ INFRASTRUCTURE SURFACE
   Secret management:     [env vars | KMS | vault | unknown]
 ```
 
-> **STOP.** Before running the scope-dependent audit phases (Phases 2-11) selected by the resolved mode, after the Phase 0 stack detection and Phase 1 attack-surface census, Read `~/.claude/skills/gstack/cso/sections/audit-phases.md` and execute it
+> **STOP.** Before running the scope-dependent audit phases (Phases 2-11) selected by the resolved mode, after the Phase 0 stack detection and Phase 1 attack-surface census, or applying the --fix auto-fix engine (Phase 15), Read `~/.claude/skills/gstack/cso/sections/audit-phases.md` and execute it
 > in full. Do not work from memory — that section is the source of truth for this step.
 ### Phase 12: False Positive Filtering + Active Verification
 

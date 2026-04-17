@@ -1,6 +1,6 @@
 <!-- AUTO-GENERATED from audit-phases.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
-**Scope gate (read first).** This section holds every scope-dependent phase (2-11), but you run ONLY the phases your resolved mode selected back in `## Mode Resolution` (always-loaded in the skeleton). Phases 0, 1, 12, 13, 14 always run; Phases 2-11 are scope-gated. "Execute in full" means work through this section applying that selection, NOT run a phase your mode did not select just because its prose lives here. Example: `--owasp` runs Phase 9 from this section, not Phases 2-8/10/11.
+**Scope gate (read first).** This section holds every scope-dependent phase (2-11) plus the `--fix`-gated Phase 15, but you run ONLY the phases your resolved mode selected back in `## Mode Resolution` (always-loaded in the skeleton). Phases 0, 1, 12, 13, 14 always run; Phases 2-11 are scope-gated. "Execute in full" means work through this section applying that selection, NOT run a phase your mode did not select just because its prose lives here. Example: `--owasp` runs Phase 9 from this section, not Phases 2-8/10/11.
 
 ### Phase 2: Secrets Archaeology
 
@@ -251,3 +251,102 @@ PUBLIC:
   - Marketing content, documentation, public APIs
 ```
 
+### Phase 15: Auto-Fix Engine (only runs with `--fix`)
+
+This phase applies a curated set of provably safe fixes — patterns where the correct change is deterministic, the risk of breakage is near-zero, and the security gain is concrete. No business logic involved. No guessing.
+
+**Fix catalog — 9 patterns:**
+
+**FIX-01: .gitignore secret hardening**
+Scan `.gitignore` for missing entries. Add if absent:
+```
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+```
+Safe because: additive only. Never removes existing entries.
+
+**FIX-02: Missing `.gitleaks.toml`**
+If no `.gitleaks.toml` exists, create one with a baseline config that extends the default ruleset:
+```toml
+title = "gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "test fixtures"
+paths = ['''test''', '''spec''', '''fixtures''', '''__tests__''']
+```
+Safe because: additive. Does not block any existing workflow unless gitleaks is already running (in which case the file was already needed).
+
+**FIX-03: npm audit fix (non-breaking patches only)**
+```bash
+npm audit fix
+```
+Run only if `package.json` exists and there are audit findings. Do NOT run `npm audit fix --force` (that allows major version bumps). Only patches and minor upgrades.
+Safe because: respects semver constraints in `package.json`. Never changes APIs.
+
+**FIX-04: Node.js TLS bypass (`rejectUnauthorized: false`)**
+Find all occurrences with the Grep tool: pattern `rejectUnauthorized\s*:\s*false`.
+For each match: read the file, verify it's not in a test file or commented out, then use Edit to flip to `true`.
+Safe because: single token flip. A `false` here disables TLS cert verification entirely — this is almost always a copy-paste mistake, never intentional in production code. If it's intentional (self-signed cert in dev), the developer will see the fix in the diff and revert.
+
+**FIX-05: Python requests TLS bypass (`verify=False`)**
+Find all occurrences: pattern `requests\.(get|post|put|patch|delete|request)\(.*verify=False`.
+For each match: read the file, verify it's production code (not a test), use Edit to change `verify=False` to `verify=True`.
+Safe because: same reasoning as FIX-04.
+
+**FIX-06: Go TLS bypass (`InsecureSkipVerify: true`)**
+Find all occurrences: pattern `InsecureSkipVerify\s*:\s*true`.
+For each match: read the file, verify it's not test infrastructure, use Edit to flip to `false`.
+Safe because: same reasoning as FIX-04.
+
+**FIX-07: Insecure cookie `httpOnly: false`**
+Find all occurrences: pattern `httpOnly\s*:\s*false` in JS/TS files.
+For each match: flip to `true`. This prevents JavaScript from reading the cookie — the correct default for session cookies.
+Safe because: `httpOnly: true` never breaks server-side code. It only blocks `document.cookie` access, which should never be needed for session/auth cookies.
+
+**FIX-08: Insecure cookie `secure: false`**
+Find all occurrences: pattern `secure\s*:\s*false` in cookie configuration contexts (near `httpOnly`, `sameSite`, `maxAge`).
+For each match: flip to `true`.
+Safe because: if you're in production (the only place this matters), you're on HTTPS. If you're in dev, you likely have `NODE_ENV` checks separating the config already. Single flag flip.
+
+**FIX-09: `DEBUG=true` in production env files**
+Search for files named `.env.production`, `.env.prod`, `production.env` containing `DEBUG=true` or `DEBUG=1`.
+For each match: flip to `DEBUG=false` or `DEBUG=0`.
+Safe because: debug mode in production leaks stack traces and internal state. Flipping this off is never a behavioral regression — it only removes information leakage.
+
+---
+
+**Fix execution protocol:**
+
+For each applicable fix:
+1. Show the user what will change (file, line, before/after).
+2. Apply the fix using the Edit tool (for file edits) or Bash (for commands like `npm install`).
+3. Mark the fix as applied in the summary.
+
+Do NOT ask for confirmation before each individual fix — the user invoked `--fix` knowing fixes would be applied. Do ask via AskUserQuestion if a fix is ambiguous (e.g., multiple Express entry points, unclear which is production config).
+
+**Fix summary table:**
+
+After applying all fixes, print:
+
+```
+AUTO-FIX SUMMARY
+════════════════
+Fix  Applied  Finding
+───  ───────  ───────
+FIX-01  YES   .gitignore: added .env, *.pem, *.key patterns
+FIX-02  NO    .gitleaks.toml already exists
+FIX-03  YES   npm audit fix: 3 vulnerabilities patched
+FIX-04  YES   api/http-client.ts:47: rejectUnauthorized false → true
+FIX-07  YES   lib/session.ts:12: httpOnly false → true
+FIX-09  YES   .env.production:3: DEBUG=true → DEBUG=false
+```
+
+If no fixes applied: "No safe auto-fixes found for this codebase. Review findings in Phase 13 for manual remediation steps."
