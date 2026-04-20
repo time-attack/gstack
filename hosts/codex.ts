@@ -33,6 +33,10 @@ const codex: HostConfig = {
     { from: 'CLAUDE.md', to: 'AGENTS.md' },
   ],
 
+  toolRewrites: {
+    'AskUserQuestion': 'request_user_input',
+  },
+
   suppressedResolvers: [
     'DESIGN_OUTSIDE_VOICES',  // design.ts:485 — Codex can't invoke itself
     'ADVERSARIAL_STEP',       // review.ts:408 — Codex can't invoke itself
