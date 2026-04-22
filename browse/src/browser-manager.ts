@@ -422,6 +422,32 @@ export class BrowserManager {
   }
 
   /**
+   * Parse GSTACK_EXTRA_EXTENSIONS (comma-separated paths) and return the list
+   * of unpacked extension directories that actually contain a manifest.json.
+   * Invalid entries are warned about and skipped so a typo doesn't block launch.
+   */
+  private findExtraExtensionPaths(): string[] {
+    const raw = process.env.GSTACK_EXTRA_EXTENSIONS;
+    if (!raw) return [];
+    const fs = require('fs');
+    const path = require('path');
+    const paths = raw.split(',').map(s => s.trim()).filter(Boolean);
+    const valid: string[] = [];
+    for (const p of paths) {
+      try {
+        if (fs.existsSync(path.join(p, 'manifest.json'))) {
+          valid.push(p);
+        } else {
+          console.warn(`[browse] GSTACK_EXTRA_EXTENSIONS: skipping ${p} (no manifest.json)`);
+        }
+      } catch (err: any) {
+        console.warn(`[browse] GSTACK_EXTRA_EXTENSIONS: skipping ${p} (${err?.message ?? 'error'})`);
+      }
+    }
+    return valid;
+  }
+
+  /**
    * Get the ref map for external consumers (e.g., /refs endpoint).
    */
   getRefMap(): Array<{ ref: string; role: string; name: string }> {
@@ -634,8 +660,15 @@ export class BrowserManager {
       // (gbrowser / GStack Browser.app). Loading it twice causes a
       // ServiceWorkerState::SetWorkerId DCHECK crash.
       if (!isCustomChromium()) {
-        launchArgs.push(`--disable-extensions-except=${extensionPath}`);
-        launchArgs.push(`--load-extension=${extensionPath}`);
+        // Combine gstack's extension with any user-provided extras (see
+        // GSTACK_EXTRA_EXTENSIONS). Chromium accepts comma-separated paths for
+        // both flags, so both extensions load and neither blocks the other.
+        const allExtensionPaths = [extensionPath, ...this.findExtraExtensionPaths()];
+        launchArgs.push(`--disable-extensions-except=${allExtensionPaths.join(',')}`);
+        launchArgs.push(`--load-extension=${allExtensionPaths.join(',')}`);
+        if (allExtensionPaths.length > 1) {
+          console.log(`[browse] Loading ${allExtensionPaths.length} extensions: ${allExtensionPaths.join(', ')}`);
+        }
       }
       // Auth is provisioned into extension storage after the persistent
       // context starts. Do not write a reusable token to a local file or
@@ -1741,11 +1774,12 @@ export class BrowserManager {
       // (GSTACK_CHROMIUM_ARGS) come last, no-op when unset.
       const launchArgs: string[] = ['--hide-crash-restore-bubble', ...STEALTH_LAUNCH_ARGS, ...buildGStackLaunchArgs(), ...parseExtraChromiumArgs()];
       if (extensionPath) {
-        launchArgs.push(`--disable-extensions-except=${extensionPath}`);
-        launchArgs.push(`--load-extension=${extensionPath}`);
+        const allExtensionPaths = [extensionPath, ...this.findExtraExtensionPaths()];
+        launchArgs.push(`--disable-extensions-except=${allExtensionPaths.join(',')}`);
+        launchArgs.push(`--load-extension=${allExtensionPaths.join(',')}`);
         // Auth is provisioned into extension storage after the context starts.
         // /health deliberately remains public status-only.
-        console.log(`[browse] Handoff: loading extension from ${extensionPath}`);
+        console.log(`[browse] Handoff: loading ${allExtensionPaths.length} extension(s): ${allExtensionPaths.join(', ')}`);
       } else {
         console.log('[browse] Handoff: extension not found — headed mode without side panel');
       }
