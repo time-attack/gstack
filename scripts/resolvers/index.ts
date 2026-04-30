@@ -36,6 +36,7 @@ import { generateMakePdfSetup } from './make-pdf';
 import { generateTasksSectionEmit, generateTasksSectionAggregate } from './tasks-section';
 import { SECTION, SECTION_INDEX } from './sections';
 import { generateRedactTaxonomyTable, generateRedactInvocationBlock } from './redact-doc';
+import { generateAutoplanOutsideVoiceBlock, generateAutoplanOutsideVoicePreflight } from './autoplan';
 
 export const RESOLVERS: Record<string, ResolverValue> = {
   SLUG_EVAL: generateSlugEval,
@@ -102,4 +103,6 @@ export const RESOLVERS: Record<string, ResolverValue> = {
   TASKS_SECTION_AGGREGATE: generateTasksSectionAggregate,
   SECTION,
   SECTION_INDEX,
+  AUTOPLAN_OUTSIDE_VOICE_PREFLIGHT: generateAutoplanOutsideVoicePreflight,
+  AUTOPLAN_OUTSIDE_VOICE_BLOCK: generateAutoplanOutsideVoiceBlock,
 };
