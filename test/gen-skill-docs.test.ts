@@ -2404,9 +2404,9 @@ describe('setup script validation', () => {
     expect(claudeSection).toContain('link_claude_root_skill_alias "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR"');
   });
 
-  test('setup supports --host auto|claude|codex|kiro|opencode', () => {
+  test('setup supports --host auto|claude|codex|kiro|opencode|cursor', () => {
     expect(setupContent).toContain('--host');
-    expect(setupContent).toContain('claude|codex|kiro|factory|opencode|auto');
+    expect(setupContent).toContain('claude|codex|kiro|factory|opencode|cursor|auto');
   });
 
   test('Hermes host banner is explicit that setup is not an installer', () => {
@@ -2422,11 +2422,12 @@ describe('setup script validation', () => {
     expect(hermesBlock).toContain('This writes .hermes/skills/ in this checkout.');
   });
 
-  test('auto mode detects claude, codex, kiro, and opencode binaries', () => {
+  test('auto mode detects claude, codex, kiro, opencode, and cursor binaries', () => {
     expect(setupContent).toContain('command -v claude');
     expect(setupContent).toContain('command -v codex');
     expect(setupContent).toContain('command -v kiro-cli');
     expect(setupContent).toContain('command -v opencode');
+    expect(setupContent).toContain('command -v cursor');
   });
 
   // T1: Sidecar skip guard — prevents .agents/skills/gstack from being linked as a skill
@@ -2466,6 +2467,19 @@ describe('setup script validation', () => {
     expect(setupContent).toContain('qa/templates');
     expect(setupContent).toContain('qa/references');
     expect(setupContent).toContain('dx-hall-of-fame.md');
+  });
+
+  test('setup supports --host cursor with install section and Cursor skill path vars', () => {
+    expect(setupContent).toContain('INSTALL_CURSOR=');
+    expect(setupContent).toContain('CURSOR_SKILLS="$HOME/.cursor/skills"');
+    expect(setupContent).toContain('CURSOR_GSTACK="$CURSOR_SKILLS/gstack"');
+  });
+
+  test('setup installs Cursor skills into a nested gstack runtime root', () => {
+    expect(setupContent).toContain('create_cursor_runtime_root');
+    expect(setupContent).toContain('.cursor/skills');
+    expect(setupContent).toContain('link_cursor_skill_dirs');
+    expect(setupContent).toContain('bun run gen:skill-docs --host cursor');
   });
 
   test('create_agents_sidecar links runtime assets', () => {
