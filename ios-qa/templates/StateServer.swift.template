@@ -207,6 +207,11 @@ public final class StateServer {
                 sendResponse(connection, status: 400, body: "{\"error\":\"invalid type params\"}")
             }
 
+        // MARK: - Dismiss (close sheets, alerts, modals)
+        case ("POST", "/dismiss"):
+            let result = handleDismiss()
+            sendResponse(connection, status: 200, body: result)
+
         // MARK: - Accessibility elements
         case ("GET", "/elements"):
             let elements = captureAccessibilityTree()
@@ -371,6 +376,32 @@ public final class StateServer {
             current = v.superview
         }
         return false
+    }
+
+    // MARK: - Dismiss
+
+    private func handleDismiss() -> String {
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap(\.windows)
+            .first(where: { $0.isKeyWindow }),
+              let rootVC = window.rootViewController else {
+            return "{\"ok\":false,\"error\":\"no root view controller\"}"
+        }
+
+        // Walk the presentation chain to find the topmost presented VC
+        var topVC = rootVC
+        while let presented = topVC.presentedViewController {
+            topVC = presented
+        }
+
+        if topVC == rootVC {
+            return "{\"ok\":false,\"error\":\"nothing to dismiss\"}"
+        }
+
+        topVC.dismiss(animated: true)
+        DebugBridgeNotifier.action("dismiss \(type(of: topVC))")
+        return "{\"ok\":true,\"dismissed\":\"\(type(of: topVC))\"}"
     }
 
     // MARK: - Swipe Injection

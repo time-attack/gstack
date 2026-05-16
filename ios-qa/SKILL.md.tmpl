@@ -40,6 +40,7 @@ Claude Code (this skill — YOU)
         ├── POST /tap                → inject tap at {x, y} pixel coords
         ├── POST /swipe              → inject swipe {fromX, fromY, toX, toY}
         ├── POST /type               → type text into focused field
+        ├── POST /dismiss            → close the topmost sheet/alert/modal
         ├── GET  /device             → device info (model, screen size)
         ├── GET  /state              → list all registered state keys
         ├── GET  /state/{key}        → read @Observable property
@@ -212,6 +213,15 @@ curl -s -6 -X POST "$DEVICE/swipe" -d '{"fromX": 200, "fromY": 600, "toX": 200, 
 # Type into the currently focused text field
 curl -s -6 -X POST "$DEVICE/type" -d '{"text": "hello@test.com"}'
 ```
+
+### Dismiss (close sheets/alerts/modals)
+```bash
+# Programmatically dismiss the topmost presented view controller
+curl -s -6 -X POST "$DEVICE/dismiss"
+# Returns: {"ok": true, "dismissed": "UISheetPresentationController"}
+```
+**Always use `/dismiss` instead of swiping down to close sheets.** Swiping down
+scrolls the sheet's content instead of dismissing it.
 
 ### State Read/Write
 ```bash
@@ -405,6 +415,8 @@ server.registerWrite("StatsVM_calculateStats") { _ in
 - SwiftUI `Button` inside `List` or `Form` cells
 - SwiftUI `Sheet` dismiss/confirm buttons
 - Any SwiftUI button wrapped in host views (UIKitBarItemHost, CellHostingView)
+- **Swiping down to dismiss a sheet** — use `POST /dismiss` instead (swipe scrolls
+  the sheet content instead of dismissing it)
 
 **Rule: ONE build, then pure QA. Never rebuild mid-test.**
 
