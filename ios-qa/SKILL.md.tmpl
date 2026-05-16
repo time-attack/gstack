@@ -85,6 +85,18 @@ Use the **default model** (Opus) only for:
 5. **Only report bugs you can prove.** Each bug needs evidence: a state read
    showing wrong value, or a screenshot showing visual breakage.
 
+6. **NEVER rebuild during QA.** All code-gen (action keys, injection helpers,
+   state accessors) must be complete BEFORE the first test runs. If you discover
+   you need a new state key mid-QA, that means code-gen was incomplete — note it
+   as a limitation, don't rebuild. The QA phase is read-only on the source.
+
+7. **Use action keys over UI taps for state mutations.** Tapping SwiftUI buttons
+   inside List/Form cells is unreliable. Action keys are instant and never fail.
+   Only tap when testing navigation or verifying button existence.
+
+8. **Batch state reads.** Combine multiple `curl` calls into a single Bash
+   invocation. Don't make 5 separate tool calls when one bash script handles all 5.
+
 ## The Agent Loop
 
 This is a **fast agent loop** optimized for speed. Use /elements and /state for
@@ -233,6 +245,46 @@ App-specific accessors go in `<AppSource>/DebugBridgeGenerated/`:
 - `<ClassName>Accessor.swift` — per-class state read/write registrations
 - `DebugBridgeJSON.swift` — serialization helpers
 
+### CRITICAL: Complete Code-Gen FIRST
+
+**Generate ALL accessors before building.** This includes:
+
+1. **Property reads** — every `var` in @Observable classes gets a read key
+2. **Property writes** — every mutable `var` gets a write key
+3. **Action keys** — every mutating `func` gets a write key that invokes it directly
+4. **Data injection** — for any `func addX(item)`, also generate an injection key
+   that accepts CSV params (e.g., `"name,sets,reps,weight,daysAgo"`) so the agent
+   can create test data with specific dates/values without using the UI
+
+**Why this matters:** If you skip action keys, the QA agent will fail to tap
+SwiftUI buttons inside List cells (a known limitation), then need to add keys
+mid-QA, triggering a rebuild cycle. Each rebuild costs ~2 minutes. By front-loading
+ALL keys, the agent does ONE build and never rebuilds during testing.
+
+**Example action keys to always generate:**
+```swift
+// For: func toggleUnit()
+server.registerWrite("ProfileVM_toggleUnit") { _ in instance.toggleUnit(); return true }
+
+// For: func addItem(_ item: Item)  — also generate injection helper
+server.registerWrite("CartVM_addItem") { value in
+    // CSV: "name,price,quantity,daysAgo"
+    let parts = value.split(separator: ",").map(String.init)
+    guard parts.count >= 3 else { return false }
+    // ... parse and create item with optional date offset
+    instance.addItem(item)
+    return true
+}
+
+// For: func calculateStats(from items: [Item])
+server.registerWrite("StatsVM_calculateStats") { _ in
+    instance.calculateStats(from: otherVM.items)
+    return true
+}
+```
+
+**Rule: ONE build, then pure QA. Never rebuild mid-test.**
+
 ## Phase 3: Connect
 
 ```bash
@@ -257,67 +309,96 @@ curl -s -6 "$DEVICE/state"
 
 ## Phase 4: Build Test Plan
 
-Based on source analysis, plan tests:
+Based on source analysis, plan tests. **Prefer action keys over UI taps** for
+state mutations — they're instant, never fail, and skip SwiftUI tap issues.
+Only tap the UI when testing the tap itself (e.g., navigation, button visibility).
 
 ```
 TEST 1: Home screen renders correctly
-  - screenshot → verify hero, categories, products visible
-  
+  - screenshot → verify layout, elements visible
+
 TEST 2: Add to cart flow
   - read CartViewModel_items → should be []
-  - find "Add to Cart" button via /elements
-  - tap it
-  - read CartViewModel_items → should have 1 item
-  - read CartViewModel_total → should match price
+  - POST /state/CartViewModel_addItem with "Widget,9.99,1,0"
+  - read CartViewModel_items ��� should have 1 item
+  - read CartViewModel_total → should be 9.99
 
 TEST 3: Quantity change updates total
-  - add item, read total → T1
-  - increment quantity via UI
+  - inject item via action key, read total → T1
+  - POST /state/CartViewModel_updateQuantity with "itemId,2"
   - read total → T2
-  - assert T2 == T1 * new_quantity (if not → BUG)
+  - assert T2 == T1 * 2 (if not → BUG)
+
+TEST 4: Unit conversion
+  - read ProfileVM_unit → "lbs", read ProfileVM_goal → 10000
+  - POST /state/ProfileVM_toggleUnit (action key)
+  - read ProfileVM_unit → "kg", read ProfileVM_goal → should be ~4535
+  - if goal > 10000 → BUG (multiplied instead of divided)
 ```
+
+**Key principle:** Use action keys to SET UP state for testing. Use UI taps only
+to test the UI itself. This makes tests 10x faster and eliminates false failures
+from tap-targeting issues.
 
 ## Phase 5: Execute — The Agent Loop
 
+**Speed targets:** Most tests should complete in under 30 seconds each.
+A 5-bug app should finish in under 4 minutes total (not 11).
+
 For each test, run the loop:
 
-### 5a. Screenshot + Vision
+### 5a. State-first approach (FAST — no UI interaction needed)
 ```bash
-mkdir -p /tmp/ios-qa
-curl -s -6 "$DEVICE/screenshot" | python3 -c "import sys,json,base64; sys.stdout.buffer.write(base64.b64decode(json.load(sys.stdin)['image']))" > /tmp/ios-qa/screen.png
-```
-Then **Read** `/tmp/ios-qa/screen.png` and analyze what you see.
+DEVICE="http://[TUNNEL_IP]:9999"
 
-### 5b. Get elements
+# Inject test data via action keys (instant, never fails)
+curl -s -6 -X POST "$DEVICE/state/WorkoutVM_addItem" -d 'Squat,3,10,135,0'
+curl -s -6 -X POST "$DEVICE/state/WorkoutVM_addItem" -d 'Bench,3,10,185,3'
+
+# Invoke function under test
+curl -s -6 -X POST "$DEVICE/state/ProfileVM_toggleUnit" -d ''
+
+# Read state — compare actual vs expected
+curl -s -6 "$DEVICE/state/ProfileVM_goalVolume"
+curl -s -6 "$DEVICE/state/WorkoutVM_weeklyVolume"
+```
+
+### 5b. Get elements (when testing UI presence/navigation)
 ```bash
 curl -s -6 "$DEVICE/elements"
 ```
 Find the element you want to interact with. Note its `center.x` and `center.y`.
 
-### 5c. Perform action
+### 5c. Tap only when testing the TAP ITSELF
 ```bash
-# Tap a button
-curl -s -6 -X POST "$DEVICE/tap" -d '{"x": 207, "y": 543}'
+# Navigate between tabs
+curl -s -6 -X POST "$DEVICE/tap" -d '{"x": 115, "y": 822}'
 
-# Or type into a field
+# Type into a focused field
 curl -s -6 -X POST "$DEVICE/type" -d '{"text": "test@example.com"}'
-
-# Or swipe to scroll
-curl -s -6 -X POST "$DEVICE/swipe" -d '{"fromX":200,"fromY":600,"toX":200,"toY":200}'
 ```
 
-### 5d. Verify state
+### 5d. Screenshot only for visual bugs
 ```bash
-curl -s -6 "$DEVICE/state/CartViewModel_total"
-# Compare to expected value
+mkdir -p /tmp/ios-qa
+# Only when checking: layout, overflow, visual state, evidence for report
+curl -s -6 "$DEVICE/screenshot" | python3 -c "import sys,json,base64; sys.stdout.buffer.write(base64.b64decode(json.load(sys.stdin)['image']))" > /tmp/ios-qa/screen.png
 ```
 
-### 5e. Screenshot again to confirm visual state
+### 5e. Batch multiple state checks in one command
 ```bash
-curl -s -6 "$DEVICE/screenshot" | python3 -c "import sys,json,base64; sys.stdout.buffer.write(base64.b64decode(json.load(sys.stdin)['image']))" > /tmp/ios-qa/after.png
+# Check multiple values in a single bash call — faster than separate curls
+DEVICE="http://[TUNNEL_IP]:9999"
+echo "volume: $(curl -s -6 $DEVICE/state/WorkoutVM_weeklyVolume)"
+echo "best: $(curl -s -6 $DEVICE/state/WorkoutVM_personalBest)"
+echo "count: $(curl -s -6 $DEVICE/state/WorkoutVM_workouts_count)"
 ```
 
-### 5f. Loop back to 5a for next action
+### 5f. Move to next test immediately
+Do NOT screenshot between every action. Only screenshot when:
+- First visit to a new screen (baseline)
+- Suspected visual bug
+- Evidence capture for the final report
 
 ## Phase 6: Report
 

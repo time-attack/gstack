@@ -65,15 +65,55 @@ public final class StateServer {
 
     private func handleConnection(_ connection: NWConnection) {
         connection.start(queue: .main)
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, _, error in
+        receiveFullRequest(on: connection, buffer: Data())
+    }
+
+    /// Accumulates data until the full HTTP request (headers + Content-Length body) is received.
+    /// This prevents partial-read bugs where POST bodies are truncated over USB tunnels.
+    private func receiveFullRequest(on connection: NWConnection, buffer: Data) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, isComplete, error in
             Task { @MainActor in
-                guard let self = self, let data = data else {
-                    connection.cancel()
+                guard let self = self else { connection.cancel(); return }
+                guard let data = data, !data.isEmpty else {
+                    if buffer.isEmpty { connection.cancel(); return }
+                    self.handleRequest(buffer, on: connection)
                     return
                 }
-                self.handleRequest(data, on: connection)
+                var accumulated = buffer
+                accumulated.append(data)
+
+                // Check if we have the full request (headers + body based on Content-Length)
+                if let raw = String(data: accumulated, encoding: .utf8),
+                   let headerEnd = raw.range(of: "\r\n\r\n") {
+                    let headers = String(raw[..<headerEnd.lowerBound])
+                    let bodyStartIndex = raw.index(headerEnd.upperBound, offsetBy: 0)
+                    let bodyReceived = raw[bodyStartIndex...].utf8.count
+                    let contentLength = self.parseContentLength(from: headers)
+
+                    if bodyReceived >= contentLength {
+                        // Full request received
+                        self.handleRequest(accumulated, on: connection)
+                        return
+                    }
+                }
+
+                if isComplete {
+                    self.handleRequest(accumulated, on: connection)
+                } else {
+                    self.receiveFullRequest(on: connection, buffer: accumulated)
+                }
             }
         }
+    }
+
+    private func parseContentLength(from headers: String) -> Int {
+        for line in headers.components(separatedBy: "\r\n") {
+            if line.lowercased().hasPrefix("content-length:") {
+                let value = line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)
+                return Int(value) ?? 0
+            }
+        }
+        return 0
     }
 
     private func handleRequest(_ data: Data, on connection: NWConnection) {
@@ -224,20 +264,45 @@ public final class StateServer {
 
         // Find the hit target
         if let target = window.hitTest(point, with: nil) {
-            // Try accessibility activate
-            if target.accessibilityActivate() {
-                DebugBridgeNotifier.action("tap \(Int(x)),\(Int(y)) → \(type(of: target))")
-                return "{\"ok\":true,\"target\":\"\(type(of: target))\",\"label\":\"\(target.accessibilityLabel ?? "")\"}"
+            // Priority 1: UITextField — becomeFirstResponder for keyboard focus
+            if let textField = findTextField(from: target) {
+                textField.becomeFirstResponder()
+                DebugBridgeNotifier.action("tap \(Int(x)),\(Int(y)) → UITextField (focused)")
+                return "{\"ok\":true,\"target\":\"UITextField\",\"focused\":true}"
             }
 
-            // Try as UIControl
+            // Priority 2: UITextView — becomeFirstResponder
+            if let textView = findTextView(from: target) {
+                textView.becomeFirstResponder()
+                DebugBridgeNotifier.action("tap \(Int(x)),\(Int(y)) → UITextView (focused)")
+                return "{\"ok\":true,\"target\":\"UITextView\",\"focused\":true}"
+            }
+
+            // Priority 3: UIControl (buttons, switches, etc)
             if let control = findControl(from: target) {
                 control.sendActions(for: .touchUpInside)
                 DebugBridgeNotifier.action("tap \(Int(x)),\(Int(y)) → \(type(of: control))")
                 return "{\"ok\":true,\"target\":\"\(type(of: control))\",\"label\":\"\(control.accessibilityLabel ?? "")\"}"
             }
 
-            // Try gesture recognizers on the view hierarchy
+            // Priority 4: accessibilityActivate (catches SwiftUI buttons in some cases)
+            if target.accessibilityActivate() {
+                DebugBridgeNotifier.action("tap \(Int(x)),\(Int(y)) → \(type(of: target))")
+                return "{\"ok\":true,\"target\":\"\(type(of: target))\",\"label\":\"\(target.accessibilityLabel ?? "")\"}"
+            }
+
+            // Priority 5: Walk UP the hierarchy looking for any UIControl or activatable view
+            if let activatable = findActivatable(from: target) {
+                if let control = activatable as? UIControl {
+                    control.sendActions(for: .touchUpInside)
+                } else {
+                    activatable.accessibilityActivate()
+                }
+                DebugBridgeNotifier.action("tap \(Int(x)),\(Int(y)) → \(type(of: activatable)) (ancestor)")
+                return "{\"ok\":true,\"target\":\"\(type(of: activatable))\",\"method\":\"ancestor\",\"label\":\"\(activatable.accessibilityLabel ?? "")\"}"
+            }
+
+            // Priority 6: Gesture recognizers
             if activateGestureRecognizer(on: target) {
                 DebugBridgeNotifier.action("tap \(Int(x)),\(Int(y)) → gesture")
                 return "{\"ok\":true,\"target\":\"\(type(of: target))\",\"method\":\"gesture\"}"
@@ -250,10 +315,39 @@ public final class StateServer {
         return "{\"ok\":false,\"error\":\"no hit target at (\(x),\(y))\"}"
     }
 
+    private func findTextField(from view: UIView) -> UITextField? {
+        var current: UIView? = view
+        while let v = current {
+            if let tf = v as? UITextField { return tf }
+            current = v.superview
+        }
+        return nil
+    }
+
+    private func findTextView(from view: UIView) -> UITextView? {
+        var current: UIView? = view
+        while let v = current {
+            if let tv = v as? UITextView { return tv }
+            current = v.superview
+        }
+        return nil
+    }
+
     private func findControl(from view: UIView) -> UIControl? {
         var current: UIView? = view
         while let v = current {
             if let control = v as? UIControl { return control }
+            current = v.superview
+        }
+        return nil
+    }
+
+    private func findActivatable(from view: UIView) -> UIView? {
+        var current: UIView? = view.superview
+        while let v = current {
+            if v is UIControl { return v }
+            if v.accessibilityTraits.contains(.button) { return v }
+            if v.accessibilityTraits.contains(.link) { return v }
             current = v.superview
         }
         return nil
