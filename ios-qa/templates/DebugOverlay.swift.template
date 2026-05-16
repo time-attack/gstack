@@ -2,6 +2,44 @@ import SwiftUI
 
 #if DEBUG
 
+// MARK: - Overlay Window (stays above sheets, alerts, and modals)
+
+/// A passthrough UIWindow that floats above all other content.
+/// Sheets, alerts, and full-screen covers cannot cover this window.
+@MainActor
+public final class DebugOverlayWindow {
+    public static let shared = DebugOverlayWindow()
+    private var window: UIWindow?
+
+    private init() {}
+
+    public func install() {
+        guard window == nil else { return }
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first else { return }
+
+        let overlayWindow = PassthroughWindow(windowScene: scene)
+        overlayWindow.windowLevel = .alert + 1
+        overlayWindow.backgroundColor = .clear
+        overlayWindow.isHidden = false
+
+        let hostingController = UIHostingController(rootView: DebugOverlayView())
+        hostingController.view.backgroundColor = .clear
+        overlayWindow.rootViewController = hostingController
+
+        self.window = overlayWindow
+    }
+}
+
+/// A UIWindow that passes all touches through to the windows below it.
+private class PassthroughWindow: UIWindow {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        // Always return nil so touches pass through to the app below
+        return nil
+    }
+}
+
 // MARK: - Debug Overlay View
 
 public struct DebugOverlayView: View {
@@ -237,7 +275,7 @@ public enum DebugBridgeNotifier {
     }
 }
 
-// MARK: - View Extension
+// MARK: - View Extension (legacy — still works but prefer DebugOverlayWindow.shared.install())
 
 public extension View {
     func debugBridgeOverlay() -> some View {
