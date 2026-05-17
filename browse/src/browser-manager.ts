@@ -806,7 +806,10 @@ export class BrowserManager {
       userAgent: this.customUserAgent || customUA,
       // Auto-answer HTTP basic-auth (401) challenges (GSTACK_HTTP_CREDENTIALS).
       ...(parseHttpCredentials() ? { httpCredentials: parseHttpCredentials() } : {}),
-      ...(executablePath ? { executablePath } : {}),
+      // Playwright 1.49+ defaults headless:true to chrome-headless-shell, which
+      // cannot load Chrome extensions. Explicitly pin the full Chromium binary
+      // so future Playwright upgrades don't silently break /open-gstack-browser.
+      executablePath: executablePath || chromium.executablePath(),
       ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
       ignoreDefaultArgs: STEALTH_IGNORE_DEFAULT_ARGS,
     });
