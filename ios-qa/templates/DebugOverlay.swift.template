@@ -42,6 +42,49 @@ class PassthroughWindow: UIWindow {
 
 // MARK: - Debug Overlay View
 
+struct TapRipple: Identifiable {
+    let id = UUID()
+    let x: CGFloat
+    let y: CGFloat
+}
+
+struct TapRippleView: View {
+    let ripple: TapRipple
+    let onComplete: () -> Void
+    @State private var ringScale: CGFloat = 0.1
+    @State private var ringOpacity: Double = 0.9
+    @State private var dotOpacity: Double = 1.0
+
+    var body: some View {
+        ZStack {
+            // Expanding ring
+            Circle()
+                .strokeBorder(Color.cyan.opacity(ringOpacity), lineWidth: 2)
+                .frame(width: 56, height: 56)
+                .scaleEffect(ringScale)
+
+            // Center dot
+            Circle()
+                .fill(Color.cyan.opacity(dotOpacity))
+                .frame(width: 10, height: 10)
+        }
+        .position(x: ripple.x, y: ripple.y)
+        .allowsHitTesting(false)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.45)) {
+                ringScale = 1.0
+                ringOpacity = 0
+            }
+            withAnimation(.easeIn(duration: 0.15)) {
+                dotOpacity = 0
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                onComplete()
+            }
+        }
+    }
+}
+
 public struct DebugOverlayView: View {
     @State private var isConnected = false
     @State private var lastAction = ""
@@ -49,6 +92,7 @@ public struct DebugOverlayView: View {
     @State private var gradientRotation: Double = 0
     @State private var borderWidth: CGFloat = 5
     @State private var pulseScale: CGFloat = 1.0
+    @State private var tapRipples: [TapRipple] = []
 
     public init() {}
 
@@ -131,6 +175,13 @@ public struct DebugOverlayView: View {
                         )
                 }
 
+                // Tap ripple animations
+                ForEach(tapRipples) { ripple in
+                    TapRippleView(ripple: ripple) {
+                        tapRipples.removeAll { $0.id == ripple.id }
+                    }
+                }
+
                 // Bottom-left compact pill (doesn't block toolbar buttons)
                 VStack {
                     Spacer()
@@ -204,6 +255,12 @@ public struct DebugOverlayView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .debugBridgeTap)) { notification in
+            if let x = notification.userInfo?["x"] as? CGFloat,
+               let y = notification.userInfo?["y"] as? CGFloat {
+                tapRipples.append(TapRipple(x: x, y: y))
+            }
+        }
     }
 
     private func getSafeAreaTop() -> CGFloat {
@@ -230,6 +287,7 @@ extension Notification.Name {
     public static let debugBridgeDisconnected = Notification.Name("debugBridgeDisconnected")
     public static let debugBridgeAction = Notification.Name("debugBridgeAction")
     public static let debugBridgeStateMutation = Notification.Name("debugBridgeStateMutation")
+    public static let debugBridgeTap = Notification.Name("debugBridgeTap")
 }
 
 // MARK: - Notifier
@@ -246,6 +304,9 @@ public enum DebugBridgeNotifier {
     }
     public static func stateMutation() {
         NotificationCenter.default.post(name: .debugBridgeStateMutation, object: nil)
+    }
+    public static func tap(at point: CGPoint) {
+        NotificationCenter.default.post(name: .debugBridgeTap, object: nil, userInfo: ["x": point.x, "y": point.y])
     }
 }
 
