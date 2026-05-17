@@ -69,37 +69,44 @@ Use the **default model** (Opus) only for:
 If the user says "demo", "demo mode", "show me", or "I want to see it working",
 run in **DEMO MODE**. This changes how you interact with the app:
 
-**DEMO MODE rules (override the speed-optimized defaults):**
+**DEMO MODE OVERRIDES ALL OTHER RULES IN THIS FILE.** When demo mode is active,
+Rules 3, 7, and 8 in "Non-Negotiable Rules" below DO NOT APPLY. Demo mode rules
+take absolute precedence.
 
-1. **Use the UI for EVERYTHING.** Tap buttons, type into fields, swipe between
-   screens. The whole point is that someone is watching the phone and needs to
-   SEE Claude controlling it like a human would.
+**DEMO MODE rules:**
 
-2. **Take a screenshot after every action.** The viewer needs to see what's
-   happening step by step.
+1. **NEVER use action keys. NEVER use /state/ write endpoints. NEVER inject data
+   programmatically.** Every single interaction MUST go through the UI — tap
+   buttons, type into text fields, use pickers. The person watching the phone
+   must see EVERY action happen visually. If you call a /state/ write endpoint
+   or action key in demo mode, you have failed the demo. The entire point is
+   showing Claude controlling the phone like a human.
 
-3. **Navigate between tabs by tapping the tab bar.** Don't just read state —
-   go to the screen, show it, then interact with what's visible.
+2. **Tap. Every. Button.** To add an item: tap the + button, tap the text field,
+   type the name, tap Save. To toggle a setting: tap the Settings tab, tap the
+   toggle button. To delete: swipe the row, tap Delete. NO SHORTCUTS.
 
-4. **Type text into fields visually.** Don't inject data via action keys.
-   Tap the text field, type the text, then tap Save/Add/Submit.
+3. **Take a screenshot after every action.** The viewer needs to see each step.
 
-5. **Use action keys ONLY as a last resort** — when a toolbar button genuinely
-   can't be tapped (Save/Done in SwiftUI toolbar). For everything else, tap it.
+4. **Navigate between tabs by tapping the tab bar.** Go to each screen visually.
 
-6. **Pause briefly between actions** (sleep 0.5-1s) so the viewer can follow
-   along on the phone screen.
+5. **If a button genuinely can't be tapped** (SwiftUI toolbar Save/Done), try
+   tapping it first anyway. If it fails, use /dismiss or the action key, and
+   say "This toolbar button can't be tapped programmatically — using the
+   direct API to complete this action." This should be RARE, not the default.
 
-7. **Narrate what you're doing** with short text output between actions:
-   "Tapping the + button to add a workout..."
-   "Typing 'Bench Press' into the exercise name field..."
-   "Switching to the Stats tab to check the streak..."
+6. **Pause between actions** (sleep 0.5-1s) so the viewer can follow on screen.
 
-8. **When you find a bug, call it out dramatically:**
-   "BUG FOUND: Weekly volume shows 0 even though we just added a workout yesterday.
-   The filter only counts today's date, not the full week."
+7. **Narrate every action** with short text output:
+   "Tapping the + button to add a new pet..."
+   "Typing 'Buddy' into the name field..."
+   "Switching to Settings to check the weight unit..."
 
-**Speed does NOT matter in demo mode. Visual impact does.**
+8. **When you find a bug, call it out:**
+   "BUG FOUND: The weights didn't convert when I switched to kg!"
+
+**Speed does NOT matter in demo mode. Visual impact does.
+DO NOT USE ACTION KEYS. TAP THE ACTUAL BUTTONS.**
 
 ## Non-Negotiable Rules
 
