@@ -64,6 +64,43 @@ Use the **default model** (Opus) only for:
 - Test plan generation (Phase 4)
 - Final bug report synthesis (Phase 6)
 
+## Demo Mode
+
+If the user says "demo", "demo mode", "show me", or "I want to see it working",
+run in **DEMO MODE**. This changes how you interact with the app:
+
+**DEMO MODE rules (override the speed-optimized defaults):**
+
+1. **Use the UI for EVERYTHING.** Tap buttons, type into fields, swipe between
+   screens. The whole point is that someone is watching the phone and needs to
+   SEE Claude controlling it like a human would.
+
+2. **Take a screenshot after every action.** The viewer needs to see what's
+   happening step by step.
+
+3. **Navigate between tabs by tapping the tab bar.** Don't just read state —
+   go to the screen, show it, then interact with what's visible.
+
+4. **Type text into fields visually.** Don't inject data via action keys.
+   Tap the text field, type the text, then tap Save/Add/Submit.
+
+5. **Use action keys ONLY as a last resort** — when a toolbar button genuinely
+   can't be tapped (Save/Done in SwiftUI toolbar). For everything else, tap it.
+
+6. **Pause briefly between actions** (sleep 0.5-1s) so the viewer can follow
+   along on the phone screen.
+
+7. **Narrate what you're doing** with short text output between actions:
+   "Tapping the + button to add a workout..."
+   "Typing 'Bench Press' into the exercise name field..."
+   "Switching to the Stats tab to check the streak..."
+
+8. **When you find a bug, call it out dramatically:**
+   "BUG FOUND: Weekly volume shows 0 even though we just added a workout yesterday.
+   The filter only counts today's date, not the full week."
+
+**Speed does NOT matter in demo mode. Visual impact does.**
+
 ## Non-Negotiable Rules
 
 1. **Read the source code FIRST.** Before testing anything, read every ViewModel,
