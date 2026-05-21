@@ -26,6 +26,9 @@ final class DebugBridgeManager {
         server.start()
         self.server = server
 
+        // Install the overlay window ABOVE all other content (sheets, alerts, modals)
+        DebugOverlayWindow.shared.install()
+
         DebugBridgeNotifier.action("state server started")
         print("[iStack] StateServer started on port 9999")
     }

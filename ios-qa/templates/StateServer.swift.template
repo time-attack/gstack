@@ -207,6 +207,11 @@ public final class StateServer {
                 sendResponse(connection, status: 400, body: "{\"error\":\"invalid type params\"}")
             }
 
+        // MARK: - Dismiss (close sheets, alerts, modals)
+        case ("POST", "/dismiss"):
+            let result = handleDismiss()
+            sendResponse(connection, status: 200, body: result)
+
         // MARK: - Accessibility elements
         case ("GET", "/elements"):
             let elements = captureAccessibilityTree()
@@ -226,18 +231,22 @@ public final class StateServer {
     // MARK: - Screenshot Capture
 
     private func captureScreenshot() -> String {
-        guard let window = UIApplication.shared.connectedScenes
+        guard let scene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
-            .flatMap(\.windows)
-            .first(where: { $0.isKeyWindow }) else {
+            .first,
+              let keyWindow = scene.windows.first(where: { $0.isKeyWindow && !($0 is PassthroughWindow) }) else {
             return ""
         }
 
-        let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
+        // Render ALL windows in the scene (sorted by windowLevel) so the
+        // DebugOverlay window (which sits above sheets/alerts) is captured too.
+        let allWindows = scene.windows.sorted { $0.windowLevel.rawValue < $1.windowLevel.rawValue }
+
+        let renderer = UIGraphicsImageRenderer(bounds: keyWindow.bounds)
         let image = renderer.image { _ in
-            // drawHierarchy captures the actual rendered pixels including SwiftUI content.
-            // layer.render() only captures CALayer content and misses SwiftUI on newer iOS.
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            for window in allWindows {
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
         }
 
         guard let data = image.pngData() else { return "" }
@@ -254,11 +263,12 @@ public final class StateServer {
         }
 
         let point = CGPoint(x: x, y: y)
+        DebugBridgeNotifier.tap(at: point)
 
         guard let window = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
             .flatMap(\.windows)
-            .first(where: { $0.isKeyWindow }) else {
+            .first(where: { $0.isKeyWindow && !($0 is PassthroughWindow) }) else {
             return "{\"ok\":false,\"error\":\"no key window\"}"
         }
 
@@ -369,6 +379,32 @@ public final class StateServer {
         return false
     }
 
+    // MARK: - Dismiss
+
+    private func handleDismiss() -> String {
+        guard let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap(\.windows)
+            .first(where: { $0.isKeyWindow }),
+              let rootVC = window.rootViewController else {
+            return "{\"ok\":false,\"error\":\"no root view controller\"}"
+        }
+
+        // Walk the presentation chain to find the topmost presented VC
+        var topVC = rootVC
+        while let presented = topVC.presentedViewController {
+            topVC = presented
+        }
+
+        if topVC == rootVC {
+            return "{\"ok\":false,\"error\":\"nothing to dismiss\"}"
+        }
+
+        topVC.dismiss(animated: true)
+        DebugBridgeNotifier.action("dismiss \(type(of: topVC))")
+        return "{\"ok\":true,\"dismissed\":\"\(type(of: topVC))\"}"
+    }
+
     // MARK: - Swipe Injection
 
     private func handleSwipe(body: String) -> String? {
@@ -383,7 +419,7 @@ public final class StateServer {
         guard let window = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
             .flatMap(\.windows)
-            .first(where: { $0.isKeyWindow }) else {
+            .first(where: { $0.isKeyWindow && !($0 is PassthroughWindow) }) else {
             return "{\"ok\":false,\"error\":\"no key window\"}"
         }
 
@@ -454,7 +490,7 @@ public final class StateServer {
         guard let window = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
             .flatMap(\.windows)
-            .first(where: { $0.isKeyWindow }) else {
+            .first(where: { $0.isKeyWindow && !($0 is PassthroughWindow) }) else {
             return "[]"
         }
 

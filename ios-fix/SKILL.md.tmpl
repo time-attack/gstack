@@ -63,6 +63,63 @@ Claude Code (this skill — YOU)
 
 5. **Report what you did.** Output a clear before/after with evidence.
 
+## Phase 0: Connect to Device (Do This First)
+
+Before reading any source, connect to the device and capture the bug state live.
+This gives you a "before" screenshot and confirms the bug is reproducible.
+
+### 0a. Get the tunnel IP (check session cache first)
+
+```bash
+# Try session cache first — instant
+CACHED=$(cat ~/.gstack/ios-qa-session.json 2>/dev/null)
+if [ -n "$CACHED" ]; then
+  TUNNEL_IP=$(echo "$CACHED" | python3 -c "import sys,json; print(json.load(sys.stdin)['tunnelIP'])")
+  DEVICE_ID=$(echo "$CACHED" | python3 -c "import sys,json; print(json.load(sys.stdin)['deviceId'])")
+  echo "Using cached device: $DEVICE_ID, IP: $TUNNEL_IP"
+fi
+
+# Verify health — if stale, rediscover
+DEVICE_URL="http://[$TUNNEL_IP]:9999"
+HEALTH=$(curl -s -6 --max-time 3 "$DEVICE_URL/health" 2>/dev/null)
+if echo "$HEALTH" | grep -q '"ok"'; then
+  echo "Device connected ✓"
+else
+  echo "Cache stale — rediscovering device..."
+  DEVICE_ID=$(xcrun devicectl list devices 2>&1 | grep "connected" | awk '{print $(NF-2)}')
+  TUNNEL_IP=$(xcrun devicectl device info details --device "$DEVICE_ID" 2>&1 | grep tunnelIPAddress | awk '{print $2}')
+  DEVICE_URL="http://[$TUNNEL_IP]:9999"
+  curl -s -6 "$DEVICE_URL/health"
+fi
+```
+
+### 0b. Take a "before" screenshot — capture the bug live
+
+```bash
+mkdir -p /tmp/ios-fix
+curl -s -6 "$DEVICE_URL/screenshot" \
+  | python3 -c "import sys,json,base64; sys.stdout.buffer.write(base64.b64decode(json.load(sys.stdin)['image']))" \
+  > /tmp/ios-fix/before.png
+```
+
+**Read `/tmp/ios-fix/before.png`** — describe what you see. Confirm the bug is
+visible in the current state. If the bug requires a specific UI interaction to
+trigger, navigate there now using `/tap`, `/type`, `/state` writes to reproduce it,
+then take another screenshot.
+
+### 0c. Capture the broken state value
+
+```bash
+# Read the state key(s) that show the wrong value
+curl -s -6 "$DEVICE_URL/state"
+# Then read the specific key from the bug report:
+curl -s -6 "$DEVICE_URL/state/<relevant_key>"
+```
+
+Record the **wrong value** — you'll compare against this after the fix.
+
+---
+
 ## Phase 1: Understand the Bug
 
 Read the bug report. Extract:
@@ -138,23 +195,66 @@ curl -s -6 "$DEVICE_URL/health"
 
 ## Phase 4: Verify the Fix
 
-Reproduce the exact steps from the bug report, then verify state:
+Reconnect (tunnel IP may have changed after relaunch), then reproduce and verify:
 
 ```bash
-# Example: reproduce the bug steps
-curl -s -6 "$DEVICE_URL/elements"
-curl -s -6 -X POST "$DEVICE_URL/tap" -d '{"x": 200, "y": 450}'
+# Refresh tunnel IP after relaunch
+TUNNEL_IP=$(xcrun devicectl device info details --device "$DEVICE_ID" 2>&1 | grep tunnelIPAddress | awk '{print $2}')
+DEVICE_URL="http://[$TUNNEL_IP]:9999"
 
-# Verify state is now correct
-curl -s -6 "$DEVICE_URL/state/CartViewModel_total"
-# Should now show the correct value
-
-# Screenshot for evidence
-mkdir -p /tmp/ios-fix
-curl -s -6 "$DEVICE_URL/screenshot" | python3 -c "import sys,json,base64; sys.stdout.buffer.write(base64.b64decode(json.load(sys.stdin)['image']))" > /tmp/ios-fix/after-fix.png
+# Wait for app to stabilize
+sleep 2
+curl -s -6 "$DEVICE_URL/health"
 ```
 
-Then **Read** `/tmp/ios-fix/after-fix.png` to visually confirm.
+### 4a. Navigate to the bug location and reproduce the trigger
+
+Use the same action keys / taps / state writes from Phase 0 to get back to the
+same state that showed the bug. Then trigger the failing action:
+
+```bash
+# Reset to same starting state
+curl -s -6 -X POST "$DEVICE_URL/state/<setup_key>" -d '<setup_value>'
+
+# Trigger the action that was broken
+curl -s -6 -X POST "$DEVICE_URL/state/<action_key>" -d '<trigger>'
+```
+
+### 4b. Read state — compare before vs after
+
+```bash
+# Read the key that was wrong before
+curl -s -6 "$DEVICE_URL/state/<relevant_key>"
+```
+
+Compare against the **wrong value** captured in Phase 0. It should now be correct.
+If it's still wrong, your fix didn't address the root cause — re-analyze.
+
+### 4c. Take the "after" screenshot
+
+```bash
+curl -s -6 "$DEVICE_URL/screenshot" \
+  | python3 -c "import sys,json,base64; sys.stdout.buffer.write(base64.b64decode(json.load(sys.stdin)['image']))" \
+  > /tmp/ios-fix/after.png
+```
+
+**Read `/tmp/ios-fix/after.png`** — visually confirm the UI now shows correct data.
+Describe specifically what changed vs the before screenshot.
+
+### 4d. Take screenshots of adjacent screens (regression check)
+
+For each screen that could be affected by the fix, navigate there and screenshot:
+
+```bash
+# Navigate to adjacent screen via tab tap or action key
+curl -s -6 -X POST "$DEVICE_URL/tap" -d '{"x": <tab_x>, "y": <tab_y>}'
+sleep 0.5
+curl -s -6 "$DEVICE_URL/screenshot" \
+  | python3 -c "import sys,json,base64; sys.stdout.buffer.write(base64.b64decode(json.load(sys.stdin)['image']))" \
+  > /tmp/ios-fix/regression-check.png
+```
+
+**Read** the regression screenshot. Confirm nothing else broke.
 
 ## Phase 5: Report
 
@@ -183,10 +283,14 @@ Output a structured fix report:
 2. [action taken]
 
 **State before fix:** [key] = [wrong value]
-**State after fix:** [key] = [correct value]
-**Screenshot:** /tmp/ios-fix/after-fix.png
+**State after fix:**  [key] = [correct value]
 
-### Status: VERIFIED FIXED
+**Before:** /tmp/ios-fix/before.png — [describe what was visually wrong]
+**After:**  /tmp/ios-fix/after.png  — [describe what is now correct]
+
+**Regression check:** /tmp/ios-fix/regression-check.png — [describe adjacent screens look fine]
+
+### Status: VERIFIED FIXED ✓
 ```
 
 ## Error Handling
