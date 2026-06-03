@@ -2404,9 +2404,9 @@ describe('setup script validation', () => {
     expect(claudeSection).toContain('link_claude_root_skill_alias "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR"');
   });
 
-  test('setup supports --host auto|claude|codex|kiro|opencode|cursor|slate', () => {
+  test('setup supports --host auto|claude|codex|kiro|opencode|cursor|slate|qoder', () => {
     expect(setupContent).toContain('--host');
-    expect(setupContent).toContain('claude|codex|kiro|factory|opencode|cursor|slate|auto');
+    expect(setupContent).toContain('claude|codex|kiro|factory|opencode|cursor|slate|qoder|auto');
   });
 
   test('Hermes host banner is explicit that setup is not an installer', () => {
