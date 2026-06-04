@@ -73,7 +73,7 @@ export function restrictFilePermissions(filePath: string): void {
       execFileSync(
         'icacls',
         [filePath, '/inheritance:r', '/grant:r', `${user}:(F)`],
-        { stdio: 'ignore' },
+        { stdio: 'ignore', windowsHide: true },
       );
     } catch (err) {
       warnIcaclsFailure(filePath, err);
@@ -103,7 +103,7 @@ export function restrictDirectoryPermissions(dirPath: string): void {
       execFileSync(
         'icacls',
         [dirPath, '/inheritance:r', '/grant:r', `${user}:(OI)(CI)(F)`],
-        { stdio: 'ignore' },
+        { stdio: 'ignore', windowsHide: true },
       );
     } catch (err) {
       warnIcaclsFailure(dirPath, err);
