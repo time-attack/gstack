@@ -22,6 +22,7 @@ import { emitActivity } from './activity';
 import { validateNavigationUrl } from './url-validation';
 import { TabSession, type RefEntry } from './tab-session';
 import { resolveChromiumProfile, cleanSingletonLocks } from './config';
+import { parseExtraChromiumArgs, parseHttpCredentials } from './launch-overrides';
 import { withCdpSession } from './cdp-bridge';
 import type { MemorySnapshot, MemoryStructureStats, MemoryTabSnapshot, MemoryProcess } from './memory-snapshot';
 import { isTrustedGstackExtensionWorkerUrl } from './extension-identity';
@@ -505,12 +506,21 @@ export class BrowserManager {
       console.log(`[browse] Extensions loaded from: ${extensionsDir}`);
     }
 
+    // User-supplied extra Chromium flags (GSTACK_CHROMIUM_ARGS), no-op when unset.
+    launchArgs.push(...parseExtraChromiumArgs());
+
     const contextOptions: BrowserContextOptions = {
       viewport: { width: this.currentViewport.width, height: this.currentViewport.height },
       deviceScaleFactor: this.deviceScaleFactor,
     };
     if (this.customUserAgent) {
       contextOptions.userAgent = this.customUserAgent;
+    }
+    // Auto-answer HTTP basic-auth (401) challenges (GSTACK_HTTP_CREDENTIALS),
+    // undefined when unset.
+    const headlessHttpCredentials = parseHttpCredentials();
+    if (headlessHttpCredentials) {
+      contextOptions.httpCredentials = headlessHttpCredentials;
     }
 
     if (extensionsDir) {
@@ -615,6 +625,8 @@ export class BrowserManager {
       // empty-fallback returns native), so this is safe on stock Playwright
       // Chromium too.
       ...buildGStackLaunchArgs(),
+      // User-supplied extra Chromium flags (GSTACK_CHROMIUM_ARGS), no-op when unset.
+      ...parseExtraChromiumArgs(),
     ];
     if (extensionPath) {
       // Skip --load-extension when running against a custom Chromium build
@@ -739,6 +751,8 @@ export class BrowserManager {
       args: launchArgs,
       viewport: null,  // Use browser's default viewport (real window size)
       userAgent: this.customUserAgent || customUA,
+      // Auto-answer HTTP basic-auth (401) challenges (GSTACK_HTTP_CREDENTIALS).
+      ...(parseHttpCredentials() ? { httpCredentials: parseHttpCredentials() } : {}),
       ...(executablePath ? { executablePath } : {}),
       ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
       ignoreDefaultArgs: STEALTH_IGNORE_DEFAULT_ARGS,
@@ -1723,8 +1737,9 @@ export class BrowserManager {
       const { STEALTH_LAUNCH_ARGS, buildGStackLaunchArgs } = await import('./stealth');
       // Same blink-level stealth flags as launch()/launchHeaded(). Without
       // STEALTH_LAUNCH_ARGS the handed-off browser kept the AutomationControlled
-      // tell that the other two paths strip.
-      const launchArgs: string[] = ['--hide-crash-restore-bubble', ...STEALTH_LAUNCH_ARGS, ...buildGStackLaunchArgs()];
+      // tell that the other two paths strip. User-supplied extras
+      // (GSTACK_CHROMIUM_ARGS) come last, no-op when unset.
+      const launchArgs: string[] = ['--hide-crash-restore-bubble', ...STEALTH_LAUNCH_ARGS, ...buildGStackLaunchArgs(), ...parseExtraChromiumArgs()];
       if (extensionPath) {
         launchArgs.push(`--disable-extensions-except=${extensionPath}`);
         launchArgs.push(`--load-extension=${extensionPath}`);
@@ -1750,6 +1765,8 @@ export class BrowserManager {
         chromiumSandbox: shouldEnableChromiumSandbox(),
         args: launchArgs,
         viewport: null,
+        // Auto-answer HTTP basic-auth (401) challenges (GSTACK_HTTP_CREDENTIALS).
+        ...(parseHttpCredentials() ? { httpCredentials: parseHttpCredentials() } : {}),
         ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
         ignoreDefaultArgs: STEALTH_IGNORE_DEFAULT_ARGS,
         timeout: 15000,
