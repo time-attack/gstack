@@ -23,6 +23,7 @@ bin/gstack-global-discover*
 .pi/
 .hermes/
 .gbrain/
+.agy/
 .gbrain-source
 .context/
 extension/.auth.json
