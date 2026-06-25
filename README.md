@@ -122,6 +122,7 @@ Or target a specific agent with `./setup --host <name>`:
 | Hermes | `--host hermes` | Prints integration instructions; `bun run gen:skill-docs --host hermes` writes `.hermes/skills/` |
 | Pi | `--host pi` | Prints integration instructions; `bun run gen:skill-docs --host pi` writes `.pi/skills/` |
 | GBrain (mod) | `--host gbrain` | `~/.gbrain/skills/gstack-*/` |
+| Antigravity | `--host agy` | `~/.gemini/config/skills/gstack-*/` |
 
 **Want to add support for another agent?** See [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md).
 It's one TypeScript config file, zero code changes.
