@@ -584,7 +584,11 @@ async function sendCommand(state: ServerState, command: string, args: string[], 
       process.exit(1);
     }
     // Connection error — server may have crashed, OR may just be busy.
-    if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET' || err.message?.includes('fetch failed')) {
+    // Bun's fetch throws PascalCase codes ('ConnectionRefused', 'ConnectionReset')
+    // with message 'Unable to connect...' instead of Node's ECONNREFUSED family
+    // (repro: bun -e "fetch('http://127.0.0.1:1').catch(e=>console.log(e.code))").
+    if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET' || err.message?.includes('fetch failed')
+        || err.code === 'ConnectionRefused' || err.code === 'ConnectionReset' || err.message?.includes('Unable to connect')) {
       const oldState = readState();
       // #1781 busy-vs-dead: a single-threaded daemon under beacon/extension load
       // can briefly stop answering HTTP while still alive. Before declaring a
