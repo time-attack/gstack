@@ -5,6 +5,63 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
+export type GeminiStreamParse = {
+  output: string;
+  tokens: { input: number; output: number };
+  toolCalls: number;
+  modelUsed?: string;
+};
+
+/**
+ * Parse gemini NDJSON stream events (exported for unit tests).
+ *
+ * Current CLI (`--output-format stream-json`) emits:
+ *   init  → model
+ *   message { role, content, delta? } → concat assistant content
+ *   tool_use → increment toolCalls
+ *   result { stats: { input_tokens, output_tokens } } → tokens
+ *
+ * Legacy shape (still accepted):
+ *   message { text } → concat text
+ *   result { usage: { input_token_count, output_token_count } } → tokens
+ */
+export function parseGeminiStreamJson(raw: string): GeminiStreamParse {
+  let output = '';
+  let input = 0;
+  let out = 0;
+  let toolCalls = 0;
+  let modelUsed: string | undefined;
+  for (const line of raw.split('\n')) {
+    const s = line.trim();
+    if (!s) continue;
+    try {
+      const obj = JSON.parse(s);
+      if (obj.type === 'init') {
+        if (typeof obj.model === 'string' && obj.model) modelUsed = obj.model;
+      } else if (obj.type === 'message') {
+        // Current CLI: content + role. Role guard is required — the CLI echoes
+        // the user prompt as role:'user', which must not land in output.
+        if (obj.role === 'assistant' && typeof obj.content === 'string') {
+          output += obj.content;
+        } else if (typeof obj.text === 'string' && obj.role !== 'user') {
+          // Legacy text field (no role, or assistant).
+          output += obj.text;
+        }
+      } else if (obj.type === 'tool_use') {
+        toolCalls += 1;
+      } else if (obj.type === 'result') {
+        const u = obj.usage ?? obj.stats ?? {};
+        input += u.input_token_count ?? u.input_tokens ?? u.prompt_tokens ?? 0;
+        out += u.output_token_count ?? u.output_tokens ?? u.completion_tokens ?? 0;
+        if (typeof obj.model === 'string' && obj.model) modelUsed = obj.model;
+      }
+    } catch {
+      // skip malformed lines
+    }
+  }
+  return { output, tokens: { input, output: out }, toolCalls, modelUsed };
+}
+
 /**
  * Gemini adapter — wraps the `gemini` CLI.
  *
@@ -48,13 +105,23 @@ export class GeminiAdapter implements ProviderAdapter {
         encoding: 'utf-8',
         maxBuffer: 32 * 1024 * 1024,
       });
-      const parsed = this.parseStreamJson(out);
+      const parsed = parseGeminiStreamJson(out);
+      const modelUsed = parsed.modelUsed || opts.model || 'gemini-2.5-pro';
+      // Empty-success is indistinguishable from a healthy cheap run in the
+      // comparison table — never report it as a $0 success row (#2159).
+      if (!parsed.output.trim()) {
+        return this.emptyResult(
+          Date.now() - start,
+          { code: 'unknown', reason: 'empty output from gemini CLI (exit 0)' },
+          modelUsed,
+        );
+      }
       return {
         output: parsed.output,
         tokens: parsed.tokens,
         durationMs: Date.now() - start,
         toolCalls: parsed.toolCalls,
-        modelUsed: parsed.modelUsed || opts.model || 'gemini-2.5-pro',
+        modelUsed,
       };
     } catch (err: unknown) {
       const durationMs = Date.now() - start;
@@ -75,41 +142,6 @@ export class GeminiAdapter implements ProviderAdapter {
 
   estimateCost(tokens: { input: number; output: number; cached?: number }, model?: string): number {
     return estimateCostUsd(tokens, model ?? 'gemini-2.5-pro');
-  }
-
-  /**
-   * Parse gemini NDJSON stream events:
-   *   init  → session id (discarded here)
-   *   message { delta: true, text } → concat to output
-   *   tool_use { name } → increment toolCalls
-   *   result { usage: { input_token_count, output_token_count } } → tokens
-   */
-  private parseStreamJson(raw: string): { output: string; tokens: { input: number; output: number }; toolCalls: number; modelUsed?: string } {
-    let output = '';
-    let input = 0;
-    let out = 0;
-    let toolCalls = 0;
-    let modelUsed: string | undefined;
-    for (const line of raw.split('\n')) {
-      const s = line.trim();
-      if (!s) continue;
-      try {
-        const obj = JSON.parse(s);
-        if (obj.type === 'message' && typeof obj.text === 'string') {
-          output += obj.text;
-        } else if (obj.type === 'tool_use') {
-          toolCalls += 1;
-        } else if (obj.type === 'result') {
-          const u = obj.usage ?? {};
-          input += u.input_token_count ?? u.prompt_tokens ?? 0;
-          out += u.output_token_count ?? u.completion_tokens ?? 0;
-          if (obj.model) modelUsed = obj.model;
-        }
-      } catch {
-        // skip malformed lines
-      }
-    }
-    return { output, tokens: { input, output: out }, toolCalls, modelUsed };
   }
 
   private emptyResult(durationMs: number, error: RunResult['error'], model?: string): RunResult {
