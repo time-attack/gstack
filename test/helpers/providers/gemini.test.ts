@@ -1,7 +1,8 @@
 import { describe, test, expect } from 'bun:test';
-import { parseGeminiStreamJson } from './gemini';
+import { parseGeminiStreamJson, resultFromGeminiStream } from './gemini';
 
-// Current CLI shape (gemini ≥ ~1.58): content + role, tokens under result.stats
+// Current CLI shape (gemini ≥ ~0.11 / stream-json): content + role, tokens under result.stats
+// Documented at https://geminicli.com/docs/cli/headless/ and gemini-cli PR #10883.
 const CURRENT_CLI_FIXTURE = [
   '{"type":"init","timestamp":"2026-03-20T15:14:46.455Z","session_id":"test-session-123","model":"gemini-2.5-pro"}',
   '{"type":"message","role":"user","content":"Reply with exactly the word: PONG"}',
@@ -91,5 +92,47 @@ describe('parseGeminiStreamJson', () => {
       '{"type":"result","model":"from-result","stats":{"input_tokens":1,"output_tokens":1}}',
     ].join('\n');
     expect(parseGeminiStreamJson(raw).modelUsed).toBe('from-result');
+  });
+});
+
+describe('resultFromGeminiStream (adapter post-CLI e2e)', () => {
+  test('current CLI fixture → success row with PONG + tokens (not $0)', () => {
+    const result = resultFromGeminiStream(CURRENT_CLI_FIXTURE, { durationMs: 42 });
+    expect(result.error).toBeUndefined();
+    expect(result.output).toBe('PONG');
+    expect(result.tokens.input).toBe(24946);
+    expect(result.tokens.output).toBe(32);
+    expect(result.modelUsed).toBe('gemini-2.5-pro');
+    expect(result.durationMs).toBe(42);
+    // Cost signal: non-zero tokens means estimateCost will not be $0.
+    expect(result.tokens.input + result.tokens.output).toBeGreaterThan(0);
+  });
+
+  test('legacy text-only success still works', () => {
+    const result = resultFromGeminiStream(LEGACY_FIXTURE, { durationMs: 10 });
+    expect(result.error).toBeUndefined();
+    expect(result.output).toBe('hello');
+    expect(result.toolCalls).toBe(1);
+  });
+
+  test('empty exit-0 stream → error row, never silent $0 success (#2159)', () => {
+    const emptySuccess = [
+      '{"type":"init","model":"gemini-2.5-pro"}',
+      '{"type":"message","role":"user","content":"hi"}',
+      '{"type":"result","status":"success","stats":{"input_tokens":0,"output_tokens":0}}',
+    ].join('\n');
+    const result = resultFromGeminiStream(emptySuccess, { durationMs: 5 });
+    expect(result.error).toBeDefined();
+    expect(result.error!.code).toBe('unknown');
+    expect(result.error!.reason).toContain('empty output');
+    expect(result.output).toBe('');
+    expect(result.modelUsed).toBe('gemini-2.5-pro');
+  });
+
+  test('pre-fix bug shape (text field missing, only content) would have been empty — now succeeds', () => {
+    // This is the exact failure mode from #2159: content present, no text.
+    const result = resultFromGeminiStream(CURRENT_CLI_FIXTURE);
+    expect(result.error).toBeUndefined();
+    expect(result.output).toBe('PONG');
   });
 });

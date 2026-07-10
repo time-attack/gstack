@@ -63,6 +63,37 @@ export function parseGeminiStreamJson(raw: string): GeminiStreamParse {
 }
 
 /**
+ * Map a raw stream-json dump to a RunResult, including the empty-success
+ * hardening from #2159. Exported so adapter e2e can exercise the full
+ * post-CLI path without a live gemini binary.
+ */
+export function resultFromGeminiStream(
+  raw: string,
+  opts: { model?: string; durationMs?: number } = {},
+): RunResult {
+  const parsed = parseGeminiStreamJson(raw);
+  const modelUsed = parsed.modelUsed || opts.model || 'gemini-2.5-pro';
+  const durationMs = opts.durationMs ?? 0;
+  if (!parsed.output.trim()) {
+    return {
+      output: '',
+      tokens: { input: 0, output: 0 },
+      durationMs,
+      toolCalls: 0,
+      modelUsed,
+      error: { code: 'unknown', reason: 'empty output from gemini CLI (exit 0)' },
+    };
+  }
+  return {
+    output: parsed.output,
+    tokens: parsed.tokens,
+    durationMs,
+    toolCalls: parsed.toolCalls,
+    modelUsed,
+  };
+}
+
+/**
  * Gemini adapter — wraps the `gemini` CLI.
  *
  * Gemini CLI auth comes from either ~/.config/gemini/ or GOOGLE_API_KEY. Output
@@ -83,9 +114,14 @@ export class GeminiAdapter implements ProviderAdapter {
     const newCfgDir = path.join(os.homedir(), '.gemini');
     const newOauth = path.join(newCfgDir, 'oauth_creds.json');
     const hasCfg = fs.existsSync(legacyCfgDir) || fs.existsSync(newOauth);
-    const hasKey = !!process.env.GOOGLE_API_KEY;
+    // CLI accepts either name; Google AI Studio keys are usually GEMINI_API_KEY.
+    const hasKey = !!(process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY);
     if (!hasCfg && !hasKey) {
-      return { ok: false, reason: 'No Gemini auth found. Log in via `gemini login` or export GOOGLE_API_KEY.' };
+      return {
+        ok: false,
+        reason:
+          'No Gemini auth found. Export GEMINI_API_KEY (or GOOGLE_API_KEY) from https://aistudio.google.com/app/apikey — personal OAuth free-tier is no longer supported by gemini CLI.',
+      };
     }
     return { ok: true };
   }
@@ -104,25 +140,15 @@ export class GeminiAdapter implements ProviderAdapter {
         timeout: opts.timeoutMs,
         encoding: 'utf-8',
         maxBuffer: 32 * 1024 * 1024,
+        env: {
+          ...process.env,
+          // Prefer GEMINI_API_KEY when only that is set (CLI reads both).
+          ...(process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY
+            ? { GOOGLE_API_KEY: process.env.GEMINI_API_KEY }
+            : {}),
+        },
       });
-      const parsed = parseGeminiStreamJson(out);
-      const modelUsed = parsed.modelUsed || opts.model || 'gemini-2.5-pro';
-      // Empty-success is indistinguishable from a healthy cheap run in the
-      // comparison table — never report it as a $0 success row (#2159).
-      if (!parsed.output.trim()) {
-        return this.emptyResult(
-          Date.now() - start,
-          { code: 'unknown', reason: 'empty output from gemini CLI (exit 0)' },
-          modelUsed,
-        );
-      }
-      return {
-        output: parsed.output,
-        tokens: parsed.tokens,
-        durationMs: Date.now() - start,
-        toolCalls: parsed.toolCalls,
-        modelUsed,
-      };
+      return resultFromGeminiStream(out, { model: opts.model, durationMs: Date.now() - start });
     } catch (err: unknown) {
       const durationMs = Date.now() - start;
       const e = err as { code?: string; stderr?: Buffer; signal?: string; message?: string };
@@ -130,7 +156,7 @@ export class GeminiAdapter implements ProviderAdapter {
       if (e.signal === 'SIGTERM' || e.code === 'ETIMEDOUT') {
         return this.emptyResult(durationMs, { code: 'timeout', reason: `exceeded ${opts.timeoutMs}ms` }, opts.model);
       }
-      if (/unauthorized|auth|login|api key/i.test(stderr)) {
+      if (/unauthorized|auth|login|api key|ineligibletier|no longer supported/i.test(stderr)) {
         return this.emptyResult(durationMs, { code: 'auth', reason: stderr.slice(0, 400) }, opts.model);
       }
       if (/rate[- ]?limit|429|quota/i.test(stderr)) {
