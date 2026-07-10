@@ -23,6 +23,26 @@ import { GSTACK_EXTENSION_ID } from '../src/extension-identity';
 const AGENT_SCRIPT = path.join(import.meta.dir, '../src/terminal-agent.ts');
 const BASH = '/bin/bash';
 
+// Bun.spawn PTY support (the `terminal` spawn option) is required for the
+// agent to stream PTY output. On older Bun (< 1.3) the option is silently
+// ignored — proc.terminal is undefined, terminal.write() no-ops, and the
+// round-trip can never produce output. Feature-detect instead of version-
+// sniffing, and SKIP (not fake-pass) the output-dependent test on runtimes
+// that genuinely lack the capability. All auth/handshake/control-frame
+// tests still run everywhere — they don't need a live PTY.
+const BUN_HAS_PTY = (() => {
+  try {
+    const probe = (Bun as any).spawn(['/bin/sh', '-c', 'exit 0'], {
+      terminal: { rows: 2, cols: 2, data() {} },
+    });
+    const has = !!probe.terminal;
+    try { probe.kill(); } catch {}
+    return has;
+  } catch {
+    return false;
+  }
+})();
+
 let stateDir: string;
 let agentProc: any;
 let agentPort: number;
@@ -142,7 +162,11 @@ describe('terminal-agent: /ws gates', () => {
 });
 
 describe('terminal-agent: PTY round-trip via real WebSocket (Cookie auth)', () => {
-  test('binary writes go to PTY stdin, output streams back', async () => {
+  // Skipped when the Bun runtime lacks PTY spawn support (see BUN_HAS_PTY).
+  // Explicit 15s timeout: the test legitimately waits up to 5s for the WS
+  // open plus up to 5s for PTY output, which overflows bun's 5s default and
+  // leaves stale assertions that get mis-attributed to the NEXT test.
+  test.skipIf(!BUN_HAS_PTY)('binary writes go to PTY stdin, output streams back', async () => {
     const cookie = 'rt-token-must-be-at-least-seventeen-chars-long';
     const granted = await grantToken(cookie);
     expect(granted.status).toBe(200);
@@ -194,7 +218,7 @@ describe('terminal-agent: PTY round-trip via real WebSocket (Cookie auth)', () =
     try { ws.close(); } catch {}
     // Give cleanup a moment.
     await Bun.sleep(200);
-  });
+  }, 15000);
 
   test('Sec-WebSocket-Protocol auth path: browser-style upgrade with token in protocol', async () => {
     // This is the path the actual browser extension takes. Cross-port
