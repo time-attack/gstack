@@ -96,10 +96,17 @@ export function resultFromGeminiStream(
 /**
  * Gemini adapter — wraps the `gemini` CLI.
  *
- * Gemini CLI auth comes from either ~/.config/gemini/ or GOOGLE_API_KEY. Output
- * format is NDJSON with `message`/`tool_use`/`result` events when `--output-format
- * stream-json` is requested. This adapter uses a single-response form for simplicity
- * in benchmarks; richer streaming lives in gemini-session-runner.ts.
+ * Auth: GEMINI_API_KEY / GOOGLE_API_KEY (preferred), or ~/.gemini oauth.
+ *   Personal OAuth free-tier is no longer supported by gemini CLI — use an
+ *   AI Studio API key. Antigravity is a separate product/quota path.
+ *
+ * Headless flags always passed:
+ *   --output-format stream-json  — NDJSON events (message/tool_use/result)
+ *   --yolo                       — auto-approve tools (non-interactive)
+ *   --skip-trust                 — trust cwd for this session; required when
+ *                                  workdir is a temp/untrusted folder (benchmarks
+ *                                  use mkdtemp). Without it headless gemini exits
+ *                                  before calling the model.
  */
 export class GeminiAdapter implements ProviderAdapter {
   readonly name = 'gemini';
@@ -129,8 +136,10 @@ export class GeminiAdapter implements ProviderAdapter {
   async run(opts: RunOpts): Promise<RunResult> {
     const start = Date.now();
     // Default to --yolo (non-interactive) and stream-json output so we can parse
-    // tokens + tool calls. Callers can override via extraArgs.
-    const args = ['-p', opts.prompt, '--output-format', 'stream-json', '--yolo'];
+    // tokens + tool calls. --skip-trust is required for headless/temp workdirs
+    // (gemini CLI otherwise exits: "not running in a trusted directory").
+    // Callers can override via extraArgs.
+    const args = ['-p', opts.prompt, '--output-format', 'stream-json', '--yolo', '--skip-trust'];
     if (opts.model) args.push('--model', opts.model);
     if (opts.extraArgs) args.push(...opts.extraArgs);
 
