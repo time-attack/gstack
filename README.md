@@ -48,7 +48,7 @@ Fork it. Improve it. Make it yours. And if you want to hate on free open source 
 
 Open Claude Code and paste this. Claude does the rest.
 
-> Install gstack: run **`git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`** then add a "gstack" section to CLAUDE.md that says to use the /browse skill from gstack for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, and lists the available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /investigate, /document-release, /document-generate, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn. Then ask the user if they also want to add gstack to the current project so teammates get it.
+> Install gstack: run **`git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`** then add a "gstack" section to CLAUDE.md that says to use the /browse skill from gstack for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, and lists the available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /investigate, /bug-report, /document-release, /document-generate, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn. Then ask the user if they also want to add gstack to the current project so teammates get it.
 
 ### Step 2: Team mode — auto-update for shared repos (recommended)
 
@@ -125,6 +125,28 @@ Or target a specific agent with `./setup --host <name>`:
 **Want to add support for another agent?** See [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md).
 It's one TypeScript config file, zero code changes.
 
+### Claude Code Plugin Marketplace
+
+gstack is also available as a [Claude Code plugin](https://code.claude.com/docs/en/plugins). No git clone, no setup script — just install and go.
+
+```bash
+# Step 1: Register the marketplace
+/plugin marketplace add garrytan/gstack
+
+# Step 2: Install the plugin
+/plugin install gstack@garrytan-gstack
+```
+
+Skills are namespaced under the plugin: `/gstack:review`, `/gstack:qa`, `/gstack:office-hours`, etc.
+
+To upgrade:
+
+```bash
+/plugin update gstack@garrytan-gstack
+```
+
+**Plugin install vs. git clone install:** The plugin install gives you all 50+ skills instantly as methodology prompts. The git clone install (Step 1 above) is still the full experience: it builds the `/browse` headless browser binary, registers hook-based safety skills (`/careful`, `/freeze`, `/guard`), and installs the `bin/` helper scripts (telemetry, learnings, redaction, context recovery) at `~/.claude/skills/gstack/` where the skills look for them. In a plugin-only install those helper calls no-op or degrade gracefully — the review/planning methodology still works, but features that shell out to helpers (redaction scans, learnings capture, `/browse` QA) need the git clone install alongside. If you want everything, run both: the plugin for discovery, the clone for the toolchain.
+
 ## See it work
 
 ```
@@ -186,6 +208,7 @@ Each skill feeds into the next. `/office-hours` writes a design doc that `/plan-
 | `/design-consultation` | **Design Partner** | Build a complete design system from scratch. Researches the landscape, proposes creative risks, generates realistic product mockups. |
 | `/review` | **Staff Engineer** | Find the bugs that pass CI but blow up in production. Auto-fixes the obvious ones. Flags completeness gaps. |
 | `/investigate` | **Debugger** | Systematic root-cause debugging. Iron Law: no fixes without investigation. Traces data flow, tests hypotheses, stops after 3 failed fixes. |
+| `/bug-report` | **Incident Reporter** | Turn an already-observed failure into a redacted, maintainer-ready issue draft and implementation handoff. Describe what broke, then run `/bug-report`; it reconstructs the timeline, captures scoped evidence, attempts safe reproduction, and never fixes or publishes without approval. |
 | `/design-review` | **Designer Who Codes** | Same audit as /plan-design-review, then fixes what it finds. Atomic commits, before/after screenshots. |
 | `/devex-review` | **DX Tester** | Live developer experience audit. Actually tests your onboarding: navigates docs, tries the getting started flow, times TTHW, screenshots errors. Compares against `/plan-devex-review` scores — the boomerang that shows if your plan matched reality. |
 | `/design-shotgun` | **Design Explorer** | "Show me options." Generates 4-6 AI mockup variants, opens a comparison board in your browser, collects your feedback, and iterates. Taste memory learns what you like. Repeat until you love something, then hand it to `/design-html`. |
@@ -481,7 +504,7 @@ Use /browse from gstack for all web browsing. Never use mcp__claude-in-chrome__*
 Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review,
 /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy,
 /canary, /benchmark, /browse, /open-gstack-browser, /qa, /qa-only, /design-review,
-/setup-browser-cookies, /setup-deploy, /setup-gbrain, /sync-gbrain, /retro, /investigate,
+/setup-browser-cookies, /setup-deploy, /setup-gbrain, /sync-gbrain, /retro, /investigate, /bug-report,
 /document-release, /document-generate, /codex, /cso, /autoplan, /pair-agent, /careful, /freeze,
 /guard, /unfreeze, /gstack-upgrade, /learn.
 ```

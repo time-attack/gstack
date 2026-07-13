@@ -356,9 +356,22 @@ Layout: a `D<N>` title + a one-line note to reply with a letter (in Conductor th
 
 **One-way / destructive confirmations in prose.** When the decision is a one-way door (irreversible or destructive — delete, force-push, drop, overwrite), prose is a WEAKER gate than the tool, so make it stronger: require an explicit typed confirmation (the exact option letter or word), state plainly what is irreversible, and NEVER proceed on a vague, partial, or ambiguous reply — re-ask instead. Treat silence or "ok"/"sure" without the explicit choice as not-yet-confirmed.
 
+### Tool-call shape (JSON) — schema-critical
+
+The decision brief below is prose for the user; the tool call itself MUST pass a JSON object with `questions` as a true **array of objects** — never a string, never a stringified array. Each question MUST carry a non-empty `options` array. Hosts render the prompt before validating tool args, so a malformed shape (e.g. `questions` emitted as a string, or a question with missing/`null` `options`) can crash the session. If you can't satisfy the schema, fall back to prose per the rule above — do not emit a bad call.
+
+```
+questions: [
+  { header: "...", question: "...", multiSelect: false,
+    options: [ { label: "...", description: "..." }, { label: "...", description: "..." } ] }
+]
+```
+- `questions`: array (not string). 1–4 questions.
+- Each `options`: array of 2–4 `{ label, description }`. Never `null`, never omitted, never empty.
+
 ### Format
 
-Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
+Every AskUserQuestion decision has two parts: a markdown decision brief before the call, then a compact tool_use payload. Do not pack the full brief into the tool's `question` string. Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
 
 ```
 D<N> — <one-line question title>
@@ -390,6 +403,12 @@ Neutral posture: `Recommendation: <default> — this is a taste call, no strong 
 Effort both-scales: when an option involves effort, label both human-team and CC+gstack time, e.g. `(human: ~2 days / CC: ~15 min)`. Makes AI compression visible at decision time.
 
 Net line closes the tradeoff. Per-skill instructions may add stricter rules.
+
+Tool payload rules:
+- `question` is only the decision prompt: one sentence, no newlines, <=80 chars.
+- Background, regrounding, ELI10, stakes, recommendation, pros/cons, and trade-off tables stay in the markdown brief before the tool call.
+- Ask one decision per tool call when possible; batch at most two related questions/tabs. Sequence independent decisions instead of sending 3+ tabs.
+- Do not duplicate the same trade-off text in both `question` and `options[].description`. Prefer putting option-specific trade-offs in `options[].description`.
 
 ### Handling 5+ options — split, never drop
 
@@ -438,6 +457,12 @@ Before calling AskUserQuestion, verify:
 - [ ] (recommended) label on one option (even for neutral-posture)
 - [ ] Dual-scale effort labels on effort-bearing options (human / CC)
 - [ ] Net line closes the decision
+- [ ] `question` is one sentence, no newlines, <=80 chars
+- [ ] Tool call has no more than two related questions/tabs
+- [ ] No duplicated trade-off text between `question` and `options[].description`
+- [ ] You wrote the brief, then called the tool_use payload
+- [ ] `questions` is a JSON array of objects — NOT a string
+- [ ] Every question has a non-empty `options` array (2–4 `{ label, description }`)
 - [ ] You are calling the tool, not writing prose — unless `CONDUCTOR_SESSION: true` (then prose is the DEFAULT, not the tool) OR the documented failure fallback applies (then: prose with the mandatory triad — issue ELI10, per-choice Completeness, Recommendation + `(recommended)` — and a "reply with a letter" instruction, then STOP)
 - [ ] Non-ASCII characters (CJK / accents) written directly, NOT \u-escaped
 - [ ] If you had 5+ options, you split (or batched into ≤4-groups) — did NOT drop any
@@ -615,7 +640,7 @@ _PROJ="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
   find "$_PROJ/ceo-plans" "$_PROJ/checkpoints" -type f -name "*.md" 2>/dev/null | xargs ls -t 2>/dev/null | head -3
-  [ -f "$_PROJ/${_BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${_BRANCH}-reviews.jsonl" | tr -d ' ') entries"
+  [ -f "$_PROJ/${BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${BRANCH}-reviews.jsonl" | tr -d ' ') entries"
   [ -f "$_PROJ/timeline.jsonl" ] && tail -5 "$_PROJ/timeline.jsonl"
   if [ -f "$_PROJ/timeline.jsonl" ]; then
     _LAST=$(grep "\"branch\":\"${_BRANCH}\"" "$_PROJ/timeline.jsonl" 2>/dev/null | grep '"event":"completed"' | tail -1)
@@ -1895,6 +1920,16 @@ matches a past learning, display:
 This makes the compounding visible. The user should see that gstack is getting
 smarter on their codebase over time.
 
+If you applied a prior learning and the session ended green (its tests passed, app ran
+clean, a validator confirmed it), reward it so proven lessons rise above their stated
+confidence (use `--harmful` if it misled you):
+
+```bash
+$GSTACK_BIN/gstack-learnings-feedback [key] [type] --helpful --signal tests-passed
+```
+
+Net-negative learnings sink and get flagged for prune.
+
 ## Step 8.2: Scope Drift Detection
 
 Before reviewing code quality, check: **did they build what was requested — nothing more, nothing less?**
@@ -2546,7 +2581,7 @@ If you discovered a non-obvious pattern, pitfall, or architectural insight durin
 this session, log it for future sessions:
 
 ```bash
-$GSTACK_BIN/gstack-learnings-log '{"skill":"ship","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}'
+$GSTACK_BIN/gstack-learnings-log '{"skill":"ship","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}' --signal SIGNAL
 ```
 
 **Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`
@@ -2555,6 +2590,12 @@ $GSTACK_BIN/gstack-learnings-log '{"skill":"ship","type":"TYPE","key":"SHORT_KEY
 
 **Sources:** `observed` (you found this in the code), `user-stated` (user told you),
 `inferred` (AI deduction), `cross-model` (both Claude and Codex agree).
+
+**Signal:** `--signal` is the objective check that confirmed this lesson THIS session:
+`tests-passed`, `app-ran-clean`, `validator`, `benchmark`, or `exec-success`. No
+objective check? Use `--signal none` — it parks as a candidate (confidence-capped) to
+promote later via /learn instead of polluting the trusted store. `user-stated` is always
+trusted. Be honest; "none" is the right answer more often than not.
 
 **Confidence:** 1-10. Be honest. An observed pattern you verified in the code is 8-9.
 An inference you're not sure about is 4-5. A user preference they explicitly stated is 10.
@@ -2969,13 +3010,20 @@ gh pr view --json url,number,state -q 'if .state == "OPEN" then "PR #\(.number):
 glab mr view -F json 2>/dev/null | jq -r 'if .state == "opened" then "MR_EXISTS" else "NO_MR" end' 2>/dev/null || echo "NO_MR"
 ```
 
-If an **open** PR/MR already exists: **update** the PR body using `gh pr edit --body-file "$PR_BODY_FILE"` (GitHub) or `glab mr update -d ...` (GitLab). Always regenerate the PR body from scratch using this run's fresh results (test output, coverage audit, review findings, adversarial review, TODOS summary, documentation_section from Step 18). Never reuse stale PR body content from a prior run. **Run the same redaction scan-at-sink (PR body + title) as the create path (Step 19) before editing — scan the temp file, then `gh pr edit --body-file` from it.**
+If an **open** PR/MR already exists: **update** the PR body using GitHub's REST API (`gh api -X PATCH "repos/$REPO_NWO/pulls/$PR_NUMBER" --input -`) or `glab mr update -d ...` (GitLab). Do not use `gh pr edit` for GitHub updates; it can hit deprecated Projects-classic GraphQL fields on some repos. Always regenerate the PR body from scratch using this run's fresh results (test output, coverage audit, review findings, adversarial review, TODOS summary, documentation_section from Step 18). Never reuse stale PR body content from a prior run. **Run the same redaction scan-at-sink (PR body + title) as the create path (Step 19) before editing — scan the temp file, then send those exact bytes through the REST PATCH path.**
 
 **Always update the PR title to start with `v$NEW_VERSION`.** PR titles use the workspace-aware format `v<NEW_VERSION> <type>: <summary>` — version ALWAYS first, no exceptions, no "custom title kept intentionally" escape hatch. The shared helper `bin/gstack-pr-title-rewrite.sh` is the single source of truth for the rule.
 
 1. Read the current title: `CURRENT=$(gh pr view --json title -q .title)` (or `glab mr view -F json | jq -r .title`).
 2. Compute the corrected title: `NEW_TITLE=$($GSTACK_ROOT/bin/gstack-pr-title-rewrite.sh "$NEW_VERSION" "$CURRENT")`. The helper handles three cases: title already correct (no-op), title has a different `v<X.Y.Z.W>` prefix (replace it), or title has no version prefix (prepend one).
-3. If `NEW_TITLE` differs from `CURRENT`, run `gh pr edit --title "$NEW_TITLE"` (or `glab mr update -t "$NEW_TITLE"`).
+3. If `NEW_TITLE` differs from `CURRENT`, update GitHub via REST:
+   ```bash
+   PR_NUMBER=$(gh pr view --json number -q .number)
+   REPO_NWO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+   jq -n --arg title "$NEW_TITLE" '{title:$title}' \
+     | gh api -X PATCH "repos/$REPO_NWO/pulls/$PR_NUMBER" --input -
+   ```
+   For GitLab, run `glab mr update -t "$NEW_TITLE"`.
 4. **Self-check:** re-fetch the title and assert it starts with `v$NEW_VERSION `. If it does not, retry the edit once. If still wrong, surface the failure to the user.
 
 This keeps the title truthful when Step 12's queue-drift detection rebumps a stale version, and forces the format on PRs that were created without it.
@@ -3105,7 +3153,17 @@ printf '%s' "v$NEW_VERSION <type>: <summary>" | $GSTACK_ROOT/bin/gstack-redact -
 ```
 
 HIGH blocks (exit 3, no skip). MEDIUM → AskUserQuestion (PII subset offers
-`--auto-redact`). Same scan runs before the `gh pr edit --body` path (Step 17).
+`--auto-redact`). Same scan runs before the GitHub REST PATCH body path (Step 17).
+
+**If a GitHub PR already exists:** update from the SCANNED file with REST (exact bytes scanned = bytes sent):
+
+```bash
+PR_NUMBER=$(gh pr view --json number -q .number)
+REPO_NWO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+jq -n --rawfile body "$PR_BODY_FILE" '{body:$body}' \
+  | gh api -X PATCH "repos/$REPO_NWO/pulls/$PR_NUMBER" --input -
+rm -f "$PR_BODY_FILE"
+```
 
 **Reviewer resolution (before creating the PR/MR):**
 
