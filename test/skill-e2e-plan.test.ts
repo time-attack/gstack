@@ -432,6 +432,10 @@ column-add, no new FK navigation in the codebase.
       path.join(ROOT, 'plan-eng-review', 'SKILL.md'),
       path.join(planDir, 'plan-eng-review', 'SKILL.md'),
     );
+    // The Architecture review body (incl. the data model checklist) lives in the
+    // carved sections/ dir, referenced from SKILL.md — copy it like the sibling
+    // plan-eng-review E2E does so the hermetic agent can Read it.
+    { const _sec = path.join(ROOT, 'plan-eng-review', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(planDir, 'plan-eng-review', 'sections'), { recursive: true }); }
   });
 
   afterAll(() => {
@@ -452,7 +456,7 @@ Focus specifically on the data model design in the plan. Apply the data model re
       timeout: 360_000,
       testName: 'plan-eng-review-data-model-bias',
       runId,
-      model: 'claude-opus-4-6',
+      model: 'claude-opus-4-7',
     });
 
     logCost('/plan-eng-review data-model-bias', result);

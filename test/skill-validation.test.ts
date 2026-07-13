@@ -1989,6 +1989,10 @@ describe('Bundled browser-skills frontmatter contract', () => {
 describe('data-model bias guardrails', () => {
   const engReview = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'SKILL.md'), 'utf-8');
   const ceoReview = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
+  // The Architecture review body lives in the carved section file (the Claude
+  // host references sections/review-sections.md from SKILL.md instead of
+  // inlining it), so section-content assertions grep the generated section file.
+  const engReviewSections = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'sections', 'review-sections.md'), 'utf-8');
 
   test('plan-eng-review preserves the "data model exception to minimal diff" bullet', () => {
     expect(engReview).toContain('Data model exception to "right-sized diff"');
@@ -2013,19 +2017,19 @@ describe('data-model bias guardrails', () => {
   });
 
   test('plan-eng-review Architecture section preserves Data model honesty check', () => {
-    expect(engReview).toContain('Data model honesty');
-    expect(engReview).toContain('parent-field-shadowed-by-child');
-    expect(engReview).toContain('JSONField-hiding-schema');
+    expect(engReviewSections).toContain('Data model honesty');
+    expect(engReviewSections).toContain('parent-field-shadowed-by-child');
+    expect(engReviewSections).toContain('JSONField-hiding-schema');
   });
 
   test('plan-eng-review preserves the Data model review checklist subsection', () => {
-    expect(engReview).toContain('Data model review checklist');
+    expect(engReviewSections).toContain('Data model review checklist');
     // A few load-bearing checklist items — if any disappear, the checklist was gutted
-    expect(engReview).toContain('Single Responsibility (SRP for models)');
-    expect(engReview).toContain('Nullable with semantic meaning');
-    expect(engReview).toContain('Parent-field-shadowed-by-child');
-    expect(engReview).toContain('FK deletion strategies');
-    expect(engReview).toContain('Snapshot vs render-live');
+    expect(engReviewSections).toContain('Single Responsibility (SRP for models)');
+    expect(engReviewSections).toContain('Nullable with semantic meaning');
+    expect(engReviewSections).toContain('Parent-field-shadowed-by-child');
+    expect(engReviewSections).toContain('FK deletion strategies');
+    expect(engReviewSections).toContain('Snapshot vs render-live');
   });
 
   test('plan-eng-review cognitive patterns list is contiguous 1–18', () => {
