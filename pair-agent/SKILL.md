@@ -1048,7 +1048,7 @@ credentials are written to `~/.openclaw/skills/gstack/browse-remote.json`.
 
 Codex agents can execute shell commands via `codex exec`. The instruction block's
 curl commands work directly. When using `--local codex`, credentials are written
-to `~/.codex/skills/gstack/browse-remote.json`.
+to `~/.agents/skills/gstack/browse-remote.json`.
 
 ### Cursor
 
