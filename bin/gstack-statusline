@@ -28,7 +28,9 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --full)   mode="full"; shift ;;
     --skill)  mode="skill"; shift ;;
-    --mode)   mode="${2:-full}"; shift 2 ;;
+    # shift 2 fails WITHOUT shifting when --mode is the last arg — a plain
+    # 'shift 2' would spin this loop forever (no set -e in this script).
+    --mode)   mode="${2:-full}"; shift 2 || shift ;;
     --mode=*) mode="${1#--mode=}"; shift ;;
     *)        shift ;;
   esac

@@ -38,7 +38,9 @@ function run(
   const out = execFileSync('bash', [SCRIPT, ...args], {
     input: JSON.stringify(payload),
     encoding: 'utf-8',
-    env: { ...process.env, GSTACK_HOME: path.join(tmpDir, 'empty-home'), ...env },
+    // GSTACK_STATE_ROOT outranks GSTACK_HOME in the script's fallback chain —
+    // blank it so an operator's exported value can't leak real analytics in.
+    env: { ...process.env, GSTACK_STATE_ROOT: '', GSTACK_HOME: path.join(tmpDir, 'empty-home'), ...env },
     timeout: 10000,
   });
   return stripAnsi(out);
@@ -80,6 +82,13 @@ describe('skill extraction', () => {
   test('prints nothing in skill mode with no skill anywhere', () => {
     const out = run({ cwd: tmpDir }, ['--skill']);
     expect(out.trim()).toBe('');
+  });
+
+  test('bare trailing --mode does not hang the arg loop', () => {
+    // Pre-fix, shift 2 with one arg left failed without shifting and the
+    // while-loop spun forever; run() would hit its 10s timeout and throw.
+    const out = run({ transcript_path: transcriptWithShip(), cwd: tmpDir }, ['--mode']);
+    expect(out).toContain('/ship'); // fell back to full mode and rendered
   });
 });
 
