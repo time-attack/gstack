@@ -9,6 +9,12 @@
 # stored on the learning row itself — the append-only log stays the source of truth.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Windows git-bash (#1950): pwd yields a POSIX path (/c/Users/...), which Bun
+# on Windows cannot resolve as an ES module specifier in the import below.
+# cygpath -m converts to C:/Users/... which Bun accepts.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) command -v cygpath >/dev/null 2>&1 && SCRIPT_DIR="$(cygpath -m "$SCRIPT_DIR")" ;;
+esac
 eval "$("$SCRIPT_DIR/gstack-slug" 2>/dev/null)"
 GSTACK_HOME="${GSTACK_HOME:-$HOME/.gstack}"
 mkdir -p "$GSTACK_HOME/projects/$SLUG"
@@ -30,6 +36,12 @@ if [ -z "$KEY" ] || [ -z "$TYPE" ] || [ -z "$DELTA" ]; then
   exit 1
 fi
 
+# Validation errors surface (#1950): stderr is captured and printed on failure
+# instead of swallowed — and set +e keeps the assignment from exiting the
+# script before the RC check under `set -euo pipefail`.
+TMPERR=$(mktemp)
+trap 'rm -f "$TMPERR"' EXIT
+set +e
 VALIDATED=$(KEY="$KEY" TYPE="$TYPE" DELTA="$DELTA" SIGNAL="$SIGNAL" NOTE="$NOTE" bun -e "
 import { hasInjection } from '$SCRIPT_DIR/../lib/jsonl-store.ts';
 const e = { key: process.env.KEY, type: process.env.TYPE, delta: process.env.DELTA };
@@ -44,9 +56,14 @@ const note = process.env.NOTE || '';
 if (note) { if (hasInjection(note)) { process.stderr.write('note rejected\n'); process.exit(1); } e.note = note; }
 e.ts = new Date().toISOString();
 console.log(JSON.stringify(e));
-" 2>/dev/null)
+" 2>"$TMPERR")
+VALIDATE_RC=$?
+set -e
 
-if [ $? -ne 0 ] || [ -z "$VALIDATED" ]; then
+if [ $VALIDATE_RC -ne 0 ] || [ -z "$VALIDATED" ]; then
+  if [ -s "$TMPERR" ]; then
+    cat "$TMPERR" >&2
+  fi
   exit 1
 fi
 
