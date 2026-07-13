@@ -273,7 +273,10 @@ describe('check-freeze.sh', () => {
         const { exitCode, output } = runHook(
           FREEZE_SCRIPT,
           freezeInput('/Users/dev/project/src/index.ts'),
-          { CLAUDE_PLUGIN_DATA: stateDir },
+          // GSTACK_HOME wins gstack-paths' state-root chain when a global
+          // gstack install provides gstack-paths; CLAUDE_PLUGIN_DATA covers
+          // the fallback path when gstack-paths is absent (e.g. bare CI).
+          { GSTACK_HOME: stateDir, CLAUDE_PLUGIN_DATA: stateDir },
         );
         expect(exitCode).toBe(0);
         expect(getPermissionDecision(output)).toBeUndefined();
@@ -285,7 +288,10 @@ describe('check-freeze.sh', () => {
         const { exitCode, output } = runHook(
           FREEZE_SCRIPT,
           freezeInput('/Users/dev/project/src/components/Button.tsx'),
-          { CLAUDE_PLUGIN_DATA: stateDir },
+          // GSTACK_HOME wins gstack-paths' state-root chain when a global
+          // gstack install provides gstack-paths; CLAUDE_PLUGIN_DATA covers
+          // the fallback path when gstack-paths is absent (e.g. bare CI).
+          { GSTACK_HOME: stateDir, CLAUDE_PLUGIN_DATA: stateDir },
         );
         expect(exitCode).toBe(0);
         expect(getPermissionDecision(output)).toBeUndefined();
@@ -299,7 +305,10 @@ describe('check-freeze.sh', () => {
         const { exitCode, output } = runHook(
           FREEZE_SCRIPT,
           freezeInput('/Users/dev/other-project/index.ts'),
-          { CLAUDE_PLUGIN_DATA: stateDir },
+          // GSTACK_HOME wins gstack-paths' state-root chain when a global
+          // gstack install provides gstack-paths; CLAUDE_PLUGIN_DATA covers
+          // the fallback path when gstack-paths is absent (e.g. bare CI).
+          { GSTACK_HOME: stateDir, CLAUDE_PLUGIN_DATA: stateDir },
         );
         expect(exitCode).toBe(0);
         expect(getPermissionDecision(output)).toBe('deny');
@@ -313,7 +322,10 @@ describe('check-freeze.sh', () => {
         const { exitCode, output } = runHook(
           FREEZE_SCRIPT,
           freezeInput('/etc/hosts'),
-          { CLAUDE_PLUGIN_DATA: stateDir },
+          // GSTACK_HOME wins gstack-paths' state-root chain when a global
+          // gstack install provides gstack-paths; CLAUDE_PLUGIN_DATA covers
+          // the fallback path when gstack-paths is absent (e.g. bare CI).
+          { GSTACK_HOME: stateDir, CLAUDE_PLUGIN_DATA: stateDir },
         );
         expect(exitCode).toBe(0);
         expect(getPermissionDecision(output)).toBe('deny');
@@ -329,7 +341,10 @@ describe('check-freeze.sh', () => {
         const { exitCode, output } = runHook(
           FREEZE_SCRIPT,
           freezeInput('/Users/dev/project/src-old/index.ts'),
-          { CLAUDE_PLUGIN_DATA: stateDir },
+          // GSTACK_HOME wins gstack-paths' state-root chain when a global
+          // gstack install provides gstack-paths; CLAUDE_PLUGIN_DATA covers
+          // the fallback path when gstack-paths is absent (e.g. bare CI).
+          { GSTACK_HOME: stateDir, CLAUDE_PLUGIN_DATA: stateDir },
         );
         expect(exitCode).toBe(0);
         expect(getPermissionDecision(output)).toBe('deny');
@@ -345,7 +360,10 @@ describe('check-freeze.sh', () => {
         const { exitCode, output } = runHook(
           FREEZE_SCRIPT,
           freezeInput('/anywhere/at/all.ts'),
-          { CLAUDE_PLUGIN_DATA: stateDir },
+          // GSTACK_HOME wins gstack-paths' state-root chain when a global
+          // gstack install provides gstack-paths; CLAUDE_PLUGIN_DATA covers
+          // the fallback path when gstack-paths is absent (e.g. bare CI).
+          { GSTACK_HOME: stateDir, CLAUDE_PLUGIN_DATA: stateDir },
         );
         expect(exitCode).toBe(0);
         expect(getPermissionDecision(output)).toBeUndefined();
@@ -361,7 +379,10 @@ describe('check-freeze.sh', () => {
         const { exitCode, output } = runHook(
           FREEZE_SCRIPT,
           { tool_input: {} },
-          { CLAUDE_PLUGIN_DATA: stateDir },
+          // GSTACK_HOME wins gstack-paths' state-root chain when a global
+          // gstack install provides gstack-paths; CLAUDE_PLUGIN_DATA covers
+          // the fallback path when gstack-paths is absent (e.g. bare CI).
+          { GSTACK_HOME: stateDir, CLAUDE_PLUGIN_DATA: stateDir },
         );
         expect(exitCode).toBe(0);
         expect(getPermissionDecision(output)).toBeUndefined();
