@@ -90,6 +90,7 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'plan-ceo-review-expansion-energy': ['plan-ceo-review/**', 'scripts/resolvers/preamble.ts', 'test/fixtures/mode-posture/**', 'test/helpers/llm-judge.ts'],
   'plan-eng-review':           ['plan-eng-review/**'],
   'plan-eng-review-artifact':  ['plan-eng-review/**'],
+  'plan-eng-review-data-model-bias': ['plan-eng-review/**'],
   'plan-review-report':        ['plan-eng-review/**', 'scripts/gen-skill-docs.ts'],
 
   // Plan-mode smoke tests — gate-tier safety regression tests. Each test file
@@ -525,6 +526,7 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'plan-ceo-review-expansion-energy': 'gate',  // V1.1 mode-posture regression gate (Opus generator, Sonnet judge)
   'plan-eng-review': 'periodic',
   'plan-eng-review-artifact': 'periodic',
+  'plan-eng-review-data-model-bias': 'periodic',
   'plan-eng-coverage-audit': 'gate',
   'plan-review-report': 'gate',
 
