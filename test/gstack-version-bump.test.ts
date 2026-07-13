@@ -135,15 +135,20 @@ describe('package-lock.json sync', () => {
     fs.rmSync(d, { recursive: true, force: true });
   });
 
-  test('malformed package-lock.json fails write with exit 2', () => {
+  test('malformed package-lock.json: write warns, skips lockfile sync, still succeeds', () => {
+    // Lockfile drift is not a halt condition: a hard exit here would strand
+    // VERSION/package.json already-written in a state classify() reads as
+    // ALREADY_BUMPED, so /ship would never repair the lockfile.
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vbump-lock-bad-'));
     fs.writeFileSync(path.join(d, 'VERSION'), '1.0.0.0\n');
     fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'x', version: '1.0.0.0' }, null, 2) + '\n');
     fs.writeFileSync(path.join(d, 'package-lock.json'), '{ not valid json');
-    let code = 0;
-    try { execFileSync('bun', [BIN, 'write', '--version', '1.1.0.0'], { cwd: d, stdio: 'pipe' }); }
-    catch (e: any) { code = e.status; }
-    expect(code).toBe(2);
+    const out = execFileSync('bun', [BIN, 'write', '--version', '1.1.0.0'], { cwd: d, stdio: 'pipe' }).toString();
+    expect(JSON.parse(out)).toEqual({ wrote: '1.1.0.0', packageJson: true, packageLock: false });
+    expect(fs.readFileSync(path.join(d, 'VERSION'), 'utf-8').trim()).toBe('1.1.0.0');
+    expect(JSON.parse(fs.readFileSync(path.join(d, 'package.json'), 'utf-8')).version).toBe('1.1.0.0');
+    // Lockfile left untouched (still malformed) — repair syncs it once fixed.
+    expect(fs.readFileSync(path.join(d, 'package-lock.json'), 'utf-8')).toBe('{ not valid json');
     fs.rmSync(d, { recursive: true, force: true });
   });
 });

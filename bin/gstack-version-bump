@@ -121,7 +121,12 @@ function writeLockVersion(cwd: string, version: string): boolean {
   try {
     parsed = JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    fail("package-lock.json is not valid JSON. Fix the file before re-running /ship.", 2);
+    // Opportunistic sync only (see doc comment): a lockfile we can't parse
+    // must not halt a write that already updated VERSION + package.json.
+    process.stderr.write(
+      "warning: package-lock.json is not valid JSON — skipping lockfile version sync. Fix it and run 'gstack-version-bump repair'.\n",
+    );
+    return false;
   }
   parsed.version = version;
   const packages = parsed.packages as Record<string, { version?: string }> | undefined;
@@ -205,9 +210,11 @@ function cmdWrite(args: string[], cwd: string): void {
   try {
     lockfile = writeLockVersion(cwd, version!);
   } catch {
-    fail(
-      "failed to update package-lock.json. VERSION and package.json were written but the lockfile is now stale.",
-      3,
+    // Lockfile drift is not a halt condition (classify ignores it, so a hard
+    // exit here would strand VERSION/package.json in a state /ship reads as
+    // ALREADY_BUMPED and never repairs). Warn and continue; repair syncs it.
+    process.stderr.write(
+      "warning: failed to update package-lock.json — lockfile version is stale. Run 'gstack-version-bump repair' to sync it.\n",
     );
   }
   process.stdout.write(
@@ -237,7 +244,11 @@ function cmdRepair(args: string[], cwd: string): void {
   try {
     lockfile = writeLockVersion(cwd, current);
   } catch {
-    fail("drift repair failed — could not update package-lock.json.", 3);
+    // Same policy as write: package.json is already repaired; a lockfile-only
+    // failure warns instead of reporting the whole repair as failed.
+    process.stderr.write(
+      "warning: failed to update package-lock.json — lockfile version is stale.\n",
+    );
   }
   process.stdout.write(JSON.stringify({ repaired: current, packageLock: lockfile }) + "\n");
 }
