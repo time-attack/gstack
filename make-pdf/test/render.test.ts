@@ -325,7 +325,8 @@ describe("render (end-to-end)", () => {
   test("a `---` thematic break that is not frontmatter is left intact", () => {
     // Opening with visible text means the later `---` is a real <hr>, not frontmatter.
     const result = render({ markdown: `# Hello\n\nBefore.\n\n---\n\nAfter.\n` });
-    expect(result.html).toContain("<hr>");
+    // sanitize-html serializes void elements self-closing: <hr />
+    expect(result.html).toMatch(/<hr ?\/?>/);
     expect(result.html).toContain("After.");
   });
 });

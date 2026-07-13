@@ -211,7 +211,15 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     "table", "thead", "tbody", "tr", "th", "td",
     // GFM output the defaults miss: task-list checkboxes and strikethrough.
     "input", "del", "ins",
+    // Embedded <style> blocks are a supported authoring feature (#1904:
+    // docs open with styling before the first H1; wrapChaptersByH1 folds
+    // them into the first chapter). Print context: no script execution,
+    // and the doc author is the only "attacker" of their own document.
+    // allowVulnerableTags silences sanitize-html's warning for style —
+    // script stays OUT of allowedTags and is still stripped.
+    "style",
   ],
+  allowVulnerableTags: true,
   allowedAttributes: {
     a: ["href", "name", "target", "rel", "title"],
     img: ["src", "alt", "title", "width", "height"],
