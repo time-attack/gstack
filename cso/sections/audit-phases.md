@@ -302,7 +302,7 @@ Safe because: additive. Does not block any existing workflow unless gitleaks is 
 ```bash
 npm audit fix
 ```
-Run only if `package.json` exists and there are audit findings. Do NOT run `npm audit fix --force` (that allows major version bumps). Only patches and minor upgrades.
+Run only if `package-lock.json` exists (npm is the package manager) and there are audit findings. Skip when the repo only has `bun.lock`, `pnpm-lock.yaml`, or `yarn.lock` — running npm there creates a stray, desynced `package-lock.json`. Do NOT run `npm audit fix --force` (that allows major version bumps). Only patches and minor upgrades. Note: `npm audit fix` installs packages, which executes dependency lifecycle scripts — mention that in the fix summary.
 Safe because: respects semver constraints in `package.json`. Never changes APIs.
 
 **FIX-04: Node.js TLS bypass (`rejectUnauthorized: false`)**
@@ -322,8 +322,8 @@ Safe because: same reasoning as FIX-04.
 
 **FIX-07: Insecure cookie `httpOnly: false`**
 Find all occurrences: pattern `httpOnly\s*:\s*false` in JS/TS files.
-For each match: flip to `true`. This prevents JavaScript from reading the cookie — the correct default for session cookies.
-Safe because: `httpOnly: true` never breaks server-side code. It only blocks `document.cookie` access, which should never be needed for session/auth cookies.
+For each match: flip to `true`, UNLESS the cookie name matches `/csrf|xsrf/i` — double-submit CSRF token cookies are intentionally JS-readable, and flipping them breaks CSRF protection. This prevents JavaScript from reading the cookie — the correct default for session cookies.
+Safe because: `httpOnly: true` never breaks server-side code for non-CSRF cookies. It only blocks `document.cookie` access, which should never be needed for session/auth cookies.
 
 **FIX-08: Insecure cookie `secure: false`**
 Find all occurrences: pattern `secure\s*:\s*false` in cookie configuration contexts (near `httpOnly`, `sameSite`, `maxAge`).
