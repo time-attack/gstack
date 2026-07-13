@@ -135,4 +135,21 @@ describe('resultFromGeminiStream (adapter post-CLI e2e)', () => {
     expect(result.error).toBeUndefined();
     expect(result.output).toBe('PONG');
   });
+
+  test('result status:error surfaces the real API message (captured live, gemini-cli 0.50.0)', () => {
+    // Verbatim capture from a real `gemini -o stream-json -p ...` run on
+    // 2026-07-13 whose API call failed (billing 429). The parser must surface
+    // the CLI-reported message, not degrade to the generic empty-output error.
+    const liveErrorStream = [
+      '{"type":"init","timestamp":"2026-07-13T22:26:46.578Z","session_id":"fa22f62b-a321-4be4-97c2-43e0790a5519","model":"gemini-flash-lite-latest"}',
+      '{"type":"message","timestamp":"2026-07-13T22:26:46.579Z","role":"user","content":"Reply with exactly: ok"}',
+      '{"type":"result","timestamp":"2026-07-13T22:30:09.848Z","status":"error","error":{"type":"unknown","message":"[API Error: An unknown error occurred.]"}}',
+    ].join('\n');
+    const result = resultFromGeminiStream(liveErrorStream, { durationMs: 5 });
+    expect(result.error).toBeDefined();
+    expect(result.error!.reason).toBe('[API Error: An unknown error occurred.]');
+    expect(result.error!.reason).not.toContain('empty output');
+    expect(result.modelUsed).toBe('gemini-flash-lite-latest');
+    expect(result.output).toBe('');
+  });
 });

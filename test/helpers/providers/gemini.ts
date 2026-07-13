@@ -10,6 +10,8 @@ export type GeminiStreamParse = {
   tokens: { input: number; output: number };
   toolCalls: number;
   modelUsed?: string;
+  /** Real API error surfaced by a result { status: 'error', error } event. */
+  errorMessage?: string;
 };
 
 /**
@@ -31,6 +33,7 @@ export function parseGeminiStreamJson(raw: string): GeminiStreamParse {
   let out = 0;
   let toolCalls = 0;
   let modelUsed: string | undefined;
+  let errorMessage: string | undefined;
   for (const line of raw.split('\n')) {
     const s = line.trim();
     if (!s) continue;
@@ -54,12 +57,19 @@ export function parseGeminiStreamJson(raw: string): GeminiStreamParse {
         input += u.input_token_count ?? u.input_tokens ?? u.prompt_tokens ?? 0;
         out += u.output_token_count ?? u.output_tokens ?? u.completion_tokens ?? 0;
         if (typeof obj.model === 'string' && obj.model) modelUsed = obj.model;
+        // Current CLI reports API failures as result { status: 'error', error }.
+        // Surface the real message instead of degrading to "empty output".
+        if (obj.status === 'error') {
+          const e = obj.error;
+          errorMessage = (e && typeof e.message === 'string' && e.message)
+            || (typeof e === 'string' ? e : 'gemini CLI reported an error result');
+        }
       }
     } catch {
       // skip malformed lines
     }
   }
-  return { output, tokens: { input, output: out }, toolCalls, modelUsed };
+  return { output, tokens: { input, output: out }, toolCalls, modelUsed, errorMessage };
 }
 
 /**
@@ -74,6 +84,16 @@ export function resultFromGeminiStream(
   const parsed = parseGeminiStreamJson(raw);
   const modelUsed = parsed.modelUsed || opts.model || 'gemini-2.5-pro';
   const durationMs = opts.durationMs ?? 0;
+  if (parsed.errorMessage) {
+    return {
+      output: '',
+      tokens: { input: 0, output: 0 },
+      durationMs,
+      toolCalls: 0,
+      modelUsed,
+      error: { code: 'unknown', reason: parsed.errorMessage },
+    };
+  }
   if (!parsed.output.trim()) {
     return {
       output: '',
