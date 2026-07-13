@@ -731,9 +731,15 @@ link_codex_skill_dirs() {
       # Refresh stale real copies too: Windows installs create real dirs
       # (not symlinks), and a re-run must replace them or users keep
       # outdated skills after 'git pull' (#900). Unix symlinks are
-      # refreshed by ln -snf inside the helper.
+      # refreshed by ln -snf inside the helper. Only delete dirs that
+      # look like a skill install (SKILL.md marker) — never unknown data.
       if [ ! -L "$target" ] && [ -e "$target" ]; then
-        rm -rf "$target"
+        if [ -f "$target/SKILL.md" ]; then
+          rm -rf "$target"
+        else
+          echo "  warning: $target exists but is not a skill install (no SKILL.md) — skipping refresh" >&2
+          continue
+        fi
       fi
       _link_or_copy "$skill_dir" "$target"
       linked+=("$skill_name")
@@ -937,9 +943,15 @@ link_factory_skill_dirs() {
       # Refresh stale real copies too: Windows installs create real dirs
       # (not symlinks), and a re-run must replace them or users keep
       # outdated skills after 'git pull' (#900). Unix symlinks are
-      # refreshed by ln -snf inside the helper.
+      # refreshed by ln -snf inside the helper. Only delete dirs that
+      # look like a skill install (SKILL.md marker) — never unknown data.
       if [ ! -L "$target" ] && [ -e "$target" ]; then
-        rm -rf "$target"
+        if [ -f "$target/SKILL.md" ]; then
+          rm -rf "$target"
+        else
+          echo "  warning: $target exists but is not a skill install (no SKILL.md) — skipping refresh" >&2
+          continue
+        fi
       fi
       _link_or_copy "$skill_dir" "$target"
       linked+=("$skill_name")
@@ -974,9 +986,15 @@ link_opencode_skill_dirs() {
       # Refresh stale real copies too: Windows installs create real dirs
       # (not symlinks), and a re-run must replace them or users keep
       # outdated skills after 'git pull' (#900). Unix symlinks are
-      # refreshed by ln -snf inside the helper.
+      # refreshed by ln -snf inside the helper. Only delete dirs that
+      # look like a skill install (SKILL.md marker) — never unknown data.
       if [ ! -L "$target" ] && [ -e "$target" ]; then
-        rm -rf "$target"
+        if [ -f "$target/SKILL.md" ]; then
+          rm -rf "$target"
+        else
+          echo "  warning: $target exists but is not a skill install (no SKILL.md) — skipping refresh" >&2
+          continue
+        fi
       fi
       _link_or_copy "$skill_dir" "$target"
       linked+=("$skill_name")

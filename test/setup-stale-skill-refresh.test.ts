@@ -28,6 +28,9 @@ describe('setup: per-skill link loops refresh stale installs (#900)', () => {
       // …replaced by: remove real (non-symlink) targets, then always relink.
       expect(body).toContain('if [ ! -L "$target" ] && [ -e "$target" ]; then');
       expect(body).toContain('rm -rf "$target"');
+      // Deletion must be gated on the SKILL.md ownership marker so a
+      // name-colliding non-skill directory is never destroyed.
+      expect(body).toContain('if [ -f "$target/SKILL.md" ]; then');
       // Link sites must route through the helper (Windows fallback invariant).
       expect(body).toContain('_link_or_copy "$skill_dir" "$target"');
     });
