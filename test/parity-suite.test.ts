@@ -2,10 +2,18 @@
  * Cathedral parity suite — gate-tier (free, structural + content checks).
  *
  * Runs every PARITY_INVARIANTS check against the current SKILL.md output
- * vs the v1.57.7.0 baseline. Failures get an actionable, per-skill report
- * showing missing phrases, missing headings, and size ratios.
+ * vs the v1.60.1.0-wave-skill-pipeline baseline. Failures get an actionable,
+ * per-skill report showing missing phrases, missing headings, and size ratios.
  *
- * Baseline rebased v1.53.0.0 → v1.57.7.0: the v1.54–v1.57 releases (ship/plan
+ * Baseline rebased v1.57.7.0 → v1.60.1.0-wave-skill-pipeline: the community
+ * skill-pipeline consolidation wave (~40 vetted community PRs) added review
+ * PR-type triage + CLAUDE.md review context, qa evidence layouts, autoplan
+ * diagnostics/labels, plan-review data-model-bias + platform-capability
+ * checks, office-hours premise verification, and retro trend/persistence
+ * features, pushing review/qa/autoplan/ship/plan-ceo/plan-eng/office-hours
+ * past the ratchet on the v1.57.7.0 anchor. The new baseline captures
+ * post-wave UNION sizes so the per-skill ratio keeps catching future bloat.
+ * Earlier rebase v1.53.0.0 → v1.57.7.0: the v1.54–v1.57 releases (ship/plan
  * carving, carve-guards, AUQ prose fallback, the cross-session decision-log
  * preamble) plus the mandatory unresolved-decisions status added to every
  * GSTACK REVIEW REPORT pushed the three plan-review skills past the 5% ratchet
@@ -14,7 +22,7 @@
  * harness measures) so the per-skill 1.05 ratio still catches future bloat.
  * Earlier rebase v1.44.1 → v1.53.0.0: brain-aware-planning (v1.49–v1.52) + the
  * v1.53 redaction guard. Historical v1.44.1 / v1.46.0.0 / v1.47.0.0 / v1.53.0.0
- * baselines are retained in test/fixtures/ for the audit trail.
+ * / v1.57.7.0 baselines are retained in test/fixtures/ for the audit trail.
  *
  * Periodic-tier LLM-judge parity (paid) lands in Phase B (v2.0.0.0)
  * alongside the sections/ extraction. Plumbing is in parity-harness.ts.
@@ -27,9 +35,14 @@ import { runParityChecks, PARITY_INVARIANTS } from './helpers/parity-harness';
 import type { ParityBaseline } from './helpers/capture-parity-baseline';
 
 const REPO_ROOT = path.resolve(import.meta.dir, '..');
-const BASELINE_PATH = path.join(REPO_ROOT, 'test', 'fixtures', 'parity-baseline-v1.57.7.0.json');
+const BASELINE_PATH = path.join(
+  REPO_ROOT,
+  'test',
+  'fixtures',
+  'parity-baseline-v1.60.1.0-wave-skill-pipeline.json',
+);
 
-describe('parity suite vs v1.57.7.0 baseline (gate, free)', () => {
+describe('parity suite vs v1.60.1.0-wave-skill-pipeline baseline (gate, free)', () => {
   test('baseline exists', () => {
     expect(fs.existsSync(BASELINE_PATH)).toBe(true);
   });
