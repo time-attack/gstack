@@ -3,12 +3,12 @@ import type { HostConfig } from '../scripts/host-config';
 const qoder: HostConfig = {
   name: 'qoder',
   displayName: 'Qoder',
-  cliCommand: 'qoder',
-  cliAliases: [],
+  cliCommand: 'qodercli',
+  cliAliases: ['qoder'],
 
-  globalRoot: '.lingma/skills/gstack',
-  localSkillRoot: '.lingma/skills/gstack',
-  hostSubdir: '.lingma',
+  globalRoot: '.qoder/skills/gstack',
+  localSkillRoot: '.qoder/skills/gstack',
+  hostSubdir: '.qoder',
   usesEnvVars: true,
 
   frontmatter: {
@@ -23,9 +23,9 @@ const qoder: HostConfig = {
   },
 
   pathRewrites: [
-    { from: '~/.claude/skills/gstack', to: '~/.lingma/skills/gstack' },
-    { from: '.claude/skills/gstack', to: '.lingma/skills/gstack' },
-    { from: '.claude/skills', to: '.lingma/skills' },
+    { from: '~/.claude/skills/gstack', to: '~/.qoder/skills/gstack' },
+    { from: '.claude/skills/gstack', to: '.qoder/skills/gstack' },
+    { from: '.claude/skills', to: '.qoder/skills' },
   ],
 
   suppressedResolvers: ['GBRAIN_CONTEXT_LOAD', 'GBRAIN_SAVE_RESULTS'],

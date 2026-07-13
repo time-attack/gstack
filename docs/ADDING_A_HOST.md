@@ -17,7 +17,7 @@ hosts/
 ├── slate.ts         # Slate (Random Labs)
 ├── cursor.ts        # Cursor
 ├── openclaw.ts      # OpenClaw (hybrid: config + adapter)
-├── qoder.ts         # Qoder (通义灵码)
+├── qoder.ts         # Qoder CLI (qodercli)
 └── index.ts         # Registry: imports all, derives Host type
 ```
 

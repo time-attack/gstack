@@ -28,7 +28,7 @@ CURSOR_SKILLS="$HOME/.cursor/skills"
 CURSOR_GSTACK="$CURSOR_SKILLS/gstack"
 SLATE_SKILLS="$HOME/.slate/skills"
 SLATE_GSTACK="$SLATE_SKILLS/gstack"
-QODER_SKILLS="$HOME/.lingma/skills"
+QODER_SKILLS="$HOME/.qoder/skills"
 QODER_GSTACK="$QODER_SKILLS/gstack"
 GROK_SKILLS="$HOME/.grok/skills"
 GROK_GSTACK="$GROK_SKILLS/gstack"
@@ -268,7 +268,7 @@ if [ "$HOST" = "auto" ]; then
   command -v opencode >/dev/null 2>&1 && INSTALL_OPENCODE=1
   command -v cursor >/dev/null 2>&1 && INSTALL_CURSOR=1
   command -v slate >/dev/null 2>&1 && INSTALL_SLATE=1
-  command -v qoder >/dev/null 2>&1 && INSTALL_QODER=1
+  command -v qodercli >/dev/null 2>&1 && INSTALL_QODER=1
   command -v grok >/dev/null 2>&1 && INSTALL_GROK=1
   # If none found, default to claude
   if [ "$INSTALL_CLAUDE" -eq 0 ] && [ "$INSTALL_CODEX" -eq 0 ] && [ "$INSTALL_KIRO" -eq 0 ] && [ "$INSTALL_FACTORY" -eq 0 ] && [ "$INSTALL_OPENCODE" -eq 0 ] && [ "$INSTALL_CURSOR" -eq 0 ] && [ "$INSTALL_SLATE" -eq 0 ] && [ "$INSTALL_QODER" -eq 0 ] && [ "$INSTALL_GROK" -eq 0 ]; then
@@ -1082,7 +1082,7 @@ create_cursor_runtime_root() {
 create_qoder_runtime_root() {
   local gstack_dir="$1"
   local qoder_gstack="$2"
-  local qoder_dir="$gstack_dir/.lingma/skills"
+  local qoder_dir="$gstack_dir/.qoder/skills"
 
   if [ -L "$qoder_gstack" ]; then
     rm -f "$qoder_gstack"
@@ -1311,16 +1311,16 @@ link_slate_skill_dirs() {
 link_qoder_skill_dirs() {
   local gstack_dir="$1"
   local skills_dir="$2"
-  local qoder_dir="$gstack_dir/.lingma/skills"
+  local qoder_dir="$gstack_dir/.qoder/skills"
   local linked=()
 
   if [ ! -d "$qoder_dir" ]; then
-    echo "  Generating .lingma/ skill docs..."
+    echo "  Generating .qoder/ skill docs..."
     ( cd "$gstack_dir" && bun run gen:skill-docs --host qoder )
   fi
 
   if [ ! -d "$qoder_dir" ]; then
-    echo "  warning: .lingma/skills/ generation failed — run 'bun run gen:skill-docs --host qoder' manually" >&2
+    echo "  warning: .qoder/skills/ generation failed — run 'bun run gen:skill-docs --host qoder' manually" >&2
     return 1
   fi
 
@@ -1861,7 +1861,7 @@ if [ "$INSTALL_QODER" -eq 1 ]; then
   # Generate before building the runtime root — on fresh installs the gen step
   # above is skipped when NEEDS_BUILD=1, and the runtime root needs the
   # generated root SKILL.md to exist.
-  if [ ! -d "$SOURCE_GSTACK_DIR/.lingma/skills" ]; then
+  if [ ! -d "$SOURCE_GSTACK_DIR/.qoder/skills" ]; then
     ( cd "$SOURCE_GSTACK_DIR" && bun run gen:skill-docs --host qoder )
   fi
   mkdir -p "$QODER_SKILLS"

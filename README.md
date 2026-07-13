@@ -124,7 +124,7 @@ Or target a specific agent with `./setup --host <name>`:
 | Antigravity | `--host agy` | Prints integration instructions; `bun run gen:skill-docs --host agy` writes `.agy/skills/` |
 | Mistral Vibe | `--host vibe` | Prints integration instructions; `bun run gen:skill-docs --host vibe` writes `.vibe/skills/` |
 | GBrain (mod) | `--host gbrain` | `~/.gbrain/skills/gstack-*/` |
-| Qoder | `--host qoder` | `~/.lingma/skills/gstack-*/` |
+| Qoder | `--host qoder` | `~/.qoder/skills/gstack-*/` |
 
 **Want to add support for another agent?** See [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md).
 It's one TypeScript config file, zero code changes.
@@ -384,7 +384,7 @@ rm -rf ~/.agents/skills/gstack* ~/.codex/skills/gstack* 2>/dev/null
 rm -rf ~/.factory/skills/gstack* 2>/dev/null
 rm -rf ~/.kiro/skills/gstack* 2>/dev/null
 rm -rf ~/.openclaw/skills/gstack* 2>/dev/null
-rm -rf ~/.lingma/skills/gstack* 2>/dev/null
+rm -rf ~/.qoder/skills/gstack* 2>/dev/null
 
 # 6. Remove temp files
 rm -f /tmp/gstack-* 2>/dev/null
