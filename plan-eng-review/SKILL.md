@@ -793,11 +793,15 @@ fi
 if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
   ~/.claude/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
-    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
+    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" \
+    --error-message "ERROR_MESSAGE" --failed-step "FAILED_STEP" 2>/dev/null &
 fi
 ```
 
-Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running.
+Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running. Replace
+`ERROR_MESSAGE` with a short description of the error (never file paths; empty
+string "" unless outcome is error) and `FAILED_STEP` with the step name or number
+where the failure occurred (empty string "" unless outcome is error).
 
 ## Plan Status Footer
 
@@ -834,6 +838,8 @@ If the user asks you to compress or the system triggers context compaction: Step
 * I err on the side of handling more edge cases, not fewer; thoughtfulness > speed.
 * Bias toward explicit over clever.
 * Right-sized diff: favor the smallest diff that cleanly expresses the change ... but don't compress a necessary rewrite into a minimal patch. If the existing foundation is broken, say "scrap it and do this instead."
+* **Data model exception to "right-sized diff": for schema and model changes, diff size is NOT a goal.** Normalize first; denormalize only for measured performance reasons. Three clean models that each do one thing are better than one model doing three things, in all respects. When tempted to merge new fields into an existing model to reduce table count, ask: "does each model have exactly one job?" If splitting is honest, split. Count concepts, not tables. The default for schema design is more clean parts, not fewer muddled ones.
+* **JSONField is not an escape hatch for polymorphism.** When tempted to add a JSONField/HStoreField/payload column to encode variant-specific data (different keys for different kinds), promote it to explicit columns instead. JSONField loses FK enforcement, cascade/protect behavior, CheckConstraints on shape, queryability, type system, and self-documentation. Diagnostic: if you find yourself documenting "what keys appear in this JSONField for which variant," you have schema, you just put it in a place where the DB can't help you. Legitimate JSONField uses are genuinely schemaless data (third-party API response caches, user preference bags, opaque blobs). Polymorphism with knowable variants belongs in explicit columns + CheckConstraints.
 
 ## Cognitive Patterns — How Great Eng Managers Think
 
@@ -849,11 +855,14 @@ These are not additional checklist items. They are the instincts that experience
 8. **Org structure IS architecture** — Conway's Law in practice. Design both intentionally (Skelton/Pais, Team Topologies).
 9. **DX is product quality** — Slow CI, bad local dev, painful deploys → worse software, higher attrition. Developer experience is a leading indicator.
 10. **Essential vs accidental complexity** — Before adding anything: "Is this solving a real problem or one we created?" (Brooks, No Silver Bullet).
-11. **Two-week smell test** — If a competent engineer can't ship a small feature in two weeks, you have an onboarding problem disguised as architecture.
-12. **Glue work awareness** — Recognize invisible coordination work. Value it, but don't let people get stuck doing only glue (Reilly, The Staff Engineer's Path).
-13. **Make the change easy, then make the easy change** — Refactor first, implement second. Never structural + behavioral changes simultaneously (Beck).
-14. **Own your code in production** — No wall between dev and ops. "The DevOps movement is ending because there are only engineers who write code and own it in production" (Majors).
-15. **Error budgets over uptime targets** — SLO of 99.9% = 0.1% downtime *budget to spend on shipping*. Reliability is resource allocation (Google SRE).
+11. **Normalize first, denormalize for measured reasons** — Codd's normal forms (1970) and Knuth's "premature optimization is the root of all evil" (1974) both apply directly to schema design. Denormalizing without measurement is exactly what Knuth warned against. The default for data model design is more clean parts, not fewer muddled ones. "Make it work, make it right, make it fast" (Beck) — right shape comes BEFORE fast.
+12. **Single Responsibility Principle applies to data models** — A model that's doing audit + balance + notifications is failing SRP. A model that has fields that are only meaningful when other fields have specific values is failing SRP via hidden polymorphism. Split until each model has exactly one job (Martin, Clean Architecture; Codd, normal forms).
+13. **Structure beats blobs for known polymorphism** — If you can enumerate the variants of a thing at design time, encode them as explicit columns + CheckConstraints, not as a JSONField/payload bag. The DB can enforce FK integrity, shape constraints, and indexing on columns; it can't on JSON paths. JSONField is for genuinely opaque data (third-party blobs, user preferences nobody queries on), not for "we know there are 4 kinds and each kind has different fields."
+14. **Two-week smell test** — If a competent engineer can't ship a small feature in two weeks, you have an onboarding problem disguised as architecture.
+15. **Glue work awareness** — Recognize invisible coordination work. Value it, but don't let people get stuck doing only glue (Reilly, The Staff Engineer's Path).
+16. **Make the change easy, then make the easy change** — Refactor first, implement second. Never structural + behavioral changes simultaneously (Beck).
+17. **Own your code in production** — No wall between dev and ops. "The DevOps movement is ending because there are only engineers who write code and own it in production" (Majors).
+18. **Error budgets over uptime targets** — SLO of 99.9% = 0.1% downtime *budget to spend on shipping*. Reliability is resource allocation (Google SRE).
 
 When evaluating architecture, think "boring by default." When reviewing tests, think "systems over heroes." When assessing complexity, ask Brooks's question. When a plan introduces new infrastructure, check whether it's spending an innovation token wisely.
 
@@ -982,9 +991,15 @@ If none was produced (user may have cancelled), proceed with standard review.
 
 Before reviewing anything, answer these questions:
 1. **What existing code already partially or fully solves each sub-problem?** Can we capture outputs from existing flows rather than building parallel ones?
-2. **What is the minimum set of changes that achieves the stated goal?** Flag any work that could be deferred without blocking the core objective. Be ruthless about scope creep.
-3. **Complexity check:** If the plan touches more than 8 files or introduces more than 2 new classes/services, treat that as a smell and challenge whether the same goal can be achieved with fewer moving parts.
-4. **Search check:** For each architectural pattern, infrastructure component, or concurrency approach the plan introduces:
+2. **Platform-capability check:** If the plan introduces new persistent infrastructure (daemon, queue, worker, scheduled job, webhook receiver, or integration glue) to move data into or out of an existing platform, check whether the platform already exposes an extension surface. Use the platform's own discovery mechanism — plugin registry, integration catalog, capabilities endpoint, or package registry — then branch:
+   - Capability exists and available: configure it, don't build.
+   - Capability exists but dormant or misconfigured: investigate first; building around it creates a parallel system.
+   - Platform supports user-authored extensions but none covers this case: author one in the platform's extension format.
+   - Platform has no extension surface: new infrastructure is justified.
+   Skip this check when the plan targets greenfield code the team fully owns with no external platform involved.
+3. **What is the minimum set of changes that achieves the stated goal?** Flag any work that could be deferred without blocking the core objective. Be ruthless about scope creep.
+4. **Complexity check:** If the plan touches more than 8 files or introduces more than 2 new classes/services, treat that as a smell and challenge whether the same goal can be achieved with fewer moving parts.
+5. **Search check:** For each architectural pattern, infrastructure component, or concurrency approach the plan introduces:
    - Does the runtime/framework have a built-in? Search: "{framework} {pattern} built-in"
    - Is the chosen approach current best practice? Search: "{pattern} best practice {current year}"
    - Are there known footguns? Search: "{framework} {pattern} pitfalls"
@@ -992,11 +1007,11 @@ Before reviewing anything, answer these questions:
    If WebSearch is unavailable, skip this check and note: "Search unavailable — proceeding with in-distribution knowledge only."
 
    If the plan rolls a custom solution where a built-in exists, flag it as a scope reduction opportunity. Annotate recommendations with **[Layer 1]**, **[Layer 2]**, **[Layer 3]**, or **[EUREKA]** (see preamble's Search Before Building section). If you find a eureka moment — a reason the standard approach is wrong for this case — present it as an architectural insight.
-5. **TODOS cross-reference:** Read `TODOS.md` if it exists. Are any deferred items blocking this plan? Can any deferred items be bundled into this PR without expanding scope? Does this plan create new work that should be captured as a TODO?
+6. **TODOS cross-reference:** Read `TODOS.md` if it exists. Are any deferred items blocking this plan? Can any deferred items be bundled into this PR without expanding scope? Does this plan create new work that should be captured as a TODO?
 
-5. **Completeness check:** Is the plan doing the complete version or a shortcut? With AI-assisted coding, the cost of completeness (100% test coverage, full edge case handling, complete error paths) is 10-100x cheaper than with a human team. If the plan proposes a shortcut that saves human-hours but only saves minutes with CC+gstack, recommend the complete version. Boil the ocean.
+7. **Completeness check:** Is the plan doing the complete version or a shortcut? With AI-assisted coding, the cost of completeness (100% test coverage, full edge case handling, complete error paths) is 10-100x cheaper than with a human team. If the plan proposes a shortcut that saves human-hours but only saves minutes with CC+gstack, recommend the complete version. Boil the ocean.
 
-6. **Distribution check:** If the plan introduces a new artifact type (CLI binary, library package, container image, mobile app), does it include the build/publish pipeline? Code without distribution is code nobody can use. Check:
+8. **Distribution check:** If the plan introduces a new artifact type (CLI binary, library package, container image, mobile app), does it include the build/publish pipeline? Code without distribution is code nobody can use. Check:
    - Is there a CI/CD workflow for building and publishing the artifact?
    - Are target platforms defined (linux/darwin/windows, amd64/arm64)?
    - How will users download or install it (GitHub Releases, package manager, container registry)?

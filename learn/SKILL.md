@@ -770,11 +770,15 @@ fi
 if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
   ~/.claude/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
-    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
+    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" \
+    --error-message "ERROR_MESSAGE" --failed-step "FAILED_STEP" 2>/dev/null &
 fi
 ```
 
-Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running.
+Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running. Replace
+`ERROR_MESSAGE` with a short description of the error (never file paths; empty
+string "" unless outcome is error) and `FAILED_STEP` with the step name or number
+where the failure occurred (empty string "" unless outcome is error).
 
 ## Plan Status Footer
 
@@ -797,6 +801,7 @@ Parse the user's input to determine which command to run:
 - `/learn` (no arguments) → **Show recent**
 - `/learn search <query>` → **Search**
 - `/learn prune` → **Prune**
+- `/learn refine` → **Refine (dedup)**
 - `/learn export` → **Export**
 - `/learn stats` → **Stats**
 - `/learn add` → **Manual add**
@@ -859,6 +864,44 @@ latest entry wins).
 
 ---
 
+## Refine (dedup)
+
+Find and merge near-duplicate learnings. `gstack-learnings-search` only collapses
+EXACT `key+type` duplicates, so the same lesson relogged under a different key
+accumulates over time. Refine catches semantic near-duplicates too, keeping the
+highest-confidence survivor and unioning their `files` lists — so the store stays a
+clean playbook instead of a pile of restatements.
+
+```bash
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
+~/.claude/skills/gstack/bin/gstack-learnings-refine --review 2>/dev/null || echo "No learnings yet."
+```
+
+The output has two bands. Read them differently:
+
+1. **Auto-mergeable** (`◆ keep` / `✕ merge` lines): near-duplicates above the merge
+   threshold. The highest-confidence row survives; the others would be merged into
+   it. If any are reported, confirm with the user via AskUserQuestion before
+   touching anything:
+   - A) Merge them — runs `--apply` (atomic write, leaves a `.bak`)
+   - B) Leave them as-is
+
+2. **REVIEW** (`?` lines): gray-zone pairs BELOW the merge bar that might be
+   duplicates. These are NEVER auto-merged. Present them to the user and let them
+   decide per pair whether to consolidate by hand. Do not apply these.
+
+Only after the user picks "Merge them" for band 1, apply the merges:
+
+```bash
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
+~/.claude/skills/gstack/bin/gstack-learnings-refine --apply 2>/dev/null
+```
+
+The refine pass is deterministic and file-only (no gbrain, no network); `--apply`
+never rewrites a file that has an unparseable line.
+
+---
+
 ## Export
 
 Export learnings as markdown suitable for adding to CLAUDE.md or project documentation.
@@ -897,40 +940,7 @@ Show summary statistics about the project's learnings.
 
 ```bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)"
-eval "$(~/.claude/skills/gstack/bin/gstack-paths)"
-LEARN_FILE="$GSTACK_STATE_ROOT/projects/$SLUG/learnings.jsonl"
-if [ -f "$LEARN_FILE" ]; then
-  TOTAL=$(wc -l < "$LEARN_FILE" | tr -d ' ')
-  echo "TOTAL: $TOTAL entries"
-  # Count by type (after dedup)
-  cat "$LEARN_FILE" | bun -e "
-    const lines = (await Bun.stdin.text()).trim().split('\n').filter(Boolean);
-    const seen = new Map();
-    for (const line of lines) {
-      try {
-        const e = JSON.parse(line);
-        const dk = (e.key||'') + '|' + (e.type||'');
-        const existing = seen.get(dk);
-        if (!existing || new Date(e.ts) > new Date(existing.ts)) seen.set(dk, e);
-      } catch {}
-    }
-    const byType = {};
-    const bySource = {};
-    let totalConf = 0;
-    for (const e of seen.values()) {
-      byType[e.type] = (byType[e.type]||0) + 1;
-      bySource[e.source] = (bySource[e.source]||0) + 1;
-      totalConf += e.confidence || 0;
-    }
-    console.log('UNIQUE: ' + seen.size + ' (after dedup)');
-    console.log('RAW_ENTRIES: ' + lines.length);
-    console.log('BY_TYPE: ' + JSON.stringify(byType));
-    console.log('BY_SOURCE: ' + JSON.stringify(bySource));
-    console.log('AVG_CONFIDENCE: ' + (totalConf / seen.size).toFixed(1));
-  " 2>/dev/null
-else
-  echo "NO_LEARNINGS"
-fi
+~/.claude/skills/gstack/bin/gstack-learnings-stats 2>/dev/null
 ```
 
 Present the stats in a readable table format.

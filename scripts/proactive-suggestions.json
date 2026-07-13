@@ -15,7 +15,7 @@
     },
     "benchmark-models": {
       "lead": "Cross-model benchmark for gstack skills.",
-      "routing": "Runs the same prompt through Claude,\nGPT (via Codex CLI), and Gemini side-by-side — compares latency, tokens, cost,\nand optionally quality via LLM judge. Answers \"which model is actually best\nfor this skill?\" with data instead of vibes. Separate from /benchmark, which\nmeasures web page performance. Use when: \"benchmark models\", \"compare models\",\n\"which model is best for X\", \"cross-model comparison\", \"model shootout\".",
+      "routing": "Runs the same prompt through Claude,\nGPT (via Codex CLI), Gemini, and Ollama (local) side-by-side — compares\nlatency, tokens, cost, and optionally quality via LLM judge. Answers \"which\nmodel is actually best for this skill?\" with data instead of vibes. Separate\nfrom /benchmark, which measures web page performance. Use when: \"benchmark\nmodels\", \"compare models\", \"which model is best for X\", \"cross-model\ncomparison\", \"model shootout\".",
       "voice_line": "Voice triggers (speech-to-text aliases): \"compare models\", \"model shootout\", \"which model is best\"."
     },
     "browse": {
@@ -37,6 +37,11 @@
       "lead": "OpenAI Codex CLI wrapper — three modes.",
       "routing": "Code review: independent diff review via\ncodex review with pass/fail gate. Challenge: adversarial mode that tries to break\nyour code. Consult: ask codex anything with session continuity for follow-ups.\nThe \"200 IQ autistic developer\" second opinion. Use when asked to \"codex review\",\n\"codex challenge\", \"ask codex\", \"second opinion\", or \"consult codex\".",
       "voice_line": "Voice triggers (speech-to-text aliases): \"code x\", \"code ex\", \"get another opinion\"."
+    },
+    "community-review": {
+      "lead": "Review and prioritize open community PRs.",
+      "routing": "Analyzes each PR for impact,\neffort, template compliance, and code quality. Outputs a prioritized\ndigest and auto-comments on PRs with specific feedback.\nUse when asked to \"review community PRs\", \"check open PRs\", \"PR inbox\",\nor \"what should I merge\".",
+      "voice_line": null
     },
     "context-restore": {
       "lead": "Restore working context saved earlier by /context-save.",
@@ -77,6 +82,11 @@
       "lead": "Live developer experience audit.",
       "routing": "Uses the browse tool to actually TEST the\ndeveloper experience: navigates docs, tries the getting started flow, times\nTTHW, screenshots error messages, evaluates CLI help text. Produces a DX\nscorecard with evidence. Compares against /plan-devex-review scores if they\nexist (the boomerang: plan said 3 minutes, reality says 8). Use when asked to\n\"test the DX\", \"DX audit\", \"developer experience test\", or \"try the\nonboarding\". Proactively suggest after shipping a developer-facing feature.",
       "voice_line": "Voice triggers (speech-to-text aliases): \"dx audit\", \"test the developer experience\", \"try the onboarding\", \"developer experience test\"."
+    },
+    "diagnose": {
+      "lead": "Deep diagnostic root cause analysis — overcomes the model's natural bias towards action, forcing evidence-based investigation before any conclusion.",
+      "routing": "/investigate\nis a debug-and-fix cycle; /diagnose proves root cause with evidence chains, traces\ne2e workflows across systems, produces a report — no code changes, just proof.\nMulti-system: databases, error trackers, analytics. Evidence gates prevent premature\nconvergence. Use /investigate for bugs you want fixed. Use /diagnose when: bug\nspans systems, /investigate escalated, you need certainty before a risky fix, it\nrecurs, or you need the full e2e chain.\nTriggers: \"why is this actually happening\", \"diagnose this\", \"deep dive\",\n\"root cause analysis\", \"what's really going on\".\nProactively invoke for production issues, cross-service bugs, intermittent\nfailures, or multi-system problems.",
+      "voice_line": null
     },
     "diagram": {
       "lead": "Turn an English description (or mermaid source) into a diagram triplet: the source, an editable .excalidraw file you can open",
@@ -212,6 +222,16 @@
       "lead": "Eng manager-mode plan review.",
       "routing": "Lock in the execution plan — architecture,\ndata flow, diagrams, edge cases, test coverage, performance. Walks through\nissues interactively with opinionated recommendations. Use when asked to\n\"review the architecture\", \"engineering review\", or \"lock in the plan\".\nProactively suggest when the user has a plan or design doc and is about to\nstart coding — to catch architecture issues before implementation.",
       "voice_line": "Voice triggers (speech-to-text aliases): \"tech review\", \"technical review\", \"plan engineering review\"."
+    },
+    "plan-pm-review": {
+      "lead": "Product manager-mode plan review.",
+      "routing": "Prioritize with frameworks (RICE/ICE/WSJF),\nmap user segments and JTBD, write acceptance criteria and done definitions,\nproduce a ranked roadmap with explicit tradeoffs. Three modes: PRIORITIZE\n(RICE/ICE scoring + cut list), SHARPEN (acceptance criteria + done definitions),\nSEGMENT (JTBD + user segment analysis). Use when asked to \"PM review\",\n\"prioritize this\", \"RICE scoring\", \"acceptance criteria\", or \"roadmap ranking\".\nProactively suggest when the user has a plan or TODOS list and needs to know\nwhat to cut, what to defer, or who the feature is actually for.",
+      "voice_line": "Voice triggers (speech-to-text aliases): \"PM review\", \"product review\", \"prioritize the plan\", \"RICE scoring\", \"acceptance criteria\", \"roadmap ranking\"."
+    },
+    "plan-status": {
+      "lead": "Check progress of a gstack plan against the current codebase and git log.",
+      "routing": "Reads a plan file (CEO plan, eng plan, or any gstack plan doc), extracts\nphases and success-criteria checkboxes, cross-references git commits and\nfilesystem state, and produces a done/in-progress/remaining status report.\nUse when: \"plan status\", \"how far along is the plan\", \"what's done\",\n\"what's left\", \"check plan progress\", \"where are we on the plan\".",
+      "voice_line": null
     },
     "plan-tune": {
       "lead": "Self-tuning question sensitivity + developer psychographic for gstack (v1: observational).",

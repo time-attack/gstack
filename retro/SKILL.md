@@ -787,11 +787,15 @@ fi
 if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
   ~/.claude/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
-    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
+    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" \
+    --error-message "ERROR_MESSAGE" --failed-step "FAILED_STEP" 2>/dev/null &
 fi
 ```
 
-Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running.
+Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running. Replace
+`ERROR_MESSAGE` with a short description of the error (never file paths; empty
+string "" unless outcome is error) and `FAILED_STEP` with the step name or number
+where the failure occurred (empty string "" unless outcome is error).
 
 ## Plan Status Footer
 
@@ -1001,7 +1005,8 @@ git log origin/<default> --since="<window>" --format="%H|%aN|%ae|%ai|%s" --short
 
 # 2. Per-commit test vs total LOC breakdown with author
 #    Each commit block starts with COMMIT:<hash>|<author>, followed by numstat lines.
-#    Separate test files (matching test/|spec/|__tests__/) from production files.
+#    Separate test files from production files using the language-agnostic TEST pattern
+#    below (commands 10/12) — NOT just JS/TS. Python test_*.py, *.tftest.hcl, *.bats count.
 git log origin/<default> --since="<window>" --format="COMMIT:%H|%aN" --numstat
 
 # 3. Commit timestamps for session detection and hourly distribution (with author)
@@ -1025,18 +1030,61 @@ cat ~/.gstack/greptile-history.md 2>/dev/null || true
 # 9. TODOS.md backlog (if available)
 cat TODOS.md 2>/dev/null || true
 
-# 10. Test file count
-find . -name '*.test.*' -o -name '*.spec.*' -o -name '*_test.*' -o -name '*_spec.*' 2>/dev/null | grep -v node_modules | wc -l
+# --- Language-agnostic TEST file pattern (used by commands 10, 12, 13) ---
+# Matches: Python test_*.py / *_test.py, JS/TS *.test.* / *.spec.*, Ruby *_spec.rb,
+# Terraform *.tftest.hcl, Bats *.bats, and any path under tests/ __tests__/ spec/.
+# Do NOT narrow this to '\.(test|spec)\.' — that misses every non-JS test suite.
+#   TEST_RE='(^|/)test_|_test\.|\.test\.|\.spec\.|_spec\.|\.tftest\.hcl$|\.bats$|(^|/)(tests?|__tests__|spec)/'
+#   VENDOR_RE='/(node_modules|\.venv|venv|dist|build|vendor|site-packages|\.git)/'
+
+# 10. Total test file count (repo-wide; git ls-files respects .gitignore)
+git ls-files | grep -ivE '/(node_modules|\.venv|venv|dist|build|vendor|site-packages)/' \
+  | grep -iE '(^|/)test_|_test\.|\.test\.|\.spec\.|_spec\.|\.tftest\.hcl$|\.bats$|(^|/)(tests?|__tests__|spec)/' \
+  | sort -u | wc -l
 
 # 11. Regression test commits in window
 git log origin/<default> --since="<window>" --oneline --grep="test(qa):" --grep="test(design):" --grep="test: coverage"
 
-# 12. gstack skill usage telemetry (if available)
+# 12. Test files ADDED in window  (this is "tests added this period")
+git log origin/<default> --since="<window>" --diff-filter=A --format="" --name-only \
+  | grep -ivE '/(node_modules|\.venv|venv|dist|build|vendor|site-packages)/' \
+  | grep -iE '(^|/)test_|_test\.|\.test\.|\.spec\.|_spec\.|\.tftest\.hcl$|\.bats$|(^|/)(tests?|__tests__|spec)/' \
+  | sort -u | wc -l
+
+# 13. Test files TOUCHED in window  (added OR modified — sanity cross-check vs command 12)
+git log origin/<default> --since="<window>" --format="" --name-only \
+  | grep -ivE '/(node_modules|\.venv|venv|dist|build|vendor|site-packages)/' \
+  | grep -iE '(^|/)test_|_test\.|\.test\.|\.spec\.|_spec\.|\.tftest\.hcl$|\.bats$|(^|/)(tests?|__tests__|spec)/' \
+  | sort -u | wc -l
+
+# 14. gstack skill usage telemetry (if available)
 cat ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 
-# 12. Test files changed in window
-git log origin/<default> --since="<window>" --format="" --name-only | grep -E '\.(test|spec)\.' | sort -u | wc -l
+# 15. Code health history (if available)
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" 2>/dev/null || true
+cat ~/.gstack/projects/${SLUG:-unknown}/health-history.jsonl 2>/dev/null | tail -20 || true
 ```
+
+### Step 1.5: Per-commit plausibility guard (anti-fabrication)
+
+Before describing ANY single commit's size or any "big landing," obey these rules. They
+exist because a contradiction between aggregate counts (e.g. "1,446 total tests exist" from
+command 10) and a window count (e.g. "0 tests added" from command 12) was once reconciled by
+inventing a non-existent "bootstrap commit" with fabricated file/LOC figures.
+
+- **Per-commit figures come from that commit only.** Any per-commit file count or LOC you
+  state MUST come from `git show --stat <hash>` / `git show --shortstat <hash>` for that exact
+  hash. Never infer a commit's size from aggregate totals, a PR number, or a commit subject.
+- **Verify outliers.** If you are about to describe a commit as unusually large (>500 files
+  or >50k insertions), first run `git show --shortstat <hash>` and quote the real numbers. If
+  the commit is small, do not call it large.
+- **No invented "bootstrap"/"foundation"/"initial import" narrative.** Only describe such a
+  commit if a real commit in the window has a matching subject AND a verified stat showing it.
+  A mature repo (check `git log --reverse --format=%ai | head -1`) does not get re-bootstrapped.
+- **Reconcile contradictions by re-checking, not narrating.** If command 10 (total) and
+  command 12 (added) seem to contradict each other, re-run command 12 (it is the usual culprit
+  — a test-pattern miss) before writing a single word about test activity. Never bridge two
+  numbers with an event you have not verified exists.
 
 ### Step 2: Compute Metrics
 
@@ -1060,6 +1108,7 @@ Calculate and present these metrics in a summary table:
 | Detected sessions | N |
 | Avg raw LOC/session-hour | N |
 | Greptile signal | N% (Y catches, Z FPs) |
+| Code Health | X.X/10 (↑/↓ ±Y.Y) · Details if change |
 | Test Health | N total tests · M added this period · K regression tests |
 
 **Metric order rationale (V1):** features shipped leads — what users got. Commits
@@ -1116,6 +1165,38 @@ If moments exist, list them:
 ```
 
 If the JSONL file doesn't exist or has no entries in the window, skip the Eureka Moments row.
+
+**Code Health (if history exists):** Read health-history.jsonl (fetched in Step 1, command 15). Filter entries by `ts` field within the retro window. Use `branch` field to match the current branch.
+
+- **If no entries exist in the window or file doesn't exist:** Skip the Code Health metric row.
+- **If 1 entry exists in the window:** Show "Code Health | X.X/10 · First measurement this period"
+- **If 2+ entries exist:**
+  - Current score = last entry in the window
+  - Prior score = last entry BEFORE the retro window (could be from prior period)
+  - Delta = current.score - prior.score
+  - Trend = if delta ≥ 0 then "↑" else "↓"
+  - Status = if delta > 0.5 then "IMPROVING", if delta < -0.5 then "DECLINING", else "STABLE"
+
+Include in the metrics table:
+```
+| Code Health | X.X/10 (↑ +Y.Y) STABLE |
+```
+
+**If regression detected (current.score < prior.score by more than 0.5):**
+Show a second detail line listing which categories declined:
+```
+| | Lint -2 (8→6, 12 new warnings), Tests -1 (10→9) |
+```
+
+For each category that declined, show the previous and current scores and cite the specific issue count if available.
+
+**If data shows improvement (current.score > prior.score by more than 0.5):**
+Show a detail line highlighting which categories improved:
+```
+| | Lint +2 (6→8), Shell clean (+1) |
+```
+
+**Important:** Only show the detail line if the total score changed by >0.5 points. If the score is stable (within ±0.5), omit the detail line. Frame regressions objectively — this is data, not blame.
 
 ### Step 3: Commit Time Distribution
 
@@ -1283,6 +1364,22 @@ Deep sessions:      3      →    5           ↑2
 
 **If no prior retros exist:** Skip the comparison section and append: "First retro recorded — run again next week to see trends."
 
+**Recommendation follow-through.** If the most recent prior snapshot has a `recommendations` array (snapshots written before this field existed won't — if it's absent, skip this block silently), check whether this window acted on each one. For every prior recommendation, scan this window's commit subjects (Step 1 git log), changed files, and the metrics you just computed for evidence it was addressed. Classify each as:
+
+- `addressed` — clear evidence in commits/files/metrics (cite it),
+- `partial` — some movement but not done,
+- `open` — no evidence this window.
+
+Surface a **Recommendation follow-through** section and feed the verdict into the narrative:
+```
+Recommendation follow-through (vs last retro):
+  [x] testing — E2E fixture reliability pass        addressed: 4 commits under test/fixtures/, flake ratio 1/4 → 0/12
+  [~] security — gitleaks on a schedule             partial: pre-commit hook added, no scheduled run yet
+  [ ] architecture — extract html_generator         open
+2 of 3 prior recommendations addressed.
+```
+When recommendations were acted on, say so explicitly in the narrative ("2 of 3 prior recommendations addressed") instead of attributing the same work to a generic metric like "fix ratio is high." This is the whole point of persisting recommendations: a week spent on retro feedback should read as follow-through, not noise.
+
 ### Step 13: Save Retro History
 
 After computing all metrics (including streak) and loading any prior history for comparison, save a JSON snapshot:
@@ -1332,6 +1429,11 @@ Use the Write tool to save the JSON file with this schema:
   "version_range": ["1.16.0.0", "1.16.1.0"],
   "streak_days": 47,
   "tweetable": "Week of Mar 1: 47 commits (3 contributors), 3.2k LOC, 38% tests, 12 PRs, peak: 10pm",
+  "recommendations": [
+    { "category": "testing", "text": "E2E fixture reliability pass — the auth setup flakes ~1 run in 4" },
+    { "category": "security", "text": "Run gitleaks on a schedule, not just pre-commit" },
+    { "category": "architecture", "text": "Extract html_generator rendering into per-format modules" }
+  ],
   "greptile": {
     "fixes": 3,
     "fps": 1,
@@ -1342,6 +1444,8 @@ Use the Write tool to save the JSON file with this schema:
 ```
 
 **Note:** Only include the `greptile` field if `~/.gstack/greptile-history.md` exists and has entries within the time window. Only include the `backlog` field if `TODOS.md` exists. Only include the `test_health` field if test files were found (command 10 returns > 0). If any has no data, omit the field entirely.
+
+**Always include the `recommendations` array.** Populate it with the exact 3 items you write in the "3 Things to Improve" narrative section (Step 14), one object per item. Each object has a one-word lowercase `category` (e.g. `testing`, `security`, `architecture`, `process`, `docs`, `performance`) and a `text` field carrying the actionable suggestion verbatim. This is what the *next* retro reads back in Step 12 to measure follow-through, so write `text` so it can be matched against future commit subjects and changed files — name the concrete artifact (a file, a script, a check), not a vague aspiration. If you genuinely have fewer than 3 improvements, record what you have; never pad with filler just to reach 3.
 
 Include test health data in the JSON when test files exist:
 ```json
@@ -1408,9 +1512,16 @@ Narrative covering:
 
 ### Test Health
 - Total test files: N (from command 10)
-- Tests added this period: M (from command 12 — test files changed)
+- Tests added this period: M (from command 12 — test files ADDED). Also note tests TOUCHED
+  (command 13). If command 12 returns 0 but command 13 > 0, tests were modified not added —
+  say so; do NOT report "no test activity."
 - Regression test commits: list `test(qa):` and `test(design):` and `test: coverage` commits from command 11
 - If prior retro exists and has `test_health`: show delta "Test count: {last} → {now} (+{delta})"
+- **Sanity check before claiming "0 tests added":** new tests are frequently committed under
+  `fix:`/`feat:` (not a `test:` prefix), and command 11 only counts `test(...)`-prefixed
+  commits — never infer "0 new tests" from command 11. Trust command 12 (file-level). If
+  command 12 is 0 while many files changed, re-run it before concluding — a zero there is
+  more often a pattern miss than a real absence.
 - If test ratio < 20%: flag as growth area — "100% test coverage is the goal. Tests make vibe coding safe."
 
 ### Plan Completion
@@ -1478,6 +1589,8 @@ Identify the 3 highest-impact things shipped in the window across the whole team
 
 ### 3 Things to Improve
 Specific, actionable, anchored in actual commits. Mix personal and team-level suggestions. Phrase as "to get even better, the team could..."
+
+Record these exact 3 items into the `recommendations` array of the Step 13 snapshot (one object each, with a one-word `category`). They are not just prose for this run — next week's retro reads them back in Step 12 to measure follow-through, so keep each one concrete enough to match against future commits and changed files.
 
 ### 3 Habits for Next Week
 Small, practical, realistic. Each must be something that takes <5 minutes to adopt. At least one should be team-oriented (e.g., "review each other's PRs same-day").

@@ -164,15 +164,19 @@ Only commit if there are changes. Stage all bootstrap files (config, test direct
 `db:test:prepare` internally, which loads the schema into the correct lane database.
 Running bare test migrations without INSTANCE hits an orphan DB and corrupts structure.sql.
 
-Run both test suites in parallel:
+**Read the test command from CLAUDE.md:**
 
 ```bash
-bin/test-lane 2>&1 | tee /tmp/ship_tests.txt &
-npm run test 2>&1 | tee /tmp/ship_vitest.txt &
-wait
+grep -A2 '## Testing' CLAUDE.md 2>/dev/null | head -20
 ```
 
-After both complete, read the output files and check pass/fail.
+If `## Testing` section exists with a run command: use that command.
+If missing: search the project for the appropriate test command (look for package.json test script, Gemfile with rake tasks, pytest configuration, etc.) and use what you find.
+If no test framework found: print "No test framework detected — skipping Step 5." and continue to Step 6.
+
+Run the test command and tee output to /tmp/ship_tests.txt.
+
+After tests complete, read the output and check pass/fail.
 
 **If any test fails:** Do NOT immediately stop. Apply the Test Failure Ownership Triage:
 

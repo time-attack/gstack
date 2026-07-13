@@ -5,9 +5,10 @@ version: 1.0.0
 description: Cross-model benchmark for gstack skills. (gstack)
 triggers:
   - cross model benchmark
-  - compare claude gpt gemini
+  - compare claude gpt gemini ollama
   - benchmark skill across models
   - which model should I use
+  - local vs cloud model comparison
 allowed-tools:
   - Bash
   - Read
@@ -20,11 +21,12 @@ allowed-tools:
 ## When to invoke this skill
 
 Runs the same prompt through Claude,
-GPT (via Codex CLI), and Gemini side-by-side — compares latency, tokens, cost,
-and optionally quality via LLM judge. Answers "which model is actually best
-for this skill?" with data instead of vibes. Separate from /benchmark, which
-measures web page performance. Use when: "benchmark models", "compare models",
-"which model is best for X", "cross-model comparison", "model shootout".
+GPT (via Codex CLI), Gemini, and Ollama (local) side-by-side — compares
+latency, tokens, cost, and optionally quality via LLM judge. Answers "which
+model is actually best for this skill?" with data instead of vibes. Separate
+from /benchmark, which measures web page performance. Use when: "benchmark
+models", "compare models", "which model is best for X", "cross-model
+comparison", "model shootout".
 
 Voice triggers (speech-to-text aliases): "compare models", "model shootout", "which model is best".
 
@@ -525,11 +527,15 @@ fi
 if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
   ~/.claude/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
-    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
+    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" \
+    --error-message "ERROR_MESSAGE" --failed-step "FAILED_STEP" 2>/dev/null &
 fi
 ```
 
-Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running.
+Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running. Replace
+`ERROR_MESSAGE` with a short description of the error (never file paths; empty
+string "" unless outcome is error) and `FAILED_STEP` with the step name or number
+where the failure occurred (empty string "" unless outcome is error).
 
 ## Plan Status Footer
 
@@ -578,12 +584,12 @@ If C: ask for the path. Verify it exists. Use as positional argument.
 ## Step 2: Choose providers
 
 ```bash
-"$BIN" --prompt "unused, dry-run" --models claude,gpt,gemini --dry-run
+"$BIN" --prompt "unused, dry-run" --models claude,gpt,gemini,ollama --dry-run
 ```
 
 Show the dry-run output. The "Adapter availability" section tells the user which providers will actually run (OK) vs skip (NOT READY — remediation hint included).
 
-If ALL three show NOT READY: stop with a clear message — benchmark can't run without at least one authed provider. Suggest `claude login`, `codex login`, or `gemini login` / `export GOOGLE_API_KEY`.
+If ALL four show NOT READY: stop with a clear message — benchmark can't run without at least one authed provider. Suggest `claude login`, `codex login`, `gemini login` / `export GOOGLE_API_KEY`, or for local: install Ollama from https://ollama.com then `ollama pull qwen2.5-coder:7b && ollama serve`.
 
 If at least one is OK: AskUserQuestion:
 - **Simplify:** "Which models should we include? The dry-run above showed which are authed. Unauthed ones will be skipped cleanly — they won't abort the batch."
