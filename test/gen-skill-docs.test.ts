@@ -2606,6 +2606,38 @@ describe('discover-skills hidden directory filtering', () => {
   });
 });
 
+describe('build script validation', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
+  const buildScript = fs.readFileSync(path.join(ROOT, 'scripts', 'build.sh'), 'utf-8');
+
+  test('package.json build delegates to scripts/build.sh', () => {
+    expect(pkg.scripts.build).toBe('bash scripts/build.sh');
+  });
+
+  test('build helper falls back to bun run wrappers when bun compile fails', () => {
+    expect(buildScript).toContain('build_or_wrap()');
+    expect(buildScript).toContain('build --compile');
+    expect(buildScript).toContain('exec bun run');
+    // The wrapper must resolve its dir physically (pwd -P) so a symlinked
+    // dist dir (codex host) doesn't break REL_SCRIPT resolution.
+    expect(buildScript).toContain('pwd -P');
+  });
+
+  test('build helper covers all compiled entrypoints that setup depends on', () => {
+    expect(buildScript).toContain('build_or_wrap browse/src/cli.ts browse/dist/browse ../src/cli.ts');
+    expect(buildScript).toContain('build_or_wrap browse/src/find-browse.ts browse/dist/find-browse ../src/find-browse.ts');
+    expect(buildScript).toContain('build_or_wrap bin/gstack-global-discover.ts bin/gstack-global-discover gstack-global-discover.ts');
+  });
+
+  test('build path does not hide compile failures behind a blanket || true', () => {
+    expect(pkg.scripts.build).not.toContain('|| true');
+    // No `bun build --compile ... || true` — a compile failure must fall through
+    // to build_or_wrap, not get silently swallowed. (A `|| true` on the PATH
+    // probe `command -v bun` is fine and unrelated.)
+    expect(buildScript).not.toMatch(/build --compile[^\n]*\|\| true/);
+  });
+});
+
 describe('telemetry', () => {
   test('generated SKILL.md contains telemetry start block', () => {
     const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
