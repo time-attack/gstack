@@ -178,6 +178,28 @@ describe('defers (no enforcement)', () => {
     const r = runHook({ session_id: 's4', tool_name: 'Bash', tool_use_id: 'tu-4', tool_input: {} });
     expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
   });
+
+  // Regression: the defer path must NOT emit any permissionDecision. The Claude
+  // Code spec only defines allow/deny/ask; the old code emitted a bogus
+  // "defer" value, which native Claude Code ignored but Conductor's
+  // mcp__conductor__AskUserQuestion bridge could not handle — it hung the
+  // round-trip so the question never rendered and no tool_result came back.
+  // A plain ordinary question (no marker) must therefore produce empty stdout.
+  test('ordinary question (no marker) → empty stdout, no permissionDecision (Conductor AUQ bridge regression)', () => {
+    const r = runHook({
+      session_id: 's-conductor',
+      tool_name: 'mcp__conductor__AskUserQuestion',
+      tool_use_id: 'tu-conductor',
+      tool_input: {
+        questions: [
+          { question: 'Which option do you prefer?', options: ['A) One', 'B) Two'] },
+        ],
+      },
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stdout).not.toContain('permissionDecision');
+  });
 });
 
 // ----------------------------------------------------------------------
