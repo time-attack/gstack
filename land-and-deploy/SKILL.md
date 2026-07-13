@@ -904,7 +904,7 @@ readiness first.
 - Production health issues detected by canary (offer revert)
 
 **Never stop for:**
-- Choosing merge method (auto-detect from repo settings)
+- Choosing merge method (CLAUDE.md Deploy Configuration > repo settings > squash default)
 - Timeout warnings (warn and continue gracefully)
 
 ## Voice & Tone
@@ -1081,7 +1081,7 @@ Run whichever commands are relevant based on the detected platform. Build the re
 ║  4. {Wait for deploy workflow / Wait 60s / Skip}           ║
 ║  5. {Run canary verification / Skip (no URL)}              ║
 ║                                                            ║
-║  MERGE METHOD: {squash/merge/rebase} (from repo settings)  ║
+║  MERGE METHOD: {squash/merge/rebase} (source: {CLAUDE.md/repo/default})  ║
 ║  MERGE QUEUE:  {detected / not detected}                   ║
 ╚══════════════════════════════════════════════════════════╝
 ```
@@ -1472,22 +1472,50 @@ If the user chooses A or C: Tell the user "Merging now." Continue to Step 4.
 Record the start timestamp for timing data. Also record which merge path is taken
 (auto-merge vs direct) for the deploy report.
 
-Try auto-merge first (respects repo merge settings and merge queues):
+### 4.0: Resolve the merge method
+
+Resolve the merge method once, remember it, and substitute it for `<method>` in
+the merge commands below. Three-tier priority:
+
+1. **CLAUDE.md Deploy Configuration** — the `- Merge method:` line already loaded
+   at skill start (see the Deploy Configuration block above). Ignore it when the
+   line is missing, still holds the literal template placeholder
+   (`{squash/merge/rebase}`), or isn't exactly `squash`, `merge`, or `rebase`.
+2. **Repo settings** — what GitHub allows for this repo:
+
+   ```bash
+   gh repo view --json squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed
+   ```
+
+   Prefer `squash` when allowed (the historical default), else `merge`, else `rebase`.
+3. **Default** — `squash` (when the repo query fails, e.g. offline or no `gh` scope).
+
+Report the result in the dry-run box as `MERGE METHOD: <method> (source: {CLAUDE.md/repo/default})`.
+If CLAUDE.md requests a method the repo settings don't allow, warn the user and use
+the repo-allowed method instead — an ignored mismatch would just make `gh pr merge` fail.
+
+### 4.1: Try auto-merge first
+
+Try auto-merge first (respects repo merge settings and merge queues), with the
+method resolved in Step 4.0 substituted for `<method>`:
 
 ```bash
-gh pr merge --auto --delete-branch
+gh pr merge --auto --<method> --delete-branch
 ```
 
 If `--auto` succeeds: record `MERGE_PATH=auto`. This means the repo has auto-merge enabled
 and may use merge queues.
 
-If `--auto` is not available (repo doesn't have auto-merge enabled), merge directly:
+### 4.2: Direct merge fallback
+
+If `--auto` is not available (repo doesn't have auto-merge enabled), merge directly
+with the method resolved in Step 4.0:
 
 ```bash
-gh pr merge --squash --delete-branch
+gh pr merge --<method> --delete-branch
 ```
 
-If direct merge succeeds: record `MERGE_PATH=direct`. Tell the user: "PR merged successfully. The branch has been cleaned up."
+If direct merge succeeds: record `MERGE_PATH=direct`. Tell the user: "PR merged successfully (via `<method>`). The branch has been cleaned up."
 
 If the merge fails with a permission error: **STOP.** "I don't have permission to merge this PR. You'll need a maintainer to merge it, or check your repo's branch protection rules."
 

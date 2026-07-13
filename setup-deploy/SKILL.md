@@ -916,6 +916,13 @@ Use AskUserQuestion to gather the information:
 
 ### Step 4: Write configuration
 
+Determine the value for the `- Merge method:` line from the repo's own settings
+(`gh repo view --json squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed`),
+preferring `squash` when allowed, then `merge`, then `rebase`. Write the resolved
+word — never the literal placeholder. Teams that want a different allowed method
+can edit the line later; /land-and-deploy validates it against repo settings at
+merge time.
+
 Read CLAUDE.md (or create it). Find and replace the `## Deploy Configuration` section
 if it exists, or append it at the end.
 
