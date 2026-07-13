@@ -190,6 +190,16 @@ describe("sanitizeUntrustedHtml", () => {
     const input = `<div style="text-align:center">centered</div>`;
     expect(sanitizeUntrustedHtml(input)).toContain('style="text-align:center"');
   });
+
+  test("keeps local image sources (file: URLs and Windows drive paths)", () => {
+    // inlineLocalImages runs post-sanitize and supports both forms.
+    const fileUrl = `<img src="file:///abs/chart.png" alt="a">`;
+    const drive = `<img src="C:/images/chart.png" alt="b">`;
+    expect(sanitizeUntrustedHtml(fileUrl)).toContain('src="file:///abs/chart.png"');
+    expect(sanitizeUntrustedHtml(drive)).toContain('src="C:/images/chart.png"');
+    // javascript: on img is still stripped.
+    expect(sanitizeUntrustedHtml(`<img src="javascript:alert(1)">`)).not.toContain("javascript:");
+  });
 });
 
 // ─── end-to-end render ──────────────────────────────────────────────
@@ -310,6 +320,18 @@ describe("render (end-to-end)", () => {
   test("does not inject heading ids when toc is off", () => {
     const result = render({ markdown: `# One\n\n## Sub\n\nbody\n`, toc: false });
     expect(result.html).not.toContain(`id="toc-`);
+  });
+
+  test("an empty heading does not shift TOC anchor pairing", () => {
+    const result = render({
+      markdown: `<h2></h2>\n\n# Real\n\nbody\n`,
+      toc: true,
+    });
+    // The empty heading gets no id slot; the visible entry links to the id
+    // that is actually on the "Real" heading.
+    const href = result.html.match(/href="#(toc-\d+)"/)?.[1];
+    expect(href).toBeDefined();
+    expect(result.html).toMatch(new RegExp(`<h1[^>]*id="${href}"[^>]*>Real</h1>`));
   });
 
   test("TOC reuses a heading's existing id instead of duplicating it", () => {

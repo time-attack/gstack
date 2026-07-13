@@ -236,7 +236,11 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   },
   allowedSchemes: ["http", "https", "mailto", "tel", "data"],
   allowedSchemesByTag: {
-    img: ["http", "https", "data"],
+    // img additionally needs file: URLs and Windows drive-letter paths
+    // (C:/x.png parses as a single-letter scheme) — inlineLocalImages runs
+    // post-sanitize and explicitly supports both local forms. Single-letter
+    // "schemes" cannot smuggle javascript:/vbscript:/data: payloads.
+    img: ["http", "https", "data", "file", ..."abcdefghijklmnopqrstuvwxyz"],
   },
   allowProtocolRelative: false,
   disallowedTagsMode: "discard",
@@ -311,7 +315,10 @@ function buildTocBlock(html: string, ids: string[] = []): string {
  */
 function addHeadingIds(html: string): { html: string; ids: string[] } {
   const ids: string[] = [];
-  const out = html.replace(/<(h[1-3])([^>]*)>/gi, (full, tag: string, attrs: string) => {
+  const out = html.replace(/<(h[1-3])([^>]*)>([\s\S]*?)<\/\1>/gi, (full, tag: string, attrs: string, body: string) => {
+    // Skip the headings extractHeadings skips (empty text): giving them a
+    // slot would shift the index pairing and mislink every later TOC entry.
+    if (!decodeTextEntities(stripTags(body).trim())) return full;
     const existing = attrs.match(/\bid\s*=\s*["']([^"']*)["']/i)?.[1];
     if (existing) {
       ids.push(existing);
@@ -319,7 +326,7 @@ function addHeadingIds(html: string): { html: string; ids: string[] } {
     }
     const id = `toc-${ids.length}`;
     ids.push(id);
-    return `<${tag}${attrs} id="${id}">`;
+    return `<${tag}${attrs} id="${id}">${body}</${tag}>`;
   });
   return { html: out, ids };
 }
