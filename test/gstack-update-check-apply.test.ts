@@ -106,6 +106,34 @@ describe("gstack-update-check --apply", () => {
     expect(readFileSync(join(repo.install, "VERSION"), "utf-8").trim()).toBe("1.0.1");
   });
 
+  test("a hanging ./setup cannot wedge --apply (watchdog kills it)", () => {
+    const repo = makeInstallPair();
+    // A setup script that would hang forever — models the observed wedged
+    // first-run browser download. The watchdog must reap it and move on.
+    writeFileSync(join(repo.install, "setup"), "#!/bin/sh\nsleep 300\n");
+    chmodSync(join(repo.install, "setup"), 0o755);
+
+    const start = Date.now();
+    const result = spawnSync("bash", [UPDATE_CHECK, "--force", "--apply"], {
+      cwd: repo.install,
+      encoding: "utf-8",
+      timeout: 30_000,
+      env: {
+        ...process.env,
+        GSTACK_DIR: repo.install,
+        GSTACK_STATE_DIR: repo.state,
+        GSTACK_REMOTE_URL: `file://${join(repo.origin, "VERSION")}`,
+        GSTACK_APPLY_SETUP_TIMEOUT: "2",
+      },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("UPGRADED 1.0.0 1.0.1");
+    expect(result.stderr).toContain("did not finish");
+    expect(Date.now() - start).toBeLessThan(20_000);
+    expect(readFileSync(join(repo.install, "VERSION"), "utf-8").trim()).toBe("1.0.1");
+  });
+
   test("refuses to --apply a vendored install nested inside another repo", () => {
     const repo = makeInstallPair();
     const parent = join(repo.tmp, "parent");

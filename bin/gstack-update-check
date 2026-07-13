@@ -179,9 +179,21 @@ apply_upgrade() {
   # stdin from /dev/null: setup's migration step can prompt on a TTY, and with
   # output hidden that would hang --apply on an invisible prompt.
   # The notice goes to stderr — callers parse stdout for the marker lines.
+  # Watchdog: setup's first-run browser download can wedge on a dead network
+  # read with no timeout of its own (observed live: ~60min wall, <1s CPU).
+  # A best-effort refresh must not hang --apply forever, so the setup process
+  # group is killed after GSTACK_APPLY_SETUP_TIMEOUT seconds (default 600).
   if command -v bun >/dev/null 2>&1 && [ -f "$GSTACK_DIR/setup" ]; then
     echo "gstack-update-check: running ./setup -q to refresh the install (a first run may download browsers — this can take a few minutes)" >&2
-    ( cd "$GSTACK_DIR" && ./setup -q ) </dev/null >/dev/null 2>&1 || true
+    set -m  # own process group for the setup tree, so the watchdog can kill all of it
+    ( cd "$GSTACK_DIR" && ./setup -q ) </dev/null >/dev/null 2>&1 &
+    _SETUP_PID=$!
+    set +m
+    ( sleep "${GSTACK_APPLY_SETUP_TIMEOUT:-600}"; kill -- -"$_SETUP_PID" 2>/dev/null ) >/dev/null 2>&1 &
+    _SETUP_WD=$!
+    wait "$_SETUP_PID" 2>/dev/null || \
+      echo "gstack-update-check: ./setup -q did not finish (timed out or failed) — source is upgraded; run ./setup manually to refresh assets" >&2
+    kill "$_SETUP_WD" 2>/dev/null || true
   fi
 
   after=""
