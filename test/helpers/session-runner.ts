@@ -198,11 +198,12 @@ export async function runSkillTest(options: {
   const timeoutId = setTimeout(() => {
     timedOut = true;
     proc.kill();
-    // proc.kill() only signals the `sh -c` wrapper. The claude child it
-    // spawned can survive as an orphan that inherited our stdout/stderr
-    // pipes, so without cancel() the read loop below blocks until the
-    // orphan finally exits (observed: a 600s timeout stretching past 1400s
-    // and tripping bun's per-test timeout instead of returning a result).
+    // proc.kill() signals claude itself (direct spawn, no shell wrapper),
+    // but tool subprocesses claude spawned can survive as orphans that
+    // inherited our stdout/stderr pipes, so without cancel() the read loop
+    // below blocks until the orphan finally exits (observed: a 600s timeout
+    // stretching past 1400s and tripping bun's per-test timeout instead of
+    // returning a result).
     reader.cancel().catch(() => { /* stream already closed */ });
   }, timeout);
 
