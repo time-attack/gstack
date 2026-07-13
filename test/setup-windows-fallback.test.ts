@@ -66,9 +66,18 @@ describe('setup: _link_or_copy invariant (D7)', () => {
 describe.skipIf(process.platform === 'win32')('setup: _link_or_copy helper — behavior matrix', () => {
   // Source the helper into a temp shell with IS_WINDOWS set and exercise
   // each cell of the file/dir × Windows/Unix matrix.
+  /** ln shim that always fails, pinning the copy-fallback path on Unix hosts. */
+  function failingLnDir(): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-lnfail-'));
+    const shim = path.join(dir, 'ln');
+    fs.writeFileSync(shim, '#!/usr/bin/env bash\nexit 1\n', { mode: 0o755 });
+    return dir;
+  }
+
   function runHelper(
     isWindows: '0' | '1',
     srcKind: 'file' | 'dir',
+    extraPathDir?: string,
   ): { ok: boolean; targetIsSymlink: boolean; targetExists: boolean; stderr: string } {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-helper-'));
     try {
@@ -86,6 +95,9 @@ describe.skipIf(process.platform === 'win32')('setup: _link_or_copy helper — b
       const result = spawnSync('bash', ['-c', script], {
         encoding: 'utf-8',
         timeout: 5000,
+        env: extraPathDir
+          ? { ...process.env, PATH: `${extraPathDir}${path.delimiter}${process.env.PATH}` }
+          : process.env,
       });
       const lst = fs.lstatSync(dst, { throwIfNoEntry: false });
       return {
@@ -112,15 +124,17 @@ describe.skipIf(process.platform === 'win32')('setup: _link_or_copy helper — b
     expect(r.targetIsSymlink).toBe(true);
   });
 
-  test('IS_WINDOWS=1 + file → regular file copy (no symlink)', () => {
-    const r = runHelper('1', 'file');
+  // The helper now tries a real symlink first even on Windows; on a Unix test
+  // host that always succeeds, so pin the copy FALLBACK with a failing ln shim.
+  test('IS_WINDOWS=1 + file + no symlink privilege → regular file copy', () => {
+    const r = runHelper('1', 'file', failingLnDir());
     expect(r.ok).toBe(true);
     expect(r.targetExists).toBe(true);
     expect(r.targetIsSymlink).toBe(false);
   });
 
-  test('IS_WINDOWS=1 + dir → real directory copy', () => {
-    const r = runHelper('1', 'dir');
+  test('IS_WINDOWS=1 + dir + no symlink privilege → real directory copy', () => {
+    const r = runHelper('1', 'dir', failingLnDir());
     expect(r.ok).toBe(true);
     expect(r.targetExists).toBe(true);
     expect(r.targetIsSymlink).toBe(false);
@@ -142,8 +156,9 @@ describe('setup: _link_or_copy Windows symlink-fallback paths', () => {
         script = `#!/usr/bin/env bash
 src="\${@: -2:1}"
 dst="\${@: -1}"
-# Bypass PATH to avoid re-invoking this very shim.
-/usr/bin/ln -snf "\$src" "\$dst" 2>/dev/null || true
+# Bypass PATH to avoid re-invoking this very shim (ln lives at /bin/ln on
+# macOS and /usr/bin/ln on most Linux distros).
+/bin/ln -snf "\$src" "\$dst" 2>/dev/null || /usr/bin/ln -snf "\$src" "\$dst" 2>/dev/null || true
 exit 0
 `;
         break;
