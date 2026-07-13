@@ -192,6 +192,7 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
   unfreeze: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   guard: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'landing-report': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
+  'community-review': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   health: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'make-pdf': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'devex-review': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },

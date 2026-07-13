@@ -211,8 +211,12 @@ or launchd:
 
 ```bash
 # Run community review every Sunday at 8 PM, create GitHub issue
-cd /path/to/gstack && claude --print -p "/community-review --issue --post"
+cd /path/to/gstack && claude --print -p "/community-review --issue"
 ```
 
-This creates a GitHub Issue digest AND auto-comments on PRs, so Monday morning
-the maintainer opens one issue and sees everything prioritized.
+This creates a GitHub Issue digest, so Monday morning the maintainer opens one
+issue and sees everything prioritized.
+
+Never include `--post` in unattended runs. Auto-commenting on contributors' PRs
+is an explicit per-run opt-in the maintainer chooses interactively — a bot that
+comments while nobody is watching is how contributors get burned.
