@@ -202,10 +202,10 @@ cat TODOS.md 2>/dev/null || true
 # Terraform *.tftest.hcl, Bats *.bats, and any path under tests/ __tests__/ spec/.
 # Do NOT narrow this to '\.(test|spec)\.' — that misses every non-JS test suite.
 #   TEST_RE='(^|/)test_|_test\.|\.test\.|\.spec\.|_spec\.|\.tftest\.hcl$|\.bats$|(^|/)(tests?|__tests__|spec)/'
-#   VENDOR_RE='/(node_modules|\.venv|venv|dist|build|\.git)/'
+#   VENDOR_RE='/(node_modules|\.venv|venv|dist|build|vendor|site-packages|\.git)/'
 
 # 10. Total test file count (repo-wide; git ls-files respects .gitignore)
-git ls-files | grep -ivE '/(node_modules|\.venv|venv|dist|build)/' \
+git ls-files | grep -ivE '/(node_modules|\.venv|venv|dist|build|vendor|site-packages)/' \
   | grep -iE '(^|/)test_|_test\.|\.test\.|\.spec\.|_spec\.|\.tftest\.hcl$|\.bats$|(^|/)(tests?|__tests__|spec)/' \
   | sort -u | wc -l
 
@@ -214,13 +214,13 @@ git log origin/<default> --since="<window>" --oneline --grep="test(qa):" --grep=
 
 # 12. Test files ADDED in window  (this is "tests added this period")
 git log origin/<default> --since="<window>" --diff-filter=A --format="" --name-only \
-  | grep -ivE '/(node_modules|\.venv|venv|dist|build)/' \
+  | grep -ivE '/(node_modules|\.venv|venv|dist|build|vendor|site-packages)/' \
   | grep -iE '(^|/)test_|_test\.|\.test\.|\.spec\.|_spec\.|\.tftest\.hcl$|\.bats$|(^|/)(tests?|__tests__|spec)/' \
   | sort -u | wc -l
 
 # 13. Test files TOUCHED in window  (added OR modified — sanity cross-check vs command 12)
 git log origin/<default> --since="<window>" --format="" --name-only \
-  | grep -ivE '/(node_modules|\.venv|venv|dist|build)/' \
+  | grep -ivE '/(node_modules|\.venv|venv|dist|build|vendor|site-packages)/' \
   | grep -iE '(^|/)test_|_test\.|\.test\.|\.spec\.|_spec\.|\.tftest\.hcl$|\.bats$|(^|/)(tests?|__tests__|spec)/' \
   | sort -u | wc -l
 
