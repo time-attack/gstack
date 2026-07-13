@@ -33,7 +33,6 @@ Invoke them by name (e.g., `/office-hours`).
 | `/codex` | Second opinion via OpenAI Codex. Review, challenge, or consult modes. |
 | `/investigate` | Systematic root-cause debugging. No fixes without investigation. |
 | `/diagnose` | Evidence-based root-cause proof across systems. Report only, no code changes. |
-| `/coe` | Correction of Error: evidence-backed postmortem with 5+ Whys and corrective actions. |
 | `/community-review` | Review and prioritize open community PRs into a ranked digest. |
 | `/design-review` | Live-site visual audit + fix loop with atomic commits. |
 | `/design-shotgun` | Generate multiple AI design variants, comparison board, iterate. |

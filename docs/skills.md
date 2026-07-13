@@ -14,7 +14,6 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 | [`/review`](#review) | **Staff Engineer** | Find the bugs that pass CI but blow up in production. Auto-fixes the obvious ones. Flags completeness gaps. |
 | [`/investigate`](#investigate) | **Debugger** | Systematic root-cause debugging. Iron Law: no fixes without investigation. Traces data flow, tests hypotheses, stops after 3 failed fixes. |
 | [`/diagnose`](#diagnose) | **Root-Cause Prover** | Evidence-based diagnostic report across systems (databases, error trackers, analytics). Proves root cause with evidence chains — no code changes, just proof. |
-| [`/coe`](#coe) | **Incident Analyst** | Correction of Error for recurring failures, false success, and data loss. Evidence-backed report with impact, timeline, 5+ Whys, corrective actions, verification gates. |
 | [`/community-review`](#community-review) | **PR Inbox Triager** | Review and prioritize open community PRs. Scores impact, effort, compliance, and quality; outputs a ranked digest and auto-comments with specific feedback. |
 | [`/fanout`](#fanout) | **Parallel Dispatcher** | Decompose a finished design doc into N parallel agent tasks plus shared groundwork. Writes a Parallel Execution Plan and a worktree-dispatch script. |
 | [`/design-review`](#design-review) | **Designer Who Codes** | Live-site visual audit + fix loop. 80-item audit, then fixes what it finds. Atomic commits, before/after screenshots. |
