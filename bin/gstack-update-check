@@ -178,7 +178,9 @@ apply_upgrade() {
   # bin/gstack-session-update). bun may be absent on runtime-only installs.
   # stdin from /dev/null: setup's migration step can prompt on a TTY, and with
   # output hidden that would hang --apply on an invisible prompt.
-  if command -v bun >/dev/null 2>&1; then
+  # The notice goes to stderr — callers parse stdout for the marker lines.
+  if command -v bun >/dev/null 2>&1 && [ -f "$GSTACK_DIR/setup" ]; then
+    echo "gstack-update-check: running ./setup -q to refresh the install (a first run may download browsers — this can take a few minutes)" >&2
     ( cd "$GSTACK_DIR" && ./setup -q ) </dev/null >/dev/null 2>&1 || true
   fi
 
