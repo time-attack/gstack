@@ -219,6 +219,10 @@ adversarial independence.
 
 Prompt the subagent with:
 - The file path of the document just written
+- "READ the referenced sources before judging codebase claims. If the doc names
+  codebase paths, migrations, RLS policies, server actions, triggers, constraints,
+  or columns, open/read those sources yourself and report doc-vs-code mismatches.
+  Do not limit review to internal doc consistency."
 - "Read this document and review it on 5 dimensions. For each dimension, note PASS or
   list specific issues with suggested fixes. At the end, output a quality score (1-10)
   across all dimensions."
