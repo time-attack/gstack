@@ -280,9 +280,12 @@ read_config_value() {
   if [ ! -f "$CONFIG_FILE" ]; then
     return 0
   fi
+  # Strip unquoted inline comments (space + #, YAML semantics) so hand-edited
+  # lines like 'auto_upgrade: true # enable updates' keep returning 'true'.
+  # A # with no preceding whitespace stays part of the value.
   grep -E "^${key}:" "$CONFIG_FILE" 2>/dev/null \
     | tail -1 \
-    | sed -E "s/^${key}:[[:space:]]*//; s/[[:space:]]+$//"
+    | sed -E "s/^${key}:[[:space:]]*//; s/[[:space:]]+#.*$//; s/[[:space:]]+$//"
 }
 
 case "${1:-}" in

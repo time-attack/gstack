@@ -104,4 +104,16 @@ describe('gstack-config values with spaces', () => {
         .some((line) => line.includes('workspace_root:') && line.includes(value) && line.includes('(set)')),
     ).toBe(true);
   });
+
+  test('hand-edited inline comments are stripped, bare # in a value is kept', () => {
+    // Simulate a user hand-annotating a value in config.yaml (YAML comment).
+    expect(run('set', 'auto_upgrade', 'true').status).toBe(0);
+    const cfg = path.join(tmpHome, 'config.yaml');
+    fs.writeFileSync(cfg, fs.readFileSync(cfg, 'utf-8').replace(/^auto_upgrade: true$/m, 'auto_upgrade: true # enable updates'));
+    expect(run('get', 'auto_upgrade').stdout).toBe('true');
+
+    // A # not preceded by whitespace is part of the value, not a comment.
+    expect(run('set', 'workspace_root', '/srv/builds#nightly').status).toBe(0);
+    expect(run('get', 'workspace_root').stdout).toBe('/srv/builds#nightly');
+  });
 });
