@@ -369,8 +369,8 @@ describe("daemon /shutdown", () => {
     expect(r.status).toBe(200);
     const body = (await r.json()) as any;
     expect(body.shuttingDown).toBe(true);
-    // Reset state for subsequent tests; the shutdown timer will be a no-op
-    // because the next resetForTest flips shuttingDown back to false.
+    // Reset state for subsequent tests; resetForTest cancels the pending
+    // shutdown/exit timers so they can't process.exit the runner mid-suite.
     resetDaemon();
   });
 });
