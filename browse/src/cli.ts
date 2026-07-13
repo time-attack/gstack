@@ -77,7 +77,11 @@ export function resolveServerScript(
   );
 }
 
-const SERVER_SCRIPT = resolveServerScript();
+// Windows uses NODE_SERVER_SCRIPT (server-node.mjs) exclusively and its layout
+// may not ship browse/src/server.ts, so resolveServerScript() would throw at
+// module load and brick every command. Resolve lazily to null on Windows; the
+// non-Windows spawn path is the only consumer (SERVER_SCRIPT! below). (#797)
+const SERVER_SCRIPT = IS_WINDOWS ? null : resolveServerScript();
 
 /**
  * On Windows, resolve the Node.js-compatible server bundle.
@@ -396,7 +400,7 @@ async function startServer(extraEnv?: Record<string, string>): Promise<ServerSta
     // which calls setsid() so the server becomes its own session leader
     // (PPID=1, STAT=Ss) and survives the spawning shell's exit. Mirrors
     // the Windows path's rationale — same root cause, different OS API.
-    nodeSpawn('bun', ['run', SERVER_SCRIPT], {
+    nodeSpawn('bun', ['run', SERVER_SCRIPT!], {
       detached: true,
       windowsHide: true,
       stdio: ['ignore', 'ignore', 'ignore'],
