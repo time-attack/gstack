@@ -219,18 +219,20 @@ fi
 
 if [ "$RESOLVED_PUSH_PROTOCOL" = "preserve" ]; then
   PUSH_URL="$REMOTE_URL"
+  PROTOCOL_LABEL="the remote's configured protocol"
 else
   PUSH_URL=$("$URL_BIN" --to "$RESOLVED_PUSH_PROTOCOL" "$CANONICAL_HTTPS" 2>/dev/null || echo "$CANONICAL_HTTPS")
+  PROTOCOL_LABEL="$RESOLVED_PUSH_PROTOCOL"
 fi
 
 # ---- verify push URL is reachable ----
 echo "Verifying remote connectivity: $PUSH_URL"
 if ! git ls-remote "$PUSH_URL" >/dev/null 2>&1; then
   cat >&2 <<EOF
-Remote not reachable via $RESOLVED_PUSH_PROTOCOL: $PUSH_URL
+Remote not reachable via $PROTOCOL_LABEL: $PUSH_URL
 This could mean:
   - Wrong URL
-  - Credentials for $RESOLVED_PUSH_PROTOCOL are not configured for your git host
+  - Credentials for $PROTOCOL_LABEL are not configured for your git host
   - Network issue
 Fix and re-run gstack-artifacts-init, or choose --push-protocol https|ssh.
 EOF
