@@ -175,8 +175,12 @@ describe('bun-polyfill', () => {
       require('${polyfillPath}');
       (async () => {
         const ONE_MB = 1024 * 1024;
+        // Flush the full 1 MB before exiting: a bare process.exit(0) right after
+        // a large write races the async pipe flush (on some Node/Bun builds only
+        // the first ~64 KB pipe-buffer's worth lands), which would mask the drain
+        // behavior this test exists to verify. Exit from the write callback.
         const p = Bun.spawn(
-          ['node', '-e', 'process.stdout.write("x".repeat(' + ONE_MB + ')); process.exit(0)'],
+          ['node', '-e', 'process.stdout.write("x".repeat(' + ONE_MB + '), () => process.exit(0))'],
           { stdio: ['ignore', 'pipe', 'ignore'] }
         );
         const code = await Promise.race([
