@@ -168,6 +168,10 @@ for (const file of files) {
 
   // 1) exact dedup, latest-winner per key+type (same as search)
   const withKey = rows.filter((e) => e.key && e.type);
+  // Legacy-schema rows (category/summary/detail, no key/type) are normalized
+  // at read time by gstack-learnings-search; refine must never delete them on
+  // rewrite. They pass through --apply unchanged.
+  const legacyRows = rows.filter((e) => !(e.key && e.type));
   const seen = new Map();
   for (const e of withKey) {
     const dk = `${e.key}|${e.type}`;
@@ -262,7 +266,7 @@ for (const file of files) {
   // 4) apply
   if (APPLY && (exactDropped > 0 || dropIdx.size > 0)) {
     if (parseError) { console.error(`[refine] ${slug}: unparseable line(s) present — skipping rewrite to avoid data loss.`); continue; }
-    const out = [];
+    const out = [...legacyRows];
     for (let i = 0; i < live.length; i++) {
       if (dropIdx.has(i)) continue;
       const e = { ...live[i] };
@@ -273,7 +277,8 @@ for (const file of files) {
       }
       out.push(e);
     }
-    out.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+    const tsOf = (e) => { const t = new Date(e.ts).getTime(); return Number.isFinite(t) ? t : 0; };
+    out.sort((a, b) => tsOf(a) - tsOf(b));
     writeFileSync(`${file}.bak`, raw);
     const tmp = `${file}.tmp`;
     writeFileSync(tmp, out.map((e) => JSON.stringify(e)).join('\n') + '\n');

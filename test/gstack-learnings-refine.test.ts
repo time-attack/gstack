@@ -97,6 +97,15 @@ describe('gstack-learnings-refine --apply', () => {
     expect(fs.readFileSync(learnFile, 'utf-8')).toBe(after1);
   });
 
+  test('passes legacy category/summary rows (no key/type) through a rewrite unchanged', () => {
+    const legacy = { ts: '2026-04-06T13:45:00Z', category: 'tool-gotcha', summary: 'vitest run --changed requires base ref', detail: 'Bare vitest run --changed compares against unstaged changes only.', source: 'eng-review-outside-voice' };
+    write([legacy, PITFALL_A, PITFALL_B, UNRELATED]);
+    run(['--apply']);
+    const rows = fs.readFileSync(learnFile, 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
+    expect(rows.filter((r) => r.category === 'tool-gotcha')).toEqual([legacy]); // survived, byte-identical fields
+    expect(rows.map((r) => r.key).sort()).toEqual([undefined, 'css-grid', 'sa-thread-a'].sort());
+  });
+
   test('never rewrites a file containing an unparseable line', () => {
     fs.mkdirSync(projDir, { recursive: true });
     const good = JSON.stringify(PITFALL_A);
