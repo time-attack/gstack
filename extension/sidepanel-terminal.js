@@ -438,9 +438,17 @@
     // composed string on compositionend. Without this, Korean IME
     // sends fragmented input or doubles characters.
     let composing = false;
+    let composingResetTimer;
     const ta = term.textarea;
     if (ta) {
-      ta.addEventListener('compositionstart', () => { composing = true; });
+      // clearTimeout: continuous Korean typing fires compositionend +
+      // compositionstart in the same input task at syllable boundaries.
+      // A stale deferred reset from the previous syllable would fire
+      // mid-composition and un-guard the jamo case issue #1272 fixed.
+      ta.addEventListener('compositionstart', () => {
+        clearTimeout(composingResetTimer);
+        composing = true;
+      });
       ta.addEventListener('compositionend', (e) => {
         if (e.data && ws && ws.readyState === WebSocket.OPEN) {
           ws.send(new TextEncoder().encode(e.data));
@@ -450,7 +458,7 @@
         // composed string. Clearing `composing` synchronously lets that
         // event through, double-sending CJK input (e.g. "在在这里这里").
         // Deferring keeps onData suppressed for that trailing event.
-        setTimeout(() => { composing = false; }, 0);
+        composingResetTimer = setTimeout(() => { composing = false; }, 0);
       });
     }
 
