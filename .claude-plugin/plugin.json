@@ -1,7 +1,7 @@
 {
   "name": "gstack",
-  "description": "Garry's Stack — 28 Claude Code skills that turn your AI agent into a virtual engineering team. Code review, QA with a real browser, design audits, security analysis, and release automation, all as slash commands.",
-  "version": "0.12.2.0",
+  "description": "Garry's Stack — 50+ Claude Code skills that turn your AI agent into a virtual engineering team. Code review, QA with a real browser, design audits, security analysis, and release automation, all as slash commands.",
+  "version": "1.60.1.0",
   "author": {
     "name": "Garry Tan"
   },

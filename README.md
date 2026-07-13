@@ -145,7 +145,7 @@ To upgrade:
 /plugin update gstack@garrytan-gstack
 ```
 
-**Plugin install vs. git clone install:** The plugin install gives you all 28 skills instantly. The git clone install (Step 1 above) additionally builds the `/browse` headless browser binary and registers hook-based safety skills (`/careful`, `/freeze`, `/guard`). If you need real browser QA testing or safety guardrails, use the git clone install.
+**Plugin install vs. git clone install:** The plugin install gives you all 50+ skills instantly. The git clone install (Step 1 above) additionally builds the `/browse` headless browser binary and registers hook-based safety skills (`/careful`, `/freeze`, `/guard`). If you need real browser QA testing or safety guardrails, use the git clone install.
 
 ## See it work
 
