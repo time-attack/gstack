@@ -64,6 +64,14 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
     gate: ['test/skill-coverage-floor.test.ts'],
     periodic: [],
   },
+  diagnose: {
+    gate: ['test/skill-e2e-diagnose.test.ts', 'test/skill-coverage-floor.test.ts'],
+    periodic: [],
+  },
+  'plan-status': {
+    gate: ['test/skill-e2e-plan-status.test.ts', 'test/skill-coverage-floor.test.ts'],
+    periodic: [],
+  },
   browse: {
     gate: ['test/skill-coverage-floor.test.ts'],
     periodic: [],
