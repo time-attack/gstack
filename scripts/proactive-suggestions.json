@@ -210,7 +210,7 @@
     },
     "pr-prep": {
       "lead": "Pre-PR upstream duplicate audit.",
-      "routing": "Walks `git log base..HEAD`, derives\nsearch keywords from commit subjects + changed file paths, queries\nupstream issues + PRs via `gh`, scores each commit against upstream\ncollisions (EXACT_DUP / OVERLAP / SIBLING / CLEAN), and refuses to\nproceed when EXACT_DUP found. Use when asked to \"audit my PR\",\n\"check for duplicates\", \"pr-prep\", \"is this already filed\",\n\"upstream check before PR\", or \"pre-PR audit\".\nProactively invoke this skill (do NOT skip the audit) before any\n`gh pr create` against a tracked upstream repo. Hooks into /ship\nas Step 0.",
+      "routing": "Walks `git log base..HEAD`, derives\nsearch keywords from commit subjects + changed file paths, queries\nupstream issues + PRs via `gh`, scores each commit against upstream\ncollisions (EXACT_DUP / OVERLAP / SIBLING / CLEAN), and refuses to\nproceed when EXACT_DUP found. Use when asked to \"audit my PR\",\n\"check for duplicates\", \"pr-prep\", \"is this already filed\",\n\"upstream check before PR\", or \"pre-PR audit\".\nProactively invoke this skill (do NOT skip the audit) before any\n`gh pr create` against a tracked upstream repo. Hooks into /ship\nas Step 1.5.",
       "voice_line": null
     },
     "qa": {

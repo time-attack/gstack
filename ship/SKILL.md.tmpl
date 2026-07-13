@@ -138,39 +138,35 @@ Skip on:
 - Branches where the base is the user's own fork (no upstream to dup)
 - Explicit `--skip-pr-prep` flag
 
-Otherwise run `/pr-prep` inline with `GSTACK_FROM_SHIP=1`:
+First check whether an upstream repo is configured (solo-repo case):
 
 ```bash
-# Skip if no upstream repo configured (solo-repo case)
-if ! gh repo view --json nameWithOwner -q .nameWithOwner >/dev/null 2>&1; then
-  echo "[ship] no upstream repo detected, skipping pr-prep audit"
-else
-  GSTACK_FROM_SHIP=1 ~/.claude/skills/gstack/bin/gstack-skill pr-prep --base "$BASE_BRANCH" --json > /tmp/ship-pr-prep.json 2>&1
-  PR_PREP_EXIT=$?
-  if [ "$PR_PREP_EXIT" -eq 1 ]; then
-    # EXACT_DUP found
-    cat /tmp/ship-pr-prep.json
-    echo ""
-    echo "✗ Ship aborted: pr-prep found exact duplicate upstream work."
-    echo "  Resolution paths:"
-    echo "    1. Close your version, comment on the upstream PR with your angle"
-    echo "    2. Cherry-pick unique parts to a new branch + file separately"
-    echo "    3. Override with /ship --skip-pr-prep if coordinated with the upstream PR author"
-    exit 1
-  fi
-  # CLEAN / OVERLAP / SIBLING — render summary, continue
-  jq -r '.summary' /tmp/ship-pr-prep.json 2>/dev/null || true
-fi
+gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "NO_UPSTREAM"
 ```
+
+If the output is `NO_UPSTREAM`, print "[ship] no upstream repo detected, skipping pr-prep audit" and continue to Step 2.
+
+Otherwise, run the `/pr-prep` skill **inline**: read
+`~/.claude/skills/gstack/pr-prep/SKILL.md` (or the `pr-prep` skill wherever
+this gstack install lives) and execute its steps as if invoked with
+`GSTACK_FROM_SHIP=1 --base <base> --json` — non-interactive (skip its
+AskUserQuestion confirmations), writing the machine-readable JSON report to
+`/tmp/ship-pr-prep.json`.
+
+Interpret the result:
+- **EXACT_DUP on any commit** — STOP the ship and show the collision report plus resolution paths:
+  1. Close your version, comment on the upstream PR with your angle
+  2. Cherry-pick unique parts to a new branch + file separately
+  3. Override with `/ship --skip-pr-prep` if coordinated with the upstream PR author
+- **CLEAN / OVERLAP / SIBLING** — print the one-line summary and continue.
 
 Note: the JSON report path (`/tmp/ship-pr-prep.json`) is read again in
 Step 19 (PR body assembly) to surface SIBLING / OVERLAP findings as a
 collapsed "Upstream context" section in the PR body. SIBLING context
 helps reviewers triage faster; it does NOT block ship.
 
-If the pr-prep skill is not installed (older gstack install), fall
-through with a stderr warn and continue. Don't hard-fail ship on a
-missing skill.
+If the pr-prep skill is not installed (older gstack install), print a
+warning and continue. Don't hard-fail ship on a missing skill.
 
 ---
 
