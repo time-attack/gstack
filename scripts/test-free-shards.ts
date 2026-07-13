@@ -3,7 +3,7 @@
  * test-free-shards — enumerate, shard, and curate the free test suite.
  *
  * Three jobs:
- *   1. Enumeration. Walk `browse/test/`, `test/`, `make-pdf/test/` and return
+ *   1. Enumeration. Walk `browse/test/`, `test/`, `make-pdf/test/`, `design/test/` and return
  *      every `*.test.{ts,tsx,js,jsx,mjs,cjs}` that isn't a paid-eval test.
  *   2. Sharding. Stable-hash assign each test to one of N shards. Used by CI
  *      to parallelize the free suite when needed.
@@ -29,7 +29,7 @@ import * as path from 'path';
 import { spawnSync } from 'child_process';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-const TEST_ROOTS = ['browse/test', 'test', 'make-pdf/test'] as const;
+const TEST_ROOTS = ['browse/test', 'test', 'make-pdf/test', 'design/test'] as const;
 const TEST_FILE_REGEX = /\.test\.(?:[cm]?[jt]s|tsx|jsx)$/;
 
 // Tests that require API spend, external services, or e2e harnesses.

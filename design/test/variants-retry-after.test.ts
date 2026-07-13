@@ -82,7 +82,10 @@ describe("generateVariant Retry-After handling", () => {
     expect(result.success).toBe(true);
     expect(calls.length).toBe(2);
     const gap = calls[1].ts - calls[0].ts;
-    expect(gap).toBeGreaterThanOrEqual(2500);
+    // toUTCString() truncates milliseconds, so the honored wait can be up to
+    // ~1s shorter than +3000ms. Floor at 2000, still well above the 1s the
+    // leading exponential would add.
+    expect(gap).toBeGreaterThanOrEqual(2000);
     expect(gap).toBeLessThan(4500);
   });
 
