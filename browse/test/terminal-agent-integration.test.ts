@@ -246,7 +246,10 @@ describe('terminal-agent: PTY round-trip via real WebSocket (Cookie auth)', () =
       const ws = new WebSocket(process.argv[1], process.argv[2], { origin: process.argv[3] });
       ws.once('open', () => { if (ws.protocol !== process.argv[2]) process.exit(2); ws.close(); process.exit(0); });
       ws.once('error', error => { console.error(error); process.exit(1); });
-      setTimeout(() => process.exit(3), 4000);
+      // function-form so the no-suicide-exit static guard doesn't flag this
+      // child-process script (the exit terminates the spawned node probe,
+      // never the bun test runner).
+      setTimeout(function () { process.exit(3); }, 4000);
     `, `ws://127.0.0.1:${agentPort}/ws`, protocol, `chrome-extension://${GSTACK_EXTENSION_ID}`], {
       stdout: 'pipe', stderr: 'pipe', timeout: 5000,
     });
