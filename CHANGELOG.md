@@ -1,5 +1,62 @@
 # Changelog
 
+## [1.61.0.0] - 2026-07-13
+
+## **Fourteen community fixes land as one release: a hardened test harness, sharper safety guards, and model-aware sessions.**
+## **A planted command-injection attack that ran on the old harness is now inert.**
+
+This is the test-infra consolidation wave: 14 community pull requests covering 12 distinct problems, reviewed against current main, deduplicated, and stacked into one release with two maintainer follow-ups on top. The headline is the eval harness. It used to build the `claude -p` invocation as a shell string, so a crafted value in the model name or tool list could break out and run its own command. It now spawns with an argument array and pipes the prompt over stdin, so nothing in those arguments is ever interpreted by a shell. Alongside it: the `/careful` guard stops missing a dangerous delete chained in front of a safe one, `eval:list` rejects a garbage `--limit` instead of printing nothing, gbrain stops leaking other projects' memory into a session, and three new Claude models (Opus 4.8, Fable 5, Sonnet 5) get their own behavior overlays instead of the generic fallback.
+
+### The numbers that matter
+
+Source: reproducible before/after harness at `~/.gstack-dev/pr-triage/wave-verify/test-infra` (run `bash run.sh`), which drives each fix against a clean `origin/main` checkout and this release side by side. The injection and timing rows use a fake `claude` whose first tool call is delayed 2000ms.
+
+| Check | Before (main) | After |
+|-------|---------------|-------|
+| Planted `; touch` injection via the model arg | **executed** | inert (arg reaches child as literal data) |
+| `firstResponseMs` with a 2000ms tool-call delay | 2043ms (timed the tool call) | 67ms (times the first line) |
+| `rm -rf /; rm -rf node_modules` at the /careful guard | allowed silently | warns |
+| `eval:list --limit nope` | exit 0, prints nothing | exit 1, clear error |
+| Remote `.../repo.git/` vs `.../repo.git` | two project identities | one |
+| Typo'd `suppressedResolvers` entry | accepted silently | rejected |
+| `resolveModel("claude-fable-5")` | generic `claude` | `fable-5` |
+| Real `investigate/SKILL.md` list query | filter dropped (unscoped) | filter kept (repo-scoped) |
+
+The injection row is the one to read twice: on the old code, a booby-trapped model name literally created a file on disk through the shell. On this release the same payload does nothing.
+
+### What this means for you
+
+The eval harness can no longer be steered by the values it's handed, and it stops timing sessions against the wrong event, so latency numbers mean what they say. Day to day: safety prompts fire when they should, a bad flag tells you so, gstack's memory stays scoped to the repo you're in, and sessions on the newest Claude models get instructions tuned to them. Run `bun test` for the free suite, or `bash ~/.gstack-dev/pr-triage/wave-verify/test-infra/run.sh` to watch each fix flip from broken to fixed.
+
+### Itemized changes
+
+Every change below is community work. Contributor credited per line; two maintainer follow-ups are marked.
+
+#### Fixed
+
+- **Test harness command injection** (`test/helpers/session-runner.ts`). Spawn `claude` with an argument array and pipe the prompt via a `Blob` on stdin instead of assembling a `sh -c` string with naively double-quoted args. A `"`, `$`, or backtick in the model or tool list can no longer break out and execute. Contributed by @ryankc33 (#553). Maintainer follow-up (@t): reworded the orphan-timeout comment that described the now-removed `sh -c` wrapper.
+- **First-response metric timed the wrong event** (`test/helpers/session-runner.ts`). Stamp `firstResponseMs` on the first NDJSON line instead of the first `tool_use`, matching the documented schema and the Agent SDK runner. Contributed by @km-git007 (#789).
+- **/careful missed a chained destructive delete** (`careful/bin/check-careful.sh`, `test/hook-scripts.test.ts`). A dangerous `rm` chained before a safe one was allowed because only the last target was inspected; any shell separator now disables the safe-list shortcut. Contributed by @jbetala7 (#2040).
+- **`eval:list --limit` accepted garbage** (`scripts/eval-list.ts`, `test/eval-list-cli.test.ts`). A malformed, negative, or missing `--limit` now exits 1 with a clear message instead of silently slicing to an empty list. Contributed by @jbetala7 (#1684).
+- **gbrain dropped per-skill `filter:` blocks** (`lib/gstack-memory-helpers.ts`, `test/gstack-memory-helpers.test.ts`). Nested `filter:` maps in a SKILL.md manifest are now parsed, so list queries stay repo-scoped instead of pulling in other projects' memory. Contributed by @officialasishkumar (#1688).
+- **Trailing slash split a repo's identity** (`lib/gstack-memory-helpers.ts`, `test/gstack-memory-helpers.test.ts`). A remote URL written with a trailing slash now canonicalizes to the same key as one without. Contributed by @jbetala7 (#1896). Maintainer follow-up (@t): re-strip the trailing slash exposed when a path remote ends in a `.git` directory component, with a regression test.
+- **iOS QA SwiftPM manifests failed on first run** (`ios-qa/scripts/gen-accessors-tool/Package.swift`, `ios-qa/templates/Package.swift.template`, `test/skill-e2e-ios-swift-build.test.ts`). Removed two phantom test-target paths and moved `swift-tools-version` to line 1 so a fresh install builds. Contributed by @spacegeologist (#1766).
+- **iOS QA device sessions dropped after 30s** (`ios-qa/daemon/src/index.ts`, `ios-qa/daemon/test/daemon-integration.test.ts`). The tunnel cache is now a sliding idle timeout (5 min default, `GSTACK_IOS_TUNNEL_CACHE_MS` override) that refreshes on reuse, instead of a flat 30s TTL whose forced re-bootstrap was guaranteed to fail after token rotation. Contributed by @sternryan (#1919).
+- **Credential phrasings weren't all always-ask** (`scripts/one-way-doors.ts`, `test/one-way-doors.test.ts`). Unified the credential noun list across the revoke/reset/rotate patterns, so "revoke my secret", "reset my secret", and "reset my access key" all classify as one-way (always-ask). Contributed by @jbetala7 (#2025).
+
+#### Added
+
+- **Config validation for `suppressedResolvers`** (`scripts/host-config.ts`, `scripts/host-config-export.ts`, `test/host-config.test.ts`). A misspelled `suppressedResolvers` entry is now cross-checked against the resolver registry and rejected, instead of silently no-op'ing and rendering the section it should have suppressed. Contributed by @katlun-lgtm (#1936).
+- **CI concurrency for two workflows** (`.github/workflows/actionlint.yml`, `.github/workflows/skill-docs.yml`, `test/workflow-concurrency.test.ts`). `actionlint` and `skill-docs` now cancel superseded runs on rapid pushes, matching every other workflow; a static tripwire test pins the invariant. Contributed by @jbetala7 (#2053).
+- **Model overlays for Opus 4.8, Fable 5, and Sonnet 5** (`model-overlays/opus-4-8.md`, `model-overlays/fable-5.md`, `model-overlays/sonnet-5.md`, `scripts/models.ts`, `test/model-overlay-opus-4-8.test.ts`, `test/model-overlay-fable-5.test.ts`, `test/model-overlay-sonnet-5.test.ts`). Sessions on these models now inherit model-specific behavior nudges through `resolveModel` instead of the generic `claude` fallback; the specific patterns sit above the generic catch-all so ordering is preserved. Contributed by @chrisquorum (#2243, #2246, #2247).
+
+#### Reviewed but not included
+
+- #663 (@morluto), #1177 (@JonasFocus), #1578 (@aifllow): the problems they targeted were already fixed on main.
+- #1762 (@NikhileshNanduri): duplicate of #1684 with weaker validation.
+- #1110 (@JiayuuWang): the fix itself was broken (a syntax error that would fail the hook on every command, and once repaired it opened a delete bypass).
+- #2009 (@giattijunior): fork-oriented CI hardening that conflicted with every current workflow and bundled unrelated changes.
+
 ## [1.60.1.0] - 2026-07-09
 
 ## **The /autoplan dual-voice eval is back on the board, catching real regressions.**
