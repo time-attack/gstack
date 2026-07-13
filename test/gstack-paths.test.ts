@@ -26,7 +26,12 @@ function run(env: Record<string, string | undefined>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const line of result.stdout.split('\n')) {
     const eq = line.indexOf('=');
-    if (eq > 0) out[line.slice(0, eq)] = line.slice(eq + 1);
+    if (eq > 0) {
+      // gstack-paths single-quotes values so eval is space-safe; unwrap for assertions
+      let v = line.slice(eq + 1);
+      if (v.startsWith("'") && v.endsWith("'")) v = v.slice(1, -1).replaceAll("'\\''", "'");
+      out[line.slice(0, eq)] = v;
+    }
   }
   return out;
 }
