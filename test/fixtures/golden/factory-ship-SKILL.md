@@ -3107,12 +3107,28 @@ printf '%s' "v$NEW_VERSION <type>: <summary>" | $GSTACK_ROOT/bin/gstack-redact -
 HIGH blocks (exit 3, no skip). MEDIUM → AskUserQuestion (PII subset offers
 `--auto-redact`). Same scan runs before the `gh pr edit --body` path (Step 17).
 
+**Reviewer resolution (before creating the PR/MR):**
+
+Resolve reviewers in this priority order:
+
+1. The project's CLAUDE.md has a line matching `Default reviewer: @user` — use that username.
+2. The project's CLAUDE.md has a line matching `Reviewers: @a, @b` — use that list.
+3. Otherwise, **GitHub repos only**: auto-detect non-self collaborators: `gh api repos/:owner/:repo/collaborators --jq "[.[] | select(.login != \"$(gh api user --jq .login)\") | .login] | join(\",\")" 2>/dev/null` — but only auto-assign when there are 1-2 other collaborators. With 3+, skip auto-assignment and suggest adding a `Default reviewer: @user` line to CLAUDE.md instead (requesting review from every collaborator on every ship is spam, not discipline). On GitLab there is no auto-detect — only CLAUDE.md-configured reviewers (steps 1-2) are used.
+4. If none of the above return anything, skip reviewer assignment (solo repo, no reviewers available).
+
+Set the resolved list as `_REVIEWERS` at the top of the create block below (empty if step 4 applied) — the create command picks it up in the same block.
+
 **If GitHub:** create from the SCANNED file (exact bytes scanned = bytes sent):
 
 ```bash
 # PR title MUST start with v$NEW_VERSION — enforced on every run, no exceptions.
 # (See Step 19 idempotency block + bin/gstack-pr-title-rewrite.sh for the rule.)
-gh pr create --base <base> --title "v$NEW_VERSION <type>: <summary>" --body-file "$PR_BODY_FILE"
+_REVIEWERS="<resolved reviewers from above, comma-separated, or empty>"
+# Array, not ${VAR:+...} inline expansion: zsh doesn't word-split unquoted
+# expansions, which would glue the flag and value into one broken argument.
+_REVIEWER_ARGS=()
+[ -n "$_REVIEWERS" ] && _REVIEWER_ARGS=(--reviewer "$_REVIEWERS")
+gh pr create --base <base> "${_REVIEWER_ARGS[@]}" --title "v$NEW_VERSION <type>: <summary>" --body-file "$PR_BODY_FILE"
 rm -f "$PR_BODY_FILE"
 ```
 
@@ -3121,7 +3137,10 @@ rm -f "$PR_BODY_FILE"
 ```bash
 # MR title MUST start with v$NEW_VERSION — enforced on every run, no exceptions.
 # (See Step 19 idempotency block + bin/gstack-pr-title-rewrite.sh for the rule.)
-glab mr create -b <base> -t "v$NEW_VERSION <type>: <summary>" -d "$(cat <<'EOF'
+_REVIEWERS="<resolved reviewers from above, comma-separated, or empty>"
+_REVIEWER_ARGS=()
+[ -n "$_REVIEWERS" ] && _REVIEWER_ARGS=(--reviewer "$_REVIEWERS")
+glab mr create -b <base> "${_REVIEWER_ARGS[@]}" -t "v$NEW_VERSION <type>: <summary>" -d "$(cat <<'EOF'
 <MR body from above>
 EOF
 )"
@@ -3129,6 +3148,8 @@ EOF
 
 **If neither CLI is available:**
 Print the branch name, remote URL, and instruct the user to create the PR/MR manually via the web UI. Do not stop — the code is pushed and ready.
+
+**If reviewers were assigned:** after the URL, print one line: `Review requested from <reviewers>. Don't merge until it's approved — check with gh pr view --json reviewDecision (GitHub) or glab mr view (GitLab).` On GitHub, /land-and-deploy enforces this gate before merging (Step 3.5a-ter); on GitLab the check is manual. /ship never merges — its job ends at PR creation.
 
 **Output the PR/MR URL** — then proceed to Step 20.
 
@@ -3198,6 +3219,7 @@ through `gstack-version-bump`; never hand-roll the VERSION/package.json write.
 - **Never skip tests.** If tests fail, stop.
 - **Never skip the pre-landing review.** If checklist.md is unreadable, stop.
 - **Never force push.** Use regular `git push` only.
+- **Never merge without reviewer approval.** When reviewers are assigned at PR creation (CLAUDE.md `Default reviewer:` line or collaborator auto-detect in Step 19), /ship stops at the PR URL. Merging happens via /land-and-deploy only after `reviewDecision == "APPROVED"` — its GitHub review approval hard gate (sub-step 3.5a-ter) enforces this. If asked to merge in the same invocation, refuse and point at the review note from Step 19.
 - **Never ask for trivial confirmations** (e.g., "ready to push?", "create PR?"). DO stop for: version bumps (MINOR/MAJOR), pre-landing review findings (ASK items), and Codex structured review [P1] findings (large diffs only).
 - **Always use the 4-digit version format** from the VERSION file.
 - **Date format in CHANGELOG:** `YYYY-MM-DD`
