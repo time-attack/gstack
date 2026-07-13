@@ -1023,8 +1023,9 @@ if [ "$INSTALL_CLAUDE" -eq 1 ]; then
     log "  browse: $BROWSE_BIN"
   else
     # Not inside a skills/ directory — would symlink the source into
-    # ~/.claude/skills/gstack/ and register from there.
-    CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
+    # ~/.claude/skills/gstack/ and register from there. Honor CLAUDE_CONFIG_DIR
+    # so users with a non-default Claude config path register correctly (#349).
+    CLAUDE_SKILLS_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills"
     CLAUDE_GSTACK_LINK="$CLAUDE_SKILLS_DIR/gstack"
 
     # Conductor worktree guard: if ~/.claude/skills/gstack is already a real

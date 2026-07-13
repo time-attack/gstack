@@ -77,9 +77,13 @@ export function locateBinary(): string | null {
     if (sourceFound) return sourceFound;
   }
 
-  // Global fallback
-  for (const m of markers) {
-    const global = join(home, m, 'skills', 'gstack', 'browse', 'dist', 'browse');
+  // Global fallback. Honor CLAUDE_CONFIG_DIR for the Claude Code layout so
+  // users who keep their config outside ~/.claude still resolve the binary
+  // (issue #349). Falls back to ~/.claude when unset.
+  const claudeDir = process.env.CLAUDE_CONFIG_DIR || join(home, '.claude');
+  const globalDirs = [join(home, '.codex'), join(home, '.agents'), claudeDir];
+  for (const dir of globalDirs) {
+    const global = join(dir, 'skills', 'gstack', 'browse', 'dist', 'browse');
     const found = findExecutable(global);
     if (found) return found;
   }
