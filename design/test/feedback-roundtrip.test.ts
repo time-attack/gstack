@@ -125,10 +125,16 @@ beforeAll(async () => {
   session = bm.getActiveSession();
 });
 
-afterAll(() => {
-  try { server.stop(); } catch {}
+afterAll(async () => {
+  // Close resources properly — a forced process.exit here would kill the
+  // whole bun test process mid-suite and mask failures in later files.
+  // Force-stop the server first (open board connections otherwise stall it),
+  // and cap browser close below the 5s hook timeout.
+  try { server.stop(true); } catch {}
+  try {
+    await Promise.race([bm.close(), new Promise(r => setTimeout(r, 3000))]);
+  } catch {}
   fs.rmSync(tmpDir, { recursive: true, force: true });
-  setTimeout(() => process.exit(0), 500);
 });
 
 // ─── The critical test: browser click → file on disk ─────────────
