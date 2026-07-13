@@ -1418,7 +1418,7 @@ if [ -x "$DETECT_BIN" ]; then
         log "gbrain detected — regenerating Claude SKILL.md with brain-aware blocks (~250 token overhead per planning skill)..."
         (
           cd "$SOURCE_GSTACK_DIR"
-          bun_cmd run gen:skill-docs:user --host claude 2>&1 | tail -3
+          bun_cmd run gen:skill-docs:user --host claude
         ) || log "  warning: gen:skill-docs:user failed — run 'bun run gen:skill-docs:user' manually if you want brain-aware blocks"
       fi
     else
