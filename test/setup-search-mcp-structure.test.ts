@@ -15,8 +15,8 @@ describe('setup-search-mcp structural contract', () => {
   });
 
   test('uses exact supported host commands', () => {
-    expect(TMPL).toContain('claude mcp add --scope user --transport http "Parallel-Search-MCP" https://search.parallel.ai/mcp');
-    expect(TMPL).toContain('codex mcp add parallel-search --url https://search.parallel.ai/mcp');
+    expect(TMPL).toContain('claude mcp add --scope user --transport http "Exa-Search-MCP" https://mcp.exa.ai/mcp');
+    expect(TMPL).toContain('codex mcp add exa-search --url https://mcp.exa.ai/mcp');
     expect(TMPL).toContain('claude mcp list');
     expect(TMPL).toContain('codex mcp list --json');
   });
@@ -24,12 +24,12 @@ describe('setup-search-mcp structural contract', () => {
   test('does not guess unknown host config files', () => {
     expect(TMPL).toContain('Do not install into a different client just because its CLI exists');
     expect(TMPL).toContain('do not guess at the config file');
-    expect(TMPL).toContain('Expected tools after restart: `web_search`, `web_fetch`');
+    expect(TMPL).toContain('Expected tools after restart: `web_search_exa`, `web_fetch_exa`');
   });
 
   test('keeps auth and browser automation boundaries explicit', () => {
     expect(TMPL).toContain('AskUserQuestion');
-    expect(TMPL).toContain('API-key auth or OAuth');
+    expect(TMPL).toContain('API-key auth');
     expect(TMPL).toContain('This is not browser automation');
     expect(TMPL).toContain('/browse');
     expect(TMPL).toContain('/open-gstack-browser');

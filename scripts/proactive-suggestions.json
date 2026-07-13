@@ -285,7 +285,7 @@
     },
     "setup-search-mcp": {
       "lead": "Set up free web search for agents in gstack's Search Before Building workflow.",
-      "routing": "Adds Parallel Search MCP with no account or API key by default.\nUse when: \"setup search\", \"install search mcp\", \"connect Parallel Search MCP\",\n\"free web search\", \"agent web search\", \"make Search Before Building work\".",
+      "routing": "Adds the Exa Search MCP with no account or API key by default.\nUse when: \"setup search\", \"install search mcp\", \"connect Exa MCP\",\n\"free web search\", \"agent web search\", \"make Search Before Building work\".",
       "voice_line": null
     },
     "ship": {

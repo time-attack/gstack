@@ -6,7 +6,8 @@ description: Set up free web search for agents in gstack's Search Before Buildin
 triggers:
   - setup search
   - install search mcp
-  - connect parallel search mcp
+  - connect exa mcp
+  - exa search
   - free web search
   - free search mcp
   - agent web search
@@ -21,8 +22,8 @@ allowed-tools:
 
 ## When to invoke this skill
 
-Adds Parallel Search MCP with no account or API key by default.
-Use when: "setup search", "install search mcp", "connect Parallel Search MCP",
+Adds the Exa Search MCP with no account or API key by default.
+Use when: "setup search", "install search mcp", "connect Exa MCP",
 "free web search", "agent web search", "make Search Before Building work".
 
 ## Preamble (run first)
@@ -538,9 +539,9 @@ Skills that run plan reviews (`/plan-*-review`, `/codex review`) include the EXI
 
 # /setup-search-mcp — Free Web Search for Agents
 
-Set up Parallel Search MCP so agents working through Search Before Building get
+Set up the Exa Search MCP so agents working through Search Before Building get
 free web search. The default setup is free and no-auth: no account, no API key,
-no OAuth.
+no OAuth. (Exa is a YC company building search for AI agents.)
 
 This is not browser automation. Keep `/browse` and `/open-gstack-browser` for
 authenticated pages, screenshots, clicks, visual QA, and stateful browser work.
@@ -557,41 +558,44 @@ When the user types `/setup-search-mcp`, run this skill.
 - Do not install into a different client just because its CLI exists.
 - Do not edit private config files for unknown hosts. Print the manual MCP
   values instead.
-- Do not configure API-key auth or OAuth unless the user explicitly asks for
-  higher rate limits. If they do, use AskUserQuestion to ask whether they want
-  API-key auth or OAuth before printing or running auth-specific commands.
+- Do not configure API-key auth unless the user explicitly asks for higher
+  rate limits. If they do, tell them to create a key at
+  https://dashboard.exa.ai/api-keys and add it as an `x-api-key` header on the
+  same server URL; confirm via AskUserQuestion before printing or running
+  auth-specific commands.
 
 ## MCP Values
 
-- Server URL: `https://search.parallel.ai/mcp`
+- Server URL: `https://mcp.exa.ai/mcp`
 - Transport: Streamable HTTP
 - Authentication: none by default
-- Expected tools after restart: `web_search`, `web_fetch`
-- OAuth URL, only if the user opts in: `https://search.parallel.ai/mcp-oauth`
+- Expected tools after restart: `web_search_exa`, `web_fetch_exa`
+- Optional, only if the user opts in to higher limits: `x-api-key` header with
+  a key from `https://dashboard.exa.ai/api-keys`
 
 ## Claude Code Setup
 
 Use this path only when the current agent host is Claude Code:
 
 ```bash
-claude mcp remove -s user "Parallel-Search-MCP" 2>/dev/null || true
-claude mcp remove "Parallel-Search-MCP" 2>/dev/null || true
-claude mcp add --scope user --transport http "Parallel-Search-MCP" https://search.parallel.ai/mcp
+claude mcp remove -s user "Exa-Search-MCP" 2>/dev/null || true
+claude mcp remove "Exa-Search-MCP" 2>/dev/null || true
+claude mcp add --scope user --transport http "Exa-Search-MCP" https://mcp.exa.ai/mcp
 claude mcp list
 ```
 
 Then tell the user to restart Claude Code if the new MCP tools are not visible
 in the current session. After restart, Claude-style tool names usually appear as
-`mcp__Parallel-Search-MCP__web_search` and
-`mcp__Parallel-Search-MCP__web_fetch`.
+`mcp__Exa-Search-MCP__web_search_exa` and
+`mcp__Exa-Search-MCP__web_fetch_exa`.
 
 ## Codex Setup
 
 Use this path only when the current agent host is Codex:
 
 ```bash
-codex mcp remove parallel-search 2>/dev/null || true
-codex mcp add parallel-search --url https://search.parallel.ai/mcp
+codex mcp remove exa-search 2>/dev/null || true
+codex mcp add exa-search --url https://mcp.exa.ai/mcp
 codex mcp list --json
 ```
 
@@ -602,8 +606,8 @@ current session.
 
 For any other MCP-capable host, do not guess at the config file. Give the user
 the MCP values above and ask them to add the server through that host's normal
-MCP settings. Tell them the host may need a restart before `web_search` and
-`web_fetch` appear.
+MCP settings. Tell them the host may need a restart before `web_search_exa`
+and `web_fetch_exa` appear.
 
 ## Report
 
