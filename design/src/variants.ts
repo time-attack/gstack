@@ -87,7 +87,7 @@ export async function generateVariant(
         body: JSON.stringify({
           model: "gpt-4o",
           input: prompt,
-          tools: [{ type: "image_generation", size, quality }],
+          tools: [{ type: "image_generation", model: "gpt-image-2", size, quality }],
         }),
         signal: controller.signal,
       });

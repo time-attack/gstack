@@ -51,6 +51,7 @@ async function callImageGeneration(
         input: prompt,
         tools: [{
           type: "image_generation",
+          model: "gpt-image-2",
           size,
           quality,
         }],
