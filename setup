@@ -13,7 +13,10 @@ Options:
   --host <name>     Install for a specific host (claude, codex, kiro, factory,
                     opencode, openclaw, hermes, gbrain, auto). Default: claude.
   --prefix          Install skills with the gstack- prefix (e.g. /gstack-review).
-  --no-prefix       Install skills with short names (e.g. /review). Default.
+  --no-prefix       Install skills with short names (e.g. /review). Default is
+                    your saved config, or an interactive prompt on first run.
+  --local           Install into ./.claude/skills of the current repo (Claude only).
+  --plan-tune-hooks Install the plan-tune AskUserQuestion hooks without prompting.
   --team            Switch to team mode (per-repo gstack with auto-update).
   --no-team         Force solo install even if a team-mode repo is detected.
   -q, --quiet       Suppress progress output.
@@ -226,7 +229,7 @@ if [ "$LOCAL_INSTALL" -eq 1 ]; then
   mkdir -p "$INSTALL_SKILLS_DIR"
   # Per-skill symlinks point at gstack/<skill>, so create a gstack/ symlink
   # back to the repo root so the chain resolves (e.g. qa -> gstack/qa -> repo/qa)
-  ln -snf "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR/gstack"
+  _link_or_copy "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR/gstack"
   HOST="claude"
   INSTALL_CODEX=0
 fi
