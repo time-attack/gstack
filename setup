@@ -133,6 +133,20 @@ case "$HOST" in
     echo "     This writes .hermes/skills/ in this checkout."
     echo ""
     exit 0 ;;
+  agy|antigravity)
+    echo ""
+    echo "./setup --host agy does not install files into Antigravity today."
+    echo "It only prints integration instructions."
+    echo ""
+    echo "To integrate gstack with Antigravity (agy):"
+    echo "  1. Generate Antigravity-format skills locally:"
+    echo "     bun run gen:skill-docs --host agy"
+    echo "     This writes .agy/skills/ in this checkout."
+    echo "  2. Link them into Antigravity's global skills path:"
+    echo "     mkdir -p ~/.gemini/config/skills"
+    echo "     ln -snf \"\$(pwd)\"/.agy/skills/gstack* ~/.gemini/config/skills/"
+    echo ""
+    exit 0 ;;
   pi)
     echo ""
     echo "./setup --host pi does not install files into Pi today."
