@@ -577,6 +577,19 @@ fi
 # prints a named warning, and returns control. Re-running ./setup retries.
 _PW_FAIL_REASON=""
 
+# Detect Ubuntu 26.04: Playwright does not yet ship a native chromium build for
+# ubuntu26.04. Override the platform to the ubuntu24.04 build so the installer
+# picks a binary that runs fine on 26.04 (same glibc lineage). Exported so the
+# probe and the pinned bunx install below both inherit it. See #2101.
+if [ -f /etc/os-release ]; then
+  _os_id=$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+  _os_ver=$(grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+  if [ "$_os_id" = "ubuntu" ] && [ "$_os_ver" = "26.04" ]; then
+    export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="ubuntu24.04-x64"
+    echo "Ubuntu 26.04 detected — using PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=$PLAYWRIGHT_HOST_PLATFORM_OVERRIDE"
+  fi
+fi
+
 if ! ensure_playwright_browser; then
   echo "Installing Playwright Chromium..."
   if ! (
