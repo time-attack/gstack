@@ -16,6 +16,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { spawn as nodeSpawn } from 'child_process';
 import { safeUnlink, safeKill, isProcessAlive } from './error-handling';
 import { writeSecureFile, mkdirSecure } from './file-permissions';
 
@@ -68,7 +69,10 @@ export function spawnTerminalAgent(opts: {
   }
   const script = opts.scriptPath || resolveTerminalAgentScript();
   if (!script || !fs.existsSync(script)) return null;
-  const proc = (Bun as any).spawn(['bun', 'run', script], {
+  // node child_process.spawn (not Bun.spawn) so windowsHide suppresses the
+  // console-window flash when the CLI spawns the agent under real Bun on
+  // Windows (Bun.spawn ignores windowsHide). Same detached/unref lifecycle.
+  const proc = nodeSpawn('bun', ['run', script], {
     cwd: opts.cwd || process.cwd(),
     env: {
       ...process.env,
@@ -77,6 +81,7 @@ export function spawnTerminalAgent(opts: {
       ...(opts.extraEnv || {}),
     },
     stdio: ['ignore', 'ignore', 'ignore'],
+    windowsHide: true,
   });
   proc.unref?.();
   return proc.pid ?? null;
