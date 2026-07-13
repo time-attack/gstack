@@ -606,7 +606,9 @@ function parseTranscriptJsonl(path: string): ParsedSession | null {
     const normalizedRole = (role || "user").toLowerCase();
     if (normalizedRole !== "user" && normalizedRole !== "assistant") return;
     const dedupeKey = `${normalizedRole}\0${content}`;
-    if (dedupeKey === lastMessageKey) return;
+    // Only Codex double-renders adjacent duplicates (event_msg + response_item);
+    // Claude transcripts keep every message, matching pre-wave behavior.
+    if (isCodex && dedupeKey === lastMessageKey) return;
     lastMessageKey = dedupeKey;
     bodyParts.push(`## ${normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1)}\n\n${content}`);
     messageCount++;
@@ -627,9 +629,12 @@ function parseTranscriptJsonl(path: string): ParsedSession | null {
         toolCalls++;
         const tool = payload.name || "tool";
         bodyParts.push(`### Tool call: ${tool}`);
-      } else if (payload?.message) {
+      } else if (payload?.message && (payload.message?.role || payload.role)) {
+        // Require an explicit role: codex error/status events also carry a
+        // string `message` but no role — defaulting those to "user" would
+        // fabricate conversation turns.
         const msg = payload.message;
-        const role = msg.role || payload.role || "user";
+        const role = msg.role || payload.role;
         const content = extractContentText(msg);
         if (content) appendMessage(role, content);
       }
@@ -678,13 +683,29 @@ function extractContentText(rec: any): string {
   if (typeof rec.message?.content === "string") return rec.message.content;
   if (Array.isArray(rec.message?.content)) {
     return rec.message.content
-      .map((c: any) => (typeof c === "string" ? c : c?.text || c?.content || ""))
+      .map((c: any) => {
+        if (typeof c === "string") return c;
+        // tool_result payloads are not conversation text — and their array-form
+        // content would stringify to "[object Object]".
+        if (c?.type === "tool_result") return "";
+        if (typeof c?.text === "string") return c.text;
+        if (typeof c?.content === "string") return c.content;
+        return "";
+      })
       .filter(Boolean)
       .join("\n");
   }
   if (Array.isArray(rec.content)) {
     return rec.content
-      .map((c: any) => (typeof c === "string" ? c : c?.text || c?.content || ""))
+      .map((c: any) => {
+        if (typeof c === "string") return c;
+        // tool_result payloads are not conversation text — and their array-form
+        // content would stringify to "[object Object]".
+        if (c?.type === "tool_result") return "";
+        if (typeof c?.text === "string") return c.text;
+        if (typeof c?.content === "string") return c.content;
+        return "";
+      })
       .filter(Boolean)
       .join("\n");
   }
