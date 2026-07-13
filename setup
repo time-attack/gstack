@@ -749,7 +749,8 @@ create_agents_sidecar() {
   mkdir -p "$agents_gstack"
 
   # Sidecar directories that skills reference at runtime
-  for asset in bin browse review qa; do
+  # (lib: bin/*.ts helpers import ../lib/*; required on copy-mode installs)
+  for asset in bin lib browse review qa; do
     local src="$SOURCE_GSTACK_DIR/$asset"
     local dst="$agents_gstack/$asset"
     if [ -d "$src" ] || [ -f "$src" ]; then
@@ -796,6 +797,10 @@ create_codex_runtime_root() {
   if [ -d "$gstack_dir/bin" ]; then
     _link_or_copy "$gstack_dir/bin" "$codex_gstack/bin"
   fi
+  # lib/ — bin/*.ts helpers import ../lib/*; required on copy-mode installs
+  if [ -d "$gstack_dir/lib" ]; then
+    _link_or_copy "$gstack_dir/lib" "$codex_gstack/lib"
+  fi
   if [ -d "$gstack_dir/browse/dist" ]; then
     _link_or_copy "$gstack_dir/browse/dist" "$codex_gstack/browse/dist"
   fi
@@ -840,6 +845,10 @@ create_factory_runtime_root() {
   fi
   if [ -d "$gstack_dir/bin" ]; then
     _link_or_copy "$gstack_dir/bin" "$factory_gstack/bin"
+  fi
+  # lib/ — bin/*.ts helpers import ../lib/*; required on copy-mode installs
+  if [ -d "$gstack_dir/lib" ]; then
+    _link_or_copy "$gstack_dir/lib" "$factory_gstack/lib"
   fi
   if [ -d "$gstack_dir/browse/dist" ]; then
     _link_or_copy "$gstack_dir/browse/dist" "$factory_gstack/browse/dist"
@@ -1133,6 +1142,10 @@ if [ "$INSTALL_KIRO" -eq 1 ]; then
   [ -L "$KIRO_GSTACK" ] && rm -f "$KIRO_GSTACK"
   mkdir -p "$KIRO_GSTACK" "$KIRO_GSTACK/browse" "$KIRO_GSTACK/gstack-upgrade" "$KIRO_GSTACK/review"
   _link_or_copy "$SOURCE_GSTACK_DIR/bin" "$KIRO_GSTACK/bin"
+  # lib/ — bin/*.ts helpers import ../lib/*; required on copy-mode installs
+  if [ -d "$SOURCE_GSTACK_DIR/lib" ]; then
+    _link_or_copy "$SOURCE_GSTACK_DIR/lib" "$KIRO_GSTACK/lib"
+  fi
   _link_or_copy "$SOURCE_GSTACK_DIR/browse/dist" "$KIRO_GSTACK/browse/dist"
   _link_or_copy "$SOURCE_GSTACK_DIR/browse/bin" "$KIRO_GSTACK/browse/bin"
   # ETHOS.md — referenced by "Search Before Building" in all skill preambles
