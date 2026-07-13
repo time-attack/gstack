@@ -144,6 +144,35 @@ describe("plan-design-review round variant preservation", () => {
     await expect(resolveImagePaths(path.join(tmpDir, "*.png"))).resolves.toEqual([alias]);
   });
 
+  test("glob dedup ignores unrelated prefix siblings (variant-recommended-old.png)", async () => {
+    const alias = path.join(tmpDir, "variant-recommended.png");
+    const unrelated = path.join(tmpDir, "variant-recommended-old.png");
+    writePng(alias);
+    writePng(unrelated);
+    // Only a real candidate (single-letter label, .png) may evict the alias.
+    await expect(resolveImagePaths(path.join(tmpDir, "*.png"))).resolves.toEqual([unrelated, alias]);
+  });
+
+  test("glob dedup is per-directory: a candidate elsewhere never evicts another dir's alias", async () => {
+    const dirA = path.join(tmpDir, "a");
+    const dirB = path.join(tmpDir, "b");
+    fs.mkdirSync(dirA, { recursive: true });
+    fs.mkdirSync(dirB, { recursive: true });
+    const aliasA = path.join(dirA, "variant-recommended.png");
+    const aliasB = path.join(dirB, "variant-recommended.png");
+    const candidateB = path.join(dirB, "variant-recommended-A.png");
+    writePng(aliasA);
+    writePng(aliasB);
+    writePng(candidateB);
+
+    // Recursive glob across both dirs: dir a's alias (old-style round, no
+    // candidates) must survive; only dir b's alias is shadowed.
+    await expect(resolveImagePaths(path.join(tmpDir, "**", "*.png"))).resolves.toEqual([
+      aliasA,
+      candidateB,
+    ]);
+  });
+
   test("initial 3-option board paths are unchanged", async () => {
     const variantA = path.join(tmpDir, "variant-A.png");
     const variantB = path.join(tmpDir, "variant-B.png");

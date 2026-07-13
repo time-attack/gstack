@@ -523,11 +523,18 @@ async function resolveImagePaths(input: string): Promise<string[]> {
     }
     // Drop a round alias when its preserved candidates are also matched —
     // otherwise `compare --images dir/*.png` shows the alias as a duplicate
-    // card of the newest candidate.
+    // card of the newest candidate. Mirrors discoverRoundImages' predicate
+    // exactly (same directory, single-letter label, .png) so an unrelated
+    // prefix sibling (variant-recommended-old.png) or a candidate in a
+    // DIFFERENT directory can never evict a real design from the board.
     return paths
       .filter(p => {
         const base = roundBaseName(p);
-        return !base || !paths.some(q => q !== p && path.basename(q).startsWith(`${base}-`));
+        if (!base) return true;
+        const candidateRe = new RegExp(`^${escapeRegExp(base)}-[A-Z]\\.png$`);
+        return !paths.some(
+          q => q !== p && path.dirname(q) === path.dirname(p) && candidateRe.test(path.basename(q)),
+        );
       })
       .sort();
   }
