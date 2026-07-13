@@ -1801,6 +1801,12 @@ export class BrowserManager {
       if (this.customUserAgent) {
         contextOptions.userAgent = this.customUserAgent;
       }
+      // Re-apply GSTACK_HTTP_CREDENTIALS: a fresh context drops httpCredentials,
+      // so basic-auth would start 401ing after useragent/viewport/record rebuilds.
+      const rebuildCreds = parseHttpCredentials();
+      if (rebuildCreds) {
+        contextOptions.httpCredentials = rebuildCreds;
+      }
       if (this.recordVideoDir) {
         contextOptions.recordVideo = {
           dir: this.recordVideoDir,
@@ -1835,6 +1841,10 @@ export class BrowserManager {
         const contextOptions: BrowserContextOptions = this.viewportContextOptions();
         if (this.customUserAgent) {
           contextOptions.userAgent = this.customUserAgent;
+        }
+        const rebuildCredsFallback = parseHttpCredentials();
+        if (rebuildCredsFallback) {
+          contextOptions.httpCredentials = rebuildCredsFallback;
         }
         if (this.recordVideoDir) {
           contextOptions.recordVideo = {

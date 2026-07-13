@@ -101,6 +101,14 @@ interface BrowserMatch {
   browser: BrowserInfo;
   platform: BrowserPlatform;
   dbPath: string;
+  /**
+   * The profile directory the dbPath actually resolved to. Usually equals the
+   * requested profile, but the "Default"-missing numbered-profile fallback
+   * resolves to e.g. "Profile 5". The Windows App-Bound (v20) CDP path must
+   * launch Chrome with THIS profile, not the caller's original string, or it
+   * inspects the wrong profile and imports nothing (#2139 + #1181 seam).
+   */
+  profile: string;
 }
 
 // ─── Browser Registry ───────────────────────────────────────────
@@ -365,7 +373,7 @@ function findBrowserMatch(browser: BrowserInfo, profile: string): BrowserMatch |
     for (const dbPath of candidates) {
       try {
         if (fs.existsSync(dbPath)) {
-          return { browser, platform, dbPath };
+          return { browser, platform, dbPath, profile };
         }
       } catch {}
     }
@@ -444,7 +452,7 @@ function findFirstNumberedProfile(browser: BrowserInfo): BrowserMatch | null {
       for (const dbPath of candidates) {
         try {
           if (fs.existsSync(dbPath)) {
-            return { browser, platform, dbPath };
+            return { browser, platform, dbPath, profile: entry.name };
           }
         } catch {}
       }
@@ -942,13 +950,20 @@ export async function importCookiesViaCdp(
   if (!dataDir) throw new CookieImportError(`No Windows data dir for ${browser.name}`, 'not_installed');
   const userDataDir = path.join(getBaseDir('win32'), dataDir);
 
+  // Resolve the profile the cookie DB actually lives in. When "Default" is
+  // absent, getBrowserMatch falls back to the first numbered profile, so we
+  // must launch Chrome with THAT profile — passing the caller's "Default"
+  // string would point --profile-directory at a non-existent/wrong profile
+  // and import nothing (#2139 + #1181 seam).
+  const resolvedProfile = getBrowserMatch(browser, profile).profile;
+
   // Spawn Chrome with CDP over stdio pipes:
   //   stdio[0] stdin   — ignored (Chrome expects nothing on stdin)
   //   stdio[1] stdout  — piped
   //   stdio[2] stderr  — piped
   //   stdio[3]         — CDP write side (parent -> Chrome, net.Socket)
   //   stdio[4]         — CDP read side  (Chrome -> parent, net.Socket)
-  const [exe, ...chromeArgs] = buildCdpSpawnArgs(exePath, userDataDir, profile);
+  const [exe, ...chromeArgs] = buildCdpSpawnArgs(exePath, userDataDir, resolvedProfile);
   const chromeProc = nodeSpawn(exe, chromeArgs, {
     stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe'],
   });
@@ -1039,7 +1054,18 @@ function cdpSameSite(value: string): 'Strict' | 'Lax' | 'None' {
 type CdpPending = {
   resolve: (value: any) => void;
   reject: (err: Error) => void;
+  timer?: ReturnType<typeof setTimeout>;
 };
+
+// Per-request ceiling. If Chrome stays alive but never answers (hung, or a
+// malformed frame we drop in handleFrame), the pending promise would otherwise
+// resolve NEVER — cookie import never reaches `finally`, so the spawned Chrome
+// keeps the real profile locked. The replaced WebSocket transport had explicit
+// timeouts; keep the invariant. Override via GSTACK_CDP_SEND_TIMEOUT_MS.
+const CDP_SEND_TIMEOUT_MS = (() => {
+  const v = parseInt(process.env.GSTACK_CDP_SEND_TIMEOUT_MS || '', 10);
+  return Number.isFinite(v) && v > 0 ? v : 30_000;
+})();
 
 export class CdpPipeTransport {
   private nextId = 1;
@@ -1079,7 +1105,18 @@ export class CdpPipeTransport {
     if (params !== undefined) frame.params = params;
     if (sessionId !== undefined) frame.sessionId = sessionId;
     const promise = new Promise<any>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        if (this.pending.delete(id)) {
+          reject(new CookieImportError(
+            `CDP request '${method}' timed out after ${CDP_SEND_TIMEOUT_MS}ms`,
+            'cdp_error',
+            'retry',
+          ));
+        }
+      }, CDP_SEND_TIMEOUT_MS);
+      // Don't keep the process alive just for this timer.
+      (timer as { unref?: () => void }).unref?.();
+      this.pending.set(id, { resolve, reject, timer });
     });
     // Write is fire-and-forget; errors bubble via the 'error' listener above.
     this.writeStream.write(JSON.stringify(frame) + '\x00');
@@ -1130,6 +1167,7 @@ export class CdpPipeTransport {
     const pending = this.pending.get(msg.id);
     if (!pending) return;
     this.pending.delete(msg.id);
+    if (pending.timer) clearTimeout(pending.timer);
 
     if (msg.error) {
       pending.reject(new CookieImportError(
@@ -1145,7 +1183,10 @@ export class CdpPipeTransport {
     const wrapped = err instanceof CookieImportError
       ? err
       : new CookieImportError(`CDP transport error: ${err.message}`, 'cdp_error');
-    for (const pending of this.pending.values()) pending.reject(wrapped);
+    for (const pending of this.pending.values()) {
+      if (pending.timer) clearTimeout(pending.timer);
+      pending.reject(wrapped);
+    }
     this.pending.clear();
   }
 }
