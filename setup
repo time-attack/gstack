@@ -75,9 +75,20 @@ _print_windows_copy_note_once() {
 QUIET=0
 log() { [ "$QUIET" -eq 0 ] && echo "$@" || true; }
 
+# Per-host summary line for the browse binary (respects --no-browser).
+browse_summary() {
+  if [ "$NO_BROWSER" -eq 1 ]; then
+    log "  browse: skipped (--no-browser)"
+  else
+    log "  browse: $BROWSE_BIN"
+  fi
+}
+
 # ─── Parse flags ──────────────────────────────────────────────
 HOST="claude"
 LOCAL_INSTALL=0
+NO_BROWSER=0
+NO_BROWSER_FLAG=0
 SKILL_PREFIX=1
 SKILL_PREFIX_FLAG=0
 TEAM_MODE=0
@@ -90,6 +101,8 @@ while [ $# -gt 0 ]; do
     --local) LOCAL_INSTALL=1; shift ;;
     --prefix)    SKILL_PREFIX=1; SKILL_PREFIX_FLAG=1; shift ;;
     --no-prefix) SKILL_PREFIX=0; SKILL_PREFIX_FLAG=1; shift ;;
+    --no-browser|--nobrowser|--nobrowse|--no-browse) NO_BROWSER=1; NO_BROWSER_FLAG=1; shift ;;
+    --with-browser|--withbrowser) NO_BROWSER=0; NO_BROWSER_FLAG=1; shift ;;
     --team)    TEAM_MODE=1; shift ;;
     --no-team) NO_TEAM_MODE=1; shift ;;
     --plan-tune-hooks)    PLAN_TUNE_HOOKS_MODE="yes"; shift ;;
@@ -178,6 +191,18 @@ if [ "$SKILL_PREFIX_FLAG" -eq 0 ]; then
 else
   # Flag was passed explicitly — persist the choice
   "$GSTACK_CONFIG" set skill_prefix "$([ "$SKILL_PREFIX" -eq 1 ] && echo true || echo false)" 2>/dev/null || true
+fi
+
+# ─── Resolve no-browser preference ────────────────────────────
+# Priority: CLI flag > saved config
+if [ "$NO_BROWSER_FLAG" -eq 0 ]; then
+  _saved_no_browser="$("$GSTACK_CONFIG" get no_browser 2>/dev/null || true)"
+  if [ "$_saved_no_browser" = "true" ]; then
+    NO_BROWSER=1
+  fi
+else
+  # Flag was passed explicitly — persist the choice
+  "$GSTACK_CONFIG" set no_browser "$([ "$NO_BROWSER" -eq 1 ] && echo true || echo false)" 2>/dev/null || true
 fi
 
 # --local: install to .claude/skills/ in the current working directory (deprecated)
@@ -375,7 +400,10 @@ prepare_bun_for_windows_compile
 trap cleanup_copied_bun EXIT
 
 # 1. Build browse binary if needed (smart rebuild: stale sources, package.json, lock)
+# Skipped entirely in no-browser mode (--no-browser, persisted as no_browser config).
 NEEDS_BUILD=0
+if [ "$NO_BROWSER" -eq 0 ]; then
+
 if [ ! -x "$BROWSE_BIN" ]; then
   NEEDS_BUILD=1
 elif [ -n "$(find "$SOURCE_GSTACK_DIR/browse/src" -type f -newer "$BROWSE_BIN" -print -quit 2>/dev/null)" ]; then
@@ -438,6 +466,8 @@ if [ ! -x "$BROWSE_BIN" ]; then
   exit 1
 fi
 
+fi # end NO_BROWSER=0 guard (browse binary build)
+
 # 1b. Generate .agents/ Codex skill docs — always regenerate to prevent stale descriptions.
 # .agents/ is no longer committed — generated at setup time from .tmpl templates.
 # bun run build already does this, but we need it when NEEDS_BUILD=0 (binary is fresh).
@@ -475,7 +505,11 @@ if [ "$INSTALL_OPENCODE" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
   )
 fi
 
-# 2. Ensure Playwright's Chromium is available
+# 2. Ensure Playwright's Chromium is available (skipped in no-browser mode)
+if [ "$NO_BROWSER" -eq 1 ]; then
+  echo "Skipping browser install (--no-browser)."
+else
+
 if ! ensure_playwright_browser; then
   echo "Installing Playwright Chromium..."
   (
@@ -514,6 +548,8 @@ if ! ensure_playwright_browser; then
   fi
   exit 1
 fi
+
+fi # end NO_BROWSER guard (Playwright Chromium)
 
 # 2b. Ensure a color-emoji font is installed so make-pdf emoji render (Linux).
 #     Best-effort: warn instead of failing if it can't install.
@@ -559,6 +595,12 @@ link_claude_skill_dirs() {
         link_name="$skill_name"
       fi
       target="$skills_dir/$link_name"
+      # Skip the browse skill in no-browser mode. Installs are real managed
+      # dirs (SKILL.md symlink inside), so cleanup removes the whole dir.
+      if [ "$NO_BROWSER" -eq 1 ] && [ "$skill_name" = "browse" ]; then
+        rm -rf "$target"
+        continue
+      fi
       # Upgrade old directory symlinks to real directories
       if [ -L "$target" ]; then
         rm -f "$target"
@@ -749,6 +791,11 @@ link_codex_skill_dirs() {
       # symlink that Step 5 already pointed at the repo root.
       [ "$skill_name" = "gstack" ] && continue
       target="$skills_dir/$skill_name"
+      # Skip the browse skill in no-browser mode; remove any stale entry.
+      if [ "$NO_BROWSER" -eq 1 ] && [ "$skill_name" = "gstack-browse" ]; then
+        rm -rf "$target"
+        continue
+      fi
       # Create or update symlink
       if [ -L "$target" ] || [ ! -e "$target" ]; then
         _link_or_copy "$skill_dir" "$target"
@@ -1036,7 +1083,7 @@ if [ "$INSTALL_CLAUDE" -eq 1 ]; then
     else
       log "gstack ready (claude)."
     fi
-    log "  browse: $BROWSE_BIN"
+    browse_summary
   else
     # Not inside a skills/ directory — would symlink the source into
     # ~/.claude/skills/gstack/ and register from there.
@@ -1071,7 +1118,7 @@ if [ "$INSTALL_CLAUDE" -eq 1 ]; then
       log "  install first:  rm -rf $CLAUDE_GSTACK_LINK"
       log ""
       log "gstack built (claude registration skipped)."
-      log "  browse: $BROWSE_BIN"
+      browse_summary
     else
       mkdir -p "$CLAUDE_SKILLS_DIR"
       _link_or_copy "$SOURCE_GSTACK_DIR" "$CLAUDE_GSTACK_LINK"
@@ -1099,7 +1146,7 @@ if [ "$INSTALL_CLAUDE" -eq 1 ]; then
         _link_or_copy "gstack/open-gstack-browser" "$_OGB_LINK"
       fi
       log "gstack ready (claude)."
-      log "  browse: $BROWSE_BIN"
+      browse_summary
     fi
   fi
 fi
@@ -1121,7 +1168,7 @@ if [ "$INSTALL_CODEX" -eq 1 ]; then
   link_codex_skill_dirs "$SOURCE_GSTACK_DIR" "$CODEX_SKILLS"
 
   log "gstack ready (codex)."
-  log "  browse: $BROWSE_BIN"
+  browse_summary
   log "  codex skills: $CODEX_SKILLS"
 fi
 
@@ -1190,7 +1237,7 @@ if [ "$INSTALL_KIRO" -eq 1 ]; then
       fi
     done
     echo "gstack ready (kiro)."
-    echo "  browse: $BROWSE_BIN"
+    browse_summary
     echo "  kiro skills: $KIRO_SKILLS"
   fi
 fi
@@ -1201,7 +1248,7 @@ if [ "$INSTALL_FACTORY" -eq 1 ]; then
   create_factory_runtime_root "$SOURCE_GSTACK_DIR" "$FACTORY_GSTACK"
   link_factory_skill_dirs "$SOURCE_GSTACK_DIR" "$FACTORY_SKILLS"
   echo "gstack ready (factory)."
-  echo "  browse: $BROWSE_BIN"
+  browse_summary
   echo "  factory skills: $FACTORY_SKILLS"
 fi
 
@@ -1211,7 +1258,7 @@ if [ "$INSTALL_OPENCODE" -eq 1 ]; then
   create_opencode_runtime_root "$SOURCE_GSTACK_DIR" "$OPENCODE_GSTACK"
   link_opencode_skill_dirs "$SOURCE_GSTACK_DIR" "$OPENCODE_SKILLS"
   echo "gstack ready (opencode)."
-  echo "  browse: $BROWSE_BIN"
+  browse_summary
   echo "  opencode skills: $OPENCODE_SKILLS"
 fi
 
