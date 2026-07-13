@@ -13,7 +13,15 @@
  *                           auto-answer 401 challenges (e.g. a dev environment
  *                           behind a shared gate). Empty/unset → no credentials.
  *
- * Both default to a no-op, so the out-of-the-box launch behavior is unchanged.
+ *   GSTACK_HTTP_CREDENTIALS_ORIGIN
+ *                           Scope the credentials to one origin (e.g.
+ *                           "https://dev.example.com"). Without it, Playwright
+ *                           answers a 401 from ANY origin the session reaches —
+ *                           browse routinely visits untrusted pages, so an
+ *                           attacker page returning 401 could harvest the
+ *                           credentials. Set this whenever credentials are set.
+ *
+ * All default to a no-op, so the out-of-the-box launch behavior is unchanged.
  */
 
 function stripWrappingQuotes(value: string): string {
@@ -42,12 +50,19 @@ export function parseExtraChromiumArgs(env: NodeJS.ProcessEnv = process.env): st
 export interface HttpCredentials {
   username: string;
   password: string;
+  /** Only send credentials to 401s from this origin (Playwright supports it). */
+  origin?: string;
 }
+
+// Warn once per process, not once per launch site (three call sites).
+let warnedUnscopedCredentials = false;
 
 /**
  * Parse HTTP basic-auth credentials from GSTACK_HTTP_CREDENTIALS ("user:pass").
  * Splits on the first colon so passwords may contain colons. Returns undefined
- * when unset, blank, or missing a colon.
+ * when unset, blank, or missing a colon. When GSTACK_HTTP_CREDENTIALS_ORIGIN is
+ * set, the credentials are scoped to that origin; otherwise warn once that they
+ * will be sent to every 401-issuing origin the session reaches.
  */
 export function parseHttpCredentials(
   env: NodeJS.ProcessEnv = process.env,
@@ -55,5 +70,17 @@ export function parseHttpCredentials(
   const raw = env.GSTACK_HTTP_CREDENTIALS || '';
   const idx = raw.indexOf(':');
   if (idx <= 0) return undefined;
-  return { username: raw.slice(0, idx), password: raw.slice(idx + 1) };
+  const creds: HttpCredentials = { username: raw.slice(0, idx), password: raw.slice(idx + 1) };
+  const origin = env.GSTACK_HTTP_CREDENTIALS_ORIGIN?.trim();
+  if (origin) {
+    creds.origin = origin;
+  } else if (!warnedUnscopedCredentials) {
+    warnedUnscopedCredentials = true;
+    console.warn(
+      '[browse] GSTACK_HTTP_CREDENTIALS is set without GSTACK_HTTP_CREDENTIALS_ORIGIN — ' +
+      'these credentials will be sent to ANY origin that answers with a 401. ' +
+      'Scope them: GSTACK_HTTP_CREDENTIALS_ORIGIN=https://your-dev-host.example',
+    );
+  }
+  return creds;
 }

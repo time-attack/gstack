@@ -81,4 +81,22 @@ describe('parseHttpCredentials', () => {
       parseHttpCredentials({ GSTACK_HTTP_CREDENTIALS: 'alice:a:b:c' } as NodeJS.ProcessEnv),
     ).toEqual({ username: 'alice', password: 'a:b:c' });
   });
+
+  test('GSTACK_HTTP_CREDENTIALS_ORIGIN scopes credentials to one origin', () => {
+    expect(
+      parseHttpCredentials({
+        GSTACK_HTTP_CREDENTIALS: 'alice:s3cr3t',
+        GSTACK_HTTP_CREDENTIALS_ORIGIN: 'https://dev.example.com',
+      } as NodeJS.ProcessEnv),
+    ).toEqual({ username: 'alice', password: 's3cr3t', origin: 'https://dev.example.com' });
+  });
+
+  test('blank origin is ignored (credentials stay unscoped)', () => {
+    expect(
+      parseHttpCredentials({
+        GSTACK_HTTP_CREDENTIALS: 'alice:s3cr3t',
+        GSTACK_HTTP_CREDENTIALS_ORIGIN: '   ',
+      } as NodeJS.ProcessEnv),
+    ).toEqual({ username: 'alice', password: 's3cr3t' });
+  });
 });
