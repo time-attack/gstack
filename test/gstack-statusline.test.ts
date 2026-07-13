@@ -90,6 +90,21 @@ describe('skill extraction', () => {
     const out = run({ transcript_path: transcriptWithShip(), cwd: tmpDir }, ['--mode']);
     expect(out).toContain('/ship'); // fell back to full mode and rendered
   });
+
+  test('renders the full baseline without jq (bun fallback)', () => {
+    const out = run(
+      {
+        transcript_path: transcriptWithShip(),
+        workspace: { current_dir: tmpDir },
+        model: { display_name: 'Opus 4.8' },
+      },
+      ['--full'],
+      { GSTACK_STATUSLINE_NO_JQ: '1' },
+    );
+    expect(out).toContain(path.basename(tmpDir));
+    expect(out).toContain('Opus 4.8');
+    expect(out).toContain('/ship');
+  });
 });
 
 describe('display modes', () => {

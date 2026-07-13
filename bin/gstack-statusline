@@ -39,13 +39,36 @@ case "$mode" in full|skill) ;; *) mode="full" ;; esac
 
 input=$(cat)
 
-# jq is the only dependency (already required across gstack). If it's missing,
-# print nothing rather than spilling an error into the status bar.
-command -v jq >/dev/null 2>&1 || exit 0
+# jq when available; bun (gstack's baseline requirement) otherwise, so a
+# jq-less machine — stock macOS — still renders instead of going blank.
+# GSTACK_STATUSLINE_NO_JQ=1 forces the bun path (used by the tests).
+if [ -z "${GSTACK_STATUSLINE_NO_JQ:-}" ] && command -v jq >/dev/null 2>&1; then
+  HAVE_JQ=1
+else
+  HAVE_JQ=0
+fi
+
+# _field <dotted.path> — read JSON on stdin, print the string value or nothing.
+_field() {
+  if [ "$HAVE_JQ" = 1 ]; then
+    jq -r ".$1 // empty" 2>/dev/null
+  else
+    bun -e 'const c=[];process.stdin.on("data",d=>c.push(d));process.stdin.on("end",()=>{let j={};try{j=JSON.parse(Buffer.concat(c).toString())}catch{}const v=process.argv[1].split(".").reduce((o,k)=>(o==null?o:o[k]),j);if(v!=null&&typeof v!=="object")process.stdout.write(String(v))})' "$1" 2>/dev/null
+  fi
+}
+
+# _jsonl_skills — read JSONL on stdin, print each line's .skill value.
+_jsonl_skills() {
+  if [ "$HAVE_JQ" = 1 ]; then
+    jq -r '.skill // empty' 2>/dev/null
+  else
+    bun -e 'const c=[];process.stdin.on("data",d=>c.push(d));process.stdin.on("end",()=>{for(const l of Buffer.concat(c).toString().split("\n")){try{const s=JSON.parse(l).skill;if(s)console.log(s)}catch{}}})' 2>/dev/null
+  fi
+}
 
 # ── Last gstack skill ────────────────────────────────────────────────
 last_skill=""
-transcript_path=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null)
+transcript_path=$(printf '%s' "$input" | _field transcript_path)
 
 if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
   # A skill is invoked two ways in the transcript, never by Reading the file:
@@ -74,7 +97,7 @@ if [ -z "$last_skill" ]; then
   analytics_file="$state_dir/analytics/skill-usage.jsonl"
   if [ -f "$analytics_file" ]; then
     last_skill=$(tail -20 "$analytics_file" 2>/dev/null \
-      | jq -r '.skill // empty' 2>/dev/null \
+      | _jsonl_skills \
       | grep -v '^$' \
       | tail -1 \
       | sed 's|^|/|')
@@ -90,8 +113,9 @@ out=""
 if [ "$mode" = "full" ]; then
   # Baseline reconstructed from the payload Claude Code passes in, so installing
   # the statusline is additive instead of replacing the default's content.
-  cur_dir=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // empty' 2>/dev/null)
-  model=$(printf '%s' "$input" | jq -r '.model.display_name // empty' 2>/dev/null)
+  cur_dir=$(printf '%s' "$input" | _field workspace.current_dir)
+  [ -n "$cur_dir" ] || cur_dir=$(printf '%s' "$input" | _field cwd)
+  model=$(printf '%s' "$input" | _field model.display_name)
   if [ -n "$cur_dir" ]; then
     out="${ESC}[01;34m$(basename "$cur_dir")${ESC}[00m"
     # Git branch is NOT in the payload — derive it (silent when not a repo).
