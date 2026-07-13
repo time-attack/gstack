@@ -364,6 +364,20 @@ describe("gstack-global-discover", () => {
       expect(json.tools.codex.originators.desktop).toBe(0);
     });
 
+    test("'codex_cli_rs' (interactive TUI) originator → cli bucket", () => {
+      writeCodex("codex_cli_rs");
+      const json = discover();
+      expect(json.tools.codex.originators.cli).toBe(1);
+      expect(json.tools.codex.originators.other).toBe(0);
+    });
+
+    test("'codex_sdk_ts' originator → sdk bucket", () => {
+      writeCodex("codex_sdk_ts");
+      const json = discover();
+      expect(json.tools.codex.originators.sdk).toBe(1);
+      expect(json.tools.codex.originators.other).toBe(0);
+    });
+
     test("'Claude Code' originator → claude_code bucket", () => {
       writeCodex("Claude Code");
       const json = discover();
@@ -477,7 +491,7 @@ describe("gstack-global-discover", () => {
         expect(typeof o[k]).toBe("number");
       }
       // Sum of originators must equal codex total_sessions.
-      expect(o.desktop + o.exec + o.claude_code + o.other).toBe(json.tools.codex.total_sessions);
+      expect(o.desktop + o.cli + o.sdk + o.exec + o.claude_code + o.other).toBe(json.tools.codex.total_sessions);
       for (const repo of json.repos) {
         expect(repo).toHaveProperty("codex_originators");
       }
@@ -586,3 +600,4 @@ describe("gstack-global-discover", () => {
     });
   });
 });
+

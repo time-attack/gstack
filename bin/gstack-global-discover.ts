@@ -19,7 +19,7 @@ import { homedir } from "os";
 // Codex `payload.originator` values map to four buckets so /retro global can
 // distinguish real codex dev (Codex Desktop) from subagent invocations
 // (codex_exec) and CC-driven calls (Claude Code). See issue #1315.
-type CodexOriginator = "desktop" | "exec" | "claude_code" | "other";
+type CodexOriginator = "desktop" | "cli" | "sdk" | "exec" | "claude_code" | "other";
 
 interface Session {
   tool: "claude_code" | "codex" | "gemini";
@@ -29,6 +29,8 @@ interface Session {
 
 interface CodexOriginatorCounts {
   desktop: number;
+  cli: number;
+  sdk: number;
   exec: number;
   claude_code: number;
   other: number;
@@ -319,7 +321,9 @@ export function extractCwdFromJsonl(filePath: string): string | null {
 }
 
 // Codex rollouts ship a free-form `payload.originator` string. Real values
-// seen in the wild: "Codex Desktop" (interactive dev), "codex_exec" (cron /
+// seen in the wild: "Codex Desktop" (interactive dev), "codex_cli_rs" (the
+// interactive terminal TUI's default), "codex_vscode" (IDE extension),
+// "codex_sdk_ts" (TypeScript SDK / programmatic), "codex_exec" (cron /
 // scripted / subagent), "Claude Code" (CC's MCP / subagent integration).
 // Anything else lands in `other` rather than being silently dropped. We trim
 // before lowercasing so a stray trailing space ("Codex Desktop ") still maps.
@@ -327,13 +331,15 @@ function normalizeCodexOriginator(raw: unknown): CodexOriginator {
   if (typeof raw !== "string") return "other";
   const v = raw.trim().toLowerCase();
   if (v === "codex desktop" || v === "codex_desktop") return "desktop";
+  if (v === "codex_cli_rs" || v === "codex_vscode") return "cli";
+  if (v === "codex_sdk_ts" || v === "codex_sdk_py") return "sdk";
   if (v === "codex_exec" || v === "codex exec") return "exec";
   if (v === "claude code" || v === "claude_code") return "claude_code";
   return "other";
 }
 
 function emptyOriginatorCounts(): CodexOriginatorCounts {
-  return { desktop: 0, exec: 0, claude_code: 0, other: 0 };
+  return { desktop: 0, cli: 0, sdk: 0, exec: 0, claude_code: 0, other: 0 };
 }
 
 function scanCodex(since: Date): Session[] {
@@ -633,7 +639,7 @@ async function main() {
     console.log(`Sessions: ${allSessions.length} total (CC: ${ccSessions.length}, Codex: ${codexSessions.length}, Gemini: ${geminiSessions.length})`);
     if (codexSessions.length > 0) {
       const o = codexOriginatorTotals;
-      console.log(`  Codex originators: desktop=${o.desktop}, exec=${o.exec}, claude_code=${o.claude_code}, other=${o.other}`);
+      console.log(`  Codex originators: desktop=${o.desktop}, cli=${o.cli}, sdk=${o.sdk}, exec=${o.exec}, claude_code=${o.claude_code}, other=${o.other}`);
     }
     console.log(`Repos: ${repos.length} unique`);
     console.log("");
