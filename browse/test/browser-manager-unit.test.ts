@@ -359,3 +359,31 @@ describe('getDefaultViewport', () => {
     expect(getDefaultViewport()).toEqual({ width: 7680, height: 4320 });
   });
 });
+
+// ─── Stealth backend selection (GSTACK_STEALTH_BACKEND) ─────────
+
+describe('stealth backend (patchright)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(import.meta.dir, '..', 'src', 'browser-manager.ts'), 'utf-8');
+
+  it('opt-in gates on GSTACK_STEALTH_BACKEND (separate from GSTACK_STEALTH)', () => {
+    // The driver swap must key off its own env var so it composes with the
+    // JS-layer GSTACK_STEALTH=extended knob instead of colliding with it.
+    expect(src).toContain("process.env.GSTACK_STEALTH_BACKEND === 'patchright'");
+    expect(src).not.toContain("process.env.GSTACK_STEALTH === 'patchright'");
+  });
+
+  it('routes every launch site through getChromium() (no bare chromium.launch call)', () => {
+    // A missed launch site would silently skip the stealth backend there.
+    // Match actual awaited calls, not the two prose comment mentions.
+    expect(/await chromium\.launch/.test(src)).toBe(false);
+    expect(src).toContain('async function getChromium()');
+    expect(src).toContain('await chromiumDriver');
+  });
+
+  it('falls back to vanilla Playwright when the backend package is absent', () => {
+    // The fallback path must exist so an unset/failed backend never breaks launch.
+    expect(src).toContain('_cachedChromium = playwrightChromium');
+  });
+});

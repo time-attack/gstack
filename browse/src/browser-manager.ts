@@ -16,7 +16,36 @@
  */
 
 import { execSync } from 'child_process';
-import { chromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page, type Locator, type Cookie, type Worker } from 'playwright';
+import { chromium as playwrightChromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page, type Locator, type Cookie, type Worker } from 'playwright';
+
+// ─── Stealth Backend Selection ────────────────────────────────────────
+// When GSTACK_STEALTH_BACKEND=patchright is set AND the `patchright` package
+// is installed, gstack drives Chromium through it instead of vanilla
+// Playwright. Patchright is a drop-in Playwright replacement that eliminates
+// the CDP `Runtime.Enable` leak — the single biggest automation signal that
+// Cloudflare, DataDome, Imperva, and X fingerprint on. This is a SEPARATE knob
+// from GSTACK_STEALTH=extended (the JS-layer patch set in stealth.ts); the two
+// compose. Falls back to vanilla Playwright with a warning if patchright is
+// not installed. Safe by default: existing users see no change.
+let _cachedChromium: typeof playwrightChromium | null = null;
+async function getChromium(): Promise<typeof playwrightChromium> {
+  if (_cachedChromium) return _cachedChromium;
+  if (process.env.GSTACK_STEALTH_BACKEND === 'patchright') {
+    try {
+      const pr = await import('patchright');
+      console.error('[browse] stealth backend: patchright enabled');
+      _cachedChromium = pr.chromium as unknown as typeof playwrightChromium;
+      return _cachedChromium;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[browse] GSTACK_STEALTH_BACKEND=patchright set but patchright not installed: ${msg}`);
+      console.error('[browse] Install: bun add -O patchright && bunx patchright install chrome');
+      console.error('[browse] Falling back to vanilla Playwright Chromium.');
+    }
+  }
+  _cachedChromium = playwrightChromium;
+  return _cachedChromium;
+}
 import { addConsoleEntry, addNetworkEntry, addDialogEntry, networkBuffer, type DialogEntry } from './buffers';
 import { emitActivity } from './activity';
 import { validateNavigationUrl } from './url-validation';
@@ -621,7 +650,8 @@ export class BrowserManager {
       // temporary persistent profile, so its real service worker can receive
       // auth without sharing state with the user's headed GStack profile.
       const { STEALTH_IGNORE_DEFAULT_ARGS } = await import('./stealth');
-      this.context = await chromium.launchPersistentContext('', {
+      const chromiumDriverExt = await getChromium();
+      this.context = await chromiumDriverExt.launchPersistentContext('', {
         ...contextOptions,
         headless: false,
         // Honor GSTACK_CHROMIUM_PATH here too — this branch replaces the plain
@@ -636,7 +666,8 @@ export class BrowserManager {
       this.browser = this.context.browser();
       if (!this.browser) throw new Error('Persistent extension browser did not start');
     } else {
-      this.browser = await chromium.launch({
+      const chromiumDriver = await getChromium();
+      this.browser = await chromiumDriver.launch({
         headless: useHeadless,
         // Honor GSTACK_CHROMIUM_PATH on the headless launch path. The headed
         // path (launchPersistentContext) already respects it; this keeps both
@@ -768,7 +799,7 @@ export class BrowserManager {
     // Rebrand Chromium → GStack Browser in macOS menu bar / Dock / Cmd+Tab.
     // Patch the Chromium .app's Info.plist so macOS shows our name.
     // This works for both dev mode (system Playwright cache) and .app bundle.
-    const chromePath = executablePath || chromium.executablePath();
+    const chromePath = executablePath || playwrightChromium.executablePath();
     try {
       // Walk up from binary to the .app's Info.plist
       // e.g. .../Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
@@ -818,7 +849,7 @@ export class BrowserManager {
     let customUA: string | undefined;
     if (!this.customUserAgent) {
       // Detect Chrome version from the Chromium binary
-      const chromePath = executablePath || chromium.executablePath();
+      const chromePath = executablePath || playwrightChromium.executablePath();
       try {
         const versionProc = Bun.spawnSync([chromePath, '--version'], {
           stdout: 'pipe', stderr: 'pipe', timeout: 5000,
@@ -852,7 +883,8 @@ export class BrowserManager {
     }
 
     const { STEALTH_IGNORE_DEFAULT_ARGS } = await import('./stealth');
-    this.context = await chromium.launchPersistentContext(userDataDir, {
+    const chromiumDriverHeaded = await getChromium();
+    this.context = await chromiumDriverHeaded.launchPersistentContext(userDataDir, {
       headless: false,
       // Match the sandbox policy used by launch() above. Without this,
       // Playwright auto-adds --no-sandbox on every headed launch and the user
@@ -866,7 +898,7 @@ export class BrowserManager {
       // Playwright 1.49+ defaults headless:true to chrome-headless-shell, which
       // cannot load Chrome extensions. Explicitly pin the full Chromium binary
       // so future Playwright upgrades don't silently break /open-gstack-browser.
-      executablePath: executablePath || chromium.executablePath(),
+      executablePath: executablePath || playwrightChromium.executablePath(),
       ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
       ignoreDefaultArgs: STEALTH_IGNORE_DEFAULT_ARGS,
     });
@@ -2019,7 +2051,8 @@ export class BrowserManager {
       // The handoff path (headless → headed re-launch) takes the same
       // anti-detection posture.
       const { STEALTH_IGNORE_DEFAULT_ARGS } = await import('./stealth');
-      newContext = await chromium.launchPersistentContext(userDataDir, {
+      const chromiumDriverHandoff = await getChromium();
+      newContext = await chromiumDriverHandoff.launchPersistentContext(userDataDir, {
         headless: false,
         // Match the sandbox policy used by launchHeaded() / launch(). The
         // handoff path is the headless→headed re-launch and shares the same

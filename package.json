@@ -78,6 +78,9 @@
     "xterm": "5",
     "xterm-addon-fit": "^0.8.0"
   },
+  "optionalDependencies": {
+    "patchright": "^1.59.0"
+  },
   "patchedDependencies": {
     "playwright-core@1.60.0": "patches/playwright-core@1.60.0.patch"
   }

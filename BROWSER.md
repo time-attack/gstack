@@ -1214,6 +1214,7 @@ the global `~/.gstack/browser-skills/foo/` only inside project-a.
 | `GSTACK_SECURITY_OFF` | unset | Emergency kill switch — disable ML classifier |
 | `GSTACK_SECURITY_ENSEMBLE` | unset | Set to `deberta` for 3-classifier ensemble (721MB download) |
 | `GSTACK_STEALTH` | unset | Set to `extended` (also accepts `1`/`true`) to layer six aggressive patches (WebGL spoof, faked plugins, mediaDevices) on top of Layer C. Actively lies; can break sites. |
+| `GSTACK_STEALTH_BACKEND` | unset | Set to `patchright` to drive Chromium through the optional [patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright) package instead of vanilla Playwright, closing the CDP `Runtime.Enable` leak (the top signal Cloudflare/DataDome/Imperva fingerprint on). Requires `bun add -O patchright && bunx patchright install chrome`; falls back to vanilla Playwright with a warning if not installed. Composes with `GSTACK_STEALTH=extended` (separate layer). |
 | `GSTACK_CDP_STEALTH` | unset | Set to `on`/`1`/`true` to emit `--gstack-suppress-prepare-stack-trace` (gbrowser Pack 2 / B11 C++ patch only; no-op on stock Chromium) |
 | `GSTACK_SKIP_BROWSER_REPAIR` | 0 | Set to `1` to skip setup's bounded Playwright browser-cache health check and repair |
 | `GSTACK_GPU_VENDOR`, `GSTACK_GPU_RENDERER`, `GSTACK_GPU_CHIPSET` | unset | Per-install GPU spoof fed to the Pack 1 WebGL/UA-CH C++ patches. Set by gbd from the host profile; emitted as `--gstack-gpu-vendor` / `--gstack-gpu-renderer` / `--gstack-ua-model` cmdline switches only when present. |
