@@ -144,6 +144,26 @@ Record baseline design score and AI slop score at end of Phase 6.
 
 ---
 
+## Phase 6.5: Cognitive Load (S1/S2)
+
+Rate every audited screen on a System 1 ↔ System 2 scale (0-10). Ground scores in browse data already collected: element counts from `snapshot -i`, link counts from `links`, load times from `perf`.
+
+Every screen should be S1 (0-3). Exceptions: destructive actions (delete account), financial decisions, etc.
+
+Display as ASCII slider. For any screen above 3 that isn't intentional friction, name which UX laws it breaks (Fitts, Hick, Jakob, Miller, Peak-End, Von Restorff, Zeigarnik, Gestalt, Motivation) and the measurement that proves it:
+
+```
+Landing         S1 |--●-------| S2  [2/10]  ✓
+Onboarding      S1 |-●--------| S2  [1/10]  ✓
+Dashboard       S1 |-------●--| S2  [7/10]  ✗ Hick (31 items, no filter), Miller (93 data points), Gestalt (no grouping)
+Settings        S1 |----●-----| S2  [4/10]  ✗ Hick (23 toggles on one page)
+Delete Account  S1 |--------●-| S2  [8/10]  ✓ (intentional friction)
+```
+
+After the slider, list one concise issue per broken screen with the law references in parentheses. Include the slider and issues in the Phase 10 report.
+
+---
+
 ## Output Structure
 
 ```
