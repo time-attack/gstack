@@ -91,9 +91,9 @@ mkdir -p "$_tmp_root" 2>/dev/null || true
 
 if [ -n "$_get_key" ]; then
   case "$_get_key" in
-    state-root) echo "$_state_root" ;;
-    plan-root)  echo "$_plan_root" ;;
-    tmp-root)   echo "$_tmp_root" ;;
+    state-root) printf '%s\n' "$_state_root" ;;
+    plan-root)  printf '%s\n' "$_plan_root" ;;
+    tmp-root)   printf '%s\n' "$_tmp_root" ;;
     *)
       echo "gstack-paths: unknown key '$_get_key' (expected state-root|plan-root|tmp-root)" >&2
       exit 1
