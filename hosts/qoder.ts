@@ -19,7 +19,7 @@ const qoder: HostConfig = {
 
   generation: {
     generateMetadata: false,
-    skipSkills: ['codex'],
+    skipSkills: ['codex', 'grok'],  // Outside-voice CLI wrappers (Claude host only)
   },
 
   pathRewrites: [
