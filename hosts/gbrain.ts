@@ -24,7 +24,7 @@ const gbrain: HostConfig = {
 
   generation: {
     generateMetadata: false,
-    skipSkills: ['codex', 'grok'],
+    skipSkills: ['codex'],
     includeSkills: [],
   },
 

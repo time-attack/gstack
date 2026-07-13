@@ -19,7 +19,7 @@ const vibe: HostConfig = {
 
   generation: {
     generateMetadata: false,
-    skipSkills: ['codex', 'grok'],  // Outside-voice CLI wrappers (Claude host only)
+    skipSkills: ['codex'],  // Codex skill is a Claude wrapper around codex exec
   },
 
   pathRewrites: [

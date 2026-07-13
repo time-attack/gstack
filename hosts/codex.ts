@@ -21,7 +21,7 @@ const codex: HostConfig = {
   generation: {
     generateMetadata: true,
     metadataFormat: 'openai.yaml',
-    skipSkills: ['codex', 'grok'],  // Outside-voice CLI wrappers (Claude host only)
+    skipSkills: ['codex'],  // Codex skill is a Claude wrapper around codex exec
   },
 
   pathRewrites: [

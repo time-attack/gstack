@@ -19,7 +19,7 @@ const slate: HostConfig = {
 
   generation: {
     generateMetadata: false,
-    skipSkills: ['codex', 'grok'],
+    skipSkills: ['codex'],
   },
 
   pathRewrites: [

@@ -37,7 +37,7 @@ const grokBuild: HostConfig = {
     // Upstream convention: /codex skill is a Claude↔Codex bridge; all external
     // hosts skip it (host-config.test.ts). Grok users already have the openai-codex
     // plugin; keep /claude as an optional outside-voice skill.
-    skipSkills: ['codex', 'grok'],  // Outside-voice CLI wrappers (Claude host only)
+    skipSkills: ['codex'],  // Codex skill is a Claude wrapper around codex exec
   },
 
   pathRewrites: [
