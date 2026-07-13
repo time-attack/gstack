@@ -24,20 +24,21 @@ const ROOT = path.resolve(import.meta.dir, '..');
 
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist']);
 
-function discoverSkillFiles(root: string): string[] {
-  const subdirs = fs.readdirSync(root, { withFileTypes: true })
-    .filter(d => d.isDirectory() && !d.name.startsWith('.') && !SKIP_DIRS.has(d.name))
-    .map(d => d.name);
-
+function discoverSkillFiles(root: string, relDir = '', depth = 0): string[] {
+  // Bounded recursive walk (depth ≤ 3) so nested hand-written skills are
+  // covered too: openclaw/skills/*/SKILL.md (depth 3), browser-skills/*/
+  // SKILL.md (depth 2) — precisely the non-generated files most likely to
+  // carry a hand-typed bash error.
+  const abs = path.join(root, relDir);
   const results: string[] = [];
-  if (fs.existsSync(path.join(root, 'SKILL.md'))) {
-    results.push('SKILL.md');
+  const skillRel = relDir ? `${relDir}/SKILL.md` : 'SKILL.md';
+  if (fs.existsSync(path.join(root, skillRel))) {
+    results.push(skillRel);
   }
-  for (const dir of subdirs) {
-    const rel = `${dir}/SKILL.md`;
-    if (fs.existsSync(path.join(root, rel))) {
-      results.push(rel);
-    }
+  if (depth >= 3) return results;
+  for (const d of fs.readdirSync(abs, { withFileTypes: true })) {
+    if (!d.isDirectory() || d.name.startsWith('.') || SKIP_DIRS.has(d.name)) continue;
+    results.push(...discoverSkillFiles(root, relDir ? `${relDir}/${d.name}` : d.name, depth + 1));
   }
   return results;
 }
@@ -70,6 +71,9 @@ function extractBashBlocks(content: string): BashBlock[] {
     if (inBash) {
       blockLines.push(line);
     }
+  }
+  if (inBash) {
+    throw new Error(`unclosed \`\`\`bash fence starting near line ${startLine - 1}`);
   }
   return blocks;
 }
