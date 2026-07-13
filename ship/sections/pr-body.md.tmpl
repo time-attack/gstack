@@ -177,12 +177,24 @@ printf '%s' "v$NEW_VERSION <type>: <summary>" | ~/.claude/skills/gstack/bin/gsta
 HIGH blocks (exit 3, no skip). MEDIUM → AskUserQuestion (PII subset offers
 `--auto-redact`). Same scan runs before the `gh pr edit --body` path (Step 17).
 
+**Reviewer resolution (before creating the PR/MR):**
+
+Resolve reviewers in this priority order:
+
+1. The project's CLAUDE.md has a line matching `Default reviewer: @user` — use that username.
+2. The project's CLAUDE.md has a line matching `Reviewers: @a, @b` — use that list.
+3. Otherwise auto-detect non-self collaborators: `gh api repos/:owner/:repo/collaborators --jq "[.[] | select(.login != \"$(gh api user --jq .login)\") | .login] | join(\",\")" 2>/dev/null`
+4. If none of the above return anything, skip reviewer assignment (solo repo, no reviewers available).
+
+Set the resolved list as `_REVIEWERS` at the top of the create block below (empty if step 4 applied) — the create command picks it up in the same block.
+
 **If GitHub:** create from the SCANNED file (exact bytes scanned = bytes sent):
 
 ```bash
 # PR title MUST start with v$NEW_VERSION — enforced on every run, no exceptions.
 # (See Step 19 idempotency block + bin/gstack-pr-title-rewrite.sh for the rule.)
-gh pr create --base <base> --title "v$NEW_VERSION <type>: <summary>" --body-file "$PR_BODY_FILE"
+_REVIEWERS="<resolved reviewers from above, comma-separated, or empty>"
+gh pr create --base <base> ${_REVIEWERS:+--reviewer "$_REVIEWERS"} --title "v$NEW_VERSION <type>: <summary>" --body-file "$PR_BODY_FILE"
 rm -f "$PR_BODY_FILE"
 ```
 
@@ -191,7 +203,8 @@ rm -f "$PR_BODY_FILE"
 ```bash
 # MR title MUST start with v$NEW_VERSION — enforced on every run, no exceptions.
 # (See Step 19 idempotency block + bin/gstack-pr-title-rewrite.sh for the rule.)
-glab mr create -b <base> -t "v$NEW_VERSION <type>: <summary>" -d "$(cat <<'EOF'
+_REVIEWERS="<resolved reviewers from above, comma-separated, or empty>"
+glab mr create -b <base> ${_REVIEWERS:+--reviewer "$_REVIEWERS"} -t "v$NEW_VERSION <type>: <summary>" -d "$(cat <<'EOF'
 <MR body from above>
 EOF
 )"
@@ -199,6 +212,21 @@ EOF
 
 **If neither CLI is available:**
 Print the branch name, remote URL, and instruct the user to create the PR/MR manually via the web UI. Do not stop — the code is pushed and ready.
+
+**Post-creation review gate banner (MANDATORY if `_REVIEWERS` is set):**
+
+After the PR/MR is created, print this banner verbatim and STOP any auto-merge intent:
+
+```
+==================================================================
+  REVIEW REQUESTED from: $_REVIEWERS
+  DO NOT MERGE this PR until a reviewer approves it.
+  Check status: gh pr view <PR#> --json reviewDecision,reviews
+  Merge only when reviewDecision == "APPROVED"
+==================================================================
+```
+
+**Never run `gh pr merge` (or equivalent) in the same /ship invocation when reviewers are set.** /ship's job ends at PR creation. The user runs a separate merge command only after the review is approved. If the user asks /ship to also merge, refuse with: "Review required first. PR #<N> has reviewers assigned. Merge only after reviewDecision is APPROVED."
 
 **Output the PR/MR URL** — then proceed to Step 20.
 
