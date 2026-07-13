@@ -137,6 +137,7 @@ CRITICAL (highest severity):      INFORMATIONAL (main agent):      SPECIALIST (p
                                    ├─ Time Window Safety            ├─ API Contract specialist
                                    ├─ Type Coercion at Boundaries   └─ Red Team (conditional)
                                    ├─ View/Frontend
+                                   ├─ Stale User-Facing Strings
                                    └─ Distribution & CI/CD Pipeline
 
 All findings are actioned via Fix-First Review. Severity determines
