@@ -30,6 +30,7 @@ _SKILL_PREFIX=$(${ctx.paths.binDir}/gstack-config get skill_prefix 2>/dev/null |
 echo "PROACTIVE: $_PROACTIVE"
 echo "PROACTIVE_PROMPTED: $_PROACTIVE_PROMPTED"
 echo "SKILL_PREFIX: $_SKILL_PREFIX"
+echo "SESSIONS: $_SESSIONS"
 source <(${ctx.paths.binDir}/gstack-repo-mode 2>/dev/null) || true
 REPO_MODE=\${REPO_MODE:-unknown}
 echo "REPO_MODE: $REPO_MODE"
@@ -62,6 +63,16 @@ _TEL_START=$(date +%s)
 _SESSION_ID="$$-$(date +%s)"
 echo "TELEMETRY: \${_TEL:-off}"
 echo "TEL_PROMPTED: $_TEL_PROMPTED"
+# Remote-control detection: when Claude Code is driven via the Anthropic app's
+# remote control, native AskUserQuestion renders an un-clickable menu, so skills
+# fall back to the prose decision brief (same as the Conductor path). Env var
+# wins; otherwise consult config. Empty/0 → normal AskUserQuestion.
+_REMOTE_CONTROL="\${GSTACK_REMOTE_CONTROL:-}"
+if [ -z "$_REMOTE_CONTROL" ]; then
+  _REMOTE_CONTROL=$(${ctx.paths.binDir}/gstack-config get remote_control 2>/dev/null || echo "")
+fi
+_REMOTE_CONTROL="\${_REMOTE_CONTROL:-0}"
+echo "REMOTE_CONTROL: $_REMOTE_CONTROL"
 _EXPLAIN_LEVEL=$(${ctx.paths.binDir}/gstack-config get explain_level 2>/dev/null || echo "default")
 if [ "$_EXPLAIN_LEVEL" != "default" ] && [ "$_EXPLAIN_LEVEL" != "terse" ]; then _EXPLAIN_LEVEL="default"; fi
 echo "EXPLAIN_LEVEL: $_EXPLAIN_LEVEL"
@@ -70,6 +81,17 @@ echo "QUESTION_TUNING: $_QUESTION_TUNING"
 _UPDATE_CHECK=$(${ctx.paths.binDir}/gstack-config get update_check 2>/dev/null || echo "true")
 echo "UPDATE_CHECK: $_UPDATE_CHECK"
 mkdir -p ~/.gstack/analytics
+# Persist telemetry start-state so the separate "Telemetry (run last)" Bash
+# call (which runs in its own shell — vars don't survive between blocks) can
+# read a real start time and session id instead of logging duration 0 /
+# session "unknown". Keyed per-PPID (stable per host session, same premise as
+# the ~/.gstack/sessions marker) so concurrent Conductor worktrees don't race a
+# shared file. Deleted at completion.
+cat > ~/.gstack/analytics/.session-state-"$PPID" 2>/dev/null <<SESSTATE || true
+_TEL_START=$_TEL_START
+_SESSION_ID=$_SESSION_ID
+_TEL=\${_TEL:-off}
+SESSTATE
 if [ "$_TEL" != "off" ]; then
 echo '{"skill":"${ctx.skillName}","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(_repo=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null | tr -cd 'a-zA-Z0-9._-'); echo "\${_repo:-unknown}")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 fi
@@ -84,11 +106,12 @@ for _PF in $(find ~/.gstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 eval "$(${ctx.paths.binDir}/gstack-slug 2>/dev/null)" 2>/dev/null || true
 _LEARN_FILE="\${GSTACK_HOME:-$HOME/.gstack}/projects/\${SLUG:-unknown}/learnings.jsonl"
+_LEARN_PREAMBLE_LIMIT=$(${ctx.paths.binDir}/gstack-config get learnings_preamble_limit 2>/dev/null || echo "3")
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
   if [ "$_LEARN_COUNT" -gt 5 ] 2>/dev/null; then
-    ${ctx.paths.binDir}/gstack-learnings-search --limit 3 2>/dev/null || true
+    ${ctx.paths.binDir}/gstack-learnings-search --limit "$_LEARN_PREAMBLE_LIMIT" 2>/dev/null || true
   fi
 else
   echo "LEARNINGS: 0"
@@ -126,7 +149,7 @@ else
   export GSTACK_PLAN_MODE="inactive"
 fi
 echo "GSTACK_PLAN_MODE: $GSTACK_PLAN_MODE"
-[ -n "$OPENCLAW_SESSION" ] && echo "SPAWNED_SESSION: true" || true${ctx.host === 'gbrain' || ctx.host === 'hermes' ? `
+${ctx.paths.binDir}/gstack-spawned-session-status 2>/dev/null || true${ctx.host === 'gbrain' || ctx.host === 'hermes' ? `
 if command -v gbrain &>/dev/null; then
   _BRAIN_JSON=$(gbrain doctor --fast --json 2>/dev/null || echo '{}')
   _BRAIN_SCORE=$(echo "$_BRAIN_JSON" | grep -o '"health_score":[0-9]*' | cut -d: -f2)
