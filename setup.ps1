@@ -147,8 +147,11 @@ Write-Ok "git-bash.exe → $gitBash"
 # ---------------------------------------------------------------------------
 # 4. Convert script directory to Unix path for Git Bash
 # ---------------------------------------------------------------------------
-$unixDir = $PSScriptRoot -replace '\\', '/' -replace '^([A-Za-z]):', {
-    "/$($_.Groups[1].Value.ToLower())"
+# Plain -match/-replace (no scriptblock substitution — that needs PowerShell 6+,
+# and this script targets Windows PowerShell 5.1 per the #Requires above).
+$unixDir = $PSScriptRoot -replace '\\', '/'
+if ($unixDir -match '^([A-Za-z]):(.*)$') {
+    $unixDir = '/' + $Matches[1].ToLower() + $Matches[2]
 }
 
 # ---------------------------------------------------------------------------
