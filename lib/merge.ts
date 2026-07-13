@@ -228,6 +228,13 @@ export interface LandState {
   schema_version: number;
   pr: number;
   sha: string;
+  /**
+   * False when the merge SHA could not be resolved exactly (rebase merge with
+   * no mergeCommit.oid and no unique patch-id match) and `sha` is only the
+   * base tip at landing time. Consumers must not deploy-match or revert by an
+   * inexact SHA. Absent means exact (pre-field states).
+   */
+  sha_exact?: boolean;
   headRefOid: string;
   base: string;
   head_branch: string;
@@ -239,6 +246,8 @@ export interface LandState {
 export interface BuildLandStateInput {
   pr: number;
   sha: string;
+  /** See LandState.sha_exact. Defaults to true. */
+  sha_exact?: boolean;
   headRefOid: string;
   base: string;
   head_branch: string;
@@ -257,6 +266,7 @@ export function buildLandState(input: BuildLandStateInput): LandState {
     schema_version: LAND_STATE_SCHEMA_VERSION,
     pr: input.pr,
     sha: input.sha,
+    sha_exact: input.sha_exact !== false,
     headRefOid: input.headRefOid,
     base: input.base,
     head_branch: input.head_branch,

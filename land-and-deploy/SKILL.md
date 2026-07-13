@@ -1237,9 +1237,12 @@ REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)
 - **`READ_STATE_INVALID=...`** (no / stale / wrong-PR / wrong-repo handoff): **STOP.**
   "I couldn't confirm this PR actually landed (no valid landing record). I won't deploy
   off an unconfirmed merge. Re-run `/land` and check why it didn't complete."
-- **`LAND_SHA=... LAND_BASE=... LAND_REGIME=... LAND_HEAD=...`**: capture these. `LAND_SHA`
-  is the merge commit on the base branch — every deploy-workflow match and any revert
-  uses it.
+- **`LAND_SHA=... LAND_SHA_EXACT=... LAND_BASE=... LAND_REGIME=... LAND_HEAD=...`**: capture
+  these. `LAND_SHA` is the merge commit on the base branch — every deploy-workflow match and
+  any revert uses it. **If `LAND_SHA_EXACT=0`** the SHA is only the base tip at landing time
+  (rebase merge whose exact commit couldn't be resolved): still verify ancestry in 2.2, but do
+  NOT match deploy workflows by this SHA (match by workflow name + timing instead) and do NOT
+  offer a SHA-based revert — tell the user to identify the PR's commit manually first.
 
 ### 2.2: Verify the SHA is really on the base branch (H2)
 
@@ -1513,6 +1516,9 @@ If the user chose to revert at any point:
 Tell the user: "Reverting the merge now. This will create a new commit that undoes all the changes from this PR. The previous version of your site will be restored once the revert deploys."
 
 Use `LAND_SHA` (the confirmed merge commit from Step 2) as the revert target.
+**If `LAND_SHA_EXACT=0`: STOP first** — the recorded SHA is only the base tip at landing
+time and may belong to a different change. Show the user `git log origin/<base> --oneline -10`,
+have them confirm which commit is this PR's, and revert that commit instead.
 
 **Merge-queue / protected branches first (H8).** If `LAND_REGIME` is `github` or `trunk`,
 a direct push to the base branch is almost always blocked by branch protection, so go

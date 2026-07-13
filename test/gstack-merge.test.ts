@@ -208,6 +208,11 @@ describe('buildLandState', () => {
   test('refuses to build with an empty SHA (handoff would silently kill revert)', () => {
     expect(() => buildLandState({ ...base, sha: '' })).toThrow(/empty merge SHA/);
   });
+
+  test('sha_exact defaults true and false survives the round trip', () => {
+    expect(buildLandState(base).sha_exact).toBe(true);
+    expect(buildLandState({ ...base, sha_exact: false }).sha_exact).toBe(false);
+  });
 });
 
 describe('validateConsume', () => {

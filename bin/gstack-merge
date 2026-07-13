@@ -41,6 +41,11 @@ import {
   type PrCheck,
 } from '../lib/merge';
 
+/** State root: honor GSTACK_HOME like every other gstack state tool. */
+function gstackHome(): string {
+  return process.env.GSTACK_HOME || join(homedir(), '.gstack');
+}
+
 // --- arg parsing --------------------------------------------------------
 
 function parseArgs(argv: string[]): { cmd: string; flags: Record<string, string>; bools: Set<string> } {
@@ -249,7 +254,7 @@ function submitViaRest(pr: number, base: string, priority?: string): { code: num
 
 /** Write last-enqueue.json — a queued marker (no merge SHA yet). */
 function writeEnqueueState(slug: string, pr: number, repo: string, regime: Regime, base: string): string {
-  const dir = join(homedir(), '.gstack', 'projects', slug);
+  const dir = join(gstackHome(), 'projects', slug);
   mkdirSync(dir, { recursive: true });
   const dest = join(dir, 'last-enqueue.json');
   const tmp = `${dest}.${process.pid}.tmp`;
@@ -408,6 +413,30 @@ async function cmdWait(flags: Record<string, string>): Promise<number> {
   return 1;
 }
 
+/**
+ * Rebase merges rewrite the PR head commit onto base with the same patch
+ * content but a new SHA. Find that commit among the newest base commits by
+ * patch-id. Returns null unless exactly one recent commit matches.
+ */
+function resolveRebasedSha(base: string, headRefOid: string): string | null {
+  if (!/^[0-9a-f]{7,40}$/i.test(headRefOid)) return null;
+  if (!/^[\w./-]+$/.test(base)) return null;
+  const patchIdOf = (rev: string): string => {
+    const r = spawnSync('bash', ['-c', `git show "$1" | git patch-id --stable`, '--', rev], {
+      encoding: 'utf-8',
+      timeout: 60000,
+    });
+    return ((r.stdout || '').trim().split(' ')[0]) || '';
+  };
+  const want = patchIdOf(headRefOid);
+  if (!want) return null;
+  const commits = run('git', ['rev-list', '--max-count=50', `origin/${base}`]).stdout
+    .split('\n')
+    .filter(Boolean);
+  const matches = commits.filter((c) => patchIdOf(c) === want);
+  return matches.length === 1 ? matches[0] : null;
+}
+
 async function cmdWriteState(flags: Record<string, string>): Promise<number> {
   const pr = flags.pr;
   const base = flags.base;
@@ -442,16 +471,26 @@ async function cmdWriteState(flags: Record<string, string>): Promise<number> {
 
   let sha = oid || '';
   let shaNote = '';
+  let shaExact = true;
   if (!sha) {
-    // rebase-null edge: use the base tip as the best available revert target.
-    const tip = run('git', ['rev-parse', `origin/${base}`]).stdout;
-    sha = tip;
-    shaNote = ' (no mergeCommit.oid — using base tip; rebase-merge repo)';
+    // rebase-null edge: the PR's commits were rewritten onto base. Resolve the
+    // rebased commit by patch-id; the base tip is NOT this PR's commit (later
+    // pushes may already be on base) so it is only an inexact last resort.
+    const resolved = resolveRebasedSha(base, headRefOid);
+    if (resolved) {
+      sha = resolved;
+      shaNote = ' (no mergeCommit.oid — rebased commit resolved by patch-id)';
+    } else {
+      sha = run('git', ['rev-parse', `origin/${base}`]).stdout;
+      shaExact = false;
+      shaNote = ' (no mergeCommit.oid — base tip, INEXACT: do not deploy-match or revert by this SHA)';
+    }
   }
 
   const state2 = buildLandState({
     pr: Number(pr),
     sha,
+    sha_exact: shaExact,
     headRefOid,
     base,
     head_branch: v.headRefName || '',
@@ -460,7 +499,7 @@ async function cmdWriteState(flags: Record<string, string>): Promise<number> {
     ts: new Date().toISOString(),
   });
 
-  const dir = join(homedir(), '.gstack', 'projects', slug);
+  const dir = join(gstackHome(), 'projects', slug);
   mkdirSync(dir, { recursive: true });
   const dest = join(dir, 'last-land.json');
   const tmp = `${dest}.${process.pid}.tmp`;
@@ -477,7 +516,7 @@ function cmdReadState(flags: Record<string, string>, bools: Set<string>): number
   const pr = flags.pr;
   const repo = flags.repo;
   if (!slug || !pr || !repo) { process.stderr.write('read-state: --slug, --pr, --repo are required\n'); return 2; }
-  const dest = join(homedir(), '.gstack', 'projects', slug, 'last-land.json');
+  const dest = join(gstackHome(), 'projects', slug, 'last-land.json');
   let state: any = null;
   if (existsSync(dest)) {
     try { state = JSON.parse(readFileSync(dest, 'utf-8')); } catch { state = null; }
@@ -494,7 +533,7 @@ function cmdReadState(flags: Record<string, string>, bools: Set<string>): number
   if (bools.has('json')) {
     process.stdout.write(JSON.stringify(state) + '\n');
   } else {
-    process.stdout.write(`LAND_SHA=${state.sha}\nLAND_BASE=${state.base}\nLAND_REGIME=${state.regime}\nLAND_HEAD=${state.head_branch}\n`);
+    process.stdout.write(`LAND_SHA=${state.sha}\nLAND_SHA_EXACT=${state.sha_exact === false ? 0 : 1}\nLAND_BASE=${state.base}\nLAND_REGIME=${state.regime}\nLAND_HEAD=${state.head_branch}\n`);
   }
   return 0;
 }
