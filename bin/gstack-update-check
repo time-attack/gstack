@@ -10,8 +10,9 @@
 # Flags:
 #   --force   bust cache + snooze before checking
 #   --apply   fast-forward a git install in place (dirty/staged/detached and
-#             vendored-subdir installs are refused; migrations are NOT run —
-#             use /gstack-upgrade for the full ceremony)
+#             vendored-subdir installs are refused). Runs ./setup -q afterward,
+#             which applies pending migrations non-interactively — use
+#             /gstack-upgrade for the interactive ceremony.
 #
 # Env overrides (for testing):
 #   GSTACK_DIR          — override auto-detected gstack root
@@ -175,8 +176,10 @@ apply_upgrade() {
 
   # Refresh generated assets + compiled binaries, best-effort (mirrors
   # bin/gstack-session-update). bun may be absent on runtime-only installs.
+  # stdin from /dev/null: setup's migration step can prompt on a TTY, and with
+  # output hidden that would hang --apply on an invisible prompt.
   if command -v bun >/dev/null 2>&1; then
-    ( cd "$GSTACK_DIR" && ./setup -q ) >/dev/null 2>&1 || true
+    ( cd "$GSTACK_DIR" && ./setup -q ) </dev/null >/dev/null 2>&1 || true
   fi
 
   after=""
