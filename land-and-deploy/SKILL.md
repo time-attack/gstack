@@ -1341,15 +1341,19 @@ Parse the output:
 
 **Gate logic:**
 
+Apply the FIRST matching row, top to bottom:
+
 | Condition | Action |
 |-----------|--------|
-| `reviewDecision == "APPROVED"` | PASS — continue |
 | `reviewDecision == "CHANGES_REQUESTED"` | **BLOCKER** — list the reviewer who requested changes, the file/line they commented on if available, and refuse to merge |
-| `reviewRequests` is non-empty AND no `APPROVED` entry in `latestReviews` | **BLOCKER** — "PR has {N} pending reviewer(s): {list}. Cannot merge until at least one approves." |
-| `reviewDecision == null` AND `reviewRequests` is empty AND `latestReviews` is empty AND repo has other collaborators | **WARNING** — "No reviewers requested. This repo has other collaborators — consider requesting review before merge." Not a hard blocker because it may be a solo-authored fix in a multi-person repo. |
-| `reviewDecision == null` AND repo has no other collaborators | PASS — solo repo, no review possible |
+| `reviewDecision == "REVIEW_REQUIRED"` | **BLOCKER** — branch protection still requires review(s): "Branch protection requires {N more} approval(s). Cannot merge yet." (One approval can already be present when protection demands two.) |
+| `reviewDecision == "APPROVED"` | PASS — continue |
+| `reviewRequests` is non-empty | **BLOCKER** — "PR has {N} pending reviewer(s): {list}. Cannot merge until at least one approves." |
+| `latestReviews` is non-empty with no `APPROVED` entry (e.g. a comment-only review) | **BLOCKER** — "Reviewer(s) {list} responded without approving. Get an explicit approval before merging." A requested reviewer who only comments disappears from `reviewRequests` — this row keeps the gate closed behind them. |
+| `reviewRequests` and `latestReviews` both empty AND repo has other collaborators | **WARNING** — "No reviewers requested. This repo has other collaborators — consider requesting review before merge." Not a hard blocker because it may be a solo-authored fix in a multi-person repo. |
+| repo has no other collaborators | PASS — solo repo, no review possible |
 
-Note the pending-reviewer row keys off `reviewRequests`, NOT `reviewDecision == "REVIEW_REQUIRED"`: GitHub only sets `REVIEW_REQUIRED` when branch protection demands a review, and free-tier private repos — the exact audience of this gate — cannot enable branch protection. A requested-but-silent reviewer must block regardless of what `reviewDecision` says.
+Note the pending-reviewer row keys off `reviewRequests`, NOT `reviewDecision`: GitHub only sets `REVIEW_REQUIRED` when branch protection demands a review, and free-tier private repos — the exact audience of this gate — cannot enable branch protection. A requested-but-silent reviewer must block regardless of what `reviewDecision` says. (The `REVIEW_REQUIRED` row above still matters on repos that DO have branch protection with multi-approval rules.)
 
 **How to fetch collaborators for the "solo repo" check:**
 
