@@ -20,7 +20,7 @@ const hermes: HostConfig = {
 
   generation: {
     generateMetadata: false,
-    skipSkills: ['codex'],
+    skipSkills: ['codex', 'grok'],
     includeSkills: [],
   },
 
