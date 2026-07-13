@@ -521,7 +521,15 @@ async function resolveImagePaths(input: string): Promise<string[]> {
         paths.push(match);
       }
     }
-    return paths.sort();
+    // Drop a round alias when its preserved candidates are also matched —
+    // otherwise `compare --images dir/*.png` shows the alias as a duplicate
+    // card of the newest candidate.
+    return paths
+      .filter(p => {
+        const base = roundBaseName(p);
+        return !base || !paths.some(q => q !== p && path.basename(q).startsWith(`${base}-`));
+      })
+      .sort();
   }
 
   // Comma-separated or single path

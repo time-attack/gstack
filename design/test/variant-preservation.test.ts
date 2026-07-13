@@ -125,6 +125,25 @@ describe("plan-design-review round variant preservation", () => {
     await expect(resolveImagePaths(alias)).rejects.toThrow("variant-recommended-A.png");
   });
 
+  test("glob comparison drops the round alias when candidates exist", async () => {
+    const alias = path.join(tmpDir, "variant-recommended.png");
+    const variantA = path.join(tmpDir, "variant-recommended-A.png");
+    const variantB = path.join(tmpDir, "variant-recommended-B.png");
+    writePng(alias);
+    writePng(variantA);
+    writePng(variantB);
+
+    // `compare --images dir/*.png` must not show the alias as a duplicate
+    // card of the newest candidate.
+    await expect(resolveImagePaths(path.join(tmpDir, "*.png"))).resolves.toEqual([variantA, variantB]);
+  });
+
+  test("glob comparison keeps an alias with no preserved candidates", async () => {
+    const alias = path.join(tmpDir, "variant-recommended.png");
+    writePng(alias);
+    await expect(resolveImagePaths(path.join(tmpDir, "*.png"))).resolves.toEqual([alias]);
+  });
+
   test("initial 3-option board paths are unchanged", async () => {
     const variantA = path.join(tmpDir, "variant-A.png");
     const variantB = path.join(tmpDir, "variant-B.png");
