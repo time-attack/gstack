@@ -2404,9 +2404,9 @@ describe('setup script validation', () => {
     expect(claudeSection).toContain('link_claude_root_skill_alias "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR"');
   });
 
-  test('setup supports --host auto|claude|codex|kiro|opencode|cursor', () => {
+  test('setup supports --host auto|claude|codex|kiro|opencode|cursor|slate', () => {
     expect(setupContent).toContain('--host');
-    expect(setupContent).toContain('claude|codex|kiro|factory|opencode|cursor|auto');
+    expect(setupContent).toContain('claude|codex|kiro|factory|opencode|cursor|slate|auto');
   });
 
   test('Hermes host banner is explicit that setup is not an installer', () => {
@@ -2422,12 +2422,13 @@ describe('setup script validation', () => {
     expect(hermesBlock).toContain('This writes .hermes/skills/ in this checkout.');
   });
 
-  test('auto mode detects claude, codex, kiro, opencode, and cursor binaries', () => {
+  test('auto mode detects claude, codex, kiro, opencode, cursor, and slate binaries', () => {
     expect(setupContent).toContain('command -v claude');
     expect(setupContent).toContain('command -v codex');
     expect(setupContent).toContain('command -v kiro-cli');
     expect(setupContent).toContain('command -v opencode');
     expect(setupContent).toContain('command -v cursor');
+    expect(setupContent).toContain('command -v slate');
   });
 
   // T1: Sidecar skip guard — prevents .agents/skills/gstack from being linked as a skill
@@ -2480,6 +2481,19 @@ describe('setup script validation', () => {
     expect(setupContent).toContain('.cursor/skills');
     expect(setupContent).toContain('link_cursor_skill_dirs');
     expect(setupContent).toContain('bun run gen:skill-docs --host cursor');
+  });
+
+  test('setup supports --host slate with install section and Slate skill path vars', () => {
+    expect(setupContent).toContain('INSTALL_SLATE=');
+    expect(setupContent).toContain('SLATE_SKILLS="$HOME/.slate/skills"');
+    expect(setupContent).toContain('SLATE_GSTACK="$SLATE_SKILLS/gstack"');
+  });
+
+  test('setup installs Slate skills into a nested gstack runtime root', () => {
+    expect(setupContent).toContain('create_slate_runtime_root');
+    expect(setupContent).toContain('.slate/skills');
+    expect(setupContent).toContain('link_slate_skill_dirs');
+    expect(setupContent).toContain('bun run gen:skill-docs --host slate');
   });
 
   test('create_agents_sidecar links runtime assets', () => {
