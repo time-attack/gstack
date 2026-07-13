@@ -142,6 +142,24 @@ export type { RefEntry };
 // Re-export TabSession for consumers
 export { TabSession };
 
+/**
+ * Default fresh-session viewport, overridable via BROWSE_VIEWPORT=WIDTHxHEIGHT
+ * (clamped to 320-7680 x 240-4320). Malformed values fall back to 1280x720.
+ * Read at call time so daemon start picks up the launching shell's env.
+ */
+export function getDefaultViewport(): { width: number; height: number } {
+  const raw = process.env.BROWSE_VIEWPORT;
+  if (raw) {
+    const match = raw.match(/^(\d+)x(\d+)$/);
+    if (match) {
+      const width = Math.max(320, Math.min(7680, parseInt(match[1], 10)));
+      const height = Math.max(240, Math.min(4320, parseInt(match[2], 10)));
+      return { width, height };
+    }
+  }
+  return { width: 1280, height: 720 };
+}
+
 export interface BrowserState {
   cookies: Cookie[];
   pages: Array<{
@@ -184,7 +202,7 @@ export class BrowserManager {
   // require recreateContext(). Viewport width/height can change on-page, but we
   // track the latest so context recreation restores it instead of hardcoding 1280x720.
   private deviceScaleFactor: number = 1;
-  private currentViewport: { width: number; height: number } = { width: 1280, height: 720 };
+  private currentViewport: { width: number; height: number } = getDefaultViewport();
   // When true, contexts are (re)created with Playwright `viewport: null` so the
   // viewport follows the real window size instead of being pinned to
   // currentViewport. Set by `viewport auto`; cleared whenever an explicit size
