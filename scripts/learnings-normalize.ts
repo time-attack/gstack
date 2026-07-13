@@ -1,4 +1,5 @@
-const VALID_TYPES = new Set(['pattern', 'pitfall', 'preference', 'architecture', 'tool', 'operational']);
+// Keep in sync with ALLOWED_TYPES in bin/gstack-learnings-log.
+const VALID_TYPES = new Set(['pattern', 'pitfall', 'preference', 'architecture', 'tool', 'operational', 'investigation']);
 
 function getString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
