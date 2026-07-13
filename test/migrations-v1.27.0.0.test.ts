@@ -148,6 +148,9 @@ describe('v1.27.0.0 migration — GitHub host (non-interactive)', () => {
     // gh rename was called (or edit fallback).
     const ghLog = fs.readFileSync(path.join(fakeBinDir, 'gh-calls.log'), 'utf-8');
     expect(ghLog).toMatch(/gh repo (rename|edit)/);
+    // Pin the owner qualification: gh rename/edit reject bare repo names,
+    // so the call must reference OWNER/REPO (testuser/...).
+    expect(ghLog).toMatch(/--repo testuser\//);
     // Old remote.txt is gone, new one exists with rewritten URL.
     expect(fs.existsSync(path.join(tmpHome, '.gstack-brain-remote.txt'))).toBe(false);
     const newUrl = fs.readFileSync(path.join(tmpHome, '.gstack-artifacts-remote.txt'), 'utf-8').trim();
