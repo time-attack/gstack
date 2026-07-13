@@ -294,7 +294,7 @@ export function launchApp(
 
 /**
  * Copy a file out of an app's data container. Used to scrape the boot token
- * from `tmp/gstack-ios-qa.token` after the StateServer starts.
+ * from `Documents/gstack-ios-qa.token` after the StateServer starts.
  */
 export function copyFileFromAppContainer(opts: {
   udid: string;

@@ -143,12 +143,22 @@ export async function bootstrapTunnel(opts: BootstrapOptions): Promise<Bootstrap
     return { ok: false, error: 'state_server_unreachable', detail: `no /healthz response from [${ipv6}]:${port} within ${startupTimeoutMs}ms` };
   }
 
-  const bootToken = copyFileFromAppContainer({
+  let bootToken = copyFileFromAppContainer({
     udid: target.identifier,
     bundleId: opts.bundleId,
     sourceRelativePath: tokenPath,
     spawn,
   });
+  if (!bootToken && !opts.bootTokenPath) {
+    // Deployment skew: daemon defaults to Documents/ but the installed app
+    // may predate the StateServer template change and still write tmp/.
+    bootToken = copyFileFromAppContainer({
+      udid: target.identifier,
+      bundleId: opts.bundleId,
+      sourceRelativePath: 'tmp/gstack-ios-qa.token',
+      spawn,
+    });
+  }
   if (!bootToken) {
     return { ok: false, error: 'boot_token_unavailable', detail: `couldn't read ${tokenPath} from ${opts.bundleId}` };
   }

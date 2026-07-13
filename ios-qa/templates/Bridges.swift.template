@@ -265,7 +265,7 @@ enum MutationBridgeImpl {
         var best: NSObject? = nil
         var bestArea: CGFloat = .infinity
 
-        func consider(frame: CGRect, traits: UInt, element: NSObject) {
+        func consider(frame: CGRect, traits: UInt64, element: NSObject) {
             guard frame.contains(point) else { return }
             guard (traits & UIAccessibilityTraits.button.rawValue) != 0 else { return }
             let area = frame.width * frame.height
@@ -296,7 +296,7 @@ enum MutationBridgeImpl {
                         visit(v)
                     } else {
                         let f = (element.value(forKey: "accessibilityFrame") as? CGRect) ?? .zero
-                        let t = (element.value(forKey: "accessibilityTraits") as? NSNumber)?.uintValue ?? 0
+                        let t = (element.value(forKey: "accessibilityTraits") as? NSNumber)?.uint64Value ?? 0
                         consider(frame: f, traits: t, element: element)
                     }
                 }
@@ -308,7 +308,7 @@ enum MutationBridgeImpl {
                         visit(v)
                     } else {
                         let f = (element.value(forKey: "accessibilityFrame") as? CGRect) ?? .zero
-                        let t = (element.value(forKey: "accessibilityTraits") as? NSNumber)?.uintValue ?? 0
+                        let t = (element.value(forKey: "accessibilityTraits") as? NSNumber)?.uint64Value ?? 0
                         consider(frame: f, traits: t, element: element)
                     }
                 }
