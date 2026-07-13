@@ -145,7 +145,7 @@ To upgrade:
 /plugin update gstack@garrytan-gstack
 ```
 
-**Plugin install vs. git clone install:** The plugin install gives you all 50+ skills instantly. The git clone install (Step 1 above) additionally builds the `/browse` headless browser binary and registers hook-based safety skills (`/careful`, `/freeze`, `/guard`). If you need real browser QA testing or safety guardrails, use the git clone install.
+**Plugin install vs. git clone install:** The plugin install gives you all 50+ skills instantly as methodology prompts. The git clone install (Step 1 above) is still the full experience: it builds the `/browse` headless browser binary, registers hook-based safety skills (`/careful`, `/freeze`, `/guard`), and installs the `bin/` helper scripts (telemetry, learnings, redaction, context recovery) at `~/.claude/skills/gstack/` where the skills look for them. In a plugin-only install those helper calls no-op or degrade gracefully — the review/planning methodology still works, but features that shell out to helpers (redaction scans, learnings capture, `/browse` QA) need the git clone install alongside. If you want everything, run both: the plugin for discovery, the clone for the toolchain.
 
 ## See it work
 
