@@ -38,6 +38,9 @@ _gstack_codex_auth_probe() {
   #
   # Comment lines are stripped first (grep -v '^[[:space:]]*#') so stale
   # commented-out `# env_key = "OLD"` entries don't cause false AUTH_OK.
+  # Inline comments are stripped too (env_key values are env-var names, so a
+  # `#` can never appear inside the quoted value), and the key must sit at a
+  # word start so `my_env_key = ...` doesn't substring-match.
   #
   # Known limitation: env_key outside [model_providers.*] tables (e.g., in a
   # [some_other_feature] section) would also match. Real Codex configs don't
@@ -53,7 +56,8 @@ _gstack_codex_auth_probe() {
         return 0
       fi
     done < <(grep -v '^[[:space:]]*#' "$_codex_home/config.toml" 2>/dev/null \
-             | grep -oE 'env_key[[:space:]]*=[[:space:]]*["'\'']?[A-Za-z_][A-Za-z0-9_]*["'\'']?' \
+             | sed 's/#.*//' \
+             | grep -oE '(^|[[:space:]])env_key[[:space:]]*=[[:space:]]*["'\'']?[A-Za-z_][A-Za-z0-9_]*["'\'']?' \
              | sed -E 's/.*=[[:space:]]*["'\'']?([A-Za-z_][A-Za-z0-9_]*)["'\'']?/\1/' \
              | sort -u)
   fi

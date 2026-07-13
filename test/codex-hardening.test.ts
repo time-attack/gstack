@@ -210,6 +210,42 @@ describe('gstack-codex-probe: auth probe', () => {
     }
   });
 
+  test('inline-commented env_key does not cause false AUTH_OK', () => {
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        '[model_providers.mimo]\nbase_url = "http://localhost/v1" # env_key = "PATH"\n'
+      );
+      const r = runProbe({ snippet: '_gstack_codex_auth_probe', home });
+      expect(r.stdout.trim()).toBe('AUTH_FAILED');
+      expect(r.status).toBe(1);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('substring key like my_env_key does not match', () => {
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        '[model_providers.mimo]\nmy_env_key = "MIMO_API_KEY"\n'
+      );
+      const r = runProbe({
+        snippet: '_gstack_codex_auth_probe',
+        env: { MIMO_API_KEY: 'tp-test-key' },
+        home,
+      });
+      expect(r.stdout.trim()).toBe('AUTH_FAILED');
+      expect(r.status).toBe(1);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   test('config.toml with env_key + matching env var unset → AUTH_FAILED', () => {
     const home = tempHome();
     try {
