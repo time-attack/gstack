@@ -107,9 +107,25 @@ _link_alias_skill() {
   fi
 
   local target="$SKILLS_DIR/$alias_name"
-  if [ -L "$target" ]; then rm -f "$target"; fi
+  # Ownership guard (same principle as _cleanup_skill_entry): only replace an
+  # entry we planted — a gstack-pointing symlink, or a previous generated alias
+  # carrying the marker. A user's own skill that happens to share the alias
+  # name is left untouched.
+  if [ -L "$target" ]; then
+    case "$(readlink "$target" 2>/dev/null || true)" in
+      "$INSTALL_DIR"/*|gstack/*|*/gstack/*) rm -f "$target" ;;
+      *) return 0 ;;
+    esac
+  fi
+  if [ -L "$target/SKILL.md" ]; then
+    case "$(readlink "$target/SKILL.md" 2>/dev/null || true)" in
+      "$INSTALL_DIR"/*|gstack/*|*/gstack/*) rm -f "$target/SKILL.md" ;;
+      *) return 0 ;;
+    esac
+  elif [ -e "$target/SKILL.md" ] && ! grep -qF "$ALIAS_MARKER" "$target/SKILL.md" 2>/dev/null; then
+    return 0
+  fi
   mkdir -p "$target"
-  if [ -L "$target/SKILL.md" ]; then rm -f "$target/SKILL.md"; fi
   cat > "$target/SKILL.md" <<EOF
 ---
 name: $alias_name

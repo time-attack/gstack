@@ -12,6 +12,7 @@
 #   ~/.codex/skills/gstack*       — Codex skill install + per-skill symlinks
 #   ~/.factory/skills/gstack*     — Factory Droid skill install + per-skill symlinks
 #   ~/.kiro/skills/gstack*        — Kiro skill install + per-skill symlinks
+#   ~/.hermes/skills/gstack*      — Hermes skill install + per-skill symlinks
 #   ~/.gstack/                    — global state (config, analytics, sessions, projects,
 #                                   repos, installation-id, browse error logs)
 #   .claude/skills/gstack*        — project-local skill install (--local installs)
@@ -66,6 +67,7 @@ if [ "$FORCE" -eq 0 ]; then
   [ -d "$HOME/.codex/skills" ] && echo "  ~/.codex/skills/gstack*"
   [ -d "$HOME/.factory/skills" ] && echo "  ~/.factory/skills/gstack*"
   [ -d "$HOME/.kiro/skills" ] && echo "  ~/.kiro/skills/gstack*"
+  [ -d "$HOME/.hermes/skills" ] && echo "  ~/.hermes/skills/gstack*"
   [ "$KEEP_STATE" -eq 0 ] && [ -d "$STATE_DIR" ] && echo "  $STATE_DIR"
 
   if [ -n "$_GIT_ROOT" ]; then
@@ -151,6 +153,13 @@ if [ -d "$CLAUDE_SKILLS/gstack" ] || [ -L "$CLAUDE_SKILLS/gstack" ]; then
     _NAME="$(basename "$_DIR")"
     [ "$_NAME" = "gstack" ] && continue
     [ "$_NAME" = "node_modules" ] && continue
+    # Generated alias skills (e.g. connect-chrome) hold a REAL SKILL.md carrying
+    # the relink marker, not a symlink — remove them too or they survive
+    # uninstall pointing at a skill that no longer exists.
+    if [ -f "$_DIR/SKILL.md" ] && [ ! -L "$_DIR/SKILL.md" ] \
+       && grep -qF '<!-- gstack-generated-alias -->' "$_DIR/SKILL.md" 2>/dev/null; then
+      rm -rf "$_DIR"; REMOVED+=("claude/$_NAME"); continue
+    fi
     [ -L "$_DIR/SKILL.md" ] || continue
     _TARGET="$(readlink "$_DIR/SKILL.md" 2>/dev/null || true)"
     case "$_TARGET" in
@@ -204,6 +213,16 @@ if [ -d "$KIRO_SKILLS" ]; then
     [ -e "$_ITEM" ] || [ -L "$_ITEM" ] || continue
     rm -rf "$_ITEM"
     REMOVED+=("kiro/$(basename "$_ITEM")")
+  done
+fi
+
+# ─── Remove Hermes skills ───────────────────────────────────
+HERMES_SKILLS="$HOME/.hermes/skills"
+if [ -d "$HERMES_SKILLS" ]; then
+  for _ITEM in "$HERMES_SKILLS"/gstack*; do
+    [ -e "$_ITEM" ] || [ -L "$_ITEM" ] || continue
+    rm -rf "$_ITEM"
+    REMOVED+=("hermes/$(basename "$_ITEM")")
   done
 fi
 
