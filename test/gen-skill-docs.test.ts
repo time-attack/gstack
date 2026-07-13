@@ -2040,6 +2040,28 @@ describe('Codex generation (--host codex)', () => {
   });
 });
 
+// ─── Claude hook frontmatter path resolution ─────────────────
+
+describe('Claude hook frontmatter path resolution', () => {
+  test('hook commands do not depend on CLAUDE_SKILL_DIR / CLAUDE_PLUGIN_ROOT', () => {
+    // #1871: Claude Code 2.1.162+ does not populate CLAUDE_SKILL_DIR for
+    // skill-frontmatter PreToolUse hooks. Commands using that variable expand
+    // to paths like /../freeze/bin/check-freeze.sh and fail before the safety
+    // hook can do its job. CLAUDE_PLUGIN_ROOT is only set for plugin installs,
+    // so it is just as unreliable. Hooks must anchor to $HOME/.claude/skills/gstack/.
+    const HOOK_SKILLS = ['careful', 'freeze', 'guard', 'investigate'];
+    for (const skillName of HOOK_SKILLS) {
+      const content = fs.readFileSync(path.join(ROOT, skillName, 'SKILL.md'), 'utf-8');
+      const fmEnd = content.indexOf('\n---', 4);
+      const frontmatter = content.slice(4, fmEnd);
+      expect(frontmatter).toContain('hooks:');
+      expect(frontmatter).not.toContain('CLAUDE_SKILL_DIR');
+      expect(frontmatter).not.toContain('CLAUDE_PLUGIN_ROOT');
+      expect(frontmatter).toContain('$HOME/.claude/skills/gstack/');
+    }
+  });
+});
+
 // ─── Factory generation tests ────────────────────────────────
 
 describe('Factory generation (--host factory)', () => {
