@@ -82,6 +82,15 @@ describe("canonicalizeRemote", () => {
       canonicalizeRemote("https://github.com/garrytan/gstack.git")
     );
   });
+
+  it("canonicalizes a path remote ending in a .git directory component", () => {
+    // Stripping the `.git` suffix exposes a new trailing slash
+    // ("/repo/.git" → "/repo/") which must also be stripped, or the same
+    // repo splits into two identities.
+    expect(canonicalizeRemote("file:///Users/x/repo/.git")).toBe(
+      canonicalizeRemote("file:///Users/x/repo")
+    );
+  });
 });
 
 // ── secretScanFile ─────────────────────────────────────────────────────────

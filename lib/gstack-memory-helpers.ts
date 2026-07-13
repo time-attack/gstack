@@ -112,6 +112,10 @@ export function canonicalizeRemote(url: string | null | undefined): string {
   s = s.replace(/\/+$/, "");
   // strip trailing .git
   s = s.replace(/\.git$/i, "");
+  // re-strip trailing slash(es): a path remote ending in a `.git` directory
+  // component ("/repo/.git") exposes a new trailing slash once `.git` is
+  // stripped, which would split the repo into a second identity.
+  s = s.replace(/\/+$/, "");
   // collapse multiple slashes (after path normalization)
   s = s.replace(/\/{2,}/g, "/");
   return s.toLowerCase();
