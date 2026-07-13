@@ -11,7 +11,8 @@
  *   1. $GSTACK_BROWSE_BIN env override (preferred, matches v1.24 GSTACK_*_BIN pattern)
  *   2. $BROWSE_BIN env override (back-compat alias)
  *   3. sibling dir: dirname(argv[0])/../browse/dist/browse[.exe]
- *   4. ~/.claude/skills/gstack/browse/dist/browse[.exe]
+ *   4. global installs: ~/.agents, ~/.codex, then ~/.claude
+ *        skills/gstack/browse/dist/browse[.exe]
  *   5. PATH lookup via Bun.which('browse') — handles Windows PATHEXT natively
  *   6. error with setup hint
  *
@@ -119,11 +120,18 @@ export function resolveBrowseBin(env: NodeJS.ProcessEnv = process.env): string {
     if (found) return found;
   }
 
-  // 4: global install.
+  // 4: global installs. Prefer the active Codex/agents install before older
+  // Claude installs that may still exist on disk (#1113).
   const home = os.homedir();
-  const globalPath = path.join(home, ".claude/skills/gstack/browse/dist/browse");
-  const globalFound = findExecutable(globalPath);
-  if (globalFound) return globalFound;
+  const globalCandidates = [
+    path.join(home, ".agents/skills/gstack/browse/dist/browse"),
+    path.join(home, ".codex/skills/gstack/browse/dist/browse"),
+    path.join(home, ".claude/skills/gstack/browse/dist/browse"),
+  ];
+  for (const candidate of globalCandidates) {
+    const found = findExecutable(candidate);
+    if (found) return found;
+  }
 
   // 5: PATH lookup via Bun.which — handles Windows PATHEXT natively (no `which`
   // dependency on cmd.exe / PowerShell, no `where`-vs-`which` branch).
