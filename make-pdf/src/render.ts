@@ -207,11 +207,22 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     "h1", "h2", "h3", "h4", "h5", "h6",
     "section", "figure", "figcaption",
     "table", "thead", "tbody", "tr", "th", "td",
+    // GFM output the defaults miss: task-list checkboxes and strikethrough.
+    "input", "del", "ins",
   ],
   allowedAttributes: {
     a: ["href", "name", "target", "rel", "title"],
     img: ["src", "alt", "title", "width", "height"],
-    '*': ["id", "class", "lang", "dir", "align"],
+    // Task-list checkboxes (marked emits <input type="checkbox" checked disabled>).
+    input: ["type", "checked", "disabled"],
+    // Ordered lists starting at N renumber from 1 without start.
+    ol: ["start"],
+    // data-* is load-bearing: applyImageDirectives runs pre-sanitize and its
+    // data-gstack-* annotations are read post-sanitize by applyImagePolicy
+    // (see image-policy.ts). style matches the old sanitizer's behavior for
+    // legit inline styling in markdown-embedded HTML; inline <svg> stays
+    // dropped (deliberate posture change from the regex sanitizer).
+    '*': ["id", "class", "lang", "dir", "align", "style", "data-*"],
   },
   allowedSchemes: ["http", "https", "mailto", "tel", "data"],
   allowedSchemesByTag: {

@@ -139,6 +139,33 @@ describe("sanitizeUntrustedHtml", () => {
     const input = `<div srcdoc="<script>bad</script>">hi</div>`;
     expect(sanitizeUntrustedHtml(input)).not.toContain("srcdoc");
   });
+
+  test("keeps data-gstack-* attributes (image-policy pipeline contract)", () => {
+    const input = `<img src="x.png" alt="chart" data-gstack-width="50%" data-gstack-page="landscape">`;
+    const out = sanitizeUntrustedHtml(input);
+    expect(out).toContain('data-gstack-width="50%"');
+    expect(out).toContain('data-gstack-page="landscape"');
+  });
+
+  test("keeps GFM task-list checkboxes", () => {
+    const input = `<ul><li><input type="checkbox" checked disabled> done</li></ul>`;
+    const out = sanitizeUntrustedHtml(input);
+    expect(out).toContain("<input");
+    expect(out).toContain('type="checkbox"');
+  });
+
+  test("keeps <del>, <ins>, and ol start", () => {
+    const input = `<del>gone</del><ins>new</ins><ol start="4"><li>x</li></ol>`;
+    const out = sanitizeUntrustedHtml(input);
+    expect(out).toContain("<del>gone</del>");
+    expect(out).toContain("<ins>new</ins>");
+    expect(out).toContain('<ol start="4">');
+  });
+
+  test("keeps inline style attributes (old sanitizer behavior)", () => {
+    const input = `<div style="text-align:center">centered</div>`;
+    expect(sanitizeUntrustedHtml(input)).toContain('style="text-align:center"');
+  });
 });
 
 // ─── end-to-end render ──────────────────────────────────────────────
@@ -170,6 +197,14 @@ describe("render (end-to-end)", () => {
       title: "Explicit Title",
     });
     expect(result.meta.title).toBe("Explicit Title");
+  });
+
+  test("image directives survive sanitization end-to-end", () => {
+    const result = render({
+      markdown: `# Doc\n\n![chart](chart.png){width=50% page=landscape}\n`,
+    });
+    expect(result.html).toContain('data-gstack-width="50%"');
+    expect(result.html).toContain('data-gstack-page="landscape"');
   });
 
   test("includes cover block when cover=true", () => {
