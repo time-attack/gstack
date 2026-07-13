@@ -1,7 +1,7 @@
 ---
 name: community-review
 version: 1.0.0
-description: Review and prioritize open community PRs.
+description: Review and prioritize open community PRs. (gstack)
 allowed-tools:
   - Bash
   - Read
