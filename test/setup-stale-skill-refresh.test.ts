@@ -26,13 +26,20 @@ describe('setup: per-skill link loops refresh stale installs (#900)', () => {
       // The old skip-guard must be gone…
       expect(body).not.toContain('if [ -L "$target" ] || [ ! -e "$target" ]; then');
       // …replaced by: remove real (non-symlink) targets, then always relink.
-      expect(body).toContain('if [ ! -L "$target" ] && [ -e "$target" ]; then');
-      expect(body).toContain('rm -rf "$target"');
-      // Deletion must be gated on the SKILL.md ownership marker so a
-      // name-colliding non-skill directory is never destroyed.
-      expect(body).toContain('if [ -f "$target/SKILL.md" ]; then');
-      // Link sites must route through the helper (Windows fallback invariant).
-      expect(body).toContain('_link_or_copy "$skill_dir" "$target"');
+      const stale = body.indexOf('if [ ! -L "$target" ] && [ -e "$target" ]; then');
+      const gate = body.indexOf(`grep -q '(gstack)' "$target/SKILL.md"`);
+      const rm = body.indexOf('rm -rf "$target"');
+      const link = body.indexOf('_link_or_copy "$skill_dir" "$target"');
+      // Structural assertions, not just substring presence: rm -rf must sit
+      // INSIDE the provenance gate, which sits inside the stale-dir branch,
+      // and the relink through the helper comes after all of it.
+      expect(stale).toBeGreaterThan(-1);
+      expect(gate).toBeGreaterThan(stale);
+      expect(rm).toBeGreaterThan(gate);
+      expect(link).toBeGreaterThan(rm);
+      // Deletion requires the generated-by-gstack marker, not bare SKILL.md —
+      // a user-authored skill sharing the name is never destroyed.
+      expect(body).toContain(`[ -f "$target/SKILL.md" ] && grep -q '(gstack)' "$target/SKILL.md"`);
     });
   }
 });
