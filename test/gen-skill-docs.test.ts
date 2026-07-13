@@ -1980,8 +1980,10 @@ describe('Codex generation (--host codex)', () => {
       if (skill.dir !== 'pair-agent' && skill.dir !== 'codex' && skill.dir !== 'autoplan') {
         expect(content).not.toContain('~/.codex/');
       }
-      // gstack-upgrade legitimately references .agents/skills for cross-platform detection
-      if (skill.dir !== 'gstack-upgrade') {
+      // gstack-upgrade legitimately references .agents/skills for cross-platform
+      // detection; pair-agent documents the Codex host's global skill root
+      // (~/.agents/skills, per the current Codex skill spec) for --local codex.
+      if (skill.dir !== 'gstack-upgrade' && skill.dir !== 'pair-agent') {
         expect(content).not.toContain('.agents/skills');
       }
     }
