@@ -15,6 +15,7 @@ import { TEMP_DIR } from './platform';
 import { inspectElement, formatInspectorResult, getModificationHistory } from './cdp-inspector';
 import { validateReadPath, validateOutputPath } from './path-security';
 import { stripLoneSurrogates } from './sanitize';
+import { isFlutterWeb } from './snapshot';
 // Re-export for backward compatibility (tests import from read-commands)
 export { validateReadPath } from './path-security';
 
@@ -285,6 +286,12 @@ export async function handleReadCommand(
     }
 
     case 'accessibility': {
+      // Flutter renders to <canvas>: the raw aria tree is either empty or just
+      // the off-screen "Enable accessibility" placeholder, so send the agent to
+      // `snapshot -i`, which enables Flutter Semantics and returns real @refs.
+      if (await isFlutterWeb(page)) {
+        return '(Flutter Web detected — use "snapshot -i" for interactive elements with @refs)';
+      }
       const snapshot = await target.locator("body").ariaSnapshot();
       return stripLoneSurrogates(snapshot);
     }
