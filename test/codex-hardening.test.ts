@@ -658,9 +658,12 @@ describe('codex/autoplan templates: security hook trigger patterns (issue #1329)
     'autoplan/SKILL.md.tmpl',
     'autoplan/SKILL.md',
   ]) {
-    test(`${label}: Pattern 4 — no inline python -u -c streaming blocks`, () => {
+    test(`${label}: Pattern 4 — no inline python -c invocations of any spelling`, () => {
       const content = fs.readFileSync(path.join(ROOT, label), 'utf-8');
-      const inlinePythonRe = /\$PYTHON_CMD.*-u\s+-c\s+"/;
+      // Guard the CLASS, not the retired exact idiom: any python/python3/
+      // $PYTHON_CMD command word followed by -c re-triggers the security-hook
+      // bug. The parser binary is the only sanctioned streaming path.
+      const inlinePythonRe = /(^|[|;&(\s])("?\$PYTHON_CMD"?|python3?)\s+(-[A-Za-z]+\s+)*-c\s/m;
       expect(inlinePythonRe.test(content)).toBe(false);
     });
   }
@@ -752,6 +755,21 @@ describe('gstack-codex-jsonl-parser: streaming output', () => {
     });
     const { stdout } = runParser(line + '\n');
     expect(stdout).toContain('[codex ran] git diff HEAD');
+  });
+
+  test('non-UTF8 bytes in the stream do not kill remaining output', () => {
+    const before = JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'before' } });
+    const after = JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'after' } });
+    const input = Buffer.concat([
+      Buffer.from(before + '\n'),
+      Buffer.from([0xff, 0xfe, 0x0a]),
+      Buffer.from(after + '\n'),
+    ]);
+    const result = spawnSync('python3', [PARSER], { input, stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000 });
+    const stdout = (result.stdout ?? '').toString();
+    expect(result.status).toBe(0);
+    expect(stdout).toContain('before');
+    expect(stdout).toContain('after');
   });
 
   test('ignores malformed JSON lines without crashing', () => {

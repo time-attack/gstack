@@ -22,6 +22,15 @@ while i < len(args):
     else:
         i += 1
 
+# Codex output can contain non-UTF8 bytes (subprocess output embedded in
+# events); a strict decoder would raise UnicodeDecodeError mid-stream and
+# discard all remaining output. Replace undecodable bytes instead.
+try:
+    sys.stdin.reconfigure(errors="replace")
+    sys.stdout.reconfigure(errors="replace")
+except AttributeError:
+    pass
+
 turn_completed_count = 0
 for line in sys.stdin:
     line = line.strip()
