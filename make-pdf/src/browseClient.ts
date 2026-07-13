@@ -158,6 +158,9 @@ export function resolveBrowseBin(env: NodeJS.ProcessEnv = process.env): string {
 
 function isExecutable(p: string): boolean {
   try {
+    // Directories commonly carry the execute bit on POSIX, so X_OK alone
+    // would accept e.g. the browse/ source directory as the binary (#1113).
+    if (!fs.statSync(p).isFile()) return false;
     fs.accessSync(p, fs.constants.X_OK);
     return true;
   } catch {
