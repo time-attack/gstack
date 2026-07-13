@@ -169,9 +169,9 @@ function claudeOutsideVoiceBlock(phase: Phase): string {
   \`\`\`bash
   _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
   cd "$_REPO_ROOT"
-  CLAUDE_PROMPT_FILE=$(mktemp /tmp/gstack-autoplan-claude-${meta.tmpPrefix}-XXXXXXXX.txt)
-  CLAUDE_RESP_FILE=$(mktemp /tmp/gstack-autoplan-claude-${meta.tmpPrefix}-XXXXXXXX.json)
-  CLAUDE_ERR_FILE=$(mktemp /tmp/gstack-autoplan-claude-${meta.tmpPrefix}-XXXXXXXX.txt)
+  CLAUDE_PROMPT_FILE=$(mktemp /tmp/gstack-autoplan-claude-${meta.tmpPrefix}-txt-XXXXXXXX)
+  CLAUDE_RESP_FILE=$(mktemp /tmp/gstack-autoplan-claude-${meta.tmpPrefix}-json-XXXXXXXX)
+  CLAUDE_ERR_FILE=$(mktemp /tmp/gstack-autoplan-claude-${meta.tmpPrefix}-txt-XXXXXXXX)
   cat > "$CLAUDE_PROMPT_FILE" <<'EOF'
 ${meta.claude}
 EOF

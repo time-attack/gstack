@@ -1056,6 +1056,10 @@ create_cursor_runtime_root() {
   if [ -d "$gstack_dir/bin" ]; then
     _link_or_copy "$gstack_dir/bin" "$cursor_gstack/bin"
   fi
+  # lib/ — bin/*.ts helpers import ../lib/*; required on copy-mode installs
+  if [ -d "$gstack_dir/lib" ]; then
+    _link_or_copy "$gstack_dir/lib" "$cursor_gstack/lib"
+  fi
   if [ -d "$gstack_dir/browse/dist" ]; then
     _link_or_copy "$gstack_dir/browse/dist" "$cursor_gstack/browse/dist"
   fi
@@ -1093,6 +1097,10 @@ create_qoder_runtime_root() {
   fi
   if [ -d "$gstack_dir/bin" ]; then
     _link_or_copy "$gstack_dir/bin" "$qoder_gstack/bin"
+  fi
+  # lib/ — bin/*.ts helpers import ../lib/*; required on copy-mode installs
+  if [ -d "$gstack_dir/lib" ]; then
+    _link_or_copy "$gstack_dir/lib" "$qoder_gstack/lib"
   fi
   if [ -d "$gstack_dir/browse/dist" ]; then
     _link_or_copy "$gstack_dir/browse/dist" "$qoder_gstack/browse/dist"
@@ -1244,6 +1252,10 @@ create_slate_runtime_root() {
   fi
   if [ -d "$gstack_dir/bin" ]; then
     _link_or_copy "$gstack_dir/bin" "$slate_gstack/bin"
+  fi
+  # lib/ — bin/*.ts helpers import ../lib/*; required on copy-mode installs
+  if [ -d "$gstack_dir/lib" ]; then
+    _link_or_copy "$gstack_dir/lib" "$slate_gstack/lib"
   fi
   if [ -d "$gstack_dir/browse/dist" ]; then
     _link_or_copy "$gstack_dir/browse/dist" "$slate_gstack/browse/dist"
@@ -1437,6 +1449,10 @@ create_grok_runtime_root() {
 
   # Required core assets (fail closed) — dual-write with hosts/grok-build.ts runtimeRoot
   _grok_link_under_monorepo "$gstack_dir" "$gstack_dir/bin" "$staging/bin" 1 || return 1
+  # lib/ — bin/*.ts helpers import ../lib/*; required on copy-mode installs
+  if [ -d "$gstack_dir/lib" ]; then
+    _grok_link_under_monorepo "$gstack_dir" "$gstack_dir/lib" "$staging/lib" 0 || return 1
+  fi
   _grok_link_under_monorepo "$gstack_dir" "$gstack_dir/browse/dist" "$staging/browse/dist" 1 || return 1
   if [ -d "$gstack_dir/browse/bin" ]; then
     _grok_link_under_monorepo "$gstack_dir" "$gstack_dir/browse/bin" "$staging/browse/bin" 0 || return 1
@@ -1482,19 +1498,26 @@ create_grok_runtime_root() {
     _grok_link_under_monorepo "$gstack_dir" "$gstack_dir/ETHOS.md" "$staging/ETHOS.md" 0 || return 1
   fi
 
-  # Atomic swap: only wipe live install after staging is fully linked
+  # Atomic swap: move the live install aside (not delete) so a failed
+  # promotion can roll back instead of leaving no runtime at all.
   trap - RETURN
+  local _old_tree=""
   if [ -L "$grok_gstack" ]; then
     rm -f "$grok_gstack"
   elif [ -d "$grok_gstack" ] && [ "$grok_gstack" != "$gstack_dir" ]; then
-    rm -rf "$grok_gstack"
+    _old_tree="${grok_gstack}.old.$$"
+    rm -rf "$_old_tree"
+    mv "$grok_gstack" "$_old_tree" 2>/dev/null || _old_tree=""
   fi
-  # Prefer rename; fall back to mv -T when available for non-empty dest edge cases
   if ! mv "$staging" "$grok_gstack" 2>/dev/null; then
     echo "error: failed to promote staged Grok runtime root to $grok_gstack" >&2
+    if [ -n "$_old_tree" ] && [ -d "$_old_tree" ]; then
+      mv "$_old_tree" "$grok_gstack" 2>/dev/null && echo "  previous Grok runtime restored" >&2
+    fi
     rm -rf "$staging"
     return 1
   fi
+  if [ -n "$_old_tree" ]; then rm -rf "$_old_tree"; fi
 }
 
 link_grok_skill_dirs() {
@@ -1803,6 +1826,12 @@ fi
 
 # 6d. Install for Cursor
 if [ "$INSTALL_CURSOR" -eq 1 ]; then
+  # Generate before building the runtime root — on fresh installs the gen step
+  # above is skipped when NEEDS_BUILD=1, and the runtime root needs the
+  # generated root SKILL.md to exist.
+  if [ ! -d "$SOURCE_GSTACK_DIR/.cursor/skills" ]; then
+    ( cd "$SOURCE_GSTACK_DIR" && bun run gen:skill-docs --host cursor )
+  fi
   mkdir -p "$CURSOR_SKILLS"
   create_cursor_runtime_root "$SOURCE_GSTACK_DIR" "$CURSOR_GSTACK"
   link_cursor_skill_dirs "$SOURCE_GSTACK_DIR" "$CURSOR_SKILLS"
@@ -1813,6 +1842,12 @@ fi
 
 # 6e. Install for Slate
 if [ "$INSTALL_SLATE" -eq 1 ]; then
+  # Generate before building the runtime root — on fresh installs the gen step
+  # above is skipped when NEEDS_BUILD=1, and the runtime root needs the
+  # generated root SKILL.md to exist.
+  if [ ! -d "$SOURCE_GSTACK_DIR/.slate/skills" ]; then
+    ( cd "$SOURCE_GSTACK_DIR" && bun run gen:skill-docs --host slate )
+  fi
   mkdir -p "$SLATE_SKILLS"
   create_slate_runtime_root "$SOURCE_GSTACK_DIR" "$SLATE_GSTACK"
   link_slate_skill_dirs "$SOURCE_GSTACK_DIR" "$SLATE_SKILLS"
@@ -1823,6 +1858,12 @@ fi
 
 # 6f. Install for Qoder
 if [ "$INSTALL_QODER" -eq 1 ]; then
+  # Generate before building the runtime root — on fresh installs the gen step
+  # above is skipped when NEEDS_BUILD=1, and the runtime root needs the
+  # generated root SKILL.md to exist.
+  if [ ! -d "$SOURCE_GSTACK_DIR/.lingma/skills" ]; then
+    ( cd "$SOURCE_GSTACK_DIR" && bun run gen:skill-docs --host qoder )
+  fi
   mkdir -p "$QODER_SKILLS"
   create_qoder_runtime_root "$SOURCE_GSTACK_DIR" "$QODER_GSTACK"
   link_qoder_skill_dirs "$SOURCE_GSTACK_DIR" "$QODER_SKILLS"
