@@ -531,7 +531,13 @@ async function resolveImagePaths(input: string): Promise<string[]> {
     const roundImages = resolveRoundImageAlias(imagePath);
     if (roundImages) {
       resolved.push(...roundImages.paths);
-      missing.push(...roundImages.missing);
+      if (roundImages.paths.length > 0 && roundImages.missing.length > 0) {
+        // One failed generation attempt must not poison the whole round:
+        // compare what succeeded, warn about the rest.
+        console.error(`Skipping failed/missing variants: ${roundImages.missing.join(", ")}`);
+      } else {
+        missing.push(...roundImages.missing);
+      }
     } else {
       resolved.push(imagePath);
       if (!fs.existsSync(imagePath)) missing.push(path.basename(imagePath));

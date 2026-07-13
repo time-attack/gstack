@@ -95,7 +95,7 @@ describe("plan-design-review round variant preservation", () => {
     await expect(resolveImagePaths(alias)).resolves.toEqual([variantA]);
   });
 
-  test("failed sibling leaves successful candidate in place and reports missing index", async () => {
+  test("failed sibling does not poison the round: successful candidate still resolves", async () => {
     const alias = path.join(tmpDir, "variant-recommended.png");
     const variantA = path.join(tmpDir, "variant-recommended-A.png");
     const variantB = path.join(tmpDir, "variant-recommended-B.png");
@@ -107,8 +107,22 @@ describe("plan-design-review round variant preservation", () => {
       ],
     });
 
-    await expect(resolveImagePaths(alias)).rejects.toThrow("variant-recommended-B.png");
+    // One failed API attempt must not permanently block `$D compare` for the
+    // round — the failed sibling degrades to a stderr warning.
+    await expect(resolveImagePaths(alias)).resolves.toEqual([variantA]);
     expect(fs.existsSync(variantA)).toBe(true);
+  });
+
+  test("round with no successful attempts still throws", async () => {
+    const alias = path.join(tmpDir, "variant-recommended.png");
+    const variantA = path.join(tmpDir, "variant-recommended-A.png");
+    writeManifest(tmpDir, {
+      [path.join(tmpDir, "variant-recommended")]: [
+        { label: "A", path: variantA, success: false, error: "API error" },
+      ],
+    });
+
+    await expect(resolveImagePaths(alias)).rejects.toThrow("variant-recommended-A.png");
   });
 
   test("initial 3-option board paths are unchanged", async () => {
