@@ -585,3 +585,122 @@ describe('codex SKILL.md.tmpl Step 2A: PROMPT + --base mutual exclusion guard', 
     });
   }
 });
+
+// ── Pattern-guard: security hooks (issue #1329) ────────────────────────────
+// Guards against re-introducing inline `python -u -c "..."` blocks (Pattern 4
+// of issue #1329) in the /codex and /autoplan templates. Inline python with
+// `#` comments triggers Claude Code PreToolUse security hooks; the JSONL
+// streaming is handled by bin/gstack-codex-jsonl-parser instead.
+// Patterns 1 (source ~/ probe) and 3 (bare cd "$_REPO_ROOT") are still
+// present on the templates by design of the current probe architecture and
+// are NOT guarded here — see issue #1329 for the remaining work.
+
+describe('codex/autoplan templates: security hook trigger patterns (issue #1329)', () => {
+  for (const label of [
+    'codex/SKILL.md.tmpl',
+    'codex/SKILL.md',
+    'autoplan/SKILL.md.tmpl',
+    'autoplan/SKILL.md',
+  ]) {
+    test(`${label}: Pattern 4 — no inline python -u -c streaming blocks`, () => {
+      const content = fs.readFileSync(path.join(ROOT, label), 'utf-8');
+      const inlinePythonRe = /\$PYTHON_CMD.*-u\s+-c\s+"/;
+      expect(inlinePythonRe.test(content)).toBe(false);
+    });
+  }
+});
+
+describe('gstack-codex-jsonl-parser: binary hygiene', () => {
+  test('bin/gstack-codex-jsonl-parser exists and is executable', () => {
+    const p = path.join(ROOT, 'bin/gstack-codex-jsonl-parser');
+    expect(fs.existsSync(p)).toBe(true);
+    const stat = fs.statSync(p);
+    expect(stat.mode & 0o111).toBeGreaterThan(0);
+  });
+
+  test('bin/gstack-codex-jsonl-parser is syntactically valid Python', () => {
+    const p = path.join(ROOT, 'bin/gstack-codex-jsonl-parser');
+    const result = spawnSync('python3', ['-c', `import ast; ast.parse(open(${JSON.stringify(p)}).read())`], { timeout: 5000 });
+    expect(result.status).toBe(0);
+  });
+});
+
+describe('gstack-codex-jsonl-parser: streaming output', () => {
+  const PARSER = path.join(ROOT, 'bin/gstack-codex-jsonl-parser');
+
+  function runParser(input: string, args: string[] = []): { stdout: string; stderr: string } {
+    const result = spawnSync('python3', [PARSER, ...args], {
+      input,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 5000,
+    });
+    return {
+      stdout: (result.stdout ?? '').toString(),
+      stderr: (result.stderr ?? '').toString(),
+    };
+  }
+
+  test('extracts agent_message text from item.completed', () => {
+    const line = JSON.stringify({
+      type: 'item.completed',
+      item: { type: 'agent_message', text: 'Hello from codex' },
+    });
+    const { stdout } = runParser(line + '\n');
+    expect(stdout).toContain('Hello from codex');
+  });
+
+  test('extracts SESSION_ID from thread.started in consult mode', () => {
+    const line = JSON.stringify({ type: 'thread.started', thread_id: 'tid-abc123' });
+    const { stdout } = runParser(line + '\n', ['--mode', 'consult']);
+    expect(stdout).toContain('SESSION_ID:tid-abc123');
+  });
+
+  test('does NOT emit SESSION_ID in challenge mode', () => {
+    const line = JSON.stringify({ type: 'thread.started', thread_id: 'tid-xyz' });
+    const { stdout } = runParser(line + '\n', ['--mode', 'challenge']);
+    expect(stdout).not.toContain('SESSION_ID:');
+  });
+
+  test('emits turn.completed disconnect warning to stderr in challenge mode', () => {
+    const { stderr } = runParser('', ['--mode', 'challenge']);
+    expect(stderr).toContain('No turn.completed event received');
+  });
+
+  test('no disconnect warning in consult mode when no events', () => {
+    const { stderr } = runParser('', ['--mode', 'consult']);
+    expect(stderr).not.toContain('No turn.completed');
+  });
+
+  test('emits token count from turn.completed', () => {
+    const line = JSON.stringify({
+      type: 'turn.completed',
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+    const { stdout } = runParser(line + '\n');
+    expect(stdout).toContain('tokens used: 150');
+  });
+
+  test('emits [codex thinking] for reasoning items', () => {
+    const line = JSON.stringify({
+      type: 'item.completed',
+      item: { type: 'reasoning', text: 'Thinking about X' },
+    });
+    const { stdout } = runParser(line + '\n');
+    expect(stdout).toContain('[codex thinking] Thinking about X');
+  });
+
+  test('emits [codex ran] for command_execution items', () => {
+    const line = JSON.stringify({
+      type: 'item.completed',
+      item: { type: 'command_execution', command: 'git diff HEAD' },
+    });
+    const { stdout } = runParser(line + '\n');
+    expect(stdout).toContain('[codex ran] git diff HEAD');
+  });
+
+  test('ignores malformed JSON lines without crashing', () => {
+    const input = 'not-json\n{"broken":}\n' + JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'ok' } }) + '\n';
+    const { stdout } = runParser(input);
+    expect(stdout).toContain('ok');
+  });
+});
