@@ -149,9 +149,8 @@ case "$HOST" in
     echo "  1. Generate Antigravity-format skills locally:"
     echo "     bun run gen:skill-docs --host agy"
     echo "     This writes .agy/skills/ in this checkout."
-    echo "  2. Link them into Antigravity's global skills path:"
-    echo "     mkdir -p ~/.gemini/config/skills"
-    echo "     ln -snf \"\$(pwd)\"/.agy/skills/gstack* ~/.gemini/config/skills/"
+    echo "  2. Symlink each generated .agy/skills/gstack* folder into"
+    echo "     ~/.gemini/config/skills/ (create the directory first)."
     echo ""
     exit 0 ;;
   vibe)
@@ -163,9 +162,8 @@ case "$HOST" in
     echo "  1. Generate Vibe-format skills locally:"
     echo "     bun run gen:skill-docs --host vibe"
     echo "     This writes .vibe/skills/ in this checkout."
-    echo "  2. Link them into Vibe's global skills path:"
-    echo "     mkdir -p ~/.vibe/skills"
-    echo "     ln -snf \"\$(pwd)\"/.vibe/skills/gstack* ~/.vibe/skills/"
+    echo "  2. Symlink each generated .vibe/skills/gstack* folder into"
+    echo "     ~/.vibe/skills/ (create the directory first)."
     echo ""
     exit 0 ;;
   pi)
@@ -177,9 +175,9 @@ case "$HOST" in
     echo "  1. Generate Pi-format skills locally:"
     echo "     bun run gen:skill-docs --host pi"
     echo "     This writes .pi/skills/ in this checkout."
-    echo "  2. Link them into Pi's global skills path:"
-    echo "     mkdir -p ~/.pi/agent/skills"
-    echo "     ln -snf \"\$(pwd)\"/.pi/skills/gstack* ~/.pi/agent/skills/"
+    echo "  2. Symlink each generated .pi/skills/gstack* folder into"
+    echo "     ~/.pi/agent/skills/ — see the Pi section in README.md for"
+    echo "     the exact command."
     echo ""
     exit 0 ;;
   gbrain)
