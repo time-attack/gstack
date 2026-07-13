@@ -130,11 +130,13 @@ It's one TypeScript config file, zero code changes.
 
 [Pi](https://pi.dev) implements the [Agent Skills standard](https://agentskills.io/specification)
 end-to-end, so every gstack skill works out of the box once the skills directory
-is configured. Install gstack into pi's global agent skills path:
+is configured. `./setup --host pi` prints these instructions; the install itself
+is two commands:
 
 ```bash
 git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/gstack
-cd ~/gstack && ./setup --host pi
+cd ~/gstack && bun run gen:skill-docs --host pi
+mkdir -p ~/.pi/agent/skills && ln -snf "$(pwd)"/.pi/skills/gstack* ~/.pi/agent/skills/
 ```
 
 Skills land at `~/.pi/agent/skills/gstack-*/`. For project-local skills (trusted

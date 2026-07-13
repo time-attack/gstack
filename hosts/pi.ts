@@ -15,6 +15,7 @@ const pi: HostConfig = {
     mode: 'allowlist',
     keepFields: ['name', 'description'],
     descriptionLimit: 1024,
+    descriptionLimitBehavior: 'warn',  // no committed pi output to catch an error early
   },
 
   generation: {
