@@ -1264,7 +1264,7 @@ If the user passed `--xhigh`, use `"xhigh"` instead of `"high"`.
 
 ```bash
 _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
+if ! command -v python3 >/dev/null 2>&1; then
   echo "ERROR: Python 3 is required to parse Codex JSON output. Install python3 or python and retry." >&2
   exit 1
 fi
@@ -1390,7 +1390,7 @@ If the user passed `--xhigh`, use `"xhigh"` instead of `"medium"`.
 For a **new session:**
 ```bash
 _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
+if ! command -v python3 >/dev/null 2>&1; then
   echo "ERROR: Python 3 is required to parse Codex JSON output. Install python3 or python and retry." >&2
   exit 1
 fi
@@ -1414,7 +1414,7 @@ fi
 For a **resumed session** (user chose "Continue"):
 ```bash
 _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
+if ! command -v python3 >/dev/null 2>&1; then
   echo "ERROR: Python 3 is required to parse Codex JSON output. Install python3 or python and retry." >&2
   exit 1
 fi
