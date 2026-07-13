@@ -7,6 +7,12 @@
 #   UPGRADE_AVAILABLE <old> <new>   — remote VERSION differs from local
 #   (nothing)                       — up to date, snoozed, disabled, or check skipped
 #
+# Flags:
+#   --force   bust cache + snooze before checking
+#   --apply   fast-forward a git install in place (dirty/staged/detached and
+#             vendored-subdir installs are refused; migrations are NOT run —
+#             use /gstack-upgrade for the full ceremony)
+#
 # Env overrides (for testing):
 #   GSTACK_DIR          — override auto-detected gstack root
 #   GSTACK_REMOTE_URL   — override remote VERSION URL (branch-pinned fallback)
@@ -41,6 +47,13 @@ done
 if [ "$FORCE" -eq 1 ]; then
   rm -f "$CACHE_FILE"
   rm -f "$SNOOZE_FILE"
+fi
+
+# --apply must not be silenced by a fresh UP_TO_DATE cache — bust it so the
+# live remote is consulted. A cached UPGRADE_AVAILABLE is kept: apply_upgrade
+# re-fetches before merging, so it can't act on stale data.
+if [ "$APPLY" -eq 1 ] && grep -q '^UP_TO_DATE' "$CACHE_FILE" 2>/dev/null; then
+  rm -f "$CACHE_FILE"
 fi
 
 # ─── Step 0: Check if updates are disabled ────────────────────
@@ -123,11 +136,19 @@ fail_apply() {
 
 apply_upgrade() {
   local old="$1"
-  local target="$2"
-  local branch upstream after
+  local branch upstream after toplevel
 
   git -C "$GSTACK_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
     || fail_apply "$GSTACK_DIR is not a git checkout"
+
+  # A vendored install (gstack as a subdirectory of another repo) passes the
+  # work-tree check but its toplevel is the USER'S repo — refuse rather than
+  # fetch/merge a repo we don't own. Compare physical paths (pwd -P) because
+  # macOS /tmp and friends are symlinks.
+  toplevel="$(git -C "$GSTACK_DIR" rev-parse --show-toplevel 2>/dev/null || true)"
+  if [ -z "$toplevel" ] || [ "$(cd "$toplevel" && pwd -P)" != "$(cd "$GSTACK_DIR" && pwd -P)" ]; then
+    fail_apply "$GSTACK_DIR is inside another repository (vendored install) — use /gstack-upgrade"
+  fi
 
   branch="$(git -C "$GSTACK_DIR" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
   [ -n "$branch" ] || fail_apply "$GSTACK_DIR is on a detached HEAD"
@@ -151,6 +172,12 @@ apply_upgrade() {
 
   git -C "$GSTACK_DIR" merge --ff-only "$upstream" >/dev/null 2>&1 \
     || fail_apply "could not fast-forward to $upstream"
+
+  # Refresh generated assets + compiled binaries, best-effort (mirrors
+  # bin/gstack-session-update). bun may be absent on runtime-only installs.
+  if command -v bun >/dev/null 2>&1; then
+    ( cd "$GSTACK_DIR" && ./setup -q ) >/dev/null 2>&1 || true
+  fi
 
   after=""
   if [ -f "$VERSION_FILE" ]; then
@@ -212,7 +239,7 @@ if [ -f "$CACHE_FILE" ]; then
         if [ "$CACHED_OLD" = "$LOCAL" ]; then
           CACHED_NEW="$(echo "$CACHED" | awk '{print $3}')"
           if [ "$APPLY" -eq 1 ]; then
-            apply_upgrade "$LOCAL" "$CACHED_NEW"
+            apply_upgrade "$LOCAL"
           fi
           if check_snooze "$CACHED_NEW"; then
             exit 0  # snoozed — stay quiet
@@ -303,7 +330,7 @@ fi
 # REMOTE is strictly newer — upgrade available
 echo "UPGRADE_AVAILABLE $LOCAL $REMOTE" > "$CACHE_FILE"
 if [ "$APPLY" -eq 1 ]; then
-  apply_upgrade "$LOCAL" "$REMOTE"
+  apply_upgrade "$LOCAL"
 fi
 if check_snooze "$REMOTE"; then
   exit 0  # snoozed — stay quiet

@@ -95,4 +95,39 @@ describe("gstack-update-check --apply", () => {
     expect(readFileSync(join(repo.state, "just-upgraded-from"), "utf-8").trim()).toBe("1.0.0");
     expect(existsSync(join(repo.state, "last-update-check"))).toBe(false);
   });
+
+  test("bare --apply busts a fresh UP_TO_DATE cache instead of silently no-oping", () => {
+    const repo = makeInstallPair();
+    writeFileSync(join(repo.state, "last-update-check"), "UP_TO_DATE 1.0.0\n");
+    const result = runUpdateCheck(repo, ["--apply"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("UPGRADED 1.0.0 1.0.1");
+    expect(readFileSync(join(repo.install, "VERSION"), "utf-8").trim()).toBe("1.0.1");
+  });
+
+  test("refuses to --apply a vendored install nested inside another repo", () => {
+    const repo = makeInstallPair();
+    const parent = join(repo.tmp, "parent");
+    const vendored = join(parent, "gstack");
+    mkdirSync(join(vendored, "bin"), { recursive: true });
+    writeFileSync(join(vendored, "VERSION"), "1.0.0\n");
+    sh(["git", "init", "-q", "-b", "main"], parent);
+
+    const result = spawnSync("bash", [UPDATE_CHECK, "--force", "--apply"], {
+      cwd: vendored,
+      encoding: "utf-8",
+      timeout: 10_000,
+      env: {
+        ...process.env,
+        GSTACK_DIR: vendored,
+        GSTACK_STATE_DIR: repo.state,
+        GSTACK_REMOTE_URL: `file://${join(repo.origin, "VERSION")}`,
+      },
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("vendored install");
+    expect(readFileSync(join(vendored, "VERSION"), "utf-8").trim()).toBe("1.0.0");
+  });
 });
