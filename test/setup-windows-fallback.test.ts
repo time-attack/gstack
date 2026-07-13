@@ -61,7 +61,8 @@ describe('setup: _link_or_copy invariant (D7)', () => {
     const hookEnd = SETUP_SRC.indexOf('\nif [ "$TEAM_MODE" -eq 1 ]', hookStart);
     const hookSection = SETUP_SRC.slice(hookStart, hookEnd);
     expect(hookSection).toContain('IS_WINDOWS');
-    expect(hookSection).toContain('bash $SOURCE_GSTACK_DIR/bin/gstack-session-update');
+    // Quoted: Windows user paths commonly contain spaces.
+    expect(hookSection).toContain('bash \\"$SOURCE_GSTACK_DIR/bin/gstack-session-update\\"');
   });
 });
 

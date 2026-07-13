@@ -788,8 +788,10 @@ link_gstack_compat_alias() {
 
   # Never clobber a real (non-symlink) gstack install already living here — its
   # own bin/ already satisfies the hardcoded references, and it may be a
-  # separate global install we must not destroy.
-  if [ -e "$alias" ] && [ ! -L "$alias" ]; then
+  # separate global install we must not destroy. Our own Windows copy fallback
+  # also lands as a real directory; the marker file distinguishes it so reruns
+  # refresh the copy instead of mistaking it for a foreign install.
+  if [ -e "$alias" ] && [ ! -L "$alias" ] && [ ! -f "$alias/.gstack-owned-copy" ]; then
     return 0
   fi
 
@@ -797,6 +799,9 @@ link_gstack_compat_alias() {
   # falls back to a directory copy (no symlinks without Developer Mode), which
   # is heavier but keeps the hardcoded paths resolvable there too.
   _link_or_copy "$install_dir" "$alias"
+  if [ -d "$alias" ] && [ ! -L "$alias" ]; then
+    touch "$alias/.gstack-owned-copy" 2>/dev/null || true
+  fi
   echo "  linked compatibility alias: gstack -> $(basename "$install_dir") (install dir not named 'gstack', issue #1882)"
   _print_windows_copy_note_once
 }
@@ -1436,14 +1441,19 @@ if [ "$INSTALL_HERMES" -eq 1 ]; then
         # Skip the root gstack dir — already handled above
         [ "$_skill_name" = "gstack" ] && continue
         _target="$HERMES_SKILLS/$_skill_name"
-        # Don't overwrite a real directory from another skill source
-        if [ -d "$_target" ] && [ ! -L "$_target" ]; then
+        # Don't overwrite a real directory from another skill source. Our own
+        # Windows copy fallback also lands as a real directory; the marker
+        # file distinguishes it so reruns refresh the copy.
+        if [ -d "$_target" ] && [ ! -L "$_target" ] && [ ! -f "$_target/.gstack-owned-copy" ]; then
           continue
         fi
         if [ -L "$_target" ]; then
           rm -f "$_target"
         fi
         _link_or_copy "$skill_dir" "$_target"
+        if [ -d "$_target" ] && [ ! -L "$_target" ]; then
+          touch "$_target/.gstack-owned-copy" 2>/dev/null || true
+        fi
         _linked+=("$_skill_name")
       fi
     done
@@ -1513,7 +1523,9 @@ SETTINGS_HOOK="$SOURCE_GSTACK_DIR/bin/gstack-settings-hook"
 # launched directly by the OS — the file-association dialog appears instead.
 # Prefix with 'bash' so Claude Code's hook runner invokes Git Bash explicitly.
 if [ "$IS_WINDOWS" -eq 1 ]; then
-  HOOK_CMD="bash $SOURCE_GSTACK_DIR/bin/gstack-session-update"
+  # Quote the path: Windows usernames commonly contain spaces, and the hook
+  # command string is word-split by the shell that runs it.
+  HOOK_CMD="bash \"$SOURCE_GSTACK_DIR/bin/gstack-session-update\""
 else
   HOOK_CMD="$SOURCE_GSTACK_DIR/bin/gstack-session-update"
 fi
