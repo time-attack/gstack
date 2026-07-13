@@ -2,12 +2,6 @@ import type { TemplateContext } from './types';
 import { COMMAND_DESCRIPTIONS } from '../../browse/src/commands';
 import { SNAPSHOT_FLAGS } from '../../browse/src/snapshot';
 
-function resolveBinaryPath(dirExpr: string, binaryName: string): string {
-  return dirExpr.startsWith('$')
-    ? `${dirExpr}/${binaryName}`
-    : `$HOME${dirExpr.replace(/^~/, '')}/${binaryName}`;
-}
-
 export function generateCommandReference(_ctx: TemplateContext): string {
   // Group commands by category
   const groups = new Map<string, Array<{ command: string; description: string; usage?: string }>>();
@@ -105,14 +99,24 @@ export function generateSnapshotFlags(_ctx: TemplateContext): string {
   return lines.join('\n');
 }
 
+/** Resolve dist binary path: env-var hosts use $GSTACK_* (never $HOME+$GSTACK_*). */
+export function resolveDistBinary(dir: string, binary: string): string {
+  if (dir.startsWith('$')) {
+    // e.g. $GSTACK_BROWSE already points at .../browse/dist
+    return `${dir}/${binary}`;
+  }
+  return `$HOME${dir.replace(/^~/, '')}/${binary}`;
+}
+
 export function generateBrowseSetup(ctx: TemplateContext): string {
+  const globalBrowse = resolveDistBinary(ctx.paths.browseDir, 'browse');
   return `## SETUP (run this check BEFORE any browse command)
 
 \`\`\`bash
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 B=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/${ctx.paths.localSkillRoot}/browse/dist/browse" ] && B="$_ROOT/${ctx.paths.localSkillRoot}/browse/dist/browse"
-[ -z "$B" ] && B="${resolveBinaryPath(ctx.paths.browseDir, 'browse')}"
+[ -z "$B" ] && B="${globalBrowse}"
 if [ -x "$B" ]; then
   echo "READY: $B"
 else

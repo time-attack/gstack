@@ -20,9 +20,10 @@ import pi from './pi';
 import agy from './agy';
 import vibe from './vibe';
 import qoder from './qoder';
+import grokBuild from './grok-build';
 
 /** All registered host configs. Add new hosts here. */
-export const ALL_HOST_CONFIGS: HostConfig[] = [claude, codex, factory, kiro, opencode, slate, cursor, openclaw, hermes, gbrain, pi, agy, vibe, qoder];
+export const ALL_HOST_CONFIGS: HostConfig[] = [claude, codex, factory, kiro, opencode, slate, cursor, openclaw, hermes, gbrain, pi, agy, vibe, qoder, grokBuild];
 
 /** Map from host name to config. */
 export const HOST_CONFIG_MAP: Record<string, HostConfig> = Object.fromEntries(
@@ -69,4 +70,4 @@ export function getExternalHosts(): HostConfig[] {
 }
 
 // Re-export individual configs for direct import
-export { claude, codex, factory, kiro, opencode, slate, cursor, openclaw, hermes, gbrain, pi, agy, vibe, qoder };
+export { claude, codex, factory, kiro, opencode, slate, cursor, openclaw, hermes, gbrain, pi, agy, vibe, qoder, grokBuild };

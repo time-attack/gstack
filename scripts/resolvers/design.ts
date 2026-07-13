@@ -1,11 +1,6 @@
 import type { TemplateContext } from './types';
 import { AI_SLOP_BLACKLIST, OPENAI_HARD_REJECTIONS, OPENAI_LITMUS_CHECKS } from './constants';
-
-function resolveBinaryPath(dirExpr: string, binaryName: string): string {
-  return dirExpr.startsWith('$')
-    ? `${dirExpr}/${binaryName}`
-    : `$HOME${dirExpr.replace(/^~/, '')}/${binaryName}`;
-}
+import { resolveDistBinary } from './browse';
 
 export function generateDesignReviewLite(ctx: TemplateContext): string {
   const litmusList = OPENAI_LITMUS_CHECKS.map((item, i) => `${i + 1}. ${item}`).join(' ');
@@ -792,13 +787,15 @@ Source: [OpenAI "Designing Delightful Frontends with GPT-5.4"](https://developer
 }
 
 export function generateDesignSetup(ctx: TemplateContext): string {
+  const globalDesign = resolveDistBinary(ctx.paths.designDir, 'design');
+  const globalBrowse = resolveDistBinary(ctx.paths.browseDir, 'browse');
   return `## DESIGN SETUP (run this check BEFORE any design mockup command)
 
 \`\`\`bash
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 D=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/${ctx.paths.localSkillRoot}/design/dist/design" ] && D="$_ROOT/${ctx.paths.localSkillRoot}/design/dist/design"
-[ -z "$D" ] && D="${resolveBinaryPath(ctx.paths.designDir, 'design')}"
+[ -z "$D" ] && D="${globalDesign}"
 if [ -x "$D" ]; then
   echo "DESIGN_READY: $D"
 else
@@ -806,7 +803,7 @@ else
 fi
 B=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/${ctx.paths.localSkillRoot}/browse/dist/browse" ] && B="$_ROOT/${ctx.paths.localSkillRoot}/browse/dist/browse"
-[ -z "$B" ] && B="${resolveBinaryPath(ctx.paths.browseDir, 'browse')}"
+[ -z "$B" ] && B="${globalBrowse}"
 if [ -x "$B" ]; then
   echo "BROWSE_READY: $B"
 else
@@ -837,13 +834,14 @@ data, not project files. They persist across branches, conversations, and worksp
 }
 
 export function generateDesignMockup(ctx: TemplateContext): string {
+  const globalDesign = resolveDistBinary(ctx.paths.designDir, 'design');
   return `## Visual Design Exploration
 
 \`\`\`bash
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 D=""
 [ -n "$_ROOT" ] && [ -x "$_ROOT/${ctx.paths.localSkillRoot}/design/dist/design" ] && D="$_ROOT/${ctx.paths.localSkillRoot}/design/dist/design"
-[ -z "$D" ] && D="${resolveBinaryPath(ctx.paths.designDir, 'design')}"
+[ -z "$D" ] && D="${globalDesign}"
 [ -x "$D" ] && echo "DESIGN_READY" || echo "DESIGN_NOT_AVAILABLE"
 \`\`\`
 
