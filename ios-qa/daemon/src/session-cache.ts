@@ -94,10 +94,11 @@ export interface AcquireTunnelOptions {
 
 /**
  * Acquire a usable DeviceTunnel, reusing a cached rotated bearer when the
- * device still honors it and only falling back to a full boot-token bootstrap
- * when there is no usable cache or the cached bearer is rejected (app
- * relaunched). Returns null on a transient device-unreachable condition (cache
- * preserved) or a failed bootstrap.
+ * device still honors it and falling back to a full boot-token bootstrap when
+ * there is no usable cache, the cached bearer is rejected (app relaunched), or
+ * the device resolves but the StateServer does not answer (app exited /
+ * device rebooted). Returns null only when the device is unresolvable (cache
+ * preserved for the next attempt) or the bootstrap itself fails.
  */
 export async function acquireTunnel(opts: AcquireTunnelOptions): Promise<DeviceTunnel | null> {
   const cachePath = opts.cachePath;
@@ -128,8 +129,13 @@ export async function acquireTunnel(opts: AcquireTunnelOptions): Promise<DeviceT
       log(`cached session token rejected (HTTP ${status}); app was relaunched — re-bootstrapping`);
       clearCache(cachePath); // app relaunched -> stale rotated token; re-bootstrap below
     } else {
-      log(`device unreachable during token probe (HTTP ${status}); keeping cached token, will retry`);
-      return null; // 0 (connection error) / 5xx — transient; do not discard a good token
+      // 0 (connection error) / 5xx with the device RESOLVABLE means the app is
+      // likely not running (killed, device rebooted) — a permanent dead-end if
+      // we only retry the probe. Fall through to bootstrap, which relaunches
+      // the app and mints a fresh token. Keep the cache until bootstrap
+      // succeeds (success overwrites it; failure leaves the old token for the
+      // next attempt), so a transient blip never destroys a good token.
+      log(`device resolvable but StateServer not answering (HTTP ${status}); re-bootstrapping (app may have exited)`);
     }
   }
 

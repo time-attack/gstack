@@ -176,7 +176,7 @@ describe('acquireTunnel — bootstrap path', () => {
 });
 
 describe('acquireTunnel — transient + failure handling', () => {
-  test('returns null WITHOUT clearing the cache when the probe hits a connection error', async () => {
+  test('probe connection error with a resolvable device falls through to bootstrap (app exited / reboot) without clearing the cache', async () => {
     let cleared = false;
     let bootstrapCalled = false;
     const tunnel = await acquireTunnel({
@@ -186,11 +186,27 @@ describe('acquireTunnel — transient + failure handling', () => {
       writeCacheImpl: () => {},
       clearCacheImpl: () => { cleared = true; },
       resolveIPv6Impl: () => 'fd00::1',
-      probeImpl: async () => 0, // connection refused / device momentarily unreachable
+      probeImpl: async () => 0, // connection refused: device present but StateServer down
+      bootstrapImpl: async () => { bootstrapCalled = true; return { ok: false, error: 'no_devices' }; },
+    });
+    expect(bootstrapCalled).toBe(true); // never dead-end on a stale cache (#2026-adjacent codex P1)
+    expect(tunnel).toBeNull(); // this bootstrap failed; cache stays for the next attempt
+    expect(cleared).toBe(false); // do NOT destroy a good token until a fresh one replaces it
+  });
+
+  test('unresolvable device keeps the cache and does NOT bootstrap (device genuinely gone)', async () => {
+    let bootstrapCalled = false;
+    const tunnel = await acquireTunnel({
+      bundleId: 'com.test.app',
+      port: 9999,
+      readCacheImpl: () => SAMPLE,
+      writeCacheImpl: () => {},
+      clearCacheImpl: () => {},
+      resolveIPv6Impl: () => null,
+      probeImpl: async () => 200,
       bootstrapImpl: async () => { bootstrapCalled = true; return { ok: false, error: 'no_devices' }; },
     });
     expect(tunnel).toBeNull();
-    expect(cleared).toBe(false); // do NOT destroy a good token on a transient blip
     expect(bootstrapCalled).toBe(false);
   });
 
