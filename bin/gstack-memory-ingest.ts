@@ -598,13 +598,16 @@ function parseTranscriptJsonl(path: string): ParsedSession | null {
   let messageCount = 0;
   let toolCalls = 0;
   const bodyParts: string[] = [];
-  const seenMessages = new Set<string>();
+  // Codex rollouts render the same message twice (event_msg + response_item),
+  // always back-to-back. Dedupe ADJACENT repeats only — a global seen-set
+  // would also drop legitimately repeated messages ("continue" sent twice).
+  let lastMessageKey = "";
   const appendMessage = (role: string, content: string): void => {
     const normalizedRole = (role || "user").toLowerCase();
     if (normalizedRole !== "user" && normalizedRole !== "assistant") return;
     const dedupeKey = `${normalizedRole}\0${content}`;
-    if (seenMessages.has(dedupeKey)) return;
-    seenMessages.add(dedupeKey);
+    if (dedupeKey === lastMessageKey) return;
+    lastMessageKey = dedupeKey;
     bodyParts.push(`## ${normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1)}\n\n${content}`);
     messageCount++;
   };
