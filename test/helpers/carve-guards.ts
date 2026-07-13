@@ -144,7 +144,8 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     },
     behavioral: 'external',
     externalTest: 'test/skill-e2e-plan-ceo-review-section-loading.test.ts',
-    maxSkeletonBytes: 90_000,
+    // AUQ payload+shape rules (#1241/#2045) + learnings feedback (#2030) grew the always-loaded preamble ~2.5KB; measured skeleton 91,809.
+    maxSkeletonBytes: 94_000,
     minUnionBytes: 80_000,
     mustContain: ['SCOPE EXPANSION', 'SELECTIVE EXPANSION', 'HOLD SCOPE', 'SCOPE REDUCTION'],
     // Default-on Codex outside-voice (codexPreflight block + CODEX_MODE branch
@@ -164,7 +165,8 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     },
     behavioral: 'plan',
     // v1.2.0 activation lift (shared first-run-guidance preamble) + #2077 ask-first scope gate.
-    maxSkeletonBytes: 67_000,
+    // AUQ payload+shape rules (#1241/#2045) + learnings feedback (#2030) grew the always-loaded preamble ~2.5KB; measured skeleton 67,681, union ratio 1.094.
+    maxSkeletonBytes: 70_000,
     minUnionBytes: 70_000,
     mustContain: ['Architecture', 'Code Quality', 'Test', 'Performance'],
     // Cross-cutting preamble growth (v1.57.2.0 AUQ-failure prose fallback + the
@@ -172,7 +174,7 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // default-on Codex outside-voice (codexPreflight block + CODEX_MODE branch
     // prose, replacing the smaller opt-in question) land this at ~6.6% over the
     // v1.53.0.0 baseline. Headroom for those intentional additions.
-    maxSizeRatio: 1.08,
+    maxSizeRatio: 1.11,
   },
   'plan-design-review': {
     skill: 'plan-design-review',
@@ -189,10 +191,11 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // +Conductor AUQ-default-prose rule + one-way/continuation safety in the
     // always-loaded AskUserQuestion Format section.
     // v1.2.0 activation lift (shared first-run-guidance preamble) + #2077 ask-first scope gate.
-    maxSkeletonBytes: 88_000,
+    // AUQ payload+shape rules (#1241/#2045) + learnings feedback (#2030) grew the always-loaded preamble ~2.5KB; measured skeleton 88,876, union ratio 1.077.
+    maxSkeletonBytes: 91_000,
     minUnionBytes: 70_000,
     mustContain: ['design', 'visual'],
-    maxSizeRatio: 1.07,
+    maxSizeRatio: 1.10,
   },
   'plan-devex-review': {
     skill: 'plan-devex-review',
@@ -209,7 +212,8 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // +Conductor AUQ-default-prose rule + one-way/destructive prose safety +
     // continuation protocol in the always-loaded AskUserQuestion Format section.
     // v1.2.0 activation lift: first-run-guidance section in the shared preamble.
-    maxSkeletonBytes: 80_000,
+    // AUQ payload+shape rules (#1241/#2045) + learnings feedback (#2030) grew the always-loaded preamble ~2.5KB; measured skeleton 81,016.
+    maxSkeletonBytes: 83_000,
     minUnionBytes: 70_000,
     mustContain: ['developer experience', 'Getting Started'],
     // Default-on Codex outside-voice (codexPreflight block + CODEX_MODE branch
@@ -232,10 +236,11 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     behavioral: 'prompt',
     // v1.2.0 activation lift: first-run-guidance section in the shared preamble,
     // plus the P1 office-hours closing handoff (AUQ that launches the next skill).
-    maxSkeletonBytes: 98_000,
+    // AUQ payload+shape rules (#1241/#2045) + learnings feedback (#2030) grew the always-loaded preamble ~2.5KB; measured skeleton 100,156, union ratio 1.082.
+    maxSkeletonBytes: 102_500,
     minUnionBytes: 70_000,
     mustContain: ['design doc', 'problem statement'],
-    maxSizeRatio: 1.07,
+    maxSizeRatio: 1.10,
   },
   'document-release': {
     skill: 'document-release',
@@ -253,7 +258,8 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // +Conductor AUQ-default-prose rule + one-way/continuation safety in the
     // always-loaded AskUserQuestion Format section.
     // v1.2.0 activation lift: first-run-guidance section in the shared preamble.
-    maxSkeletonBytes: 56_000,
+    // AUQ payload+shape rules (#1241/#2045) + learnings feedback (#2030) grew the always-loaded preamble ~2.5KB; measured skeleton 56,730, union ratio 1.208.
+    maxSkeletonBytes: 58_500,
     minUnionBytes: 55_000,
     mustContain: ['CHANGELOG', 'Diataxis', 'coverage'],
     // Two intentional additions stack on this small skill: the AUQ-failure prose
@@ -264,7 +270,7 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // is a deliberate new feature, not preamble creep; the union ceiling is raised
     // to match while the skeleton budget (50_000) still holds the always-loaded
     // cost flat.
-    maxSizeRatio: 1.20,
+    maxSizeRatio: 1.23,
   },
   'design-consultation': {
     skill: 'design-consultation',
@@ -281,13 +287,14 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // +Conductor AUQ-default-prose rule + one-way/continuation safety in the
     // always-loaded AskUserQuestion Format section.
     // v1.2.0 activation lift: first-run-guidance section in the shared preamble.
-    maxSkeletonBytes: 69_000,
+    // AUQ payload+shape rules (#1241/#2045) + learnings feedback (#2030) grew the always-loaded preamble ~2.5KB; measured skeleton 70,981, union ratio 1.090.
+    maxSkeletonBytes: 73_000,
     minUnionBytes: 72_000,
     mustContain: ['Typography', 'Color', 'Aesthetic Direction'],
     // Cross-cutting preamble growth (v1.57.2.0 AUQ-failure prose fallback ~2KB +
     // the cross-session decision-memory nudge) lands this carved skeleton just over
     // the strict 1.05; headroom for the shared preamble additions.
-    maxSizeRatio: 1.07,
+    maxSizeRatio: 1.11,
   },
   cso: {
     skill: 'cso',
@@ -320,16 +327,23 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // +Conductor AUQ-default-prose rule + one-way/continuation safety in the
     // always-loaded AskUserQuestion Format section.
     // v1.2.0 activation lift: first-run-guidance section in the shared preamble.
-    maxSkeletonBytes: 75_000,
+    // Raised 75K → 78.5K: AUQ payload rules (#1241) + tool-call shape (#2045)
+    // and the learnings feedback block (#2030) live in the always-loaded
+    // preamble, plus the --fix dispatch bits (#1053). Measured skeleton: 77,377B
+    // (Phase 15 itself lives in the audit-phases section, not here).
+    maxSkeletonBytes: 78_500,
     minUnionBytes: 72_000,
     mustContain: ['OWASP', 'STRIDE', 'daily', 'comprehensive', 'verif'],
     // cso keeps its mode-dispatch + FP-filtering phases always-loaded, so the
     // cross-cutting preamble growth (v1.57.2.0 AUQ-failure prose fallback ~2KB + the
     // decision-memory nudge) lands it just over 1.05; headroom for the shared additions.
-    // Raised 1.07 → 1.16 for two features in the audit-phases section: the
+    // Raised 1.07 → 1.21 for two features in the audit-phases section — the
     // --fix auto-fix engine (Phase 15, ~4.8KB, #1053) and the Tier 3
-    // mini-shai-hulud campaign rules (Phase 8, ~4KB, #1523).
-    maxSizeRatio: 1.16,
+    // mini-shai-hulud campaign rules (Phase 8, ~4KB, #1523) — plus the
+    // wave-wide preamble growth vs the v1.57.7.0 parity baseline (AUQ payload
+    // + tool-call-shape rules #1241/#2045, learnings feedback block #2030).
+    // Measured union ratio after all of the above: 1.190.
+    maxSizeRatio: 1.21,
   },
 };
 
