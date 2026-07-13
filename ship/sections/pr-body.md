@@ -185,7 +185,7 @@ Resolve reviewers in this priority order:
 
 1. The project's CLAUDE.md has a line matching `Default reviewer: @user` — use that username.
 2. The project's CLAUDE.md has a line matching `Reviewers: @a, @b` — use that list.
-3. Otherwise auto-detect non-self collaborators: `gh api repos/:owner/:repo/collaborators --jq "[.[] | select(.login != \"$(gh api user --jq .login)\") | .login] | join(\",\")" 2>/dev/null`
+3. Otherwise auto-detect non-self collaborators: `gh api repos/:owner/:repo/collaborators --jq "[.[] | select(.login != \"$(gh api user --jq .login)\") | .login] | join(\",\")" 2>/dev/null` — but only auto-assign when there are 1-2 other collaborators. With 3+, skip auto-assignment and suggest adding a `Default reviewer: @user` line to CLAUDE.md instead (requesting review from every collaborator on every ship is spam, not discipline).
 4. If none of the above return anything, skip reviewer assignment (solo repo, no reviewers available).
 
 Set the resolved list as `_REVIEWERS` at the top of the create block below (empty if step 4 applied) — the create command picks it up in the same block.
@@ -215,20 +215,7 @@ EOF
 **If neither CLI is available:**
 Print the branch name, remote URL, and instruct the user to create the PR/MR manually via the web UI. Do not stop — the code is pushed and ready.
 
-**Post-creation review gate banner (MANDATORY if `_REVIEWERS` is set):**
-
-After the PR/MR is created, print this banner verbatim and STOP any auto-merge intent:
-
-```
-==================================================================
-  REVIEW REQUESTED from: $_REVIEWERS
-  DO NOT MERGE this PR until a reviewer approves it.
-  Check status: gh pr view <PR#> --json reviewDecision,reviews
-  Merge only when reviewDecision == "APPROVED"
-==================================================================
-```
-
-**Never run `gh pr merge` (or equivalent) in the same /ship invocation when reviewers are set.** /ship's job ends at PR creation. The user runs a separate merge command only after the review is approved. If the user asks /ship to also merge, refuse with: "Review required first. PR #<N> has reviewers assigned. Merge only after reviewDecision is APPROVED."
+**If reviewers were assigned:** after the URL, print one line: `Review requested from <reviewers>. Don't merge until it's approved — check with gh pr view --json reviewDecision. /land-and-deploy enforces this gate before merging.` /ship never merges — its job ends at PR creation; the merge-side enforcement lives in /land-and-deploy Step 3.5a-ter.
 
 **Output the PR/MR URL** — then proceed to Step 20.
 

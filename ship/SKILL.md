@@ -1406,7 +1406,7 @@ through `gstack-version-bump`; never hand-roll the VERSION/package.json write.
 - **Never skip tests.** If tests fail, stop.
 - **Never skip the pre-landing review.** If checklist.md is unreadable, stop.
 - **Never force push.** Use regular `git push` only.
-- **Never merge without reviewer approval.** If the repo has collaborators or CLAUDE.md specifies a reviewer, /ship creates the PR with `--reviewer` assigned and STOPS. The user runs `gh pr merge` only after `reviewDecision == "APPROVED"`. If asked to merge in the same invocation, refuse and point at the review gate banner from Step 19.
+- **Never merge without reviewer approval.** When reviewers are assigned at PR creation (CLAUDE.md `Default reviewer:` line or collaborator auto-detect in Step 19), /ship stops at the PR URL. Merging happens via /land-and-deploy only after `reviewDecision == "APPROVED"` — its Step 3.5a-ter enforces this. If asked to merge in the same invocation, refuse and point at the review note from Step 19.
 - **Never ask for trivial confirmations** (e.g., "ready to push?", "create PR?"). DO stop for: version bumps (MINOR/MAJOR), pre-landing review findings (ASK items), and Codex structured review [P1] findings (large diffs only).
 - **Always use the 4-digit version format** from the VERSION file.
 - **Date format in CHANGELOG:** `YYYY-MM-DD`
