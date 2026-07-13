@@ -51,6 +51,7 @@ _SKILL_PREFIX=$(~/.claude/skills/gstack/bin/gstack-config get skill_prefix 2>/de
 echo "PROACTIVE: $_PROACTIVE"
 echo "PROACTIVE_PROMPTED: $_PROACTIVE_PROMPTED"
 echo "SKILL_PREFIX: $_SKILL_PREFIX"
+echo "SESSIONS: $_SESSIONS"
 source <(~/.claude/skills/gstack/bin/gstack-repo-mode 2>/dev/null) || true
 REPO_MODE=${REPO_MODE:-unknown}
 echo "REPO_MODE: $REPO_MODE"
@@ -83,6 +84,16 @@ _TEL_START=$(date +%s)
 _SESSION_ID="$$-$(date +%s)"
 echo "TELEMETRY: ${_TEL:-off}"
 echo "TEL_PROMPTED: $_TEL_PROMPTED"
+# Remote-control detection: when Claude Code is driven via the Anthropic app's
+# remote control, native AskUserQuestion renders an un-clickable menu, so skills
+# fall back to the prose decision brief (same as the Conductor path). Env var
+# wins; otherwise consult config. Empty/0 → normal AskUserQuestion.
+_REMOTE_CONTROL="${GSTACK_REMOTE_CONTROL:-}"
+if [ -z "$_REMOTE_CONTROL" ]; then
+  _REMOTE_CONTROL=$(~/.claude/skills/gstack/bin/gstack-config get remote_control 2>/dev/null || echo "")
+fi
+_REMOTE_CONTROL="${_REMOTE_CONTROL:-0}"
+echo "REMOTE_CONTROL: $_REMOTE_CONTROL"
 _EXPLAIN_LEVEL=$(~/.claude/skills/gstack/bin/gstack-config get explain_level 2>/dev/null || echo "default")
 if [ "$_EXPLAIN_LEVEL" != "default" ] && [ "$_EXPLAIN_LEVEL" != "terse" ]; then _EXPLAIN_LEVEL="default"; fi
 echo "EXPLAIN_LEVEL: $_EXPLAIN_LEVEL"
@@ -91,6 +102,17 @@ echo "QUESTION_TUNING: $_QUESTION_TUNING"
 _UPDATE_CHECK=$(~/.claude/skills/gstack/bin/gstack-config get update_check 2>/dev/null || echo "true")
 echo "UPDATE_CHECK: $_UPDATE_CHECK"
 mkdir -p ~/.gstack/analytics
+# Persist telemetry start-state so the separate "Telemetry (run last)" Bash
+# call (which runs in its own shell — vars don't survive between blocks) can
+# read a real start time and session id instead of logging duration 0 /
+# session "unknown". Keyed per-PPID (stable per host session, same premise as
+# the ~/.gstack/sessions marker) so concurrent Conductor worktrees don't race a
+# shared file. Deleted at completion.
+cat > ~/.gstack/analytics/.session-state-"$PPID" 2>/dev/null <<SESSTATE || true
+_TEL_START=$_TEL_START
+_SESSION_ID=$_SESSION_ID
+_TEL=${_TEL:-off}
+SESSTATE
 if [ "$_TEL" != "off" ]; then
 echo '{"skill":"autoplan","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(_repo=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null | tr -cd 'a-zA-Z0-9._-'); echo "${_repo:-unknown}")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 fi
@@ -105,11 +127,12 @@ for _PF in $(find ~/.gstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" 2>/dev/null || true
 _LEARN_FILE="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}/learnings.jsonl"
+_LEARN_PREAMBLE_LIMIT=$(~/.claude/skills/gstack/bin/gstack-config get learnings_preamble_limit 2>/dev/null || echo "3")
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
   if [ "$_LEARN_COUNT" -gt 5 ] 2>/dev/null; then
-    ~/.claude/skills/gstack/bin/gstack-learnings-search --limit 3 2>/dev/null || true
+    ~/.claude/skills/gstack/bin/gstack-learnings-search --limit "$_LEARN_PREAMBLE_LIMIT" 2>/dev/null || true
   fi
 else
   echo "LEARNINGS: 0"
@@ -147,7 +170,7 @@ else
   export GSTACK_PLAN_MODE="inactive"
 fi
 echo "GSTACK_PLAN_MODE: $GSTACK_PLAN_MODE"
-[ -n "$OPENCLAW_SESSION" ] && echo "SPAWNED_SESSION: true" || true
+~/.claude/skills/gstack/bin/gstack-spawned-session-status 2>/dev/null || true
 ```
 
 ## Plan Mode Safe Operations
@@ -347,6 +370,8 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 "AskUserQuestion" can resolve to two tools at runtime: the **host MCP variant** (e.g. `mcp__conductor__AskUserQuestion` — appears in your tool list when the host registers it) or the **native** Claude Code tool.
 
 **Conductor rule (read before the MCP rule):** if `CONDUCTOR_SESSION: true` was echoed by the preamble, do NOT call AskUserQuestion at all — neither native nor any `mcp__*__AskUserQuestion` variant. Render EVERY decision brief as the **prose form** below and STOP. This is proactive, not a reaction to a failure: Conductor disables native AUQ and its MCP variant is flaky (it returns `[Tool result missing due to internal error]`), so prose is the reliable path. **Auto-decide preferences still apply first:** if a `[plan-tune auto-decide] <id> → <option>` result has already surfaced for a question, proceed with that option (no prose). Because in Conductor you go straight to prose without ever calling the tool, this auto-decide-first ordering is enforced HERE, not only by the PreToolUse hook. When you render a Conductor prose brief, also capture it with `bin/gstack-question-log` (the PostToolUse capture hook never fires on a prose path, so `/plan-tune` history/learning depends on this call).
+
+**Remote-control rule (read alongside the Conductor rule):** if `REMOTE_CONTROL` from the preamble is truthy (anything other than empty or `0`), OR the transcript shows `Remote Control connecting…` without a later `Remote Control disconnected.`, do NOT call AskUserQuestion (native or any `mcp__*__AskUserQuestion` variant) — the Anthropic app's remote-control surface renders it as an un-clickable menu. Render EVERY decision brief as the **prose form** below, capture it with `bin/gstack-question-log` (same as the Conductor path), and STOP.
 
 **Rule (non-Conductor):** if any `mcp__*__AskUserQuestion` variant is in your tool list, prefer it. Hosts may disable native AUQ via `--disallowedTools AskUserQuestion` (Conductor does, by default) and route through their MCP variant; calling native there silently fails. Same questions/options shape; same decision-brief format applies.
 
@@ -611,6 +636,8 @@ equivalents (cat, sed, find, grep). The dedicated tools are cheaper and clearer.
 
 ## Voice
 
+**Language:** Match the user's language. If the user is writing mostly in Chinese, respond in Chinese. Do not switch languages unless the user asks you to, or the source material is clearer in the original language.
+
 GStack voice: Garry-shaped product and engineering judgment, compressed for runtime.
 
 - Lead with the point. Say what it does, why it matters, and what changes for the builder.
@@ -785,9 +812,16 @@ After workflow completion, log telemetry. Use skill `name:` from frontmatter. OU
 Run this bash:
 
 ```bash
+# Restore the telemetry start-state the preamble persisted (this Bash block runs
+# in a fresh shell — the preamble's _TEL_START/_SESSION_ID/_TEL don't survive).
+# Keyed per-PPID so concurrent sessions don't read each other's state.
+[ -f ~/.gstack/analytics/.session-state-"$PPID" ] && . ~/.gstack/analytics/.session-state-"$PPID"
 _TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
+# Degrade to duration 0 when the state file is missing or PPID differs, rather
+# than logging a garbage duration off an unset _TEL_START.
+_TEL_DUR=$(( _TEL_END - ${_TEL_START:-$_TEL_END} ))
 rm -f ~/.gstack/analytics/.pending-"$_SESSION_ID" 2>/dev/null || true
+rm -f ~/.gstack/analytics/.session-state-"$PPID" 2>/dev/null || true
 # Session timeline: record skill completion (local-only, never sent anywhere)
 ~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"SKILL_NAME","event":"completed","branch":"'$(git branch --show-current 2>/dev/null || echo unknown)'","outcome":"OUTCOME","duration_s":"'"$_TEL_DUR"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null || true
 # Local analytics (gated on telemetry setting)

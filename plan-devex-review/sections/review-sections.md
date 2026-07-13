@@ -11,12 +11,13 @@
 Search for relevant learnings from previous sessions:
 
 ```bash
+_LEARN_SKILL_LIMIT=$(~/.claude/skills/gstack/bin/gstack-config get learnings_skill_limit 2>/dev/null || echo "10")
 _CROSS_PROJ=$(~/.claude/skills/gstack/bin/gstack-config get cross_project_learnings 2>/dev/null || echo "unset")
 echo "CROSS_PROJECT: $_CROSS_PROJ"
 if [ "$_CROSS_PROJ" = "true" ]; then
-  ~/.claude/skills/gstack/bin/gstack-learnings-search --limit 10 --cross-project 2>/dev/null || true
+  ~/.claude/skills/gstack/bin/gstack-learnings-search --limit "$_LEARN_SKILL_LIMIT" --cross-project 2>/dev/null || true
 else
-  ~/.claude/skills/gstack/bin/gstack-learnings-search --limit 10 2>/dev/null || true
+  ~/.claude/skills/gstack/bin/gstack-learnings-search --limit "$_LEARN_SKILL_LIMIT" 2>/dev/null || true
 fi
 ```
 
