@@ -6,6 +6,11 @@ description: |
   "push to main", "create a PR", "merge and push", or "get it deployed".
   Proactively invoke this skill (do NOT push/PR directly) when the user says code
   is ready, asks about deploying, wants to push code up, or asks to create a PR. (gstack)
+triggers:
+  - ship it
+  - create a pr
+  - push to main
+  - deploy this
 ---
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
@@ -14,13 +19,13 @@ description: |
 
 ```bash
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-GSTACK_ROOT="$HOME/.agents/skills/gstack"
-[ -n "$_ROOT" ] && [ -d "$_ROOT/.agents/skills/gstack" ] && GSTACK_ROOT="$_ROOT/.agents/skills/gstack"
+GSTACK_ROOT="$HOME/.gbrain/skills/gstack"
+[ -n "$_ROOT" ] && [ -d "$_ROOT/.gbrain/skills/gstack" ] && GSTACK_ROOT="$_ROOT/.gbrain/skills/gstack"
 GSTACK_BIN="$GSTACK_ROOT/bin"
 GSTACK_BROWSE="$GSTACK_ROOT/browse/dist"
 GSTACK_DESIGN="$GSTACK_ROOT/design/dist"
 GSTACK_MAKE_PDF="$GSTACK_ROOT/make-pdf/dist"
-_UPD=$($GSTACK_BIN/gstack-update-check 2>/dev/null || .agents/skills/gstack/bin/gstack-update-check 2>/dev/null || true)
+_UPD=$($GSTACK_BIN/gstack-update-check 2>/dev/null || .gbrain/skills/gstack/bin/gstack-update-check 2>/dev/null || true)
 [ -n "$_UPD" ] && echo "$_UPD" || true
 mkdir -p ~/.gstack/sessions
 touch ~/.gstack/sessions/"$PPID"
@@ -40,7 +45,7 @@ echo "REPO_MODE: $REPO_MODE"
 _SESSION_KIND=$($GSTACK_BIN/gstack-session-kind 2>/dev/null || echo "interactive")
 case "$_SESSION_KIND" in spawned|headless|interactive) ;; *) _SESSION_KIND="interactive" ;; esac
 echo "SESSION_KIND: $_SESSION_KIND"
-# Conductor host: request_user_input is unreliable here (native disabled, MCP
+# Conductor host: AskUserQuestion is unreliable here (native disabled, MCP
 # variant flaky), so skills render decisions as prose instead of calling the
 # tool. Gated on !headless so an eval/CI run INSIDE Conductor (GSTACK_HEADLESS)
 # still BLOCKs rather than rendering prose to nobody.
@@ -104,8 +109,8 @@ _ROUTING_DECLINED=$($GSTACK_BIN/gstack-config get routing_declined 2>/dev/null |
 echo "HAS_ROUTING: $_HAS_ROUTING"
 echo "ROUTING_DECLINED: $_ROUTING_DECLINED"
 _VENDORED="no"
-if [ -d ".agents/skills/gstack" ] && [ ! -L ".agents/skills/gstack" ]; then
-  if [ -f ".agents/skills/gstack/VERSION" ] || [ -d ".agents/skills/gstack/.git" ]; then
+if [ -d ".gbrain/skills/gstack" ] && [ ! -L ".gbrain/skills/gstack" ]; then
+  if [ -f ".gbrain/skills/gstack/VERSION" ] || [ -d ".gbrain/skills/gstack/.git" ]; then
     _VENDORED="yes"
   fi
 fi
@@ -129,6 +134,16 @@ else
 fi
 echo "GSTACK_PLAN_MODE: $GSTACK_PLAN_MODE"
 [ -n "$OPENCLAW_SESSION" ] && echo "SPAWNED_SESSION: true" || true
+if command -v gbrain &>/dev/null; then
+  _BRAIN_JSON=$(gbrain doctor --fast --json 2>/dev/null || echo '{}')
+  _BRAIN_SCORE=$(echo "$_BRAIN_JSON" | grep -o '"health_score":[0-9]*' | cut -d: -f2)
+  _BRAIN_FAILS=$(echo "$_BRAIN_JSON" | grep -o '"status":"fail"' | wc -l | tr -d ' ')
+  _BRAIN_WARNS=$(echo "$_BRAIN_JSON" | grep -o '"status":"warn"' | wc -l | tr -d ' ')
+  echo "BRAIN_HEALTH: ${_BRAIN_SCORE:-unknown} (${_BRAIN_FAILS:-0} failures, ${_BRAIN_WARNS:-0} warnings)"
+  if [ "${_BRAIN_SCORE:-100}" -lt 50 ] 2>/dev/null; then
+    echo "$_BRAIN_JSON" | grep -o '"name":"[^"]*","status":"[^"]*","message":"[^"]*"' || true
+  fi
+fi
 ```
 
 ## Plan Mode Safe Operations
@@ -137,18 +152,18 @@ In plan mode, allowed because they inform the plan: `$B`, `$D`, `codex exec`/`co
 
 ## Skill Invocation During Plan Mode
 
-If the user invokes a skill in plan mode, the skill takes precedence over generic plan mode behavior. **Treat the skill file as executable instructions, not reference.** Follow it step by step starting from Step 0; the first request_user_input is the workflow entering plan mode, not a violation of it. request_user_input (any variant — `mcp__*__request_user_input` or native; see "request_user_input Format → Tool resolution") satisfies plan mode's end-of-turn requirement. If request_user_input is unavailable or a call fails, follow the request_user_input Format failure fallback: `headless` → BLOCKED; `interactive` → the prose fallback (also satisfies end-of-turn). At a STOP point, stop immediately. Do not continue the workflow or call ExitPlanMode there. Commands marked "PLAN MODE EXCEPTION — ALWAYS RUN" execute. Call ExitPlanMode only after the skill workflow completes, or if the user tells you to cancel the skill or leave plan mode.
+If the user invokes a skill in plan mode, the skill takes precedence over generic plan mode behavior. **Treat the skill file as executable instructions, not reference.** Follow it step by step starting from Step 0; the first AskUserQuestion is the workflow entering plan mode, not a violation of it. AskUserQuestion (any variant — `mcp__*__AskUserQuestion` or native; see "AskUserQuestion Format → Tool resolution") satisfies plan mode's end-of-turn requirement. If AskUserQuestion is unavailable or a call fails, follow the AskUserQuestion Format failure fallback: `headless` → BLOCKED; `interactive` → the prose fallback (also satisfies end-of-turn). At a STOP point, stop immediately. Do not continue the workflow or call ExitPlanMode there. Commands marked "PLAN MODE EXCEPTION — ALWAYS RUN" execute. Call ExitPlanMode only after the skill workflow completes, or if the user tells you to cancel the skill or leave plan mode.
 
 If `PROACTIVE` is `"false"`, do not auto-invoke or proactively suggest skills. If a skill seems useful, ask: "I think /skillname might help here — want me to run it?"
 
 If `SKILL_PREFIX` is `"true"`, suggest/invoke `/gstack-*` names. Disk paths stay `$GSTACK_ROOT/[skill-name]/SKILL.md`.
 
-If output shows `UPGRADE_AVAILABLE <old> <new>`: read `$GSTACK_ROOT/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise request_user_input with 4 options, write snooze state if declined).
+If output shows `UPGRADE_AVAILABLE <old> <new>`: read `$GSTACK_ROOT/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined).
 
 If output shows `JUST_UPGRADED <from> <to>`: print "Running gstack v{to} (just updated!)". If `SPAWNED_SESSION` is true, skip feature discovery.
 
 Feature discovery, max one prompt per session:
-- Missing `$GSTACK_ROOT/.feature-prompted-continuous-checkpoint`: request_user_input for Continuous checkpoint auto-commits. If accepted, run `$GSTACK_BIN/gstack-config set checkpoint_mode continuous`. Always touch marker.
+- Missing `$GSTACK_ROOT/.feature-prompted-continuous-checkpoint`: AskUserQuestion for Continuous checkpoint auto-commits. If accepted, run `$GSTACK_BIN/gstack-config set checkpoint_mode continuous`. Always touch marker.
 - Missing `$GSTACK_ROOT/.feature-prompted-model-overlay`: inform "Model overlays are active. MODEL_OVERLAY shows the patch." Always touch marker.
 
 After upgrade prompts, continue workflow.
@@ -181,7 +196,7 @@ touch ~/.gstack/.completeness-intro-seen
 
 Only run `open` if yes. Always run `touch`.
 
-If `TEL_PROMPTED` is `no` AND `LAKE_INTRO` is `yes`: ask telemetry once via request_user_input:
+If `TEL_PROMPTED` is `no` AND `LAKE_INTRO` is `yes`: ask telemetry once via AskUserQuestion:
 
 > Help gstack get better. Share usage data only: skill, duration, crashes, stable device ID. No code or file paths. Your repo name is recorded locally only and stripped before any upload.
 
@@ -248,7 +263,7 @@ Skip this section if `ACTIVATED` and `FIRST_LOOP_SHOWN` are both `yes`.
 If `HAS_ROUTING` is `no` AND `ROUTING_DECLINED` is `false` AND `PROACTIVE_PROMPTED` is `yes`:
 Check if a AGENTS.md file exists in the project root. If it does not exist, create it.
 
-Use request_user_input:
+Use AskUserQuestion:
 
 > gstack works best when your project's AGENTS.md includes skill routing rules.
 
@@ -286,9 +301,9 @@ If B: run `$GSTACK_BIN/gstack-config set routing_declined true` and say they can
 
 This only happens once per project. Skip if `HAS_ROUTING` is `yes` or `ROUTING_DECLINED` is `true`.
 
-If `VENDORED_GSTACK` is `yes`, warn once via request_user_input unless `~/.gstack/.vendoring-warned-$SLUG` exists:
+If `VENDORED_GSTACK` is `yes`, warn once via AskUserQuestion unless `~/.gstack/.vendoring-warned-$SLUG` exists:
 
-> This project has gstack vendored in `.agents/skills/gstack/`. Vendoring is deprecated.
+> This project has gstack vendored in `.gbrain/skills/gstack/`. Vendoring is deprecated.
 > Migrate to team mode?
 
 Options:
@@ -296,11 +311,11 @@ Options:
 - B) No, I'll handle it myself
 
 If A:
-1. Run `git rm -r .agents/skills/gstack/`
-2. Run `echo '.agents/skills/gstack/' >> .gitignore`
+1. Run `git rm -r .gbrain/skills/gstack/`
+2. Run `echo '.gbrain/skills/gstack/' >> .gitignore`
 3. Run `$GSTACK_BIN/gstack-team-init required` (or `optional`)
 4. Run `git add .claude/ .gitignore AGENTS.md && git commit -m "chore: migrate gstack from vendored to team mode"`
-5. Tell the user: "Done. Each developer now runs: `cd $GSTACK_ROOT && ./setup --team`"
+5. Tell the user: "Done. Each developer now runs: `cd ~/.gbrain/skills/gstack && ./setup --team`"
 
 If B: say "OK, you're on your own to keep the vendored copy up to date."
 
@@ -314,33 +329,38 @@ If marker exists, skip.
 
 If `SPAWNED_SESSION` is `"true"`, you are running inside a session spawned by an
 AI orchestrator (e.g., OpenClaw). In spawned sessions:
-- Do NOT use request_user_input for interactive prompts. Auto-choose the recommended option.
+- Do NOT use AskUserQuestion for interactive prompts. Auto-choose the recommended option.
 - Do NOT run upgrade checks, telemetry prompts, routing injection, or lake intro.
 - Focus on completing the task and reporting results via prose output.
 - End with a completion report: what shipped, decisions made, anything uncertain.
 
-## request_user_input Format
+If `BRAIN_HEALTH` is shown and the score is below 50, tell the user which checks
+failed (shown in the output) and suggest: "Run \`gbrain doctor\` for full diagnostics."
+If the output is not valid JSON or health_score is missing, treat GBrain as unavailable
+and proceed without brain features this session.
+
+## AskUserQuestion Format
 
 ### Tool resolution (read first)
 
-"request_user_input" can resolve to two tools at runtime: the **host MCP variant** (e.g. `mcp__conductor__request_user_input` — appears in your tool list when the host registers it) or the **native** Claude Code tool.
+"AskUserQuestion" can resolve to two tools at runtime: the **host MCP variant** (e.g. `mcp__conductor__AskUserQuestion` — appears in your tool list when the host registers it) or the **native** Claude Code tool.
 
-**Conductor rule (read before the MCP rule):** if `CONDUCTOR_SESSION: true` was echoed by the preamble, do NOT call request_user_input at all — neither native nor any `mcp__*__request_user_input` variant. Render EVERY decision brief as the **prose form** below and STOP. This is proactive, not a reaction to a failure: Conductor disables native AUQ and its MCP variant is flaky (it returns `[Tool result missing due to internal error]`), so prose is the reliable path. **Auto-decide preferences still apply first:** if a `[plan-tune auto-decide] <id> → <option>` result has already surfaced for a question, proceed with that option (no prose). Because in Conductor you go straight to prose without ever calling the tool, this auto-decide-first ordering is enforced HERE, not only by the PreToolUse hook. When you render a Conductor prose brief, also capture it with `bin/gstack-question-log` (the PostToolUse capture hook never fires on a prose path, so `/plan-tune` history/learning depends on this call).
+**Conductor rule (read before the MCP rule):** if `CONDUCTOR_SESSION: true` was echoed by the preamble, do NOT call AskUserQuestion at all — neither native nor any `mcp__*__AskUserQuestion` variant. Render EVERY decision brief as the **prose form** below and STOP. This is proactive, not a reaction to a failure: Conductor disables native AUQ and its MCP variant is flaky (it returns `[Tool result missing due to internal error]`), so prose is the reliable path. **Auto-decide preferences still apply first:** if a `[plan-tune auto-decide] <id> → <option>` result has already surfaced for a question, proceed with that option (no prose). Because in Conductor you go straight to prose without ever calling the tool, this auto-decide-first ordering is enforced HERE, not only by the PreToolUse hook. When you render a Conductor prose brief, also capture it with `bin/gstack-question-log` (the PostToolUse capture hook never fires on a prose path, so `/plan-tune` history/learning depends on this call).
 
-**Rule (non-Conductor):** if any `mcp__*__request_user_input` variant is in your tool list, prefer it. Hosts may disable native AUQ via `--disallowedTools request_user_input` (Conductor does, by default) and route through their MCP variant; calling native there silently fails. Same questions/options shape; same decision-brief format applies.
+**Rule (non-Conductor):** if any `mcp__*__AskUserQuestion` variant is in your tool list, prefer it. Hosts may disable native AUQ via `--disallowedTools AskUserQuestion` (Conductor does, by default) and route through their MCP variant; calling native there silently fails. Same questions/options shape; same decision-brief format applies.
 
-If request_user_input is unavailable (no variant in your tool list) OR a call to it fails, do NOT silently auto-decide or write the decision to the plan file as a substitute. Follow the **failure fallback** below.
+If AskUserQuestion is unavailable (no variant in your tool list) OR a call to it fails, do NOT silently auto-decide or write the decision to the plan file as a substitute. Follow the **failure fallback** below.
 
-### When request_user_input is unavailable or a call fails
+### When AskUserQuestion is unavailable or a call fails
 
 Tell three outcomes apart:
 
 1. **Auto-decide denial (NOT a failure).** The result contains `[plan-tune auto-decide] <id> → <option>` — the preference hook working as designed. Proceed with that option. Do NOT retry, do NOT fall back to prose.
-2. **Genuine failure** — no variant in your tool list, OR the variant is present but the call returns an error / missing result (MCP transport error, empty result, host bug — e.g. Conductor's MCP request_user_input is flaky and returns `[Tool result missing due to internal error]`).
+2. **Genuine failure** — no variant in your tool list, OR the variant is present but the call returns an error / missing result (MCP transport error, empty result, host bug — e.g. Conductor's MCP AskUserQuestion is flaky and returns `[Tool result missing due to internal error]`).
    - If it was present and **errored** (not absent), retry the SAME call **once** — but only if no answer could have surfaced (a missing-result error can arrive after the user already saw the question; retrying would double-prompt, so if it may have reached them, treat as pending, don't retry).
    - Then branch on `SESSION_KIND` (echoed by the preamble; empty/absent ⇒ `interactive`):
      - `spawned` → defer to the **Spawned session** block: auto-choose the recommended option. Never prose, never BLOCKED.
-     - `headless` → `BLOCKED — request_user_input unavailable`; stop and wait (no human can answer).
+     - `headless` → `BLOCKED — AskUserQuestion unavailable`; stop and wait (no human can answer).
      - `interactive` → **prose fallback** (below).
 
 **Prose fallback — render the decision brief as a markdown message, not a tool call.** Same information as the tool format below, different structure (paragraphs, not ✅/❌ bullets). It MUST surface this triad:
@@ -349,7 +369,7 @@ Tell three outcomes apart:
 2. **Completeness scores per choice** — explicit `Completeness: X/10` on EACH choice (10 complete, 7 happy-path, 3 shortcut); use the kind-note when options differ in kind not coverage, but never silently drop the score.
 3. **The recommendation and why** — a `Recommendation: <choice> because <reason>` line plus the `(recommended)` marker on that choice.
 
-Layout: a `D<N>` title + a one-line note to reply with a letter (in Conductor this is the normal path; elsewhere it means request_user_input was unavailable or errored); the issue ELI10; the Recommendation line; then ONE paragraph per choice carrying its `(recommended)` marker, its `Completeness: X/10`, and 2-4 sentences of reasoning — never a bare bullet list; a closing `Net:` line. Split chains / 5+ options: one prose block per per-option call, in sequence. Then STOP and wait — the user's typed answer is the decision. In plan mode this satisfies end-of-turn like a tool call.
+Layout: a `D<N>` title + a one-line note to reply with a letter (in Conductor this is the normal path; elsewhere it means AskUserQuestion was unavailable or errored); the issue ELI10; the Recommendation line; then ONE paragraph per choice carrying its `(recommended)` marker, its `Completeness: X/10`, and 2-4 sentences of reasoning — never a bare bullet list; a closing `Net:` line. Split chains / 5+ options: one prose block per per-option call, in sequence. Then STOP and wait — the user's typed answer is the decision. In plan mode this satisfies end-of-turn like a tool call.
 
 **Continuation — mapping a typed reply back to a brief.** Each brief carries a stable label (`D<N>`, or `D<N>.k` in a split chain). The user references it (e.g. "3.2: B"). A bare letter maps to the single most-recent UNANSWERED brief; if more than one is open (a split chain), do NOT guess — ask which `D<N>.k` it answers. Never apply a bare letter ambiguously across a chain.
 
@@ -357,7 +377,7 @@ Layout: a `D<N>` title + a one-line note to reply with a letter (in Conductor th
 
 ### Format
 
-Every request_user_input is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
+Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
 
 ```
 D<N> — <one-line question title>
@@ -392,7 +412,7 @@ Net line closes the tradeoff. Per-skill instructions may add stricter rules.
 
 ### Handling 5+ options — split, never drop
 
-request_user_input caps every call at **4 options**. With 5+ real options, NEVER
+AskUserQuestion caps every call at **4 options**. With 5+ real options, NEVER
 drop, merge, or silently defer one to fit. Pick a compliant shape:
 
 - **Batch into ≤4-groups** — for coherent alternatives (e.g. version bumps,
@@ -409,7 +429,7 @@ After the chain, fire `D<N>.final` to validate the assembled set (reprompt
 dependency conflicts) and confirm shipping it. Use `D<N>.revise-<k>` to
 revise one option without re-running the chain.
 
-For N>6, fire a `D<N>.0` meta-request_user_input first (proceed / narrow / batch).
+For N>6, fire a `D<N>.0` meta-AskUserQuestion first (proceed / narrow / batch).
 
 question_ids for split chains: `<skill>-split-<option-slug>` (kebab-case ASCII,
 ≤64 chars, `-2`/`-3` suffix on collision). The runtime checker
@@ -428,7 +448,7 @@ UTF-8 native, and manual escaping miscodes long CJK strings). Only `\n`,
 
 ### Self-check before emitting
 
-Before calling request_user_input, verify:
+Before calling AskUserQuestion, verify:
 - [ ] D<N> header present
 - [ ] ELI10 paragraph present (stakes line too)
 - [ ] Recommendation line present with concrete reason
@@ -541,7 +561,7 @@ else
 fi
 ```
 
-
+If output shows `ARTIFACTS_SYNC: artifacts repo detected`, offer `gstack-brain-restore` via AskUserQuestion; otherwise continue.
 
 Privacy stop-gate: if output shows `ARTIFACTS_SYNC: off`, `artifacts_sync_mode_prompted` is `false`, and gbrain is on PATH or `gbrain doctor --fast --json` works, ask once:
 
@@ -573,7 +593,7 @@ At skill END before telemetry:
 ## Model-Specific Behavioral Patch (claude)
 
 The following nudges are tuned for the claude model family. They are
-**subordinate** to skill workflow, STOP points, request_user_input gates, plan-mode
+**subordinate** to skill workflow, STOP points, AskUserQuestion gates, plan-mode
 safety, and /ship review gates. If a nudge below conflicts with skill instructions,
 the skill wins. Treat these as preferences, not rules.
 
@@ -639,7 +659,7 @@ If artifacts are listed, read the newest useful one. If `LAST_SESSION` or `LATES
 
 ## Writing Style (skip entirely if `EXPLAIN_LEVEL: terse` appears in the preamble echo OR the user's current message explicitly requests terse / no-explanations output)
 
-Applies to request_user_input, user replies, and findings. request_user_input Format is structure; this is prose quality.
+Applies to AskUserQuestion, user replies, and findings. AskUserQuestion Format is structure; this is prose quality.
 
 - Gloss curated jargon on first use per skill invocation, even if the user pasted the term.
 - Frame questions in outcome terms: what pain is avoided, what capability unlocks, what user experience changes.
@@ -694,7 +714,7 @@ If you are looping on the same diagnostic, same file, or failed fix variants, ST
 
 ## Question Tuning (skip entirely if `QUESTION_TUNING: false`)
 
-Before each request_user_input, choose `question_id` from `scripts/question-registry.ts` or `{skill}-{slug}`, then run `$GSTACK_BIN/gstack-question-preference --check "<id>"`. `AUTO_DECIDE` means choose the recommended option and say "Auto-decided [summary] → [option] (your preference). Change with /plan-tune." `ASK_NORMALLY` means ask.
+Before each AskUserQuestion, choose `question_id` from `scripts/question-registry.ts` or `{skill}-{slug}`, then run `$GSTACK_BIN/gstack-question-preference --check "<id>"`. `AUTO_DECIDE` means choose the recommended option and say "Auto-decided [summary] → [option] (your preference). Change with /plan-tune." `ASK_NORMALLY` means ask.
 
 **Embed the question_id as a marker in the question text** so hooks can identify it deterministically (plan-tune cathedral T14 / D18 progressive markers). Append `<gstack-qid:{question_id}>` somewhere in the rendered question (the leading line or trailing line is fine; the marker doesn't render visibly to the user when wrapped in HTML-style angle brackets, but the hook strips it). Without the marker the PreToolUse enforcement hook treats the AUQ as observed-only and never auto-decides — so always include it when the question matches a registered `question_id`.
 
@@ -720,7 +740,7 @@ Exit code 2 = rejected as not user-originated; do not retry. On success: "Set `<
 
 `REPO_MODE` controls how to handle issues outside your branch:
 - **`solo`** — You own everything. Investigate and offer to fix proactively.
-- **`collaborative`** / **`unknown`** — Flag via request_user_input, don't fix (may be someone else's).
+- **`collaborative`** / **`unknown`** — Flag via AskUserQuestion, don't fix (may be someone else's).
 
 Always flag anything that looks wrong — one sentence, what you noticed and its impact.
 
@@ -768,14 +788,14 @@ _TEL_END=$(date +%s)
 _TEL_DUR=$(( _TEL_END - _TEL_START ))
 rm -f ~/.gstack/analytics/.pending-"$_SESSION_ID" 2>/dev/null || true
 # Session timeline: record skill completion (local-only, never sent anywhere)
-$GSTACK_ROOT/bin/gstack-timeline-log '{"skill":"SKILL_NAME","event":"completed","branch":"'$(git branch --show-current 2>/dev/null || echo unknown)'","outcome":"OUTCOME","duration_s":"'"$_TEL_DUR"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null || true
+~/.gbrain/skills/gstack/bin/gstack-timeline-log '{"skill":"SKILL_NAME","event":"completed","branch":"'$(git branch --show-current 2>/dev/null || echo unknown)'","outcome":"OUTCOME","duration_s":"'"$_TEL_DUR"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null || true
 # Local analytics (gated on telemetry setting)
 if [ "$_TEL" != "off" ]; then
 echo '{"skill":"SKILL_NAME","duration_s":"'"$_TEL_DUR"'","outcome":"OUTCOME","browse":"USED_BROWSE","session":"'"$_SESSION_ID"'","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}' >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 fi
 # Remote telemetry (opt-in, requires binary)
-if [ "$_TEL" != "off" ] && [ -x $GSTACK_ROOT/bin/gstack-telemetry-log ]; then
-  $GSTACK_ROOT/bin/gstack-telemetry-log \
+if [ "$_TEL" != "off" ] && [ -x ~/.gbrain/skills/gstack/bin/gstack-telemetry-log ]; then
+  ~/.gbrain/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
     --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
 fi
@@ -826,7 +846,17 @@ branch name wherever the instructions say "the base branch" or `<default>`.
 
 ---
 
+## Brain Context Load
 
+**Skip this entire section if `gbrain` is not on PATH.**
+
+Extract 2-4 keywords from the user's request. Search the brain:
+`gbrain search "<keywords>"`. Read the top 3 results with
+`gbrain get_page "<slug>"`. Use that context to inform your analysis.
+
+If `gbrain search` returns no results or any non-zero exit, proceed
+without brain context. Full search/read protocol + examples:
+see `docs/gbrain-write-surfaces.md` §Context Load.
 
 # Ship: Fully Automated Ship Workflow
 
@@ -886,7 +916,7 @@ Never skip a verification step because a prior `/ship` run already performed it.
 After completing the review, read the review log and config to display the dashboard.
 
 ```bash
-$GSTACK_ROOT/bin/gstack-review-read
+~/.gbrain/skills/gstack/bin/gstack-review-read
 ```
 
 Parse the output. Find the most recent entry for each skill (plan-ceo-review, plan-eng-review, review, plan-design-review, design-review-lite, adversarial-review, codex-review, grok-review, codex-plan-review). Ignore entries with timestamps older than 7 days. For the Eng Review row, show whichever is more recent between `review` (diff-scoped pre-landing review) and `plan-eng-review` (plan-stage architecture review). Append "(DIFF)" or "(PLAN)" to the status to distinguish. For the Adversarial row, show whichever is more recent between `adversarial-review` (new auto-scaled) and `codex-review` (legacy). For Design Review, show whichever is more recent between `plan-design-review` (full visual audit) and `design-review-lite` (code-level check). Append "(FULL)" or "(LITE)" to the status to distinguish. For the Outside Voice row, show the most recent `codex-plan-review` entry — this captures outside voices from both /plan-ceo-review and /plan-eng-review.
@@ -940,7 +970,7 @@ Check diff size: `git diff <base>...HEAD --stat | tail -1`. If the diff is >200 
 
 If CEO Review is missing, mention as informational ("CEO Review not run — recommended for product changes") but do NOT block.
 
-For Design Review: run `source <($GSTACK_ROOT/bin/gstack-diff-scope <base> 2>/dev/null)`. If `SCOPE_FRONTEND=true` and no design review (plan-design-review or design-review-lite) exists in the dashboard, mention: "Design Review not run — this PR changes frontend code. The lite design check will run automatically in Step 9, but consider running /design-review for a full visual audit post-implementation." Still never block.
+For Design Review: run `source <(~/.gbrain/skills/gstack/bin/gstack-diff-scope <base> 2>/dev/null)`. If `SCOPE_FRONTEND=true` and no design review (plan-design-review or design-review-lite) exists in the dashboard, mention: "Design Review not run — this PR changes frontend code. The lite design check will run automatically in Step 9, but consider running /design-review for a full visual audit post-implementation." Still never block.
 
 Continue to Step 2 — do NOT block or ask. Ship runs its own review in Step 9.
 
@@ -962,7 +992,7 @@ service with existing deployment — verify that a distribution pipeline exists.
    grep -qE 'release|publish|deploy' .gitlab-ci.yml 2>/dev/null && echo "GITLAB_CI_RELEASE"
    ```
 
-3. **If no release pipeline exists and a new artifact was added:** Use request_user_input:
+3. **If no release pipeline exists and a new artifact was added:** Use AskUserQuestion:
    - "This PR adds a new binary/tool but there's no CI/CD pipeline to build and publish it.
      Users won't be able to download the artifact after merge."
    - A) Add a release workflow now (CI/CD release pipeline — GitHub Actions or GitLab CI depending on platform)
@@ -1021,7 +1051,7 @@ Store conventions as prose context for use in Phase 8e.5 or Step 7. **Skip the r
 
 **If BOOTSTRAP_DECLINED** appears: Print "Test bootstrap previously declined — skipping." **Skip the rest of bootstrap.**
 
-**If NO runtime detected** (no config files found): Use request_user_input:
+**If NO runtime detected** (no config files found): Use AskUserQuestion:
 "I couldn't detect your project's language. What runtime are you using?"
 Options: A) Node.js/TypeScript B) Ruby/Rails C) Python D) Go E) Rust F) PHP G) Elixir H) This project doesn't need tests.
 If user picks H → write `.gstack/no-test-bootstrap` and continue without tests.
@@ -1049,7 +1079,7 @@ If WebSearch is unavailable, use this built-in knowledge table:
 
 ### B3. Framework selection
 
-Use request_user_input:
+Use AskUserQuestion:
 "I detected this is a [Runtime/Framework] project with no test framework. I researched current best practices. Here are the options:
 A) [Primary] — [rationale]. Includes: [packages]. Supports: unit, integration, smoke, e2e
 B) [Alternative] — [rationale]. Includes: [packages]
@@ -1194,7 +1224,7 @@ Check `REPO_MODE` from the preamble output.
 
 **If REPO_MODE is `solo`:**
 
-Use request_user_input:
+Use AskUserQuestion:
 
 > These test failures appear pre-existing (not caused by your branch changes):
 >
@@ -1209,7 +1239,7 @@ Use request_user_input:
 
 **If REPO_MODE is `collaborative` or `unknown`:**
 
-Use request_user_input:
+Use AskUserQuestion:
 
 > These test failures appear pre-existing (not caused by your branch changes):
 >
@@ -1232,7 +1262,7 @@ Use request_user_input:
 - Continue with the workflow.
 
 **If "Add as P0 TODO":**
-- If `TODOS.md` exists, add the entry following the format in `review/TODOS-format.md` (or `.agents/skills/gstack/review/TODOS-format.md`).
+- If `TODOS.md` exists, add the entry following the format in `review/TODOS-format.md` (or `.gbrain/skills/review/TODOS-format.md`).
 - If `TODOS.md` does not exist, create it with the standard header and add the entry.
 - Entry should include: title, the error output, which branch it was noticed on, and priority P0.
 - Continue with the workflow — treat the pre-existing failure as non-blocking.
@@ -1324,12 +1354,12 @@ If multiple suites need to run, run them sequentially (each needs a test lane). 
 A plain backgrounded eval lives in the harness's process group and dies to a
 SIGTERM ("polite quit") on a turn boundary, a stopped monitor, or an interruption
 (observed mid-`/ship`: `script terminated by signal SIGTERM`). Run it through
-`$GSTACK_ROOT/bin/gstack-detach` instead — it survives in its own
+`~/.gbrain/skills/gstack/bin/gstack-detach` instead — it survives in its own
 session, serializes against other worktrees via a machine lock (no API
 saturation), and writes a guaranteed `### gstack-detach EXIT=<code> ###` sentinel:
 
 ```bash
-$GSTACK_ROOT/bin/gstack-detach --label ship-evals --lock gstack-evals --timeout 5400 -- <project eval command>
+~/.gbrain/skills/gstack/bin/gstack-detach --label ship-evals --lock gstack-evals --timeout 5400 -- <project eval command>
 ```
 
 Then poll the printed log path; break on the `EXIT=` sentinel (covers both pass
@@ -1354,7 +1384,7 @@ poller is reaped.
 
 ## Step 7: Test Coverage Audit
 
-**Dispatch this step as a subagent** using the Agent tool with `subagent_type: "general-purpose"`. The subagent runs the coverage audit in a fresh context window — the parent only sees the conclusion, not intermediate file reads. This is context-rot defense.
+**Dispatch this step as a subagent** using sessions_spawn with `subagent_type: "general-purpose"`. The subagent runs the coverage audit in a fresh context window — the parent only sees the conclusion, not intermediate file reads. This is context-rot defense.
 
 **Subagent prompt:** Pass the following instructions to the subagent, with `<base>` substituted with the base branch:
 
@@ -1467,7 +1497,7 @@ When checking each branch, also determine whether a unit test or E2E/integration
 
 ### REGRESSION RULE (mandatory)
 
-**IRON RULE:** When the coverage audit identifies a REGRESSION — code that previously worked but the diff broke — a regression test is written immediately. No request_user_input. No skipping. Regressions are the highest-priority test because they prove something broke.
+**IRON RULE:** When the coverage audit identifies a REGRESSION — code that previously worked but the diff broke — a regression test is written immediately. No AskUserQuestion. No skipping. Regressions are the highest-priority test because they prove something broke.
 
 A regression is when:
 - The diff modifies existing behavior (not new code)
@@ -1539,18 +1569,18 @@ Before proceeding, check AGENTS.md for a `## Test Coverage` section with `Minimu
 Using the coverage percentage from the diagram in substep 4 (the `COVERAGE: X/Y (Z%)` line):
 
 - **>= target:** Pass. "Coverage gate: PASS ({X}%)." Continue.
-- **>= minimum, < target:** Use request_user_input:
+- **>= minimum, < target:** Use AskUserQuestion:
   - "AI-assessed coverage is {X}%. {N} code paths are untested. Target is {target}%."
   - RECOMMENDATION: Choose A because untested code paths are where production bugs hide.
   - Options:
     A) Generate more tests for remaining gaps (recommended)
     B) Ship anyway — I accept the coverage risk
     C) These paths don't need tests — mark as intentionally uncovered
-  - If A: Loop back to substep 5 (generate tests) targeting the remaining gaps. After second pass, if still below target, present request_user_input again with updated numbers. Maximum 2 generation passes total.
+  - If A: Loop back to substep 5 (generate tests) targeting the remaining gaps. After second pass, if still below target, present AskUserQuestion again with updated numbers. Maximum 2 generation passes total.
   - If B: Continue. Include in PR body: "Coverage gate: {X}% — user accepted risk."
   - If C: Continue. Include in PR body: "Coverage gate: {X}% — {N} paths intentionally uncovered."
 
-- **< minimum:** Use request_user_input:
+- **< minimum:** Use AskUserQuestion:
   - "AI-assessed coverage is critically low ({X}%). {N} of {M} code paths have no tests. Minimum threshold is {minimum}%."
   - RECOMMENDATION: Choose A because less than {minimum}% means more code is untested than tested.
   - Options:
@@ -1570,7 +1600,7 @@ Using the coverage percentage from the diagram in substep 4 (the `COVERAGE: X/Y 
 After producing the coverage diagram, write a test plan artifact so `/qa` and `/qa-only` can consume it:
 
 ```bash
-eval "$($GSTACK_ROOT/bin/gstack-slug 2>/dev/null)" && mkdir -p ~/.gstack/projects/$SLUG
+eval "$(~/.gbrain/skills/gstack/bin/gstack-slug 2>/dev/null)" && mkdir -p ~/.gstack/projects/$SLUG
 USER=$(whoami)
 DATETIME=$(date +%Y%m%d-%H%M%S)
 ```
@@ -1612,7 +1642,7 @@ Repo: {owner/repo}
 
 ## Step 8: Plan Completion Audit
 
-**Dispatch this step as a subagent** using the Agent tool with `subagent_type: "general-purpose"`. The subagent reads the plan file and every referenced code file in its own fresh context. Parent gets only the conclusion.
+**Dispatch this step as a subagent** using sessions_spawn with `subagent_type: "general-purpose"`. The subagent reads the plan file and every referenced code file in its own fresh context. Parent gets only the conclusion.
 
 **Subagent prompt:** Pass these instructions to the subagent:
 
@@ -1746,7 +1776,7 @@ COMPLETION: 5/9 DONE, 1 PARTIAL, 1 NOT DONE, 1 CHANGED, 2 UNVERIFIABLE
 
 After producing the completion checklist, evaluate in priority order:
 
-1. **Any NOT DONE items** (highest priority — known missing work). Use request_user_input:
+1. **Any NOT DONE items** (highest priority — known missing work). Use AskUserQuestion:
    - Show the completion checklist above
    - "{N} items from the plan are NOT DONE. These were part of the original plan but are missing from the implementation."
    - RECOMMENDATION: depends on item count and severity. If 1-2 minor items (docs, config), recommend B. If core functionality is missing, recommend A.
@@ -1760,10 +1790,10 @@ After producing the completion checklist, evaluate in priority order:
 
 2. **Any UNVERIFIABLE items** (silent gaps — the diff cannot prove them either way). Only fires after NOT DONE is resolved or absent.
 
-   **Per-item confirmation is mandatory.** Do NOT use a single request_user_input to blanket-confirm all UNVERIFIABLE items. Blanket confirmation is the failure mode that surfaced in VAS-449 (user clicks A without opening any file). Instead:
+   **Per-item confirmation is mandatory.** Do NOT use a single AskUserQuestion to blanket-confirm all UNVERIFIABLE items. Blanket confirmation is the failure mode that surfaced in VAS-449 (user clicks A without opening any file). Instead:
 
    - Loop through UNVERIFIABLE items one at a time.
-   - For each item, use request_user_input with the item's *specific* manual check (e.g., "Confirm: does `~/Development/domain-hq/docs/dashboard.md` exist?", not "Have you checked all items?").
+   - For each item, use AskUserQuestion with the item's *specific* manual check (e.g., "Confirm: does `~/Development/domain-hq/docs/dashboard.md` exist?", not "Have you checked all items?").
    - Options per item:
      Y) Confirmed done — cite what you verified (free-text, embedded in PR body)
      N) Not done — block ship; treat as NOT DONE and re-enter the priority-1 gate
@@ -1791,10 +1821,10 @@ After producing the completion checklist, evaluate in priority order:
 
 1. Parse the LAST line of the subagent's output as JSON.
 2. Store `done`, `deferred`, `unverifiable` for Step 20 metrics; use `summary` in PR body.
-3. If `deferred > 0` or `unverifiable > 0` and no user override, present the items via the appropriate request_user_input (see Gate Logic priority order above) before continuing.
+3. If `deferred > 0` or `unverifiable > 0` and no user override, present the items via the appropriate AskUserQuestion (see Gate Logic priority order above) before continuing.
 4. Embed `summary` in PR body's `## Plan Completion` section (Step 19). If `unverifiable > 0` and the user picked option A in the UNVERIFIABLE gate, also embed `## Plan Completion — Manual Verifications` listing each user-confirmed item.
 
-**If the subagent fails or returns invalid JSON:** Fall back to running the audit inline (parent processes the same plan-extraction + classification logic). If the inline fallback also fails (e.g., plan file unreadable, parser error), do NOT silently pass — surface the failure as an explicit request_user_input: "Plan Completion audit could not run ({reason}). Options: (A) Skip audit and ship anyway — record that the audit was skipped in PR body and Step 20 metrics; (B) Stop and fix the audit." Default and recommended option is (B). Silent fail-open is the failure shape that VAS-449 surfaced.
+**If the subagent fails or returns invalid JSON:** Fall back to running the audit inline (parent processes the same plan-extraction + classification logic). If the inline fallback also fails (e.g., plan file unreadable, parser error), do NOT silently pass — surface the failure as an explicit AskUserQuestion: "Plan Completion audit could not run ({reason}). Options: (A) Skip audit and ship anyway — record that the audit was skipped in PR body and Step 20 metrics; (B) Stop and fix the audit." Default and recommended option is (B). Silent fail-open is the failure shape that VAS-449 surfaced.
 
 ---
 
@@ -1827,7 +1857,7 @@ curl -s -o /dev/null -w '%{http_code}' http://localhost:4000 2>/dev/null || echo
 Read the `/qa-only` skill from disk:
 
 ```bash
-cat $GSTACK_ROOT/../gstack-qa-only/SKILL.md
+cat ${CLAUDE_SKILL_DIR}/../qa-only/SKILL.md
 ```
 
 **If unreadable:** Skip with "Could not load /qa-only — skipping plan verification."
@@ -1842,7 +1872,7 @@ Follow the /qa-only workflow with these modifications:
 ### 4. Gate logic
 
 - **All verification items PASS:** Continue silently. "Plan verification: PASS."
-- **Any FAIL:** Use request_user_input:
+- **Any FAIL:** Use AskUserQuestion:
   - Show the failures with screenshot evidence
   - RECOMMENDATION: Choose A if failures indicate broken functionality. Choose B if cosmetic only.
   - Options:
@@ -1858,14 +1888,41 @@ Add a `## Verification Results` section to the PR body (Step 19):
 
 ## Prior Learnings
 
-Search for relevant learnings from previous sessions on this project:
+Search for relevant learnings from previous sessions:
 
 ```bash
-$GSTACK_BIN/gstack-learnings-search --limit 10 --query "release ship version changelog merge pr" 2>/dev/null || true
+_CROSS_PROJ=$($GSTACK_BIN/gstack-config get cross_project_learnings 2>/dev/null || echo "unset")
+echo "CROSS_PROJECT: $_CROSS_PROJ"
+if [ "$_CROSS_PROJ" = "true" ]; then
+  $GSTACK_BIN/gstack-learnings-search --limit 10 --query "release ship version changelog merge pr" --cross-project 2>/dev/null || true
+else
+  $GSTACK_BIN/gstack-learnings-search --limit 10 --query "release ship version changelog merge pr" 2>/dev/null || true
+fi
 ```
 
+If `CROSS_PROJECT` is `unset` (first time): Use AskUserQuestion:
+
+> gstack can search learnings from your other projects on this machine to find
+> patterns that might apply here. This stays local (no data leaves your machine).
+> Recommended for solo developers. Skip if you work on multiple client codebases
+> where cross-contamination would be a concern.
+
+Options:
+- A) Enable cross-project learnings (recommended)
+- B) Keep learnings project-scoped only
+
+If A: run `$GSTACK_BIN/gstack-config set cross_project_learnings true`
+If B: run `$GSTACK_BIN/gstack-config set cross_project_learnings false`
+
+Then re-run the search with the appropriate flag.
+
 If learnings are found, incorporate them into your analysis. When a review finding
-matches a past learning, note it: "Prior learning applied: [key] (confidence N, from [date])"
+matches a past learning, display:
+
+**"Prior learning applied: [key] (confidence N/10, from [date])"**
+
+This makes the compounding visible. The user should see that gstack is getting
+smarter on their codebase over time.
 
 ## Step 8.2: Scope Drift Detection
 
@@ -1908,7 +1965,7 @@ Before reviewing code quality, check: **did they build what was requested — no
 
 Review the diff for structural issues that tests don't catch.
 
-1. Read `.agents/skills/gstack/review/checklist.md`. If the file cannot be read, **STOP** and report the error.
+1. Read `.gbrain/skills/review/checklist.md`. If the file cannot be read, **STOP** and report the error.
 
 2. Run `git diff origin/<base>` to get the full diff (scoped to feature changes against the freshly-fetched base branch).
 
@@ -1992,7 +2049,7 @@ source <($GSTACK_BIN/gstack-diff-scope <base> 2>/dev/null)
 
 1. **Check for DESIGN.md.** If `DESIGN.md` or `design-system.md` exists in the repo root, read it. All design findings are calibrated against it — patterns blessed in DESIGN.md are not flagged. If not found, use universal design principles.
 
-2. **Read `.agents/skills/gstack/review/design-checklist.md`.** If the file cannot be read, skip design review with a note: "Design checklist not found — skipping design review."
+2. **Read `.gbrain/skills/review/design-checklist.md`.** If the file cannot be read, skip design review with a note: "Design checklist not found — skipping design review."
 
 3. **Read each changed frontend file** (full file, not just diff hunks). Frontend files are identified by the patterns listed in the checklist.
 
@@ -2011,6 +2068,29 @@ $GSTACK_BIN/gstack-review-log '{"skill":"design-review-lite","timestamp":"TIMEST
 
 Substitute: TIMESTAMP = ISO 8601 datetime, STATUS = "clean" if 0 findings or "issues_found", N = total findings, M = auto-fixed count, COMMIT = output of `git rev-parse --short HEAD`.
 
+7. **Codex design voice** (optional, automatic if available):
+
+```bash
+command -v codex >/dev/null 2>&1 && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_AVAILABLE"
+```
+
+If Codex is available, run a lightweight design check on the diff:
+
+```bash
+TMPERR_DRL=$(mktemp /tmp/codex-drl-XXXXXXXX)
+_REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
+codex exec "Review the git diff on this branch. Run 7 litmus checks (YES/NO each): 1. Brand/product unmistakable in first screen? 2. One strong visual anchor present? 3. Page understandable by scanning headlines only? 4. Each section has one job? 5. Are cards actually necessary? 6. Does motion improve hierarchy or atmosphere? 7. Would design feel premium with all decorative shadows removed? Flag any hard rejections: 1. Generic SaaS card grid as first impression 2. Beautiful image with weak brand 3. Strong headline with no clear action 4. Busy imagery behind text 5. Sections repeating same mood statement 6. Carousel with no narrative purpose 7. App UI made of stacked cards instead of layout 5 most important design findings only. Reference file:line." -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached < /dev/null 2>"$TMPERR_DRL"
+```
+
+Use a 5-minute timeout (`timeout: 300000`). After the command completes, read stderr:
+```bash
+cat "$TMPERR_DRL" && rm -f "$TMPERR_DRL"
+```
+
+**Error handling:** All errors are non-blocking. On auth failure, timeout, or empty response — skip with a brief note and continue.
+
+Present Codex output under a `CODEX (design):` header, merged with the checklist findings above.
+
    Include any design findings alongside the code review findings. They follow the same Fix-First flow below.
 
 
@@ -2020,7 +2100,7 @@ Substitute: TIMESTAMP = ISO 8601 datetime, STATUS = "clean" if 0 findings or "is
 Before classifying findings, check if any were previously skipped by the user in a prior review on this branch.
 
 ```bash
-$GSTACK_ROOT/bin/gstack-review-read
+~/.gbrain/skills/gstack/bin/gstack-review-read
 ```
 
 Parse the output: only lines BEFORE `---CONFIG---` are JSONL entries (the output also contains `---CONFIG---` and `---HEAD---` footer sections that are not JSONL — ignore those).
@@ -2055,11 +2135,11 @@ Output a summary header: `Pre-Landing Review: N issues (X critical, Y informatio
 5. **Auto-fix all AUTO-FIX items.** Apply each fix. Output one line per fix:
    `[AUTO-FIXED] [file:line] Problem → what you did`
 
-6. **If ASK items remain,** present them in ONE request_user_input:
+6. **If ASK items remain,** present them in ONE AskUserQuestion:
    - List each with number, severity, problem, recommended fix
    - Per-item options: A) Fix  B) Skip
    - Overall RECOMMENDATION
-   - If 3 or fewer ASK items, you may use individual request_user_input calls instead
+   - If 3 or fewer ASK items, you may use individual AskUserQuestion calls instead
 
 7. **After all fixes (auto + user-approved):**
    - If ANY fixes were applied: commit fixed files by name (`git add <fixed-files> && git commit -m "fix: pre-landing review fixes"`), then **STOP** and tell the user to run `/ship` again to re-test.
@@ -2071,7 +2151,7 @@ Output a summary header: `Pre-Landing Review: N issues (X critical, Y informatio
 
 9. Persist the review result to the review log:
 ```bash
-$GSTACK_ROOT/bin/gstack-review-log '{"skill":"review","timestamp":"TIMESTAMP","status":"STATUS","issues_found":N,"critical":N,"informational":N,"quality_score":SCORE,"specialists":SPECIALISTS_JSON,"findings":FINDINGS_JSON,"commit":"'"$(git rev-parse --short HEAD)"'","via":"ship"}'
+~/.gbrain/skills/gstack/bin/gstack-review-log '{"skill":"review","timestamp":"TIMESTAMP","status":"STATUS","issues_found":N,"critical":N,"informational":N,"quality_score":SCORE,"specialists":SPECIALISTS_JSON,"findings":FINDINGS_JSON,"commit":"'"$(git rev-parse --short HEAD)"'","via":"ship"}'
 ```
 Substitute TIMESTAMP (ISO 8601), STATUS ("clean" if no issues, "issues_found" otherwise),
 and N values from the summary counts above. The `via:"ship"` distinguishes from standalone `/review` runs.
@@ -2085,11 +2165,11 @@ Save the review output — it goes into the PR body in Step 19.
 
 ## Step 10: Address Greptile review comments (if PR exists)
 
-**Dispatch the fetch + classification as a subagent** using the Agent tool with `subagent_type: "general-purpose"`. The subagent pulls every Greptile comment, runs the escalation detection algorithm, and classifies each comment. Parent receives a structured list and handles user interaction + file edits.
+**Dispatch the fetch + classification as a subagent** using sessions_spawn with `subagent_type: "general-purpose"`. The subagent pulls every Greptile comment, runs the escalation detection algorithm, and classifies each comment. Parent receives a structured list and handles user interaction + file edits.
 
 **Subagent prompt:**
 
-> You are classifying Greptile review comments for a /ship workflow. Read `.agents/skills/gstack/review/greptile-triage.md` and follow the fetch, filter, classify, and **escalation detection** steps. Do NOT fix code, do NOT reply to comments, do NOT commit — report only.
+> You are classifying Greptile review comments for a /ship workflow. Read `.gbrain/skills/review/greptile-triage.md` and follow the fetch, filter, classify, and **escalation detection** steps. Do NOT fix code, do NOT reply to comments, do NOT commit — report only.
 >
 > For each comment, assign: `classification` (`valid_actionable`, `already_fixed`, `false_positive`, `suppressed`), `escalation_tier` (1 or 2), the file:line or [top-level] tag, body summary, and permalink URL.
 >
@@ -2108,18 +2188,18 @@ Otherwise, print: `+ {total} Greptile comments ({valid_actionable} valid, {alrea
 
 For each comment in `comments`:
 
-**VALID & ACTIONABLE:** Use request_user_input with:
+**VALID & ACTIONABLE:** Use AskUserQuestion with:
 - The comment (file:line or [top-level] + body summary + permalink URL)
 - `RECOMMENDATION: Choose A because [one-line reason]`
 - Options: A) Fix now, B) Acknowledge and ship anyway, C) It's a false positive
 - If user chooses A: apply the fix, commit the fixed files (`git add <fixed-files> && git commit -m "fix: address Greptile review — <brief description>"`), reply using the **Fix reply template** from greptile-triage.md (include inline diff + explanation), and save to both per-project and global greptile-history (type: fix).
 - If user chooses C: reply using the **False Positive reply template** from greptile-triage.md (include evidence + suggested re-rank), save to both per-project and global greptile-history (type: fp).
 
-**VALID BUT ALREADY FIXED:** Reply using the **Already Fixed reply template** from greptile-triage.md — no request_user_input needed:
+**VALID BUT ALREADY FIXED:** Reply using the **Already Fixed reply template** from greptile-triage.md — no AskUserQuestion needed:
 - Include what was done and the fixing commit SHA
 - Save to both per-project and global greptile-history (type: already-fixed)
 
-**FALSE POSITIVE:** Use request_user_input:
+**FALSE POSITIVE:** Use AskUserQuestion:
 - Show the comment and why you think it's wrong (file:line or [top-level] + body summary + permalink URL)
 - Options:
   - A) Reply to Greptile explaining the false positive (recommended if clearly wrong)
@@ -2160,7 +2240,28 @@ staleness detection: if those files are later deleted, the learning can be flagg
 **Only log genuine discoveries.** Don't log obvious things. Don't log things the user
 already knows. A good test: would this insight save time in a future session? If yes, log it.
 
+## Save Results to Brain
 
+**Skip this entire section if `gbrain` is not on PATH.**
+
+After completing this skill, save the output:
+
+```bash
+gbrain put "releases/<feature-slug>" --content "$(cat <<'EOF'
+---
+title: "Release: <feature name>"
+tags: [release, <feature-slug>]
+---
+<skill output in markdown>
+EOF
+)"
+```
+
+Then extract person/org entities and create stub pages for each one.
+Throttle errors (exit 1 with "throttle"/"rate limit"/"busy") and any
+other non-zero exit are transient — don't retry inline. Full entity-stub
+template, throttle handling, and backlink protocol:
+see `docs/gbrain-write-surfaces.md` §Save Template.
 
 ### Refresh learnings for the headline feature on this branch
 
@@ -2171,7 +2272,7 @@ Pick ONE keyword that names the headline feature you're shipping. The keyword sh
 Worked examples (ship-specific): good keywords are `learnings-search`, `pacing`, `worktree-ship`. Bad: `the branch headline`, `v1.31.1.0`, `feat: token-or search`.
 
 ```bash
-$GSTACK_ROOT/bin/gstack-learnings-search --query "<your-keyword>" --limit 5 2>/dev/null || true
+~/.gbrain/skills/gstack/bin/gstack-learnings-search --query "<your-keyword>" --limit 5 2>/dev/null || true
 ```
 
 If any learnings come back, name which one applies to the version bump or CHANGELOG framing in one sentence. If none come back, continue without reference — the absence is itself useful information.
@@ -2184,11 +2285,11 @@ stay agent judgment; the slot pick stays `gstack-next-version`.
 
 1. **Classify state** — pure reader, never writes:
    ```bash
-   bun run $GSTACK_ROOT/bin/gstack-version-bump classify --base <base>
+   bun run ~/.gbrain/skills/gstack/bin/gstack-version-bump classify --base <base>
    ```
    Read the JSON `state` and dispatch:
    - **FRESH** → do the bump (steps 2-4).
-   - **ALREADY_BUMPED** → skip the bump, but run the queue-drift check (step 3) with the reported `currentVersion`. If the queue moved (next free version differs), **request_user_input**: rebump to the new version (rewrites CHANGELOG header + PR title) or keep current (CI version-gate will reject until resolved).
+   - **ALREADY_BUMPED** → skip the bump, but run the queue-drift check (step 3) with the reported `currentVersion`. If the queue moved (next free version differs), **AskUserQuestion**: rebump to the new version (rewrites CHANGELOG header + PR title) or keep current (CI version-gate will reject until resolved).
    - **DRIFT_STALE_PKG** → run `gstack-version-bump repair` (syncs package.json to VERSION). No re-bump; reuse `currentVersion` for CHANGELOG + PR.
    - **DRIFT_UNEXPECTED** → **STOP**. package.json disagrees with VERSION while VERSION matches base — a manual edit bypassed /ship. Reconcile manually, then re-run.
 
@@ -2199,20 +2300,20 @@ stay agent judgment; the slot pick stays `gstack-next-version`.
 
 3. **Queue-aware pick** (workspace-aware ship):
    ```bash
-   QUEUE_JSON=$(bun run $GSTACK_ROOT/bin/gstack-next-version --base <base> --bump "$BUMP_LEVEL" --current-version "$BASE_VERSION" 2>/dev/null || echo '{"offline":true}')
+   QUEUE_JSON=$(bun run ~/.gbrain/skills/gstack/bin/gstack-next-version --base <base> --bump "$BUMP_LEVEL" --current-version "$BASE_VERSION" 2>/dev/null || echo '{"offline":true}')
    NEW_VERSION=$(echo "$QUEUE_JSON" | jq -r '.version // empty')
    ```
-   If `offline`/util fails: fall back to local `BUMP_LEVEL` arithmetic and print `⚠ workspace-aware ship offline — using local bump only`. If `claimed` is non-empty, render the queue table so the user sees landing order. If an active sibling workspace holds a version `>= NEW_VERSION`, **request_user_input**: advance past (unrelated work) or abort and sync with the sibling.
+   If `offline`/util fails: fall back to local `BUMP_LEVEL` arithmetic and print `⚠ workspace-aware ship offline — using local bump only`. If `claimed` is non-empty, render the queue table so the user sees landing order. If an active sibling workspace holds a version `>= NEW_VERSION`, **AskUserQuestion**: advance past (unrelated work) or abort and sync with the sibling.
 
 4. **Write the bump** (FRESH, or an approved rebump):
    ```bash
-   bun run $GSTACK_ROOT/bin/gstack-version-bump write --version "$NEW_VERSION"
+   bun run ~/.gbrain/skills/gstack/bin/gstack-version-bump write --version "$NEW_VERSION"
    ```
    The CLI validates the 4-digit `MAJOR.MINOR.PATCH.MICRO` pattern and writes **both** VERSION and package.json. On a half-write (VERSION written, package.json failed) it exits 3 — re-run, and classify will report DRIFT_STALE_PKG for `repair` to fix.
 
 5. **Record the release decision** (durable cross-session memory). The bump level is a real decision the next session should not re-derive blind:
    ```bash
-   $GSTACK_ROOT/bin/gstack-decision-log '{"decision":"Ship NEW_VERSION (BUMP_LEVEL)","rationale":"WHY","scope":"repo","source":"skill","confidence":9}' 2>/dev/null || true
+   ~/.gbrain/skills/gstack/bin/gstack-decision-log '{"decision":"Ship NEW_VERSION (BUMP_LEVEL)","rationale":"WHY","scope":"repo","source":"skill","confidence":9}' 2>/dev/null || true
    ```
    Substitute `NEW_VERSION`, `BUMP_LEVEL`, and a one-line `WHY` (the signal that set the level: diff scale, a new feature, a breaking change). Best-effort and non-interactive; never blocks the ship. Skip on the ALREADY_BUMPED path (the decision was logged on the run that did the bump).
 
@@ -2264,11 +2365,11 @@ stay agent judgment; the slot pick stays `gstack-next-version`.
 
 Cross-reference the project's TODOS.md against the changes being shipped. Mark completed items automatically; prompt only if the file is missing or disorganized.
 
-Read `.agents/skills/gstack/review/TODOS-format.md` for the canonical format reference.
+Read `.gbrain/skills/review/TODOS-format.md` for the canonical format reference.
 
 **1. Check if TODOS.md exists** in the repository root.
 
-**If TODOS.md does not exist:** Use request_user_input:
+**If TODOS.md does not exist:** Use AskUserQuestion:
 - Message: "GStack recommends maintaining a TODOS.md organized by skill/component, then priority (P0 at top through P4, then Completed at bottom). See TODOS-format.md for the full format. Would you like to create one?"
 - Options: A) Create it now, B) Skip for now
 - If A: Create `TODOS.md` with a skeleton (# TODOS heading + ## Completed section). Continue to step 3.
@@ -2281,7 +2382,7 @@ Read TODOS.md and verify it follows the recommended structure:
 - Each item has `**Priority:**` field with P0-P4 value
 - A `## Completed` section at the bottom
 
-**If disorganized** (missing priority fields, no component groupings, no Completed section): Use request_user_input:
+**If disorganized** (missing priority fields, no component groupings, no Completed section): Use AskUserQuestion:
 - Message: "TODOS.md doesn't follow the recommended structure (skill/component groupings, P0-P4 priority, Completed section). Would you like to reorganize it?"
 - Options: A) Reorganize now (recommended), B) Leave as-is
 - If A: Reorganize in-place following TODOS-format.md. Preserve all content — only restructure, never delete items.
@@ -2373,7 +2474,7 @@ fi
 ```
 
 Decide at runtime which option applies. If unsure, prefer stopping and asking the
-user via request_user_input rather than destroying non-WIP commits.
+user via AskUserQuestion rather than destroying non-WIP commits.
 
 **Anti-footgun rules:**
 - NEVER blind `git reset --soft` if there are non-WIP commits. Codex flagged this
@@ -2413,7 +2514,7 @@ user via request_user_input rather than destroying non-WIP commits.
 git commit -m "$(cat <<'EOF'
 chore: bump version and changelog (vX.Y.Z.W)
 
-Co-Authored-By: OpenAI Codex <noreply@openai.com>
+Co-Authored-By: GBrain Agent <agent@gbrain.dev>
 EOF
 )"
 ```
@@ -2447,7 +2548,7 @@ Claiming work is complete without verification is dishonesty, not efficiency.
 **Credential pre-push guard (#1946) — run before the push:**
 
 ```bash
-_REDACT_PREPUSH=$($GSTACK_ROOT/bin/gstack-config get redact_prepush_hook 2>/dev/null || echo "false")
+_REDACT_PREPUSH=$(~/.gbrain/skills/gstack/bin/gstack-config get redact_prepush_hook 2>/dev/null || echo "false")
 _HOOK_PATH=$(git rev-parse --git-path hooks/pre-push 2>/dev/null || echo "")
 _HOOK_INSTALLED="no"
 [ -n "$_HOOK_PATH" ] && [ -f "$_HOOK_PATH" ] && grep -q "gstack-redact" "$_HOOK_PATH" 2>/dev/null && _HOOK_INSTALLED="yes"
@@ -2472,14 +2573,14 @@ Branch on the echoed values:
 1. **`REDACT_PREPUSH: true` and `HOOK_INSTALLED: no` and `HOOKS_IN_GIT_DIR: yes`** —
    consent already given; install silently (no question) and continue:
    ```bash
-   $GSTACK_ROOT/bin/gstack-redact install-prepush-hook
+   ~/.gbrain/skills/gstack/bin/gstack-redact install-prepush-hook
    ```
    If `HOOKS_IN_GIT_DIR: no` (husky or another committed hooks dir), do NOT
    install silently — print one line: "redact pre-push guard not installed:
    this repo uses a custom core.hooksPath; run
    `gstack-redact install-prepush-hook` manually if you want it chained."
 2. **`REDACT_PREPUSH` not true AND `PREPUSH_PROMPTED: no`** — one-time
-   offer (fires once EVER, machine-wide). request_user_input:
+   offer (fires once EVER, machine-wide). AskUserQuestion:
 
    > gstack can install a per-repo git pre-push hook that blocks pushes
    > containing credentials (API keys, tokens, private keys). It's a
@@ -2490,11 +2591,11 @@ Branch on the echoed values:
    - A) Yes — install the credential guard (recommended)
    - B) No — never ask again
 
-   If A: run `$GSTACK_ROOT/bin/gstack-config set redact_prepush_hook true`
-   then `$GSTACK_ROOT/bin/gstack-redact install-prepush-hook`.
-   If B: run `$GSTACK_ROOT/bin/gstack-config set redact_prepush_hook false`.
+   If A: run `~/.gbrain/skills/gstack/bin/gstack-config set redact_prepush_hook true`
+   then `~/.gbrain/skills/gstack/bin/gstack-redact install-prepush-hook`.
+   If B: run `~/.gbrain/skills/gstack/bin/gstack-config set redact_prepush_hook false`.
    ALWAYS (after either answer, but NOT if the question itself failed to
-   render — a failed request_user_input must re-offer next time):
+   render — a failed AskUserQuestion must re-offer next time):
    ```bash
    touch "${GSTACK_HOME:-$HOME/.gstack}/.redact-prepush-prompted"
    ```
@@ -2521,17 +2622,17 @@ git push -u origin <branch-name>
 
 ---
 
-**PR/MR title invariant (always applies — do not skip even if you don't open the section below):** Any PR or MR you create OR update in the next step MUST have a title that starts with `v$NEW_VERSION` (the version bumped in Step 12), in the format `v<NEW_VERSION> <type>: <summary>`. Never create or edit a PR/MR title without this prefix. Compute the correct title with the single source of truth helper: `$GSTACK_ROOT/bin/gstack-pr-title-rewrite.sh "$NEW_VERSION" "<current title>"`. The full create/update procedure (idempotency, redaction scan, self-check) is in the section below.
+**PR/MR title invariant (always applies — do not skip even if you don't open the section below):** Any PR or MR you create OR update in the next step MUST have a title that starts with `v$NEW_VERSION` (the version bumped in Step 12), in the format `v<NEW_VERSION> <type>: <summary>`. Never create or edit a PR/MR title without this prefix. Compute the correct title with the single source of truth helper: `~/.gbrain/skills/gstack/bin/gstack-pr-title-rewrite.sh "$NEW_VERSION" "<current title>"`. The full create/update procedure (idempotency, redaction scan, self-check) is in the section below.
 
 ## Step 18: Documentation sync (via subagent, before PR creation)
 
-**Dispatch /document-release as a subagent** using the Agent tool with `subagent_type: "general-purpose"`. The subagent gets a fresh context window — zero rot from the preceding 17 steps. It also runs the **full** `/document-release` workflow (with CHANGELOG clobber protection, doc exclusions, risky-change gates, named staging, race-safe PR body editing) rather than a weaker reimplementation.
+**Dispatch /document-release as a subagent** using sessions_spawn with `subagent_type: "general-purpose"`. The subagent gets a fresh context window — zero rot from the preceding 17 steps. It also runs the **full** `/document-release` workflow (with CHANGELOG clobber protection, doc exclusions, risky-change gates, named staging, race-safe PR body editing) rather than a weaker reimplementation.
 
 **Sequencing:** This step runs AFTER Step 17 (Push) and BEFORE Step 19 (Create PR). The PR is created once from final HEAD with the `## Documentation` section baked into the initial body. No create-then-re-edit dance.
 
 **Subagent prompt:**
 
-> You are executing the /document-release workflow after a code push. Read the full skill file `${HOME}/.agents/skills/gstack/document-release/SKILL.md` and execute its complete workflow end-to-end, including CHANGELOG clobber protection, doc exclusions, risky-change gates, and named staging. Do NOT attempt to edit the PR body — no PR exists yet. Branch: `<branch>`, base: `<base>`.
+> You are executing the /document-release workflow after a code push. Read the full skill file `${HOME}/.gbrain/skills/gstack/document-release/SKILL.md` and execute its complete workflow end-to-end, including CHANGELOG clobber protection, doc exclusions, risky-change gates, and named staging. Do NOT attempt to edit the PR body — no PR exists yet. Branch: `<branch>`, base: `<base>`.
 >
 > After completing the workflow, output a single JSON object on the LAST LINE of your response (no other text after it):
 > `{"files_updated":["README.md","AGENTS.md",...],"commit_sha":"abc1234","pushed":true,"documentation_section":"<markdown block for PR body's ## Documentation section>"}`
@@ -2569,7 +2670,7 @@ If an **open** PR/MR already exists: **update** the PR body using `gh pr edit --
 **Always update the PR title to start with `v$NEW_VERSION`.** PR titles use the workspace-aware format `v<NEW_VERSION> <type>: <summary>` — version ALWAYS first, no exceptions, no "custom title kept intentionally" escape hatch. The shared helper `bin/gstack-pr-title-rewrite.sh` is the single source of truth for the rule.
 
 1. Read the current title: `CURRENT=$(gh pr view --json title -q .title)` (or `glab mr view -F json | jq -r .title`).
-2. Compute the corrected title: `NEW_TITLE=$($GSTACK_ROOT/bin/gstack-pr-title-rewrite.sh "$NEW_VERSION" "$CURRENT")`. The helper handles three cases: title already correct (no-op), title has a different `v<X.Y.Z.W>` prefix (replace it), or title has no version prefix (prepend one).
+2. Compute the corrected title: `NEW_TITLE=$(~/.gbrain/skills/gstack/bin/gstack-pr-title-rewrite.sh "$NEW_VERSION" "$CURRENT")`. The helper handles three cases: title already correct (no-op), title has a different `v<X.Y.Z.W>` prefix (replace it), or title has no version prefix (prepend one).
 3. If `NEW_TITLE` differs from `CURRENT`, run `gh pr edit --title "$NEW_TITLE"` (or `glab mr update -t "$NEW_TITLE"`).
 4. **Self-check:** re-fetch the title and assert it starts with `v$NEW_VERSION `. If it does not, retry the edit once. If still wrong, surface the failure to the user.
 
@@ -2620,8 +2721,8 @@ you missed it.>
 
 ## Linked Spec
 <Auto-detect: look for /spec archives matching this branch via:
-  eval "$($GSTACK_ROOT/bin/gstack-paths)"
-  eval "$($GSTACK_ROOT/bin/gstack-slug)"
+  eval "$(~/.gbrain/skills/gstack/bin/gstack-paths)"
+  eval "$(~/.gbrain/skills/gstack/bin/gstack-slug)"
   CURRENT_BRANCH=$(git branch --show-current)
   SPEC_ARCHIVES="$GSTACK_STATE_ROOT/projects/$SLUG/specs"
   # Find newest archive whose spec_branch frontmatter matches current branch (or one of its
@@ -2683,23 +2784,23 @@ engine WARN-degrades the example credentials those tools quote instead of blocki
 the PR (a live-format credential inside the fence still blocks).
 
 ```bash
-REDACT_VIS=$($GSTACK_ROOT/bin/gstack-config get redact_repo_visibility 2>/dev/null)
+REDACT_VIS=$(~/.gbrain/skills/gstack/bin/gstack-config get redact_repo_visibility 2>/dev/null)
 [ -z "$REDACT_VIS" ] && REDACT_VIS=$(gh repo view --json visibility -q .visibility 2>/dev/null | tr 'A-Z' 'a-z')
 REDACT_VIS="${REDACT_VIS:-unknown}"
 PR_BODY_FILE=$(mktemp)
 cat > "$PR_BODY_FILE" <<'PR_BODY_EOF'
 <PR body from above>
 PR_BODY_EOF
-$GSTACK_ROOT/bin/gstack-redact --from-file "$PR_BODY_FILE" --repo-visibility "$REDACT_VIS" --self-email "$(git config user.email 2>/dev/null)" --json
+~/.gbrain/skills/gstack/bin/gstack-redact --from-file "$PR_BODY_FILE" --repo-visibility "$REDACT_VIS" --self-email "$(git config user.email 2>/dev/null)" --json
 case $? in
   3) echo "BLOCKED — credential in PR body. Rotate + redact, do not create the PR."; exit 1 ;;
   2) echo "MEDIUM findings — confirm per finding (sterner on public) before proceeding." ;;
 esac
 # Also scan the title (short, single-line):
-printf '%s' "v$NEW_VERSION <type>: <summary>" | $GSTACK_ROOT/bin/gstack-redact --repo-visibility "$REDACT_VIS" --json
+printf '%s' "v$NEW_VERSION <type>: <summary>" | ~/.gbrain/skills/gstack/bin/gstack-redact --repo-visibility "$REDACT_VIS" --json
 ```
 
-HIGH blocks (exit 3, no skip). MEDIUM → request_user_input (PII subset offers
+HIGH blocks (exit 3, no skip). MEDIUM → AskUserQuestion (PII subset offers
 `--auto-redact`). Same scan runs before the `gh pr edit --body` path (Step 17).
 
 **If GitHub:** create from the SCANNED file (exact bytes scanned = bytes sent):
@@ -2734,7 +2835,7 @@ Print the branch name, remote URL, and instruct the user to create the PR/MR man
 Log coverage and plan completion data so `/retro` can track trends:
 
 ```bash
-eval "$($GSTACK_ROOT/bin/gstack-slug 2>/dev/null)" && mkdir -p ~/.gstack/projects/$SLUG
+eval "$(~/.gbrain/skills/gstack/bin/gstack-slug 2>/dev/null)" && mkdir -p ~/.gstack/projects/$SLUG
 ```
 
 Append to `~/.gstack/projects/$SLUG/$BRANCH-reviews.jsonl`:
@@ -2762,10 +2863,10 @@ per machine. Single line, non-blocking, marker-gated so it never re-fires.
 
 ```bash
 _NUDGE_MARKER="$HOME/.gstack/.plan-tune-nudge-shown"
-_QT=$($GSTACK_ROOT/bin/gstack-config get question_tuning 2>/dev/null || echo "false")
+_QT=$(~/.gbrain/skills/gstack/bin/gstack-config get question_tuning 2>/dev/null || echo "false")
 if [ ! -f "$_NUDGE_MARKER" ] && [ "$_QT" = "false" ]; then
   echo ""
-  echo "gstack can learn from your request_user_input answers. Run /plan-tune to opt in"
+  echo "gstack can learn from your AskUserQuestion answers. Run /plan-tune to opt in"
   echo "— it captures which prompts you find valuable vs noisy and (with hooks installed)"
   echo "auto-decides your never-ask preferences."
   touch "$_NUDGE_MARKER"
