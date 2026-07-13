@@ -147,6 +147,20 @@ case "$HOST" in
     echo "     ln -snf \"\$(pwd)\"/.agy/skills/gstack* ~/.gemini/config/skills/"
     echo ""
     exit 0 ;;
+  vibe)
+    echo ""
+    echo "./setup --host vibe does not install files into Mistral Vibe today."
+    echo "It only prints integration instructions."
+    echo ""
+    echo "To integrate gstack with Mistral Vibe:"
+    echo "  1. Generate Vibe-format skills locally:"
+    echo "     bun run gen:skill-docs --host vibe"
+    echo "     This writes .vibe/skills/ in this checkout."
+    echo "  2. Link them into Vibe's global skills path:"
+    echo "     mkdir -p ~/.vibe/skills"
+    echo "     ln -snf \"\$(pwd)\"/.vibe/skills/gstack* ~/.vibe/skills/"
+    echo ""
+    exit 0 ;;
   pi)
     echo ""
     echo "./setup --host pi does not install files into Pi today."
