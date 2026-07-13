@@ -44,3 +44,6 @@ docs/throughput-*.json
 
 # gbrain local source-staging dir (capability checks, source clones) — runtime artifact
 .sources/
+
+# gstack preamble feature-discovery state markers (written via dev symlink)
+.feature-prompted-*
