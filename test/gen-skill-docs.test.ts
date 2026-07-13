@@ -1714,6 +1714,12 @@ describe('Codex generation (--host codex)', () => {
     expect(content).toContain('allow_implicit_invocation: true');
   });
 
+  test('toolRewrites: Codex ship names request_user_input, never AskUserQuestion', () => {
+    const content = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('request_user_input');
+    expect(content).not.toContain('AskUserQuestion');
+  });
+
   test('externalSkillName mapping: root is gstack, others are gstack-{dir}', () => {
     // Root → gstack
     expect(fs.existsSync(path.join(AGENTS_DIR, 'gstack', 'SKILL.md'))).toBe(true);
