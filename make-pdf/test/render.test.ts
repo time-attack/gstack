@@ -68,6 +68,30 @@ describe("smartypants", () => {
     // it should remain intact. We're lenient here — acceptable either way.
     expect(out).toMatch(/--verbose|—verbose/);
   });
+
+  test("URL directly before a tag does not leak carve placeholders (#2012)", () => {
+    // A URL adjacent to a carved tag placeholder used to swallow it (\S matches
+    // NUL), leaking literal SMARTPANTS_PRESERVED_N text and eating the tag.
+    const out = smartypants(`<p>Visit https://example.com</p>`);
+    expect(out).not.toContain("SMARTPANTS_PRESERVED");
+    expect(out).toContain("</p>");
+    expect(out).toContain("https://example.com");
+  });
+
+  test("input NUL bytes cannot forge a carve placeholder", () => {
+    // A forged placeholder must stay inert (NULs stripped, never substituted
+    // with someone else's carved content).
+    const out = smartypants("<p>x</p> a \u0000SMARTPANTS_PRESERVED_0\u0000 b");
+    expect(out).not.toContain("\u0000");
+    expect(out).toContain("a SMARTPANTS_PRESERVED_0 b");
+    expect(out).toContain("<p>x</p>");
+  });
+
+  test("CJK punctuation opens quotes (fullwidth colon)", () => {
+    const out = smartypants(`<p>他说："hi"</p>`);
+    expect(out).toContain("：“");   // opening after ：, not closing
+    expect(out).toContain("hi”");
+  });
 });
 
 // ─── sanitizer ──────────────────────────────────────────────
@@ -323,6 +347,13 @@ describe("render (end-to-end)", () => {
     const result = render({ markdown: `body` });
     expect(result.printCss).toContain("Hiragino Kaku Gothic");
     expect(result.printCss).toContain("Noto Sans CJK");
+  });
+
+  test("CJK stack lists Simplified Chinese before Japanese (#2012)", () => {
+    const result = render({ markdown: `body` });
+    const css = result.printCss;
+    expect(css.indexOf("PingFang SC")).toBeGreaterThan(-1);
+    expect(css.indexOf("PingFang SC")).toBeLessThan(css.indexOf("Hiragino Kaku Gothic"));
   });
 
   // ─── blank-first-page regression (#1904) ────────────────────────
