@@ -1651,7 +1651,7 @@ where the failure occurred (empty string "" unless outcome is error).
 Skills that run plan reviews (`/plan-*-review`, `/codex review`) include the EXIT PLAN MODE GATE blocking checklist at the end of the skill, which verifies the plan file ends with `## GSTACK REVIEW REPORT` before ExitPlanMode is called. Skills that don't run plan reviews (operational skills like `/ship`, `/qa`, `/review`) typically don't operate in plan mode and have no review report to verify; this footer is a no-op for them. Writing the plan file is the one edit allowed in plan mode.` used | `grep PREAMBLE SKILL.md.tmpl` | Required — no hardcoded preamble |
 | Auto-generated marker | `grep AUTO-GENERATED SKILL.md` | Required in generated file |
 | Description < 1024 chars | Count chars in description field | Required for Codex compat |
-| Bash compat | No `source <(gstack-slug)` | Must use `eval "$(gstack-slug)"` |
+| Bash compat | No process-substitution sourcing of gstack-slug | Must use `eval "$(gstack-slug)"` |
 | Telemetry line | `grep skill-usage.jsonl SKILL.md` | Required in preamble |
 
 Report compliance as: `6/6 ✅` or `4/6 ⚠️ (missing: .tmpl, telemetry)`

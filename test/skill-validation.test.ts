@@ -1257,9 +1257,9 @@ describe('ship step numbering', () => {
 describe('Retro test health tracking', () => {
   test('retro/SKILL.md has test health data gathering commands', () => {
     const content = fs.readFileSync(path.join(ROOT, 'retro', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('# 10. Test file count');
+    expect(content).toContain('# 10. Total test file count');
     expect(content).toContain('# 11. Regression test commits');
-    expect(content).toContain('# 12. Test files changed');
+    expect(content).toContain('# 12. Test files ADDED in window');
   });
 
   test('retro/SKILL.md has Test Health metrics row', () => {
