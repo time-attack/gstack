@@ -36,7 +36,10 @@ const IS_WINDOWS = process.platform === 'win32';
  * falls back to the platform default. Pure + exported for tests.
  */
 export function resolveStartTimeout(env: NodeJS.ProcessEnv = process.env): number {
-  const platformDefault = IS_WINDOWS ? 15000 : (env.CI ? 30000 : 8000); // Node+Chromium takes longer on Windows
+  // Windows: Node+Chromium boot is slower. POSIX: 8s proved too tight on
+  // loaded dev boxes (multiple Conductor worktrees + eval runs) — a healthy
+  // daemon can take >8s to answer its first /health under contention.
+  const platformDefault = IS_WINDOWS ? 15000 : (env.CI ? 30000 : 15000);
   const override = parseInt(env.BROWSE_START_TIMEOUT || '', 10);
   return Number.isFinite(override) && override > 0 ? override : platformDefault;
 }
@@ -630,7 +633,8 @@ async function sendCommand(state: ServerState, command: string, args: string[], 
     // with message 'Unable to connect...' instead of Node's ECONNREFUSED family
     // (repro: bun -e "fetch('http://127.0.0.1:1').catch(e=>console.log(e.code))").
     if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET' || err.message?.includes('fetch failed')
-        || err.code === 'ConnectionRefused' || err.code === 'ConnectionReset' || err.message?.includes('Unable to connect')) {
+        || err.code === 'ConnectionRefused' || err.code === 'ConnectionReset' || err.code === 'ConnectionClosed'
+        || err.message?.includes('Unable to connect')) {
       const oldState = readState();
       // #1781 busy-vs-dead: a single-threaded daemon under beacon/extension load
       // can briefly stop answering HTTP while still alive. Before declaring a
