@@ -62,6 +62,22 @@ describe('gstack-settings-hook', () => {
     expect(settings.hooks.SessionStart).toHaveLength(1);
   });
 
+  test('CLAUDE_CONFIG_DIR is honored and malformed settings are preserved', () => {
+    const configDir = path.join(tmpDir, 'custom-claude');
+    fs.mkdirSync(configDir, { recursive: true });
+    const customSettings = path.join(configDir, 'settings.json');
+    const malformed = '{ user-owned malformed settings\n';
+    fs.writeFileSync(customSettings, malformed);
+
+    const result = run(`${SETTINGS_HOOK} add /path/to/gstack-session-update`, {
+      env: { CLAUDE_CONFIG_DIR: configDir, GSTACK_SETTINGS_FILE: '' },
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(fs.readFileSync(customSettings, 'utf-8')).toBe(malformed);
+    expect(result.stderr).toContain('Refusing to overwrite malformed settings');
+  });
+
   test('add deduplicates (running twice does not double-add)', () => {
     run(`${SETTINGS_HOOK} add /path/to/gstack-session-update`, {
       env: { GSTACK_SETTINGS_FILE: settingsFile },
