@@ -73,12 +73,17 @@ fi
 # global settings.json. To install the hooks, run `./setup --plan-tune-hooks`
 # directly (outside dev-setup). Saved prefix/other config preferences still apply.
 #
+# `--statusline=prompt` pins the statusline consent the same way: a saved
+# `statusline: yes` (or GSTACK_STATUSLINE=yes) would otherwise install a
+# statusLine command pointing at this worktree's bin path, replacing the
+# stable-path one and going blank when the workspace is archived.
+#
 # GSTACK_SKIP_GBRAIN_REGEN=1 is passed INLINE (not exported) so it scopes to
 # exactly this nested setup call and can't leak into any other setup path. It
 # tells setup NOT to regenerate the gbrain :user variant into the tracked
 # worktree (that would dirty checked-in source). We render it into an untracked
 # per-workspace dir below instead.
-GSTACK_SKIP_GBRAIN_REGEN=1 "$GSTACK_LINK/setup" --plan-tune-hooks=prompt </dev/null
+GSTACK_SKIP_GBRAIN_REGEN=1 "$GSTACK_LINK/setup" --plan-tune-hooks=prompt --statusline=prompt </dev/null
 
 # 7. Brain-aware (gbrain) blocks — render into an untracked workspace dir.
 #
