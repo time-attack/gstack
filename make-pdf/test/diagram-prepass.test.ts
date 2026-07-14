@@ -142,6 +142,24 @@ describe("diagnostic + figure blocks", () => {
     const fig = buildDiagramFigure(fence, "<svg><script>alert(1)</script><g/></svg>");
     expect(fig).not.toContain("<script>");
   });
+
+  test("figure strips executable and external SVG surfaces", () => {
+    const hostile = `<svg viewBox="0 0 10 10"><foreignObject><script>alert(1)</script></foreignObject>`
+      + `<a href="java&#x73;cript:alert(2)"><rect onclick="alert(3)" width="5" height="5"/></a>`
+      + `<animate attributeName="href" values="javascript:alert(4)"/>`
+      + `<rect fill="url(https://evil.example/a.svg#x)" filter="url(//evil.example/f)"/>`
+      + `<path d="M0 0L1 1" fill="url(#safeGradient)"/></svg>`;
+    const html = buildDiagramFigure(fence, hostile);
+    expect(html).not.toContain("foreignObject");
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("<animate");
+    expect(html).not.toContain("href=");
+    expect(html).not.toContain("onclick");
+    expect(html).not.toContain("evil.example");
+    expect(html).toContain(`viewBox="0 0 10 10"`);
+    expect(html).toContain(`d="M0 0L1 1"`);
+    expect(html).toContain(`fill="url(#safeGradient)"`);
+  });
   test("title becomes aria-label and caption", () => {
     const fig = buildDiagramFigure({ ...fence, title: "Auth flow" }, "<svg></svg>");
     expect(fig).toContain('aria-label="Auth flow"');

@@ -32,6 +32,7 @@ import { fileURLToPath } from "node:url";
 
 import * as browseClient from "./browseClient";
 import { escapeHtml } from "./render";
+import sanitizeHtml from "sanitize-html";
 import { imageDims } from "./image-size";
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -274,20 +275,52 @@ export function buildDiagramFigure(fence: DiagramFence, svg: string): string {
   ].join("\n");
 }
 
-/**
- * Renderer output needs SVG geometry that the document sanitizer deliberately
- * drops. Keep that trusted structure while removing its executable surfaces.
- */
+const SVG_TAGS = [
+  "svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
+  "text", "tspan", "defs", "marker", "linearGradient", "radialGradient", "stop",
+  "clipPath", "mask", "pattern", "filter", "feGaussianBlur", "feOffset", "feBlend",
+  "feColorMatrix", "feComponentTransfer", "feFuncR", "feFuncG", "feFuncB", "feFuncA",
+  "feFlood", "feComposite", "feMerge", "feMergeNode", "symbol", "title", "desc",
+];
+
+const SVG_ATTRIBUTES = [
+  "xmlns", "viewBox", "preserveAspectRatio", "role", "aria-*", "class", "id",
+  "d", "points", "transform", "x", "y", "x1", "x2", "y1", "y2", "cx", "cy",
+  "r", "rx", "ry", "width", "height", "fill", "fill-opacity", "fill-rule", "stroke",
+  "stroke-width", "stroke-opacity", "stroke-linecap", "stroke-linejoin", "stroke-dasharray",
+  "opacity", "font-family", "font-size", "font-weight", "text-anchor", "dominant-baseline",
+  "clip-path", "mask", "filter", "marker-start", "marker-mid", "marker-end", "offset",
+  "stop-color", "stop-opacity", "gradientUnits", "gradientTransform", "spreadMethod",
+  "patternUnits", "patternContentUnits", "patternTransform", "stdDeviation", "in", "in2",
+  "result", "values", "type", "operator", "k1", "k2", "k3", "k4",
+];
+
+const SVG_REFERENCE_ATTRIBUTES = new Set([
+  "clip-path", "mask", "filter", "marker-start", "marker-mid", "marker-end",
+]);
+
+/** Parser-backed allowlist for renderer-generated SVG inserted after document sanitization. */
 export function sanitizeGeneratedSvg(svg: string): string {
-  let clean = svg.replace(/<script\b[\s\S]*?<\/script>/gi, "");
-  clean = clean.replace(/<script\b[^>]*\/?>/gi, "");
-  clean = clean.replace(/\s+on[a-zA-Z]+\s*=\s*"[^"]*"/gi, "");
-  clean = clean.replace(/\s+on[a-zA-Z]+\s*=\s*'[^']*'/gi, "");
-  clean = clean.replace(/\s+on[a-zA-Z]+\s*=\s*[^\s>]+/gi, "");
-  return clean.replace(
-    /(\s(?:href|xlink:href)\s*=\s*)(?:"javascript:[^"]*"|'javascript:[^']*'|javascript:[^\s>]+)/gi,
-    '$1"#"',
-  );
+  return sanitizeHtml(svg, {
+    allowedTags: SVG_TAGS,
+    allowedAttributes: { "*": SVG_ATTRIBUTES },
+    disallowedTagsMode: "discard",
+    parser: { lowerCaseTags: false, lowerCaseAttributeNames: false },
+    transformTags: {
+      "*": (tagName, attribs) => {
+        for (const [name, value] of Object.entries(attribs)) {
+          if (SVG_REFERENCE_ATTRIBUTES.has(name) && !/^url\(#[A-Za-z_][\w:.-]*\)$/.test(value)) {
+            delete attribs[name];
+          }
+          if ((name === "fill" || name === "stroke") && /url\(/i.test(value)
+              && !/^url\(#[A-Za-z_][\w:.-]*\)$/.test(value)) {
+            delete attribs[name];
+          }
+        }
+        return { tagName, attribs };
+      },
+    },
+  });
 }
 
 /** Recover the original fence source from a rendered figure (round-trip). */
