@@ -147,6 +147,7 @@ export async function generateVariant(
  * Generate N variants with staggered parallel execution.
  */
 export async function variants(options: VariantsOptions): Promise<void> {
+  const count = normalizeVariantCount(options.count);
   const apiKey = requireApiKey();
   const baseBrief = options.briefFile
     ? parseBrief(options.briefFile, true)
@@ -162,7 +163,6 @@ export async function variants(options: VariantsOptions): Promise<void> {
     return;
   }
 
-  const count = normalizeVariantCount(options.count); // Cap at 7 style variations
   const size = options.size || "1536x1024";
 
   console.error(`Generating ${count} variants...`);
