@@ -64,6 +64,60 @@ case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT) IS_WINDOWS=1 ;;
 esac
 
+# Run a command with a portable deadline and terminate its descendants. Stock
+# macOS has no timeout(1), so setup cannot rely on coreutils being present.
+process_identity() {
+  ps -p "$1" -o lstart= 2>/dev/null | sed 's/^[[:space:]]*//'
+}
+
+terminate_process_tree() {
+  local parent="$1" child
+  if [ "$IS_WINDOWS" -eq 1 ] && command -v taskkill.exe >/dev/null 2>&1; then
+    taskkill.exe //PID "$parent" //T //F >/dev/null 2>&1 || true
+    return
+  fi
+  if command -v pgrep >/dev/null 2>&1; then
+    for child in $(pgrep -P "$parent" 2>/dev/null || true); do
+      terminate_process_tree "$child"
+    done
+  fi
+  kill -TERM "$parent" 2>/dev/null || true
+  sleep 0.1
+  kill -KILL "$parent" 2>/dev/null || true
+}
+
+run_with_deadline() {
+  local seconds="$1" marker pid watcher status identity current
+  shift
+  marker="${TMPDIR:-/tmp}/gstack-setup-timeout.$$.$RANDOM"
+  rm -f "$marker"
+  "$@" &
+  pid=$!
+  identity=""
+  for _identity_try in 1 2 3 4 5; do
+    identity="$(process_identity "$pid")"
+    [ -n "$identity" ] && break
+    sleep 0.01
+  done
+  (
+    sleep "$seconds"
+    current="$(process_identity "$pid")"
+    if [ -n "$identity" ] && [ "$current" = "$identity" ] && kill -0 "$pid" 2>/dev/null; then
+      : > "$marker"
+      terminate_process_tree "$pid"
+    fi
+  ) &
+  watcher=$!
+  if wait "$pid"; then status=0; else status=$?; fi
+  kill "$watcher" 2>/dev/null || true
+  wait "$watcher" 2>/dev/null || true
+  if [ -f "$marker" ]; then
+    rm -f "$marker"
+    return 124
+  fi
+  return "$status"
+}
+
 # ─── Symlink-or-copy helper ───────────────────────────────────
 # On macOS/Linux: create a symlink (existing behavior).
 # On Windows without Developer Mode (MSYS2/Git Bash): plain ln -snf silently
@@ -284,17 +338,18 @@ if [ "$INSTALL_CODEX" -eq 1 ]; then
 fi
 
 ensure_playwright_browser() {
-  if [ "$IS_WINDOWS" -eq 1 ]; then
+  local probe_timeout="${GSTACK_PLAYWRIGHT_PROBE_TIMEOUT_SECONDS:-15}"
+  if [ "$IS_WINDOWS" -eq 1 ] || [ "$(uname -s)" = "Darwin" ]; then
     # On Windows, Bun can't launch Chromium due to broken pipe handling
     # (oven-sh/bun#4253). Use Node.js to verify Chromium works instead.
     (
       cd "$SOURCE_GSTACK_DIR"
-      node -e "const { chromium } = require('playwright'); (async () => { const b = await chromium.launch(); await b.close(); })()" 2>/dev/null
+      run_with_deadline "$probe_timeout" node -e "const { chromium } = require('playwright'); (async () => { const b = await chromium.launch(); await b.close(); })()" 2>/dev/null
     )
   else
     (
       cd "$SOURCE_GSTACK_DIR"
-      bun --eval 'import { chromium } from "playwright"; const browser = await chromium.launch(); await browser.close();'
+      run_with_deadline "$probe_timeout" bun --eval 'import { chromium } from "playwright"; const browser = await chromium.launch(); await browser.close();'
     ) >/dev/null 2>&1
   fi
 }
@@ -512,12 +567,15 @@ fi
 # 2. Ensure Playwright's Chromium is available
 if ! ensure_playwright_browser; then
   echo "Installing Playwright Chromium..."
-  (
+  _playwright_install_timeout="${GSTACK_PLAYWRIGHT_INSTALL_TIMEOUT_SECONDS:-300}"
+  if ! (
     cd "$SOURCE_GSTACK_DIR"
-    bunx playwright install chromium
-  )
+    run_with_deadline "$_playwright_install_timeout" bunx playwright install chromium
+  ); then
+    echo "  warning: Playwright Chromium installation failed or timed out after ${_playwright_install_timeout}s." >&2
+  fi
 
-  if [ "$IS_WINDOWS" -eq 1 ]; then
+  if [ "$IS_WINDOWS" -eq 1 ] && ensure_playwright_browser; then
     # On Windows, Node.js launches Chromium (not Bun — see oven-sh/bun#4253).
     # Ensure playwright is importable by Node from the gstack directory.
     if ! command -v node >/dev/null 2>&1; then
@@ -539,6 +597,7 @@ if ! ensure_playwright_browser; then
 fi
 
 if ! ensure_playwright_browser; then
+  echo "  warning: Playwright Chromium is unavailable." >&2
   if [ "$IS_WINDOWS" -eq 1 ]; then
     echo "gstack setup failed: Playwright Chromium could not be launched via Node.js" >&2
     echo "  This is a known issue with Bun on Windows (oven-sh/bun#4253)." >&2
@@ -546,7 +605,7 @@ if ! ensure_playwright_browser; then
   else
     echo "gstack setup failed: Playwright Chromium could not be launched" >&2
   fi
-  exit 1
+  echo "  Browser-backed skills are unavailable. Re-run ./setup to retry; other skills remain installed." >&2
 fi
 
 # 2b. Ensure a color-emoji font is installed so make-pdf emoji render (Linux).
