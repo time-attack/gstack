@@ -95,31 +95,21 @@ describe('splitCatalogDescription', () => {
     expect(parts.routingProse).toBe('With routing prose afterward.');
   });
 
-  test('embedded-period descriptions: known limitation falls back to first-20-words', () => {
-    // KNOWN LIMITATION: the sentence regex `^([^.!?]*[.!?])(?:\\s|$)` stops
-    // at the FIRST `.`-then-non-whitespace because [^.!?]* is greedy and
-    // can't backtrack past a non-period char. For "DESIGN.md and v1.45.0.0
-    // in the lead. Use when..." the regex fails entirely and the lead falls
-    // back to the first 20 words (~the whole short input).
-    //
-    // The real-world impact is small: descriptions like "DESIGN.md" or "v1.45"
-    // appearing in the middle of the FIRST sentence are rare. When they do
-    // occur, the lead simply becomes the full description (no body section
-    // generated) — same as a description without a period. The trim CI gate
-    // still keeps the per-skill size budget honest.
-    //
-    // If this gap matters later, replace the regex with a sentence tokenizer
-    // (compromise.js / Intl.Segmenter) — until then we accept the fallback.
+  test('embedded periods do not end the lead sentence', () => {
     const desc =
       'Skill that mentions DESIGN.md and v1.45.0.0 in the lead. ' +
       'Use when asked to do something.';
     const parts = splitCatalogDescription(desc);
-    // Actual behavior: lead absorbs the whole input via the word-count fallback.
-    expect(parts.lead.length).toBeGreaterThan(0);
-    // routingProse may be empty when the fallback consumes everything.
-    // The test exists to detect REGRESSIONS (lead becoming oddly short like
-    // "Skill that mentions DESIGN.") not to assert ideal behavior.
-    expect(parts.lead).toContain('Skill that mentions');
+    expect(parts.lead).toBe('Skill that mentions DESIGN.md and v1.45.0.0 in the lead.');
+    expect(parts.routingProse).toBe('Use when asked to do something.');
+  });
+
+  test('URL periods do not end the lead sentence', () => {
+    const parts = splitCatalogDescription(
+      'Open https://example.com/docs and inspect it. Use when asked to check docs.',
+    );
+    expect(parts.lead).toBe('Open https://example.com/docs and inspect it.');
+    expect(parts.routingProse).toBe('Use when asked to check docs.');
   });
 
   test('description without a period uses first ~20 words as lead', () => {

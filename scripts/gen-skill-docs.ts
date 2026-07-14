@@ -322,7 +322,7 @@ export function splitCatalogDescription(description: string): CatalogParts {
   // the period to be followed by whitespace OR end-of-text.
   // First normalize to single-line for sentence detection, then back out.
   const collapsed = working.replace(/\s+/g, ' ').trim();
-  const sentenceMatch = collapsed.match(/^([^.!?]*[.!?])(?:\s|$)/);
+  const sentenceMatch = collapsed.match(/^((?:[^.!?]|[.!?](?!\s|$))*[.!?])(?:\s|$)/);
   // sentenceLead is the FULL first sentence (no truncation). We compute routing
   // from this position, then optionally truncate the displayed lead afterwards.
   // Truncating first then computing routing was the v1.45.0.0 bug — when the
