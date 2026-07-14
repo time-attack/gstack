@@ -93,6 +93,16 @@ describe('set-statusline', () => {
     expect(settings().statusLine.command).toBe(updated);
   });
 
+  test('refuses to replace an unparseable settings.json (exit 4, untouched)', () => {
+    // Replacing a corrupt-but-present file would drop the user's
+    // permissions/hooks/env wholesale. The hook must refuse instead.
+    fs.writeFileSync(settingsFile, '{ "permissions": { broken');
+    const r = run(['set-statusline', '--command', GSTACK_CMD]);
+    expect(r.exitCode).toBe(4);
+    expect(r.stderr).toContain('not valid JSON');
+    expect(fs.readFileSync(settingsFile, 'utf-8')).toBe('{ "permissions": { broken');
+  });
+
   test('refuses to clobber a non-gstack statusLine (exit 3, unchanged)', () => {
     writeSettings({ statusLine: { type: 'command', command: FOREIGN_CMD } });
     const r = run(['set-statusline', '--command', GSTACK_CMD]);

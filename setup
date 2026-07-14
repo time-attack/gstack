@@ -1556,7 +1556,8 @@ if [ "$NO_TEAM_MODE" -ne 1 ] \
   esac
 
   _install_statusline() {
-    _SL_OUT="$("$SETTINGS_HOOK" set-statusline --command "$STATUSLINE_COMMAND" 2>/dev/null || true)"
+    _SL_RC=0
+    _SL_OUT="$("$SETTINGS_HOOK" set-statusline --command "$STATUSLINE_COMMAND" 2>&1)" || _SL_RC=$?
     case "$_SL_OUT" in
       *"non-gstack statusLine"*)
         log ""
@@ -1564,7 +1565,7 @@ if [ "$NO_TEAM_MODE" -ne 1 ] \
         log "  To switch to the gstack skill statusline, run:"
         log "    $SETTINGS_HOOK set-statusline --command '$STATUSLINE_COMMAND' --force"
         ;;
-      *)
+      OK:*)
         log ""
         if [ "$STATUSLINE_STYLE" = "skill" ]; then
           log "Statusline installed (skill mode): your status bar shows the last gstack skill you ran."
@@ -1574,6 +1575,14 @@ if [ "$NO_TEAM_MODE" -ne 1 ] \
         fi
         log "  Backup written before the change. Remove anytime with:"
         log "    $SETTINGS_HOOK remove-statusline   (or ./setup --no-statusline)"
+        ;;
+      *)
+        # Anything else is a failure (e.g. unparseable settings.json, exit 4).
+        # Don't claim success for a write that didn't happen.
+        log ""
+        log "Statusline: install FAILED (settings-hook exit $_SL_RC). Your settings.json was not modified."
+        [ -n "$_SL_OUT" ] && log "  $_SL_OUT"
+        log "  Retry with: $SETTINGS_HOOK set-statusline --command '$STATUSLINE_COMMAND'"
         ;;
     esac
   }

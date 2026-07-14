@@ -275,7 +275,18 @@ case "$ACTION" in
       const cmd = process.env.GSTACK_SL_COMMAND;
       const force = process.env.GSTACK_SL_FORCE === "1";
       let settings = {};
-      try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")); } catch {}
+      try {
+        const raw = fs.readFileSync(settingsPath, "utf8");
+        if (raw.trim()) settings = JSON.parse(raw);
+      } catch (err) {
+        if (!err || err.code !== "ENOENT") {
+          // A non-empty settings.json we cannot parse: replacing it would
+          // silently drop the existing permissions/hooks/env. Refuse instead.
+          console.error("ERROR: " + settingsPath + " is not valid JSON — fix or remove it, then re-run (refusing to replace it)");
+          process.exit(4);
+        }
+        // ENOENT: no settings file yet — install into a fresh one.
+      }
       const existing = settings.statusLine;
       const isGstack = (sl) => !!(sl && typeof sl.command === "string" && sl.command.includes("gstack-statusline"));
       // Never clobber a statusLine the user (or another tool) configured. Only
