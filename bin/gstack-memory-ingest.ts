@@ -1176,6 +1176,7 @@ function preparePages(
   let skippedSecret = 0;
   let skippedDedup = 0;
   let skippedUnattributed = 0;
+  let skippedForeignRepo = 0;
   let parseFailed = 0;
   let partialPages = 0;
 
@@ -1230,6 +1231,21 @@ function preparePages(
           !explicitlyUnattributed &&
           (!currentRemote || page.git_remote !== currentRemote || tier === "deny" || tier === "read-only")
         ) {
+          // Record the trust-skip in state so incremental runs (the per-skill-
+          // start hook) mtime-skip this file instead of re-reading and
+          // re-parsing every foreign-repo transcript forever. A later policy
+          // grant takes effect on the next BULK ingest (bulk ignores this
+          // state) or when the transcript's content changes.
+          try {
+            state.sessions[path] = {
+              mtime_ns: Math.floor(statSync(path).mtimeMs * 1e6),
+              sha256: fileSha256(path),
+              ingested_at: new Date().toISOString(),
+              page_slug: "_skipped-trust-policy",
+              partial: false,
+            };
+          } catch { /* best-effort state record */ }
+          skippedForeignRepo++;
           skippedUnattributed++;
           continue;
         }
@@ -1252,6 +1268,16 @@ function preparePages(
     });
   }
 
+  // Trust-policy drops are silent otherwise (they fold into the unattributed
+  // counter): make them visible once per pass so a user whose other-repo
+  // transcripts vanish can see why. Quiet incremental runs stay quiet.
+  if (skippedForeignRepo > 0 && !args.quiet) {
+    console.error(
+      `[memory-ingest] ${skippedForeignRepo} transcript(s) from other repos skipped by trust policy ` +
+      `(only the current repo's remote ingests; see ~/.gstack/gbrain-repo-policy.json).`,
+    );
+  }
+
   return {
     prepared,
     skippedSecret,
@@ -1268,7 +1294,19 @@ function preparePages(
  * concurrently (the orchestrator's lock should prevent this, but
  * defense-in-depth).
  */
-function makeStagingDir(): string {
+/**
+ * Read the source-composition line (line 3) of a staging dir's ownership
+ * marker. Empty string for pre-composition markers or unreadable dirs.
+ */
+function stagingMarkerComposition(dir: string): string {
+  try {
+    return (readFileSync(join(dir, STAGING_MARKER), "utf-8").split("\n")[2] || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function makeStagingDir(composition: string): string {
   const dir = join(GSTACK_HOME, `.staging-ingest-${process.pid}-${Date.now()}`);
   mkdirSync(dir, { recursive: true });
   // Mint the ownership marker (#1802) so cleanupStagingDir() and decideResume()
@@ -1277,7 +1315,11 @@ function makeStagingDir(): string {
   // be refused by the guard forever (leaked, never cleaned). Tear down the
   // partial dir and rethrow so the caller fails loudly instead of leaking.
   try {
-    writeFileSync(join(dir, STAGING_MARKER), `${process.pid}\n${Date.now()}\n`, "utf-8");
+    // Line 3 records which source composition staged this dir, so a
+    // checkpointed dir can only be resumed by the pass that staged it
+    // (split ingest imports transcripts and artifacts under different
+    // gbrain source ids — resuming across passes mislabels pages).
+    writeFileSync(join(dir, STAGING_MARKER), `${process.pid}\n${Date.now()}\n${composition}\n`, "utf-8");
   } catch (err) {
     try { rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
     throw err;
@@ -1619,21 +1661,29 @@ async function ingestPass(args: CliArgs): Promise<BulkResult> {
   // trust GSTACK_INGEST_RESUME_DIR just because it exists — a stale/poisoned env
   // could make us `gbrain import` (and later clean up) an arbitrary directory.
   // Prove ownership here too, independently of the orchestrator's decideResume.
-  const resuming = !remoteHttpMode
+  const passComposition = [...args.sources].sort().join(",");
+  const ownedResume = !remoteHttpMode
     && typeof resumeDir === "string"
     && resumeDir.length > 0
     && existsSync(resumeDir)
     && checkOwnedStagingDir(resumeDir, GSTACK_HOME).ok;
+  // A checkpointed dir was staged by ONE pass (transcript-only or artifact-only
+  // under split ingest) and gets imported under that pass's gbrain source id.
+  // Resuming it in a pass with a different source composition would file pages
+  // under the wrong source, then delete the dir before the right pass ran.
+  // Pre-composition markers (older runs) refuse resume and re-stage fresh.
+  const resuming = ownedResume && stagingMarkerComposition(resumeDir!) === passComposition;
   if (!remoteHttpMode && resumeDir && resumeDir.length > 0 && !resuming) {
-    console.error(
-      `[memory-ingest] ignoring GSTACK_INGEST_RESUME_DIR="${resumeDir}" — not a proven staging dir (#1802); staging fresh.`,
+    console.error(ownedResume
+      ? `[memory-ingest] ignoring GSTACK_INGEST_RESUME_DIR="${resumeDir}" for this pass — staged for sources "${stagingMarkerComposition(resumeDir!)}", this pass ingests "${passComposition}"; leaving it for its matching pass.`
+      : `[memory-ingest] ignoring GSTACK_INGEST_RESUME_DIR="${resumeDir}" — not a proven staging dir (#1802); staging fresh.`,
     );
   }
   const stagingDir = resuming
     ? resumeDir!
     : remoteHttpMode
       ? makePersistentTranscriptDir()
-      : makeStagingDir();
+      : makeStagingDir(passComposition);
   // Register staging dir with the signal forwarder so SIGTERM/SIGINT can
   // either preserve (when gbrain checkpointed it) or synchronously clean up.
   // The async finally block below does NOT run after a signal-handler exit.
