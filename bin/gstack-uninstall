@@ -139,8 +139,10 @@ if [ -d "$CLAUDE_SKILLS/gstack" ] || [ -L "$CLAUDE_SKILLS/gstack" ]; then
     _NAME="$(basename "$_LINK")"
     [ "$_NAME" = "gstack" ] && continue
     _TARGET="$(readlink "$_LINK" 2>/dev/null || true)"
+    # "$GSTACK_DIR"/* covers renamed installs (#1882): their per-skill links
+    # point at the real install dir name, never a path containing /gstack/.
     case "$_TARGET" in
-      gstack/*|*/gstack/*) rm -f "$_LINK"; REMOVED+=("claude/$_NAME") ;;
+      gstack/*|*/gstack/*|"$GSTACK_DIR"/*) rm -f "$_LINK"; REMOVED+=("claude/$_NAME") ;;
     esac
   done
 
@@ -163,7 +165,7 @@ if [ -d "$CLAUDE_SKILLS/gstack" ] || [ -L "$CLAUDE_SKILLS/gstack" ]; then
     [ -L "$_DIR/SKILL.md" ] || continue
     _TARGET="$(readlink "$_DIR/SKILL.md" 2>/dev/null || true)"
     case "$_TARGET" in
-      gstack/*|*/gstack/*) rm -rf "$_DIR"; REMOVED+=("claude/$_NAME") ;;
+      gstack/*|*/gstack/*|"$GSTACK_DIR"/*) rm -rf "$_DIR"; REMOVED+=("claude/$_NAME") ;;
     esac
   done < <(find "$CLAUDE_SKILLS" -mindepth 1 -maxdepth 1 -type d 2>/dev/null || true)
 
@@ -177,7 +179,7 @@ if [ -n "$_GIT_ROOT" ] && [ -d "$_GIT_ROOT/.claude/skills" ]; then
     [ -L "$_LINK" ] || continue
     _TARGET="$(readlink "$_LINK" 2>/dev/null || true)"
     case "$_TARGET" in
-      gstack/*|*/gstack/*) rm -f "$_LINK"; REMOVED+=("local claude/$(basename "$_LINK")") ;;
+      gstack/*|*/gstack/*|"$GSTACK_DIR"/*) rm -f "$_LINK"; REMOVED+=("local claude/$(basename "$_LINK")") ;;
     esac
   done
   if [ -d "$_GIT_ROOT/.claude/skills/gstack" ] || [ -L "$_GIT_ROOT/.claude/skills/gstack" ]; then
