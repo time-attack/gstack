@@ -3,7 +3,7 @@
  *
  * Flow (per the CEO plan CLI UX spec):
  *   1. Verify browse binary exists and responds
- *   2. Verify Chromium launches via $B goto about:blank
+ *   2. Verify Chromium launches via a dedicated blank tab
  *   3. Verify pdftotext is installed (warn, don't fail)
  *   4. Generate a smoke-test PDF from an inline 2-paragraph fixture
  *   5. Open it
@@ -36,7 +36,7 @@ export async function runSetup(): Promise<void> {
   process.stderr.write("  [2/5] Launching Chromium...");
   let chromiumTab: number | null = null;
   try {
-    chromiumTab = browseClient.newtab("about:blank");
+    chromiumTab = browseClient.newtab();
     process.stderr.write(` OK (tab ${chromiumTab})\n`);
   } catch (err: any) {
     process.stderr.write(" FAIL\n");
@@ -78,7 +78,9 @@ export async function runSetup(): Promise<void> {
     "",
   ].join("\n");
   const fixturePath = path.join(os.tmpdir(), `make-pdf-smoke-${process.pid}.md`);
-  const outPath = path.join(os.tmpdir(), `make-pdf-smoke-${process.pid}.pdf`);
+  // browse pdf rejects outputs outside its safe-dirs allowlist; os.tmpdir()
+  // on macOS resolves to /var/folders which fails validation (#1113).
+  const outPath = path.join(process.platform === "win32" ? os.tmpdir() : "/tmp", `make-pdf-smoke-${process.pid}.pdf`);
   fs.writeFileSync(fixturePath, fixture, "utf8");
 
   try {

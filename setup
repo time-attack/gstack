@@ -827,10 +827,22 @@ link_codex_skill_dirs() {
       [ "$skill_name" = "gstack" ] && continue
       target="$skills_dir/$skill_name"
       # Create or update symlink
-      if [ -L "$target" ] || [ ! -e "$target" ]; then
-        _link_or_copy "$skill_dir" "$target"
-        linked+=("$skill_name")
+      # Refresh stale real copies too: Windows installs create real dirs
+      # (not symlinks), and a re-run must replace them or users keep
+      # outdated skills after 'git pull' (#900). Unix symlinks are
+      # refreshed by ln -snf inside the helper. Only delete dirs whose
+      # SKILL.md carries the generated "(gstack)" description marker —
+      # a user-authored skill that merely shares the name is never deleted.
+      if [ ! -L "$target" ] && [ -e "$target" ]; then
+        if [ -f "$target/SKILL.md" ] && grep -q '(gstack)' "$target/SKILL.md" 2>/dev/null; then
+          rm -rf "$target"
+        else
+          echo "  warning: $target exists but is not a gstack-generated skill install — skipping refresh (delete it manually to adopt the gstack version)" >&2
+          continue
+        fi
       fi
+      _link_or_copy "$skill_dir" "$target"
+      linked+=("$skill_name")
     fi
   done
   if [ ${#linked[@]} -gt 0 ]; then
@@ -1157,10 +1169,22 @@ link_factory_skill_dirs() {
       skill_name="$(basename "$skill_dir")"
       [ "$skill_name" = "gstack" ] && continue
       target="$skills_dir/$skill_name"
-      if [ -L "$target" ] || [ ! -e "$target" ]; then
-        _link_or_copy "$skill_dir" "$target"
-        linked+=("$skill_name")
+      # Refresh stale real copies too: Windows installs create real dirs
+      # (not symlinks), and a re-run must replace them or users keep
+      # outdated skills after 'git pull' (#900). Unix symlinks are
+      # refreshed by ln -snf inside the helper. Only delete dirs whose
+      # SKILL.md carries the generated "(gstack)" description marker —
+      # a user-authored skill that merely shares the name is never deleted.
+      if [ ! -L "$target" ] && [ -e "$target" ]; then
+        if [ -f "$target/SKILL.md" ] && grep -q '(gstack)' "$target/SKILL.md" 2>/dev/null; then
+          rm -rf "$target"
+        else
+          echo "  warning: $target exists but is not a gstack-generated skill install — skipping refresh (delete it manually to adopt the gstack version)" >&2
+          continue
+        fi
       fi
+      _link_or_copy "$skill_dir" "$target"
+      linked+=("$skill_name")
     fi
   done
   if [ ${#linked[@]} -gt 0 ]; then
@@ -1189,10 +1213,22 @@ link_opencode_skill_dirs() {
       skill_name="$(basename "$skill_dir")"
       [ "$skill_name" = "gstack" ] && continue
       target="$skills_dir/$skill_name"
-      if [ -L "$target" ] || [ ! -e "$target" ]; then
-        _link_or_copy "$skill_dir" "$target"
-        linked+=("$skill_name")
+      # Refresh stale real copies too: Windows installs create real dirs
+      # (not symlinks), and a re-run must replace them or users keep
+      # outdated skills after 'git pull' (#900). Unix symlinks are
+      # refreshed by ln -snf inside the helper. Only delete dirs whose
+      # SKILL.md carries the generated "(gstack)" description marker —
+      # a user-authored skill that merely shares the name is never deleted.
+      if [ ! -L "$target" ] && [ -e "$target" ]; then
+        if [ -f "$target/SKILL.md" ] && grep -q '(gstack)' "$target/SKILL.md" 2>/dev/null; then
+          rm -rf "$target"
+        else
+          echo "  warning: $target exists but is not a gstack-generated skill install — skipping refresh (delete it manually to adopt the gstack version)" >&2
+          continue
+        fi
       fi
+      _link_or_copy "$skill_dir" "$target"
+      linked+=("$skill_name")
     fi
   done
   if [ ${#linked[@]} -gt 0 ]; then

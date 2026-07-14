@@ -133,3 +133,35 @@ describe("BrowseClientError", () => {
     expect(err.name).toBe("BrowseClientError");
   });
 });
+
+describe("directory-vs-binary guard (#1113)", () => {
+  test("findExecutable rejects an executable directory", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "make-pdf-browse-dir-"));
+    try {
+      fs.chmodSync(dir, 0o755);
+      expect(findExecutable(dir)).toBeNull();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("resolveBrowseBin never resolves to a directory override", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "make-pdf-browse-dir-"));
+    try {
+      fs.chmodSync(dir, 0o755);
+      let resolved: string | null = null;
+      let thrown: unknown = null;
+      try {
+        resolved = resolveBrowseBin({ BROWSE_BIN: dir, PATH: "" });
+      } catch (err) {
+        thrown = err;
+      }
+      expect(resolved).not.toBe(dir);
+      if (thrown) {
+        expect(thrown).toBeInstanceOf(BrowseClientError);
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
