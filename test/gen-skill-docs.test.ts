@@ -2195,6 +2195,15 @@ describe('Parameterized host smoke tests', () => {
         }
       });
 
+      if (hostConfig.name === 'hermes') {
+        test('frontmatter names match namespaced Hermes directories', () => {
+          for (const skill of ['gstack', 'gstack-review', 'gstack-qa', 'gstack-ship']) {
+            const content = fs.readFileSync(path.join(hostDir, skill, 'SKILL.md'), 'utf-8');
+            expect(content).toMatch(new RegExp(`^name: ${skill}$`, 'm'));
+          }
+        });
+      }
+
       test('generates Claude outside-voice skill for external hosts', () => {
         const skillMd = path.join(hostDir, 'gstack-claude', 'SKILL.md');
         expect(fs.existsSync(skillMd)).toBe(true);
