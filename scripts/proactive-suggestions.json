@@ -15,13 +15,18 @@
     },
     "benchmark-models": {
       "lead": "Cross-model benchmark for gstack skills.",
-      "routing": "Runs the same prompt through Claude,\nGPT (via Codex CLI), and Gemini side-by-side — compares latency, tokens, cost,\nand optionally quality via LLM judge. Answers \"which model is actually best\nfor this skill?\" with data instead of vibes. Separate from /benchmark, which\nmeasures web page performance. Use when: \"benchmark models\", \"compare models\",\n\"which model is best for X\", \"cross-model comparison\", \"model shootout\".",
+      "routing": "Runs the same prompt through Claude,\nGPT (via Codex CLI), Gemini, and Grok side-by-side — compares latency, tokens,\ncost, and optionally quality via LLM judge. Answers \"which model is actually\nbest for this skill?\" with data instead of vibes. Separate from /benchmark,\nwhich measures web page performance. Use when: \"benchmark models\", \"compare\nmodels\", \"which model is best for X\", \"cross-model comparison\", \"model\nshootout\".",
       "voice_line": "Voice triggers (speech-to-text aliases): \"compare models\", \"model shootout\", \"which model is best\"."
     },
     "browse": {
       "lead": "Fast headless browser for QA testing and site dogfooding.",
       "routing": "Navigate any URL, interact with\nelements, verify page state, diff before/after actions, take annotated screenshots, check\nresponsive layouts, test forms and uploads, handle dialogs, and assert element states.\n~100ms per command. Use when you need to test a feature, verify a deployment, dogfood a\nuser flow, or file a bug with evidence. Use when asked to \"open in browser\", \"test the\nsite\", \"take a screenshot\", or \"dogfood this\".",
       "voice_line": null
+    },
+    "bug-report": {
+      "lead": "Evidence-driven bug report authoring.",
+      "routing": "Reconstructs what the user did from the\nconversation, repository state, recent changes, and safe diagnostic logs;\nreproduces the failure when possible; and drafts a maintainer-ready report\nwith exact steps, expected/actual behavior, environment, evidence, and a\nbounded root-cause assessment. Use when asked to \"write a bug report\",\n\"report this issue\", \"document what just broke\", \"capture this bug\",\n\"draft an issue for maintainers\", or \"bugreport\". This is report-only: it\ndoes not fix code or publish the report without explicit approval.",
+      "voice_line": "Voice triggers (speech-to-text aliases): \"write a bug report\", \"report this issue\", \"document what just broke\", \"bugreport\"."
     },
     "canary": {
       "lead": "Post-deploy canary monitoring.",

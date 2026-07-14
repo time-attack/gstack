@@ -105,10 +105,44 @@ describe('generateAskUserFormat — v1.7.0.0 Pros/Cons format', () => {
     expect(out).toMatch(/not a[\s\S]*question|not[\s\S]*interactive/i);
   });
 
+  // #1208: keep the tool_use payload compact so the question card stays
+  // readable in panel hosts (VSCode). The full brief belongs in markdown
+  // before the call, not inside the tool's `question` string.
+  test('keeps long decision briefs out of the tool question field', () => {
+    expect(out).toMatch(/Do not pack the full brief into the tool's `question` string/);
+    expect(out).toMatch(/`question` is only the decision prompt/);
+    expect(out).toMatch(/<=80 chars/);
+    expect(out).toMatch(/no newlines/);
+  });
+
+  test('limits batched AskUserQuestion tabs for panel readability', () => {
+    expect(out).toMatch(/batch at most two related questions\/tabs/i);
+    expect(out).toMatch(/Sequence independent decisions/i);
+  });
+
+  test('forbids duplicate trade-off text in question and option descriptions', () => {
+    expect(out).toMatch(/Do not duplicate the same trade-off text/);
+    expect(out).toMatch(/options\[\]\.description/);
+  });
+
   test('includes self-check before emitting', () => {
     expect(out).toContain('Self-check before emitting');
     expect(out).toMatch(/D<N> header present/);
     expect(out).toMatch(/Net line closes/);
+    // #1208 self-check items for compact payloads.
+    expect(out).toMatch(/`question` is one sentence/);
+    expect(out).toMatch(/no more than two related questions\/tabs/);
+    expect(out).toMatch(/No duplicated trade-off text/);
+    expect(out).toMatch(/wrote the brief, then called the tool_use payload/);
+  });
+
+  test('documents JSON tool-call shape (questions array, options required)', () => {
+    // Regression: a model once emitted `questions` as a JSON string instead of
+    // an array, which crashed hosts that render the prompt before validating.
+    expect(out).toMatch(/Tool-call shape/i);
+    expect(out).toMatch(/questions.*array.*(?:not string|not a string)/i);
+    expect(out).toMatch(/non-empty `options` array/);
+    expect(out).toMatch(/questions.*NOT a string/);
   });
 
   test('documents D-numbering as model-level not runtime state', () => {

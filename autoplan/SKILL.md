@@ -372,9 +372,22 @@ Layout: a `D<N>` title + a one-line note to reply with a letter (in Conductor th
 
 **One-way / destructive confirmations in prose.** When the decision is a one-way door (irreversible or destructive — delete, force-push, drop, overwrite), prose is a WEAKER gate than the tool, so make it stronger: require an explicit typed confirmation (the exact option letter or word), state plainly what is irreversible, and NEVER proceed on a vague, partial, or ambiguous reply — re-ask instead. Treat silence or "ok"/"sure" without the explicit choice as not-yet-confirmed.
 
+### Tool-call shape (JSON) — schema-critical
+
+The decision brief below is prose for the user; the tool call itself MUST pass a JSON object with `questions` as a true **array of objects** — never a string, never a stringified array. Each question MUST carry a non-empty `options` array. Hosts render the prompt before validating tool args, so a malformed shape (e.g. `questions` emitted as a string, or a question with missing/`null` `options`) can crash the session. If you can't satisfy the schema, fall back to prose per the rule above — do not emit a bad call.
+
+```
+questions: [
+  { header: "...", question: "...", multiSelect: false,
+    options: [ { label: "...", description: "..." }, { label: "...", description: "..." } ] }
+]
+```
+- `questions`: array (not string). 1–4 questions.
+- Each `options`: array of 2–4 `{ label, description }`. Never `null`, never omitted, never empty.
+
 ### Format
 
-Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
+Every AskUserQuestion decision has two parts: a markdown decision brief before the call, then a compact tool_use payload. Do not pack the full brief into the tool's `question` string. Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
 
 ```
 D<N> — <one-line question title>
@@ -406,6 +419,12 @@ Neutral posture: `Recommendation: <default> — this is a taste call, no strong 
 Effort both-scales: when an option involves effort, label both human-team and CC+gstack time, e.g. `(human: ~2 days / CC: ~15 min)`. Makes AI compression visible at decision time.
 
 Net line closes the tradeoff. Per-skill instructions may add stricter rules.
+
+Tool payload rules:
+- `question` is only the decision prompt: one sentence, no newlines, <=80 chars.
+- Background, regrounding, ELI10, stakes, recommendation, pros/cons, and trade-off tables stay in the markdown brief before the tool call.
+- Ask one decision per tool call when possible; batch at most two related questions/tabs. Sequence independent decisions instead of sending 3+ tabs.
+- Do not duplicate the same trade-off text in both `question` and `options[].description`. Prefer putting option-specific trade-offs in `options[].description`.
 
 ### Handling 5+ options — split, never drop
 
@@ -454,6 +473,12 @@ Before calling AskUserQuestion, verify:
 - [ ] (recommended) label on one option (even for neutral-posture)
 - [ ] Dual-scale effort labels on effort-bearing options (human / CC)
 - [ ] Net line closes the decision
+- [ ] `question` is one sentence, no newlines, <=80 chars
+- [ ] Tool call has no more than two related questions/tabs
+- [ ] No duplicated trade-off text between `question` and `options[].description`
+- [ ] You wrote the brief, then called the tool_use payload
+- [ ] `questions` is a JSON array of objects — NOT a string
+- [ ] Every question has a non-empty `options` array (2–4 `{ label, description }`)
 - [ ] You are calling the tool, not writing prose — unless `CONDUCTOR_SESSION: true` (then prose is the DEFAULT, not the tool) OR the documented failure fallback applies (then: prose with the mandatory triad — issue ELI10, per-choice Completeness, Recommendation + `(recommended)` — and a "reply with a letter" instruction, then STOP)
 - [ ] Non-ASCII characters (CJK / accents) written directly, NOT \u-escaped
 - [ ] If you had 5+ options, you split (or batched into ≤4-groups) — did NOT drop any
@@ -631,7 +656,7 @@ _PROJ="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
   find "$_PROJ/ceo-plans" "$_PROJ/checkpoints" -type f -name "*.md" 2>/dev/null | xargs ls -t 2>/dev/null | head -3
-  [ -f "$_PROJ/${_BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${_BRANCH}-reviews.jsonl" | tr -d ' ') entries"
+  [ -f "$_PROJ/${BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${BRANCH}-reviews.jsonl" | tr -d ' ') entries"
   [ -f "$_PROJ/timeline.jsonl" ] && tail -5 "$_PROJ/timeline.jsonl"
   if [ -f "$_PROJ/timeline.jsonl" ]; then
     _LAST=$(grep "\"branch\":\"${_BRANCH}\"" "$_PROJ/timeline.jsonl" 2>/dev/null | grep '"event":"completed"' | tail -1)
@@ -1098,12 +1123,11 @@ Loaded review skills from disk. Starting full review pipeline with auto-decision
 
 ---
 
-## Phase 0.5: Codex auth + version preflight
+## Phase 0.5: Outside-voice preflight
 
-Before invoking any Codex voice, preflight the CLI: verify auth (multi-signal) and
-warn on known-bad CLI versions. This is infrastructure for all 4 phases below —
-source it once here and the helper functions stay in scope for the rest of the
-workflow.
+Before invoking any outside voice, preflight the CLI: verify auth (multi-signal) and
+warn on known-bad CLI versions. On non-Codex hosts, the outside voice is Codex CLI
+and the subagent is the host-native subagent.
 
 ```bash
 _TEL=$(~/.claude/skills/gstack/bin/gstack-config get telemetry 2>/dev/null || echo off)
@@ -1113,27 +1137,25 @@ source ~/.claude/skills/gstack/bin/gstack-codex-probe
 # Master switch first: codex_reviews=disabled turns off ALL Codex work globally,
 # including autoplan's own dual-voice orchestration. Honor it before probing.
 if [ "$_CODEX_CFG" = "disabled" ]; then
-  echo "[codex disabled by config — Claude-only voices] Re-enable: gstack-config set codex_reviews enabled"
-  _CODEX_AVAILABLE=false
-# Check Codex binary. If missing, tag the degradation matrix and continue
-# with Claude subagent only (autoplan's existing degradation fallback).
+  echo "[codex disabled by config — subagent-only voices] Re-enable: gstack-config set codex_reviews enabled"
+  _OUTSIDE_VOICE_AVAILABLE=false
 elif ! command -v codex >/dev/null 2>&1; then
   _gstack_codex_log_event "codex_cli_missing"
-  echo "[codex-unavailable: binary not found] — proceeding with Claude subagent only"
-  _CODEX_AVAILABLE=false
+  echo "[outside-voice-unavailable: Codex CLI not found] — proceeding with subagent only"
+  _OUTSIDE_VOICE_AVAILABLE=false
 elif ! _gstack_codex_auth_probe >/dev/null; then
   _gstack_codex_log_event "codex_auth_failed"
-  echo "[codex-unavailable: auth missing] — proceeding with Claude subagent only. Run \`codex login\` or set \$CODEX_API_KEY to enable dual-voice review."
-  _CODEX_AVAILABLE=false
+  echo "[outside-voice-unavailable: Codex auth missing] — proceeding with subagent only. Run `codex login` or set $CODEX_API_KEY to enable dual-voice review."
+  _OUTSIDE_VOICE_AVAILABLE=false
 else
-  _gstack_codex_version_check   # non-blocking warn if known-bad
-  _CODEX_AVAILABLE=true
+  _gstack_codex_version_check
+  _OUTSIDE_VOICE_AVAILABLE=true
 fi
 ```
 
-If `_CODEX_AVAILABLE=false`, all Phase 1-3.5 Codex voices below degrade to
-`[codex-unavailable]` in the degradation matrix. /autoplan completes with
-Claude subagent only — saves token spend on Codex prompts we can't use.
+If `_OUTSIDE_VOICE_AVAILABLE=false`, all outside-voice phases below degrade to
+`[outside-voice-unavailable]`. /autoplan still completes with the host-native
+subagent only — saves token spend on prompts we can't use.
 
 ---
 
@@ -1152,33 +1174,33 @@ Override: every AskUserQuestion → auto-decide using the 6 principles.
 - Scope expansion: in blast radius + <1d CC → approve (P2). Outside → defer to TODOS.md (P3).
   Duplicates → reject (P4). Borderline (3-5 files) → mark TASTE DECISION.
 - All 10 review sections: run fully, auto-decide each issue, log every decision.
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
-  Run them sequentially in foreground. First the Claude subagent (Agent tool,
-  foreground — do NOT use run_in_background), then Codex (Bash). Both must
+- Dual voices: always run BOTH the host-native subagent AND the outside voice if available (P6).
+  Run them sequentially in foreground. First the subagent (Agent tool,
+  foreground — do NOT use run_in_background), then the outside voice (Bash). Both must
   complete before building the consensus table.
 
-  **Codex CEO voice** (via Bash):
+  **Codex outside voice** (via Bash):
   ```bash
   _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
   _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT: Do NOT read or execute any SKILL.md files or files in skill definition directories (paths containing skills/gstack). These are AI assistant skill definitions meant for a different system. Stay focused on repository code only.
 
-  You are a CEO/founder advisor reviewing a development plan.
-  Challenge the strategic foundations: Are the premises valid or assumed? Is this the
-  right problem to solve, or is there a reframing that would be 10x more impactful?
-  What alternatives were dismissed too quickly? What competitive or market risks are
-  unaddressed? What scope decisions will look foolish in 6 months? Be adversarial.
-  No compliments. Just the strategic blind spots.
-  File: <plan_path>" -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
+You are a CEO/founder advisor reviewing a development plan.
+Challenge the strategic foundations: Are the premises valid or assumed? Is this the
+right problem to solve, or is there a reframing that would be 10x more impactful?
+What alternatives were dismissed too quickly? What competitive or market risks are
+unaddressed? What scope decisions will look foolish in 6 months? Be adversarial.
+No compliments. Just the strategic blind spots.
+File: <plan_path>" -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
   _CODEX_EXIT=$?
   if [ "$_CODEX_EXIT" = "124" ]; then
     _gstack_codex_log_event "codex_timeout" "600"
     _gstack_codex_log_hang "autoplan" "0"
-    echo "[codex stalled past 10 minutes — tagging as [codex-unavailable] for this phase and proceeding with Claude subagent only]"
+    echo "[outside voice stalled past 10 minutes — tagging as [outside-voice-unavailable] for this phase and proceeding with subagent only]"
   fi
   ```
-  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's Codex voice.
+  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's outside voice.
 
-  **Claude CEO subagent** (via Agent tool):
+  **Host-native CEO subagent** (via Agent tool):
   "Read the plan file at <plan_path>. You are an independent CEO/strategist
   reviewing this plan. You have NOT seen any prior review. Evaluate:
   1. Is this the right problem to solve? Could a reframing yield 10x impact?
@@ -1188,12 +1210,12 @@ Override: every AskUserQuestion → auto-decide using the 6 principles.
   5. What's the competitive risk — could someone else solve this first/better?
   For each finding: what's wrong, severity (critical/high/medium), and the fix."
 
-  **Error handling:** Both calls block in foreground. Codex auth/timeout/empty → proceed with
-  Claude subagent only, tagged `[single-model]`. If Claude subagent also fails →
+  **Error handling:** Both calls block in foreground. Outside voice auth/timeout/empty → proceed with
+  subagent only, tagged `[single-model]`. If the subagent also fails →
   "Outside voices unavailable — continuing with primary review."
 
-  **Degradation matrix:** Both fail → "single-reviewer mode". Codex only →
-  tag `[codex-only]`. Subagent only → tag `[subagent-only]`.
+  **Degradation matrix:** Both fail → "single-reviewer mode". Outside voice only →
+  tag `[outside-only]`. Subagent only → tag `[subagent-only]`.
 
 - Strategy choices: if codex disagrees with a premise or scope decision with valid
   strategic reason → TASTE DECISION. If both models agree the user's stated structure
@@ -1210,15 +1232,15 @@ Step 0 (0A-0F) — run each sub-step and produce:
 - 0E: Temporal interrogation (HOUR 1 → HOUR 6+)
 - 0F: Mode selection confirmation
 
-Step 0.5 (Dual Voices): Run Claude subagent (foreground Agent tool) first, then
-Codex (Bash). Present Codex output under CODEX SAYS (CEO — strategy challenge)
-header. Present subagent output under CLAUDE SUBAGENT (CEO — strategic independence)
-header. Produce CEO consensus table:
+Step 0.5 (Dual Voices): Run the host-native subagent (foreground Agent tool) first,
+then the outside voice (Bash). Present outside-voice output under OUTSIDE VOICE
+(CEO — strategy challenge) header. Present subagent output under HOST SUBAGENT
+(CEO — strategic independence) header. Produce CEO consensus table:
 
 ```
 CEO DUAL VOICES — CONSENSUS TABLE:
 ═══════════════════════════════════════════════════════════════
-  Dimension                           Claude  Codex  Consensus
+  Dimension                           Subagent Outside Consensus
   ──────────────────────────────────── ─────── ─────── ─────────
   1. Premises valid?                   —       —      —
   2. Right problem to solve?           —       —      —
@@ -1246,7 +1268,7 @@ Sections 1-10 — for EACH section, run the evaluation criteria from the loaded 
 - Completion Summary (the full summary table from the CEO skill)
 
 **PHASE 1 COMPLETE.** Emit phase-transition summary:
-> **Phase 1 complete.** Codex: [N concerns]. Claude subagent: [N issues].
+> **Phase 1 complete.** Outside voice: [N concerns]. Subagent: [N issues].
 > Consensus: [X/6 confirmed, Y disagreements → surfaced at gate].
 > Passing to Phase 2.
 
@@ -1257,7 +1279,7 @@ and the premise gate has been passed.
 
 **Pre-Phase 2 checklist (verify before starting):**
 - [ ] CEO completion summary written to plan file
-- [ ] CEO dual voices ran (Codex + Claude subagent, or noted unavailable)
+- [ ] CEO dual voices ran (subagent + outside voice, or noted unavailable)
 - [ ] CEO consensus table produced
 - [ ] Premise gate passed (user confirmed)
 - [ ] Phase-transition summary emitted
@@ -1272,36 +1294,36 @@ Override: every AskUserQuestion → auto-decide using the 6 principles.
 - Structural issues (missing states, broken hierarchy): auto-fix (P5)
 - Aesthetic/taste issues: mark TASTE DECISION
 - Design system alignment: auto-fix if DESIGN.md exists and fix is obvious
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
+- Dual voices: always run BOTH the host-native subagent AND the outside voice if available (P6).
 
-  **Codex design voice** (via Bash):
+  **Codex outside voice** (via Bash):
   ```bash
   _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
   _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT: Do NOT read or execute any SKILL.md files or files in skill definition directories (paths containing skills/gstack). These are AI assistant skill definitions meant for a different system. Stay focused on repository code only.
 
-  Read the plan file at <plan_path>. Evaluate this plan's
-  UI/UX design decisions.
+Read the plan file at <plan_path>. Evaluate this plan's
+UI/UX design decisions.
 
-  Also consider these findings from the CEO review phase:
-  <insert CEO dual voice findings summary — key concerns, disagreements>
+Also consider these findings from the CEO review phase:
+<insert CEO dual voice findings summary — key concerns, disagreements>
 
-  Does the information hierarchy serve the user or the developer? Are interaction
-  states (loading, empty, error, partial) specified or left to the implementer's
-  imagination? Is the responsive strategy intentional or afterthought? Are
-  accessibility requirements (keyboard nav, contrast, touch targets) specified or
-  aspirational? Does the plan describe specific UI decisions or generic patterns?
-  What design decisions will haunt the implementer if left ambiguous?
-  Be opinionated. No hedging." -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
+Does the information hierarchy serve the user or the developer? Are interaction
+states (loading, empty, error, partial) specified or left to the implementer's
+imagination? Is the responsive strategy intentional or afterthought? Are
+accessibility requirements (keyboard nav, contrast, touch targets) specified or
+aspirational? Does the plan describe specific UI decisions or generic patterns?
+What design decisions will haunt the implementer if left ambiguous?
+Be opinionated. No hedging." -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
   _CODEX_EXIT=$?
   if [ "$_CODEX_EXIT" = "124" ]; then
     _gstack_codex_log_event "codex_timeout" "600"
     _gstack_codex_log_hang "autoplan" "0"
-    echo "[codex stalled past 10 minutes — tagging as [codex-unavailable] for this phase and proceeding with Claude subagent only]"
+    echo "[outside voice stalled past 10 minutes — tagging as [outside-voice-unavailable] for this phase and proceeding with subagent only]"
   fi
   ```
-  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's Codex voice.
+  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's outside voice.
 
-  **Claude design subagent** (via Agent tool):
+  **Host-native design subagent** (via Agent tool):
   "Read the plan file at <plan_path>. You are an independent senior product designer
   reviewing this plan. You have NOT seen any prior review. Evaluate:
   1. Information hierarchy: what does the user see first, second, third? Is it right?
@@ -1321,17 +1343,18 @@ Override: every AskUserQuestion → auto-decide using the 6 principles.
 
 1. Step 0 (Design Scope): Rate completeness 0-10. Check DESIGN.md. Map existing patterns.
 
-2. Step 0.5 (Dual Voices): Run Claude subagent (foreground) first, then Codex. Present under
-   CODEX SAYS (design — UX challenge) and CLAUDE SUBAGENT (design — independent review)
+2. Step 0.5 (Dual Voices): Run the host-native subagent (foreground) first, then the
+   outside voice. Present under OUTSIDE VOICE (design — UX challenge) and HOST
+   SUBAGENT (design — independent review)
    headers. Produce design litmus scorecard (consensus table). Use the litmus scorecard
-   format from plan-design-review. Include CEO phase findings in Codex prompt ONLY
-   (not Claude subagent — stays independent).
+   format from plan-design-review. Include CEO phase findings in the outside-voice prompt ONLY
+   (not the subagent — stays independent).
 
 3. Passes 1-7: Run each from loaded skill. Rate 0-10. Auto-decide each issue.
    DISAGREE items from scorecard → raised in the relevant pass with both perspectives.
 
 **PHASE 2 COMPLETE.** Emit phase-transition summary:
-> **Phase 2 complete.** Codex: [N concerns]. Claude subagent: [N issues].
+> **Phase 2 complete.** Outside voice: [N concerns]. Subagent: [N issues].
 > Consensus: [X/Y confirmed, Z disagreements → surfaced at gate].
 > Passing to Phase 3.
 
@@ -1353,31 +1376,31 @@ Override: every AskUserQuestion → auto-decide using the 6 principles.
 
 **Override rules:**
 - Scope challenge: never reduce (P2)
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
+- Dual voices: always run BOTH the host-native subagent AND the outside voice if available (P6).
 
-  **Codex eng voice** (via Bash):
+  **Codex outside voice** (via Bash):
   ```bash
   _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
   _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT: Do NOT read or execute any SKILL.md files or files in skill definition directories (paths containing skills/gstack). These are AI assistant skill definitions meant for a different system. Stay focused on repository code only.
 
-  Review this plan for architectural issues, missing edge cases,
-  and hidden complexity. Be adversarial.
+Review this plan for architectural issues, missing edge cases,
+and hidden complexity. Be adversarial.
 
-  Also consider these findings from prior review phases:
-  CEO: <insert CEO consensus table summary — key concerns, DISAGREEs>
-  Design: <insert Design consensus table summary, or 'skipped, no UI scope'>
+Also consider these findings from prior review phases:
+CEO: <insert CEO consensus table summary — key concerns, DISAGREEs>
+Design: <insert Design consensus table summary, or 'skipped, no UI scope'>
 
-  File: <plan_path>" -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
+File: <plan_path>" -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
   _CODEX_EXIT=$?
   if [ "$_CODEX_EXIT" = "124" ]; then
     _gstack_codex_log_event "codex_timeout" "600"
     _gstack_codex_log_hang "autoplan" "0"
-    echo "[codex stalled past 10 minutes — tagging as [codex-unavailable] for this phase and proceeding with Claude subagent only]"
+    echo "[outside voice stalled past 10 minutes — tagging as [outside-voice-unavailable] for this phase and proceeding with subagent only]"
   fi
   ```
-  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's Codex voice.
+  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's outside voice.
 
-  **Claude eng subagent** (via Agent tool):
+  **Host-native eng subagent** (via Agent tool):
   "Read the plan file at <plan_path>. You are an independent senior engineer
   reviewing this plan. You have NOT seen any prior review. Evaluate:
   1. Architecture: Is the component structure sound? Coupling concerns?
@@ -1400,15 +1423,15 @@ Override: every AskUserQuestion → auto-decide using the 6 principles.
 1. Step 0 (Scope Challenge): Read actual code referenced by the plan. Map each
    sub-problem to existing code. Run the complexity check. Produce concrete findings.
 
-2. Step 0.5 (Dual Voices): Run Claude subagent (foreground) first, then Codex. Present
-   Codex output under CODEX SAYS (eng — architecture challenge) header. Present subagent
-   output under CLAUDE SUBAGENT (eng — independent review) header. Produce eng consensus
+2. Step 0.5 (Dual Voices): Run the host-native subagent (foreground) first, then the
+   outside voice. Present outside-voice output under OUTSIDE VOICE (eng — architecture challenge)
+   header. Present subagent output under HOST SUBAGENT (eng — independent review) header. Produce eng consensus
    table:
 
 ```
 ENG DUAL VOICES — CONSENSUS TABLE:
 ═══════════════════════════════════════════════════════════════
-  Dimension                           Claude  Codex  Consensus
+  Dimension                           Subagent Outside Consensus
   ──────────────────────────────────── ─────── ─────── ─────────
   1. Architecture sound?               —       —      —
   2. Test coverage sufficient?         —       —      —
@@ -1451,7 +1474,7 @@ Missing voice = N/A (not CONFIRMED). Single critical finding from one voice = fl
 - TODOS.md updates (collected from all phases)
 
 **PHASE 3 COMPLETE.** Emit phase-transition summary:
-> **Phase 3 complete.** Codex: [N concerns]. Claude subagent: [N issues].
+> **Phase 3 complete.** Outside voice: [N concerns]. Subagent: [N issues].
 > Consensus: [X/6 confirmed, Y disagreements → surfaced at gate].
 > Passing to Phase 3.5 (DX Review) or Phase 4 (Final Gate).
 
@@ -1474,36 +1497,36 @@ Log: "Phase 3.5 skipped — no developer-facing scope detected."
 - Error message quality: always require problem + cause + fix (P1, completeness)
 - API/CLI naming: consistency wins over cleverness (P5)
 - DX taste decisions (e.g., opinionated defaults vs flexibility): mark TASTE DECISION
-- Dual voices: always run BOTH Claude subagent AND Codex if available (P6).
+- Dual voices: always run BOTH the host-native subagent AND the outside voice if available (P6).
 
-  **Codex DX voice** (via Bash):
+  **Codex outside voice** (via Bash):
   ```bash
   _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
   _gstack_codex_timeout_wrapper 600 codex exec "IMPORTANT: Do NOT read or execute any SKILL.md files or files in skill definition directories (paths containing skills/gstack). These are AI assistant skill definitions meant for a different system. Stay focused on repository code only.
 
-  Read the plan file at <plan_path>. Evaluate this plan's developer experience.
+Read the plan file at <plan_path>. Evaluate this plan's developer experience.
 
-  Also consider these findings from prior review phases:
-  CEO: <insert CEO consensus summary>
-  Eng: <insert Eng consensus summary>
+Also consider these findings from prior review phases:
+CEO: <insert CEO consensus summary>
+Eng: <insert Eng consensus summary>
 
-  You are a developer who has never seen this product. Evaluate:
-  1. Time to hello world: how many steps from zero to working? Target is under 5 minutes.
-  2. Error messages: when something goes wrong, does the dev know what, why, and how to fix?
-  3. API/CLI design: are names guessable? Are defaults sensible? Is it consistent?
-  4. Docs: can a dev find what they need in under 2 minutes? Are examples copy-paste-complete?
-  5. Upgrade path: can devs upgrade without fear? Migration guides? Deprecation warnings?
-  Be adversarial. Think like a developer who is evaluating this against 3 competitors." -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
+You are a developer who has never seen this product. Evaluate:
+1. Time to hello world: how many steps from zero to working? Target is under 5 minutes.
+2. Error messages: when something goes wrong, does the dev know what, why, and how to fix?
+3. API/CLI design: are names guessable? Are defaults sensible? Is it consistent?
+4. Docs: can a dev find what they need in under 2 minutes? Are examples copy-paste-complete?
+5. Upgrade path: can devs upgrade without fear? Migration guides? Deprecation warnings?
+Be adversarial. Think like a developer who is evaluating this against 3 competitors." -C "$_REPO_ROOT" -s read-only --enable web_search_cached < /dev/null
   _CODEX_EXIT=$?
   if [ "$_CODEX_EXIT" = "124" ]; then
     _gstack_codex_log_event "codex_timeout" "600"
     _gstack_codex_log_hang "autoplan" "0"
-    echo "[codex stalled past 10 minutes — tagging as [codex-unavailable] for this phase and proceeding with Claude subagent only]"
+    echo "[outside voice stalled past 10 minutes — tagging as [outside-voice-unavailable] for this phase and proceeding with subagent only]"
   fi
   ```
-  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's Codex voice.
+  Timeout: 10 minutes (shell-wrapper) + 12 minutes (Bash outer gate). On hang, auto-degrades this phase's outside voice.
 
-  **Claude DX subagent** (via Agent tool):
+  **Host-native DX subagent** (via Agent tool):
   "Read the plan file at <plan_path>. You are an independent DX engineer
   reviewing this plan. You have NOT seen any prior review. Evaluate:
   1. Getting started: how many steps from zero to hello world? What's the TTHW?
@@ -1524,14 +1547,14 @@ Log: "Phase 3.5 skipped — no developer-facing scope detected."
 1. Step 0 (DX Scope Assessment): Auto-detect product type. Map the developer journey.
    Rate initial DX completeness 0-10. Assess TTHW.
 
-2. Step 0.5 (Dual Voices): Run Claude subagent (foreground) first, then Codex. Present
-   under CODEX SAYS (DX — developer experience challenge) and CLAUDE SUBAGENT
-   (DX — independent review) headers. Produce DX consensus table:
+2. Step 0.5 (Dual Voices): Run the host-native subagent (foreground) first, then the
+   outside voice. Present under OUTSIDE VOICE (DX — developer experience challenge)
+   and HOST SUBAGENT (DX — independent review) headers. Produce DX consensus table:
 
 ```
 DX DUAL VOICES — CONSENSUS TABLE:
 ═══════════════════════════════════════════════════════════════
-  Dimension                           Claude  Codex  Consensus
+  Dimension                           Subagent Outside Consensus
   ──────────────────────────────────── ─────── ─────── ─────────
   1. Getting started < 5 min?          —       —      —
   2. API/CLI naming guessable?         —       —      —
@@ -1558,7 +1581,7 @@ Missing voice = N/A (not CONFIRMED). Single critical finding from one voice = fl
 
 **PHASE 3.5 COMPLETE.** Emit phase-transition summary:
 > **Phase 3.5 complete.** DX overall: [N]/10. TTHW: [N] min → [target] min.
-> Codex: [N concerns]. Claude subagent: [N issues].
+> Outside voice: [N concerns]. Subagent: [N issues].
 > Consensus: [X/6 confirmed, Y disagreements → surfaced at gate].
 > Passing to Phase 4 (Final Gate).
 
@@ -1595,7 +1618,7 @@ produced. Check the plan file and conversation for each item.
 - [ ] "What already exists" section written
 - [ ] Dream state delta written
 - [ ] Completion Summary produced
-- [ ] Dual voices ran (Codex + Claude subagent, or noted unavailable)
+- [ ] Dual voices ran (subagent + outside voice, or noted unavailable)
 - [ ] CEO consensus table produced
 
 **Phase 2 (Design) outputs — only if UI scope detected:**
@@ -1613,7 +1636,7 @@ produced. Check the plan file and conversation for each item.
 - [ ] "What already exists" section written
 - [ ] Failure modes registry with critical gap assessment
 - [ ] Completion Summary produced
-- [ ] Dual voices ran (Codex + Claude subagent, or noted unavailable)
+- [ ] Dual voices ran (subagent + outside voice, or noted unavailable)
 - [ ] Eng consensus table produced
 
 **Phase 3.5 (DX) outputs — only if DX scope detected:**
@@ -1749,13 +1772,13 @@ I recommend [X] — [principle]. But [Y] is also viable:
 
 ### Review Scores
 - CEO: [summary]
-- CEO Voices: Codex [summary], Claude subagent [summary], Consensus [X/6 confirmed]
+- CEO Voices: Outside [summary], Subagent [summary], Consensus [X/6 confirmed]
 - Design: [summary or "skipped, no UI scope"]
-- Design Voices: Codex [summary], Claude subagent [summary], Consensus [X/7 confirmed] (or "skipped")
+- Design Voices: Outside [summary], Subagent [summary], Consensus [X/7 confirmed] (or "skipped")
 - Eng: [summary]
-- Eng Voices: Codex [summary], Claude subagent [summary], Consensus [X/6 confirmed]
+- Eng Voices: Outside [summary], Subagent [summary], Consensus [X/6 confirmed]
 - DX: [summary or "skipped, no developer-facing scope"]
-- DX Voices: Codex [summary], Claude subagent [summary], Consensus [X/6 confirmed] (or "skipped")
+- DX Voices: Outside [summary], Subagent [summary], Consensus [X/6 confirmed] (or "skipped")
 
 ### Cross-Phase Themes
 [For any concern that appeared in 2+ phases' dual voices independently:]
@@ -1835,7 +1858,7 @@ If Phase 3.5 ran (DX scope), also log:
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"autoplan-voices","timestamp":"'"$TIMESTAMP"'","status":"STATUS","source":"SOURCE","phase":"dx","via":"autoplan","consensus_confirmed":N,"consensus_disagree":N,"commit":"'"$COMMIT"'"}'
 ```
 
-SOURCE = "codex+subagent", "codex-only", "subagent-only", or "unavailable".
+SOURCE = "subagent+outside", "outside-only", "subagent-only", or "unavailable".
 Replace N values with actual consensus counts from the tables.
 
 Suggest next step: `/ship` when ready to create the PR.

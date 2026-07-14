@@ -46,6 +46,8 @@ export interface HostConfig {
     descriptionLimit?: number | null;
     /** What to do when description exceeds limit. Default: 'error'. */
     descriptionLimitBehavior?: 'error' | 'truncate' | 'warn';
+    /** Override the emitted frontmatter name for generated skills. */
+    nameTransform?: 'identity' | 'external-skill-name';
     /** Additional frontmatter fields to inject (host-wide). */
     extraFields?: Record<string, unknown>;
     /** Rename fields from template (e.g., { 'voice-triggers': 'triggers' }). */
@@ -117,7 +119,7 @@ const NAME_REGEX = /^[a-z][a-z0-9-]*$/;
 const PATH_REGEX = /^[a-zA-Z0-9_.\/${}~-]+$/;
 const CLI_REGEX = /^[a-z][a-z0-9_-]*$/;
 
-export function validateHostConfig(config: HostConfig): string[] {
+export function validateHostConfig(config: HostConfig, validResolverNames?: ReadonlySet<string>): string[] {
   const errors: string[] = [];
 
   if (!NAME_REGEX.test(config.name)) {
@@ -152,15 +154,27 @@ export function validateHostConfig(config: HostConfig): string[] {
     errors.push(`install.linkingStrategy must be 'real-dir-symlink' or 'symlink-generated'`);
   }
 
+  // Cross-check suppressedResolvers against the known resolver names (injected to avoid a
+  // circular import on the resolver registry). A typo would otherwise silently no-op: the
+  // generator short-circuits suppressed names before the "unknown placeholder" throw, so an
+  // unknown entry never surfaces at generation time either.
+  if (validResolverNames && config.suppressedResolvers) {
+    for (const name of config.suppressedResolvers) {
+      if (!validResolverNames.has(name)) {
+        errors.push(`suppressedResolvers entry '${name}' is not a known resolver`);
+      }
+    }
+  }
+
   return errors;
 }
 
-export function validateAllConfigs(configs: HostConfig[]): string[] {
+export function validateAllConfigs(configs: HostConfig[], validResolverNames?: ReadonlySet<string>): string[] {
   const errors: string[] = [];
 
   // Per-config validation
   for (const config of configs) {
-    const configErrors = validateHostConfig(config);
+    const configErrors = validateHostConfig(config, validResolverNames);
     errors.push(...configErrors.map(e => `[${config.name}] ${e}`));
   }
 

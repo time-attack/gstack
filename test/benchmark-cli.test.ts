@@ -148,7 +148,7 @@ describe('gstack-model-benchmark --dry-run', () => {
       const notReadyLines = out.split('\n').filter(l => l.includes('NOT READY'));
       expect(notReadyLines.length).toBeGreaterThanOrEqual(2);
       for (const line of notReadyLines) {
-        expect(line).toMatch(/(install|Install|login|export|Run|Log in)/);
+        expect(line).toMatch(/(install|login|export|Run|Log in)/i);
       }
     } finally {
       fs.rmSync(emptyHome, { recursive: true, force: true });

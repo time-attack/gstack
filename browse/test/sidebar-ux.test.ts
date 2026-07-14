@@ -1405,14 +1405,17 @@ describe('sidebar auth race prevention', () => {
   const bgSrc = fs.readFileSync(path.join(ROOT, '..', 'extension', 'background.js'), 'utf-8');
   const spSrc = fs.readFileSync(path.join(ROOT, '..', 'extension', 'sidepanel.js'), 'utf-8');
 
-  test('getPort response includes authToken (not just port + connected)', () => {
+  test('getPort returns authToken to extension pages, withholds it from content scripts', () => {
     // The auth race: sidepanel calls getPort, gets {port, connected} but no token.
-    // All subsequent requests fail 401. Token must be in the getPort response.
+    // All subsequent requests fail 401. Token must be in the getPort response for
+    // extension pages (sender.tab unset) — but content scripts (sender.tab set)
+    // must get null, mirroring the getToken guard, or an injected page context
+    // can grab the localhost auth token.
     const getPortHandler = bgSrc.slice(
       bgSrc.indexOf("msg.type === 'getPort'"),
       bgSrc.indexOf("msg.type === 'setPort'"),
     );
-    expect(getPortHandler).toContain('token: authToken');
+    expect(getPortHandler).toContain('sender.tab ? null : authToken');
   });
 
   test('tryConnect uses token from getPort response', () => {

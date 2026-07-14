@@ -60,6 +60,16 @@ describe('setup: plan-tune hooks are non-interactive-safe', () => {
     expect(setupSrc).toMatch(/tr '\[:upper:\]' '\[:lower:\]'/);
     expect(setupSrc).toMatch(/PT_DECISION=\$\(printf .* tr/);
   });
+
+  test('plan-tune hooks are Claude-host-scoped (skip for --host grok-build)', () => {
+    // Non-Claude host installs must not prompt to mutate ~/.claude/settings.json.
+    // Explicit --plan-tune-hooks still allowed via _PT_EXPLICIT_YES.
+    expect(setupSrc).toContain('_PT_EXPLICIT_YES');
+    expect(setupSrc).toContain('[ "$INSTALL_CLAUDE" -eq 1 ] || [ "$_PT_EXPLICIT_YES" -eq 1 ]');
+    // Codex .agents/ regen is also host-scoped — not always-on during grok-only setup.
+    expect(setupSrc).toContain('[ "$INSTALL_CODEX" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]');
+    expect(setupSrc).toContain('Generating .agents/ skill docs for Codex...');
+  });
 });
 
 describe('dev-setup: never silently mutates global settings.json', () => {
@@ -67,10 +77,11 @@ describe('dev-setup: never silently mutates global settings.json', () => {
   const devSetupSrc = fs.readFileSync(DEV_SETUP, 'utf-8');
 
   test('runs setup with stdin detached AND --plan-tune-hooks=prompt pin', () => {
-    // stdin alone only suppresses the prompt branch; the flag (highest
-    // precedence) is what stops a saved `plan_tune_hooks: yes` / env opt-in
-    // from rewriting global hooks to the ephemeral worktree path.
-    expect(devSetupSrc).toMatch(/setup" --plan-tune-hooks=prompt <\/dev\/null/);
+    // stdin alone only suppresses the prompt branch; the flags (highest
+    // precedence) are what stop a saved `plan_tune_hooks: yes` /
+    // `statusline: yes` / env opt-in from rewriting global settings.json to
+    // point at the ephemeral worktree path. Both consent surfaces stay pinned.
+    expect(devSetupSrc).toMatch(/setup" --plan-tune-hooks=prompt --statusline=prompt <\/dev\/null/);
   });
 });
 

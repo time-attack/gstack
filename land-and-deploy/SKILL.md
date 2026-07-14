@@ -363,9 +363,22 @@ Layout: a `D<N>` title + a one-line note to reply with a letter (in Conductor th
 
 **One-way / destructive confirmations in prose.** When the decision is a one-way door (irreversible or destructive — delete, force-push, drop, overwrite), prose is a WEAKER gate than the tool, so make it stronger: require an explicit typed confirmation (the exact option letter or word), state plainly what is irreversible, and NEVER proceed on a vague, partial, or ambiguous reply — re-ask instead. Treat silence or "ok"/"sure" without the explicit choice as not-yet-confirmed.
 
+### Tool-call shape (JSON) — schema-critical
+
+The decision brief below is prose for the user; the tool call itself MUST pass a JSON object with `questions` as a true **array of objects** — never a string, never a stringified array. Each question MUST carry a non-empty `options` array. Hosts render the prompt before validating tool args, so a malformed shape (e.g. `questions` emitted as a string, or a question with missing/`null` `options`) can crash the session. If you can't satisfy the schema, fall back to prose per the rule above — do not emit a bad call.
+
+```
+questions: [
+  { header: "...", question: "...", multiSelect: false,
+    options: [ { label: "...", description: "..." }, { label: "...", description: "..." } ] }
+]
+```
+- `questions`: array (not string). 1–4 questions.
+- Each `options`: array of 2–4 `{ label, description }`. Never `null`, never omitted, never empty.
+
 ### Format
 
-Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
+Every AskUserQuestion decision has two parts: a markdown decision brief before the call, then a compact tool_use payload. Do not pack the full brief into the tool's `question` string. Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
 
 ```
 D<N> — <one-line question title>
@@ -397,6 +410,12 @@ Neutral posture: `Recommendation: <default> — this is a taste call, no strong 
 Effort both-scales: when an option involves effort, label both human-team and CC+gstack time, e.g. `(human: ~2 days / CC: ~15 min)`. Makes AI compression visible at decision time.
 
 Net line closes the tradeoff. Per-skill instructions may add stricter rules.
+
+Tool payload rules:
+- `question` is only the decision prompt: one sentence, no newlines, <=80 chars.
+- Background, regrounding, ELI10, stakes, recommendation, pros/cons, and trade-off tables stay in the markdown brief before the tool call.
+- Ask one decision per tool call when possible; batch at most two related questions/tabs. Sequence independent decisions instead of sending 3+ tabs.
+- Do not duplicate the same trade-off text in both `question` and `options[].description`. Prefer putting option-specific trade-offs in `options[].description`.
 
 ### Handling 5+ options — split, never drop
 
@@ -445,6 +464,12 @@ Before calling AskUserQuestion, verify:
 - [ ] (recommended) label on one option (even for neutral-posture)
 - [ ] Dual-scale effort labels on effort-bearing options (human / CC)
 - [ ] Net line closes the decision
+- [ ] `question` is one sentence, no newlines, <=80 chars
+- [ ] Tool call has no more than two related questions/tabs
+- [ ] No duplicated trade-off text between `question` and `options[].description`
+- [ ] You wrote the brief, then called the tool_use payload
+- [ ] `questions` is a JSON array of objects — NOT a string
+- [ ] Every question has a non-empty `options` array (2–4 `{ label, description }`)
 - [ ] You are calling the tool, not writing prose — unless `CONDUCTOR_SESSION: true` (then prose is the DEFAULT, not the tool) OR the documented failure fallback applies (then: prose with the mandatory triad — issue ELI10, per-choice Completeness, Recommendation + `(recommended)` — and a "reply with a letter" instruction, then STOP)
 - [ ] Non-ASCII characters (CJK / accents) written directly, NOT \u-escaped
 - [ ] If you had 5+ options, you split (or batched into ≤4-groups) — did NOT drop any
@@ -622,7 +647,7 @@ _PROJ="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
   find "$_PROJ/ceo-plans" "$_PROJ/checkpoints" -type f -name "*.md" 2>/dev/null | xargs ls -t 2>/dev/null | head -3
-  [ -f "$_PROJ/${_BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${_BRANCH}-reviews.jsonl" | tr -d ' ') entries"
+  [ -f "$_PROJ/${BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${BRANCH}-reviews.jsonl" | tr -d ' ') entries"
   [ -f "$_PROJ/timeline.jsonl" ] && tail -5 "$_PROJ/timeline.jsonl"
   if [ -f "$_PROJ/timeline.jsonl" ]; then
     _LAST=$(grep "\"branch\":\"${_BRANCH}\"" "$_PROJ/timeline.jsonl" 2>/dev/null | grep '"event":"completed"' | tail -1)
@@ -904,7 +929,7 @@ readiness first.
 - Production health issues detected by canary (offer revert)
 
 **Never stop for:**
-- Choosing merge method (auto-detect from repo settings)
+- Choosing merge method (CLAUDE.md Deploy Configuration > repo settings > squash default)
 - Timeout warnings (warn and continue gracefully)
 
 ## Voice & Tone
@@ -1081,7 +1106,7 @@ Run whichever commands are relevant based on the detected platform. Build the re
 ║  4. {Wait for deploy workflow / Wait 60s / Skip}           ║
 ║  5. {Run canary verification / Skip (no URL)}              ║
 ║                                                            ║
-║  MERGE METHOD: {squash/merge/rebase} (from repo settings)  ║
+║  MERGE METHOD: {squash/merge/rebase} (source: {CLAUDE.md/repo/default})  ║
 ║  MERGE QUEUE:  {detected / not detected}                   ║
 ╚══════════════════════════════════════════════════════════╝
 ```
@@ -1324,6 +1349,52 @@ and tell the user: "I found and fixed a few issues during the review. The fixes 
 
 **If review is CURRENT:** Skip this sub-step entirely — no question asked.
 
+### 3.5a-ter: GitHub PR review approval check (HARD GATE)
+
+**This is a hard gate — it blocks merge if a human reviewer was requested but hasn't approved.** Local AI reviews (3.5a) are not a substitute for human approval when a reviewer is assigned.
+
+Query the PR's review state:
+
+```bash
+gh pr view --json reviewDecision,reviewRequests,latestReviews
+```
+
+Parse the output:
+- `reviewDecision`: `APPROVED` / `CHANGES_REQUESTED` / `REVIEW_REQUIRED` / `null`
+- `reviewRequests`: list of pending reviewers (haven't responded yet)
+- `latestReviews`: list of reviews submitted (each has a `state` and `author`)
+
+**Gate logic:**
+
+Apply the FIRST matching row, top to bottom:
+
+| Condition | Action |
+|-----------|--------|
+| `reviewDecision == "CHANGES_REQUESTED"` | **BLOCKER** — list the reviewer who requested changes, the file/line they commented on if available, and refuse to merge |
+| `reviewDecision == "REVIEW_REQUIRED"` | **BLOCKER** — branch protection still requires review(s): "Branch protection requires {N more} approval(s). Cannot merge yet." (One approval can already be present when protection demands two.) |
+| `reviewDecision == "APPROVED"` | PASS — continue |
+| `reviewRequests` is non-empty | **BLOCKER** — "PR has {N} pending reviewer(s): {list}. Cannot merge until at least one approves." |
+| `latestReviews` is non-empty with no `APPROVED` entry (e.g. a comment-only review) | **BLOCKER** — "Reviewer(s) {list} responded without approving. Get an explicit approval before merging." A requested reviewer who only comments disappears from `reviewRequests` — this row keeps the gate closed behind them. |
+| `reviewRequests` and `latestReviews` both empty AND repo has other collaborators | **WARNING** — "No reviewers requested. This repo has other collaborators — consider requesting review before merge." Not a hard blocker because it may be a solo-authored fix in a multi-person repo. |
+| repo has no other collaborators | PASS — solo repo, no review possible |
+
+Note the pending-reviewer row keys off `reviewRequests`, NOT `reviewDecision`: GitHub only sets `REVIEW_REQUIRED` when branch protection demands a review, and free-tier private repos — the exact audience of this gate — cannot enable branch protection. A requested-but-silent reviewer must block regardless of what `reviewDecision` says. (The `REVIEW_REQUIRED` row above still matters on repos that DO have branch protection with multi-approval rules.)
+
+**How to fetch collaborators for the "solo repo" check:**
+
+```bash
+_SELF=$(gh api user --jq .login 2>/dev/null)
+_OTHER_COLLABS=$(gh api repos/:owner/:repo/collaborators --jq "[.[] | select(.login != \"$_SELF\") | .login] | length" 2>/dev/null || echo "0")
+```
+
+If `_OTHER_COLLABS > 0`, treat missing reviews as a warning/blocker per the table above. If `_OTHER_COLLABS == 0`, treat as solo repo and pass. The collaborators API needs push access — if the call fails (403, network), `_OTHER_COLLABS` falls back to 0 and the gate passes as solo. Fail-open is deliberate: this is a discipline gate, not a security boundary, and blocking every merge on a flaky API call would get the whole gate disabled.
+
+**If BLOCKER:** Include the reviewDecision status in the readiness report under the `GITHUB REVIEW` section (see 3.5e) and recommend option B (hold off). Do NOT let the user override with option C for this specific blocker — review bypass requires a different, explicit override.
+
+**Explicit override for the GitHub review blocker:** Only if the user invokes `/land-and-deploy --override-review` (or answers an explicit `AskUserQuestion` with a dedicated "I am the reviewer and I approve this" option) can this blocker be bypassed. Default is refuse.
+
+**Why this matters:** Free GitHub plans on private repos have no branch protection, so discipline is the only gate. Without this check, `/land-and-deploy` would happily merge PRs that the assigned reviewer never saw. That is the exact failure mode this sub-step exists to prevent.
+
 ### 3.5b: Test results
 
 **Free tests — run them now:**
@@ -1415,11 +1486,17 @@ Build the full readiness report:
 ║  PR: #NNN — title                                        ║
 ║  Branch: feature → main                                  ║
 ║                                                          ║
-║  REVIEWS                                                 ║
+║  REVIEWS (local AI)                                      ║
 ║  ├─ Eng Review:    CURRENT / STALE (N commits) / —       ║
 ║  ├─ CEO Review:    CURRENT / — (optional)                ║
 ║  ├─ Design Review: CURRENT / — (optional)                ║
 ║  └─ Codex Review:  CURRENT / — (optional)                ║
+║                                                          ║
+║  GITHUB REVIEW (human)                                   ║
+║  ├─ Decision:      APPROVED / CHANGES_REQUESTED /        ║
+║  │                 pending / none (solo repo)            ║
+║  ├─ Approvers:     @user1 / —                            ║
+║  └─ Pending:       @user2 / —                            ║
 ║                                                          ║
 ║  TESTS                                                   ║
 ║  ├─ Free tests:    PASS / FAIL (blocker)                 ║
@@ -1438,7 +1515,8 @@ Build the full readiness report:
 ╚══════════════════════════════════════════════════════════╝
 ```
 
-If there are BLOCKERS (failing free tests): list them and recommend B.
+If there are BLOCKERS (failing free tests, OR `reviewDecision == "CHANGES_REQUESTED"`, OR pending requested reviewers from 3.5a-ter): list them and recommend B.
+**If the blocker is "GitHub PR review not approved", option C is NOT available.** The user must either get the approval on GitHub or explicitly pass `--override-review` to `/land-and-deploy`. Do not present option C for this blocker.
 If there are WARNINGS but no blockers: list each warning and recommend A if
 warnings are minor, or B if warnings are significant.
 If everything is green: recommend A.
@@ -1472,22 +1550,50 @@ If the user chooses A or C: Tell the user "Merging now." Continue to Step 4.
 Record the start timestamp for timing data. Also record which merge path is taken
 (auto-merge vs direct) for the deploy report.
 
-Try auto-merge first (respects repo merge settings and merge queues):
+### 4.0: Resolve the merge method
+
+Resolve the merge method once, remember it, and substitute it for `<method>` in
+the merge commands below. Three-tier priority:
+
+1. **CLAUDE.md Deploy Configuration** — the `- Merge method:` line already loaded
+   at skill start (see the Deploy Configuration block above). Ignore it when the
+   line is missing, still holds the literal template placeholder
+   (`{squash/merge/rebase}`), or isn't exactly `squash`, `merge`, or `rebase`.
+2. **Repo settings** — what GitHub allows for this repo:
+
+   ```bash
+   gh repo view --json squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed
+   ```
+
+   Prefer `squash` when allowed (the historical default), else `merge`, else `rebase`.
+3. **Default** — `squash` (when the repo query fails, e.g. offline or no `gh` scope).
+
+Report the result in the dry-run box as `MERGE METHOD: <method> (source: {CLAUDE.md/repo/default})`.
+If CLAUDE.md requests a method the repo settings don't allow, warn the user and use
+the repo-allowed method instead — an ignored mismatch would just make `gh pr merge` fail.
+
+### 4.1: Try auto-merge first
+
+Try auto-merge first (respects repo merge settings and merge queues), with the
+method resolved in Step 4.0 substituted for `<method>`:
 
 ```bash
-gh pr merge --auto --delete-branch
+gh pr merge --auto --<method> --delete-branch
 ```
 
 If `--auto` succeeds: record `MERGE_PATH=auto`. This means the repo has auto-merge enabled
 and may use merge queues.
 
-If `--auto` is not available (repo doesn't have auto-merge enabled), merge directly:
+### 4.2: Direct merge fallback
+
+If `--auto` is not available (repo doesn't have auto-merge enabled), merge directly
+with the method resolved in Step 4.0:
 
 ```bash
-gh pr merge --squash --delete-branch
+gh pr merge --<method> --delete-branch
 ```
 
-If direct merge succeeds: record `MERGE_PATH=direct`. Tell the user: "PR merged successfully. The branch has been cleaned up."
+If direct merge succeeds: record `MERGE_PATH=direct`. Tell the user: "PR merged successfully (via `<method>`). The branch has been cleaned up."
 
 If the merge fails with a permission error: **STOP.** "I don't have permission to merge this PR. You'll need a maintainer to merge it, or check your repo's branch protection rules."
 
@@ -1907,6 +2013,7 @@ Then suggest relevant follow-ups:
 
 - **Never force push.** Use `gh pr merge` which is safe.
 - **Never skip CI.** If checks are failing, stop and explain why.
+- **Never merge a PR without approved human review when a reviewer was assigned.** Step 3.5a-ter is a HARD GATE — if the PR has pending requested reviewers (or `reviewDecision == "CHANGES_REQUESTED"`) and no approval, refuse to merge. The only override is an explicit `--override-review` flag or an explicit AskUserQuestion bypass. Do not treat local AI reviews (eng-review, codex-review) as a substitute for human PR approval. On free GitHub plans with no branch protection, this discipline is the only thing preventing unreviewed merges to main.
 - **Narrate the journey.** The user should always know: what just happened, what's happening now, and what's about to happen next. No silent gaps between steps.
 - **Auto-detect everything.** PR number, merge method, deploy strategy, project type, merge queues, staging environments. Only ask when information genuinely can't be inferred.
 - **Poll with backoff.** Don't hammer GitHub API. 30-second intervals for CI/deploy, with reasonable timeouts.

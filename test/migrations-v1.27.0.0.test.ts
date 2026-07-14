@@ -27,11 +27,20 @@ function makeFakeGh(opts: { authStatus?: 'ok' | 'fail'; renameSucceeds?: boolean
 echo "gh $@" >> "${callLog}"
 case "$1" in
   auth) ${authStatus === 'ok' ? 'exit 0' : 'exit 1'} ;;
+  api)
+    # gh api user --jq .login → print authenticated login
+    shift
+    if [ "\${1:-}" = "user" ]; then
+      echo "testuser"
+      exit 0
+    fi
+    exit 0
+    ;;
   repo)
     shift
     case "$1" in
       view)
-        # gh repo view <name>
+        # gh repo view <owner/name> | <name>
         shift
         ${alreadyRenamed ? `if echo "$@" | grep -q gstack-artifacts; then exit 0; else exit 1; fi` : `exit 1`}
         ;;
@@ -139,6 +148,9 @@ describe('v1.27.0.0 migration — GitHub host (non-interactive)', () => {
     // gh rename was called (or edit fallback).
     const ghLog = fs.readFileSync(path.join(fakeBinDir, 'gh-calls.log'), 'utf-8');
     expect(ghLog).toMatch(/gh repo (rename|edit)/);
+    // Pin the owner qualification: gh rename/edit reject bare repo names,
+    // so the call must reference OWNER/REPO (testuser/...).
+    expect(ghLog).toMatch(/--repo testuser\//);
     // Old remote.txt is gone, new one exists with rewritten URL.
     expect(fs.existsSync(path.join(tmpHome, '.gstack-brain-remote.txt'))).toBe(false);
     const newUrl = fs.readFileSync(path.join(tmpHome, '.gstack-artifacts-remote.txt'), 'utf-8').trim();

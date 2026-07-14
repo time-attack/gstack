@@ -543,6 +543,105 @@ esac
     rmSync(home, { recursive: true, force: true });
   });
 
+  it("renders current Codex JSONL message and function-call records into the staged body", () => {
+    const home = makeTestHome();
+    const gstackHome = join(home, ".gstack");
+    mkdirSync(gstackHome, { recursive: true });
+
+    const binDir = join(home, "fake-bin");
+    mkdirSync(binDir, { recursive: true });
+    const stagingCopy = join(home, "staging-copy");
+    const script = `#!/usr/bin/env bash
+case "\${1:-}" in
+  --help|-h) echo "Usage: gbrain <command>"; echo "Commands:"; echo "  import <dir>   Import"; exit 0 ;;
+  import)
+    DIR="\${2:-}"
+    cp -R "\$DIR" "${stagingCopy}" 2>/dev/null || true
+    if [[ " \$* " == *" --json "* ]]; then
+      echo '{"status":"success","duration_s":0.1,"imported":1,"skipped":0,"errors":0,"chunks":1,"total_files":1}'
+    fi
+    exit 0 ;;
+  *) echo "unknown"; exit 2 ;;
+esac
+`;
+    const binPath = join(binDir, "gbrain");
+    writeFileSync(binPath, script, "utf-8");
+    chmodSync(binPath, 0o755);
+
+    const today = new Date();
+    const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const session =
+      `${JSON.stringify({
+        type: "session_meta",
+        payload: { id: "019ecf48-4ec1-7d41-abb8-0b9dd51d4ffa", cwd: "/tmp/codex-current" },
+        timestamp: "2026-06-16T07:15:20.277Z",
+      })}\n` +
+      `${JSON.stringify({
+        type: "response_item",
+        payload: {
+          type: "message",
+          role: "developer",
+          content: [{ type: "input_text", text: "Do not ingest developer instructions into session memory." }],
+        },
+        timestamp: "2026-06-16T07:15:21.000Z",
+      })}\n` +
+      `${JSON.stringify({
+        type: "response_item",
+        payload: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "how can I know if this session is sync in gbrain?" }],
+        },
+        timestamp: "2026-06-16T08:48:49.152Z",
+      })}\n` +
+      `${JSON.stringify({
+        type: "event_msg",
+        payload: {
+          type: "agent_message",
+          message: "The transcript page exists, but exact text search is not working yet.",
+        },
+        timestamp: "2026-06-16T09:00:00.000Z",
+      })}\n` +
+      `${JSON.stringify({
+        type: "response_item",
+        payload: {
+          type: "function_call",
+          name: "exec_command",
+          arguments: "{\"cmd\":\"gbrain search\"}",
+          call_id: "call_current",
+        },
+        timestamp: "2026-06-16T09:00:01.000Z",
+      })}\n`;
+    writeCodexSession(home, ymd, session);
+
+    const r = runScript(["--bulk", "--include-unattributed", "--quiet"], {
+      HOME: home,
+      GSTACK_HOME: gstackHome,
+      PATH: `${binDir}:${process.env.PATH || ""}`,
+    });
+    expect(r.exitCode).toBe(0);
+    expect(existsSync(stagingCopy)).toBe(true);
+
+    const findMd = spawnSync("find", [stagingCopy, "-name", "*.md", "-type", "f"], {
+      encoding: "utf-8",
+    });
+    const mdPaths = (findMd.stdout || "").trim().split("\n").filter(Boolean);
+    expect(mdPaths.length).toBeGreaterThan(0);
+    const body = readFileSync(mdPaths[0], "utf-8");
+
+    expect(body).toContain("message_count: 2");
+    expect(body).toContain("tool_calls: 1");
+    expect(body).toContain("## User");
+    expect(body).toContain("how can I know if this session is sync in gbrain?");
+    expect(body).toContain("## Assistant");
+    expect(body).toContain("exact text search is not working yet");
+    expect(body).toContain("### Tool call: exec_command");
+    expect(body).not.toContain("## Developer");
+    expect(body).not.toContain("Do not ingest developer instructions");
+
+    rmSync(home, { recursive: true, force: true });
+  });
+
   it("injects title/type/tags into the staged page's YAML frontmatter", () => {
     const home = makeTestHome();
     const gstackHome = join(home, ".gstack");
@@ -832,6 +931,84 @@ describe("gstack-memory-ingest transcript boundaries (#2140)", () => {
     const sourceId = args.match(/--source-id\s+(\S+)/)?.[1] || "";
     expect(sourceId).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
     expect(sourceId.length).toBeLessThanOrEqual(32);
+    rmSync(home, { recursive: true, force: true });
+  });
+});
+
+// ── Wave regression: fake-message and dedupe fixes (codex-review findings) ──
+
+describe("body fidelity: tool_result leakage, role-less events, dedupe scope", () => {
+  function runWithStagingCopy(home: string): string {
+    const gstackHome = join(home, ".gstack");
+    mkdirSync(gstackHome, { recursive: true });
+    const binDir = join(home, "fake-bin");
+    mkdirSync(binDir, { recursive: true });
+    const stagingCopy = join(home, "staging-copy");
+    const script = `#!/usr/bin/env bash
+case "\${1:-}" in
+  --help|-h) echo "Usage: gbrain <command>"; echo "Commands:"; echo "  import <dir>   Import"; exit 0 ;;
+  import) cp -R "\${2:-}" "${stagingCopy}" 2>/dev/null || true; echo '{"status":"success","imported":1}'; exit 0 ;;
+  *) echo "unknown"; exit 2 ;;
+esac
+`;
+    const binPath = join(binDir, "gbrain");
+    writeFileSync(binPath, script, "utf-8");
+    chmodSync(binPath, 0o755);
+    const r = runScript(["--bulk", "--include-unattributed", "--quiet"], {
+      HOME: home,
+      GSTACK_HOME: gstackHome,
+      PATH: `${binDir}:${process.env.PATH || ""}`,
+    });
+    expect(r.exitCode).toBe(0);
+    const findMd = spawnSync("find", [stagingCopy, "-name", "*.md", "-type", "f"], { encoding: "utf-8" });
+    const mdPaths = (findMd.stdout || "").trim().split("\n").filter(Boolean);
+    expect(mdPaths.length).toBeGreaterThan(0);
+    return readFileSync(mdPaths[0], "utf-8");
+  }
+
+  it("Claude tool_result blocks never become messages or [object Object]", () => {
+    const home = makeTestHome();
+    const session =
+      `${JSON.stringify({ type: "user", message: { role: "user", content: "run the tests" }, timestamp: "2026-05-01T00:00:00Z", cwd: "/tmp/foo" })}\n` +
+      `${JSON.stringify({ type: "user", message: { role: "user", content: [
+        { type: "tool_result", tool_use_id: "t1", content: [{ type: "text", text: "47 tests passed" }] },
+      ] }, timestamp: "2026-05-01T00:00:01Z" })}\n` +
+      `${JSON.stringify({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "All green." }] }, timestamp: "2026-05-01T00:00:02Z" })}\n`;
+    writeClaudeCodeSession(home, "tmp-foo", "toolres1", session);
+    const body = runWithStagingCopy(home);
+    expect(body).not.toContain("[object Object]");
+    expect(body).not.toContain("47 tests passed");
+    expect(body).toContain("message_count: 2");
+    expect(body).toContain("run the tests");
+    expect(body).toContain("All green.");
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  it("Claude adjacent identical messages both survive (no dedupe outside codex)", () => {
+    const home = makeTestHome();
+    const session =
+      `${JSON.stringify({ type: "user", message: { role: "user", content: "continue" }, timestamp: "2026-05-01T00:00:00Z", cwd: "/tmp/foo" })}\n` +
+      `${JSON.stringify({ type: "user", message: { role: "user", content: "continue" }, timestamp: "2026-05-01T00:00:01Z" })}\n`;
+    writeClaudeCodeSession(home, "tmp-foo", "dedupe1", session);
+    const body = runWithStagingCopy(home);
+    expect(body).toContain("message_count: 2");
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  it("codex role-less error events are not fabricated into ## User; double-render dedupes", () => {
+    const home = makeTestHome();
+    const today = new Date();
+    const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const session =
+      `${JSON.stringify({ type: "session_meta", payload: { id: "019ecf48-4ec1-7d41-abb8-0b9dd51d4ffb", cwd: "/tmp/codex-x" }, timestamp: "2026-06-16T07:15:20.277Z" })}\n` +
+      `${JSON.stringify({ type: "event_msg", payload: { type: "user_message", message: "what changed?" }, timestamp: "2026-06-16T07:15:21.000Z" })}\n` +
+      `${JSON.stringify({ type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text: "what changed?" }] }, timestamp: "2026-06-16T07:15:21.500Z" })}\n` +
+      `${JSON.stringify({ type: "event_msg", payload: { type: "error", message: "stream disconnected before completion" }, timestamp: "2026-06-16T07:15:22.000Z" })}\n`;
+    writeCodexSession(home, ymd, session);
+    const body = runWithStagingCopy(home);
+    expect(body).not.toContain("stream disconnected before completion");
+    expect(body).toContain("message_count: 1");
+    expect(body).toContain("what changed?");
     rmSync(home, { recursive: true, force: true });
   });
 });

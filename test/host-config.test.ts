@@ -22,16 +22,21 @@ import {
   slate,
   cursor,
   openclaw,
+  qoder,
+  grokBuild,
 } from '../hosts/index';
 import { HOST_PATHS } from '../scripts/resolvers/types';
+import { RESOLVERS } from '../scripts/resolvers';
+import { resolveDistBinary } from '../scripts/resolvers/browse';
 
 const ROOT = path.resolve(import.meta.dir, '..');
+const RESOLVER_NAMES = new Set(Object.keys(RESOLVERS));
 
 // ─── hosts/index.ts ─────────────────────────────────────────
 
 describe('hosts/index.ts', () => {
-  test('ALL_HOST_CONFIGS has 10 hosts', () => {
-    expect(ALL_HOST_CONFIGS.length).toBe(10);
+  test('ALL_HOST_CONFIGS has 15 hosts', () => {
+    expect(ALL_HOST_CONFIGS.length).toBe(15);
   });
 
   test('ALL_HOST_NAMES matches config names', () => {
@@ -53,6 +58,7 @@ describe('hosts/index.ts', () => {
     expect(slate.name).toBe('slate');
     expect(cursor.name).toBe('cursor');
     expect(openclaw.name).toBe('openclaw');
+    expect(qoder.name).toBe('qoder');
   });
 
   test('getHostConfig returns correct config', () => {
@@ -205,13 +211,32 @@ describe('validateHostConfig', () => {
     c.cliCommand = 'opencode;rm -rf /';
     expect(validateHostConfig(c).some(e => e.includes('cliCommand'))).toBe(true);
   });
+
+  test('valid suppressedResolvers pass when resolver names provided', () => {
+    const c = makeValid();
+    c.suppressedResolvers = ['DESIGN_OUTSIDE_VOICES', 'REVIEW_ARMY'];
+    expect(validateHostConfig(c, RESOLVER_NAMES)).toEqual([]);
+  });
+
+  test('unknown suppressedResolvers entry is caught', () => {
+    const c = makeValid();
+    c.suppressedResolvers = ['DESIGN_OUTSIDE_VOICES', 'NONEXISTENT_RESOLVER'];
+    const errors = validateHostConfig(c, RESOLVER_NAMES);
+    expect(errors.some(e => e.includes('NONEXISTENT_RESOLVER'))).toBe(true);
+  });
+
+  test('suppressedResolvers unchecked when resolver names omitted', () => {
+    const c = makeValid();
+    c.suppressedResolvers = ['TYPO_RESOLVER'];
+    expect(validateHostConfig(c)).toEqual([]);
+  });
 });
 
 // ─── validateAllConfigs ─────────────────────────────────────
 
 describe('validateAllConfigs', () => {
   test('real configs all pass validation', () => {
-    const errors = validateAllConfigs(ALL_HOST_CONFIGS);
+    const errors = validateAllConfigs(ALL_HOST_CONFIGS, RESOLVER_NAMES);
     expect(errors).toEqual([]);
   });
 
@@ -231,6 +256,12 @@ describe('validateAllConfigs', () => {
     const dup = { ...codex, name: 'dup-host', hostSubdir: '.dup', globalRoot: '.claude/skills/gstack' } as HostConfig;
     const errors = validateAllConfigs([claude, dup]);
     expect(errors.some(e => e.includes('Duplicate globalRoot'))).toBe(true);
+  });
+
+  test('unknown suppressedResolvers entry surfaces with host-name prefix', () => {
+    const bad = { ...codex, name: 'bad-host', hostSubdir: '.bad', globalRoot: '.bad/skills/gstack', suppressedResolvers: ['BOGUS_RESOLVER'] } as HostConfig;
+    const errors = validateAllConfigs([bad], RESOLVER_NAMES);
+    expect(errors.some(e => e.startsWith('[bad-host]') && e.includes('BOGUS_RESOLVER'))).toBe(true);
   });
 
   test('per-config validation errors are prefixed with host name', () => {
@@ -314,7 +345,7 @@ describe('host-config-export.ts CLI', () => {
   test('get returns string field', () => {
     const { stdout, exitCode } = run('get', 'codex', 'globalRoot');
     expect(exitCode).toBe(0);
-    expect(stdout).toBe('.codex/skills/gstack');
+    expect(stdout).toBe('.agents/skills/gstack');
   });
 
   test('get returns boolean as 1/0', () => {
@@ -350,6 +381,7 @@ describe('host-config-export.ts CLI', () => {
     expect(exitCode).toBe(0);
     const lines = stdout.split('\n');
     expect(lines).toContain('bin');
+    expect(lines).toContain('design/dist');
     expect(lines).toContain('ETHOS.md');
     expect(lines).toContain('review/checklist.md');
   });
@@ -407,6 +439,23 @@ describe('golden-file regression', () => {
   test('Factory ship skill matches golden baseline', () => {
     const golden = fs.readFileSync(path.join(GOLDEN_DIR, 'factory-ship-SKILL.md'), 'utf-8');
     const current = fs.readFileSync(path.join(ROOT, '.factory', 'skills', 'gstack-ship', 'SKILL.md'), 'utf-8');
+    expect(current).toBe(golden);
+  });
+
+  // Agent-runtime hosts share the regular .<host>/skills/gstack-ship layout. These lock their
+  // host-specific rewrites (Bash->terminal/exec, Agent->delegate_task/sessions_spawn,
+  // .claude->.host, CLAUDE.md->AGENTS.md) so a regression like the Agent-tool rewrite gap is caught.
+  for (const host of ['hermes', 'gbrain', 'openclaw']) {
+    test(`${host} ship skill matches golden baseline`, () => {
+      const golden = fs.readFileSync(path.join(GOLDEN_DIR, `${host}-ship-SKILL.md`), 'utf-8');
+      const current = fs.readFileSync(path.join(ROOT, `.${host}`, 'skills', 'gstack-ship', 'SKILL.md'), 'utf-8');
+      expect(current).toBe(golden);
+    });
+  }
+
+  test('Grok Build ship skill matches golden baseline', () => {
+    const golden = fs.readFileSync(path.join(GOLDEN_DIR, 'grok-build-ship-SKILL.md'), 'utf-8');
+    const current = fs.readFileSync(path.join(ROOT, '.grok', 'skills', 'gstack-ship', 'SKILL.md'), 'utf-8');
     expect(current).toBe(golden);
   });
 });
@@ -534,5 +583,72 @@ describe('host config correctness', () => {
       expect(config.runtimeRoot.globalSymlinks).toContain('bin');
       expect(config.runtimeRoot.globalSymlinks).toContain('ETHOS.md');
     }
+  });
+
+  test('grok-build runtime root lists complete packaging assets (U1)', () => {
+    expect(grokBuild.name).toBe('grok-build');
+    expect(grokBuild.usesEnvVars).toBe(true);
+    const links = grokBuild.runtimeRoot.globalSymlinks;
+    for (const asset of [
+      'browse/src',
+      'design/dist',
+      'make-pdf/dist',
+      'extension',
+      'scripts',
+      'review/specialists',
+    ]) {
+      expect(links).toContain(asset);
+    }
+    expect(grokBuild.runtimeRoot.globalFiles?.review).toContain('checklist.md');
+    expect(grokBuild.runtimeRoot.globalFiles?.review).toContain('design-checklist.md');
+    expect(grokBuild.generation.skipSkills).toContain('codex');
+  });
+
+  test('grok-build path rewrites suppress Claude host bleed (U3)', () => {
+    expect(grokBuild.pathRewrites.some(r => r.from === 'CLAUDE.md' && r.to === 'AGENTS.md')).toBe(true);
+    expect(grokBuild.pathRewrites.some(r => r.from === 'MODEL_OVERLAY: claude' && r.to === 'MODEL_OVERLAY: none')).toBe(true);
+    expect(grokBuild.toolRewrites?.['AskUserQuestion']).toBe('ask_user_question');
+  });
+
+  // Dual-write parity (#5): hosts/grok-build.ts runtimeRoot must appear in setup's
+  // create_grok_runtime_root so packaging cannot skew silently.
+  test('grok-build runtimeRoot dual-write parity with create_grok_runtime_root', () => {
+    const setupPath = path.join(ROOT, 'setup');
+    const setup = fs.readFileSync(setupPath, 'utf-8');
+    const fnStart = setup.indexOf('create_grok_runtime_root()');
+    expect(fnStart).toBeGreaterThanOrEqual(0);
+    // Function ends at link_grok_skill_dirs (next sibling) — slice that range
+    const fnEnd = setup.indexOf('link_grok_skill_dirs()', fnStart);
+    expect(fnEnd).toBeGreaterThan(fnStart);
+    const fnBody = setup.slice(fnStart, fnEnd);
+
+    for (const link of grokBuild.runtimeRoot.globalSymlinks) {
+      // Each asset path must appear as a monorepo source under create_grok_runtime_root
+      expect(fnBody).toContain(link);
+    }
+    for (const f of grokBuild.runtimeRoot.globalFiles?.review ?? []) {
+      expect(fnBody).toContain(f);
+    }
+    // Preflight + atomic stage (review #6) stay wired
+    expect(fnBody).toContain('preflight');
+    expect(fnBody).toMatch(/\.next\.\$\$|staging/);
+    // Core review files fail-closed (review #7): required=1 on link
+    expect(fnBody).toMatch(
+      /for f in checklist\.md TODOS-format\.md; do[\s\S]*?_grok_link_under_monorepo[^\n]* 1 \|\| return 1/,
+    );
+  });
+});
+
+describe('resolveDistBinary (U2 double-home fix)', () => {
+  test('env-var browseDir never prefixes $HOME', () => {
+    expect(resolveDistBinary('$GSTACK_BROWSE', 'browse')).toBe('$GSTACK_BROWSE/browse');
+    expect(resolveDistBinary('$GSTACK_DESIGN', 'design')).toBe('$GSTACK_DESIGN/design');
+    expect(resolveDistBinary('$GSTACK_MAKE_PDF', 'pdf')).toBe('$GSTACK_MAKE_PDF/pdf');
+  });
+
+  test('tilde paths keep $HOME prefix', () => {
+    expect(resolveDistBinary('~/.claude/skills/gstack/browse/dist', 'browse')).toBe(
+      '$HOME/.claude/skills/gstack/browse/dist/browse',
+    );
   });
 });

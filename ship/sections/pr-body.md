@@ -41,13 +41,20 @@ gh pr view --json url,number,state -q 'if .state == "OPEN" then "PR #\(.number):
 glab mr view -F json 2>/dev/null | jq -r 'if .state == "opened" then "MR_EXISTS" else "NO_MR" end' 2>/dev/null || echo "NO_MR"
 ```
 
-If an **open** PR/MR already exists: **update** the PR body using `gh pr edit --body-file "$PR_BODY_FILE"` (GitHub) or `glab mr update -d ...` (GitLab). Always regenerate the PR body from scratch using this run's fresh results (test output, coverage audit, review findings, adversarial review, TODOS summary, documentation_section from Step 18). Never reuse stale PR body content from a prior run. **Run the same redaction scan-at-sink (PR body + title) as the create path (Step 19) before editing — scan the temp file, then `gh pr edit --body-file` from it.**
+If an **open** PR/MR already exists: **update** the PR body using GitHub's REST API (`gh api -X PATCH "repos/$REPO_NWO/pulls/$PR_NUMBER" --input -`) or `glab mr update -d ...` (GitLab). Do not use `gh pr edit` for GitHub updates; it can hit deprecated Projects-classic GraphQL fields on some repos. Always regenerate the PR body from scratch using this run's fresh results (test output, coverage audit, review findings, adversarial review, TODOS summary, documentation_section from Step 18). Never reuse stale PR body content from a prior run. **Run the same redaction scan-at-sink (PR body + title) as the create path (Step 19) before editing — scan the temp file, then send those exact bytes through the REST PATCH path.**
 
 **Always update the PR title to start with `v$NEW_VERSION`.** PR titles use the workspace-aware format `v<NEW_VERSION> <type>: <summary>` — version ALWAYS first, no exceptions, no "custom title kept intentionally" escape hatch. The shared helper `bin/gstack-pr-title-rewrite.sh` is the single source of truth for the rule.
 
 1. Read the current title: `CURRENT=$(gh pr view --json title -q .title)` (or `glab mr view -F json | jq -r .title`).
 2. Compute the corrected title: `NEW_TITLE=$(~/.claude/skills/gstack/bin/gstack-pr-title-rewrite.sh "$NEW_VERSION" "$CURRENT")`. The helper handles three cases: title already correct (no-op), title has a different `v<X.Y.Z.W>` prefix (replace it), or title has no version prefix (prepend one).
-3. If `NEW_TITLE` differs from `CURRENT`, run `gh pr edit --title "$NEW_TITLE"` (or `glab mr update -t "$NEW_TITLE"`).
+3. If `NEW_TITLE` differs from `CURRENT`, update GitHub via REST:
+   ```bash
+   PR_NUMBER=$(gh pr view --json number -q .number)
+   REPO_NWO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+   jq -n --arg title "$NEW_TITLE" '{title:$title}' \
+     | gh api -X PATCH "repos/$REPO_NWO/pulls/$PR_NUMBER" --input -
+   ```
+   For GitLab, run `glab mr update -t "$NEW_TITLE"`.
 4. **Self-check:** re-fetch the title and assert it starts with `v$NEW_VERSION `. If it does not, retry the edit once. If still wrong, surface the failure to the user.
 
 This keeps the title truthful when Step 12's queue-drift detection rebumps a stale version, and forces the format on PRs that were created without it.
@@ -177,14 +184,40 @@ printf '%s' "v$NEW_VERSION <type>: <summary>" | ~/.claude/skills/gstack/bin/gsta
 ```
 
 HIGH blocks (exit 3, no skip). MEDIUM → AskUserQuestion (PII subset offers
-`--auto-redact`). Same scan runs before the `gh pr edit --body` path (Step 17).
+`--auto-redact`). Same scan runs before the GitHub REST PATCH body path (Step 17).
+
+**If a GitHub PR already exists:** update from the SCANNED file with REST (exact bytes scanned = bytes sent):
+
+```bash
+PR_NUMBER=$(gh pr view --json number -q .number)
+REPO_NWO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+jq -n --rawfile body "$PR_BODY_FILE" '{body:$body}' \
+  | gh api -X PATCH "repos/$REPO_NWO/pulls/$PR_NUMBER" --input -
+rm -f "$PR_BODY_FILE"
+```
+
+**Reviewer resolution (before creating the PR/MR):**
+
+Resolve reviewers in this priority order:
+
+1. The project's CLAUDE.md has a line matching `Default reviewer: @user` — use that username.
+2. The project's CLAUDE.md has a line matching `Reviewers: @a, @b` — use that list.
+3. Otherwise, **GitHub repos only**: auto-detect non-self collaborators: `gh api repos/:owner/:repo/collaborators --jq "[.[] | select(.login != \"$(gh api user --jq .login)\") | .login] | join(\",\")" 2>/dev/null` — but only auto-assign when there are 1-2 other collaborators. With 3+, skip auto-assignment and suggest adding a `Default reviewer: @user` line to CLAUDE.md instead (requesting review from every collaborator on every ship is spam, not discipline). On GitLab there is no auto-detect — only CLAUDE.md-configured reviewers (steps 1-2) are used.
+4. If none of the above return anything, skip reviewer assignment (solo repo, no reviewers available).
+
+Set the resolved list as `_REVIEWERS` at the top of the create block below (empty if step 4 applied) — the create command picks it up in the same block.
 
 **If GitHub:** create from the SCANNED file (exact bytes scanned = bytes sent):
 
 ```bash
 # PR title MUST start with v$NEW_VERSION — enforced on every run, no exceptions.
 # (See Step 19 idempotency block + bin/gstack-pr-title-rewrite.sh for the rule.)
-gh pr create --base <base> --title "v$NEW_VERSION <type>: <summary>" --body-file "$PR_BODY_FILE"
+_REVIEWERS="<resolved reviewers from above, comma-separated, or empty>"
+# Array, not ${VAR:+...} inline expansion: zsh doesn't word-split unquoted
+# expansions, which would glue the flag and value into one broken argument.
+_REVIEWER_ARGS=()
+[ -n "$_REVIEWERS" ] && _REVIEWER_ARGS=(--reviewer "$_REVIEWERS")
+gh pr create --base <base> "${_REVIEWER_ARGS[@]}" --title "v$NEW_VERSION <type>: <summary>" --body-file "$PR_BODY_FILE"
 rm -f "$PR_BODY_FILE"
 ```
 
@@ -193,7 +226,10 @@ rm -f "$PR_BODY_FILE"
 ```bash
 # MR title MUST start with v$NEW_VERSION — enforced on every run, no exceptions.
 # (See Step 19 idempotency block + bin/gstack-pr-title-rewrite.sh for the rule.)
-glab mr create -b <base> -t "v$NEW_VERSION <type>: <summary>" -d "$(cat <<'EOF'
+_REVIEWERS="<resolved reviewers from above, comma-separated, or empty>"
+_REVIEWER_ARGS=()
+[ -n "$_REVIEWERS" ] && _REVIEWER_ARGS=(--reviewer "$_REVIEWERS")
+glab mr create -b <base> "${_REVIEWER_ARGS[@]}" -t "v$NEW_VERSION <type>: <summary>" -d "$(cat <<'EOF'
 <MR body from above>
 EOF
 )"
@@ -201,6 +237,8 @@ EOF
 
 **If neither CLI is available:**
 Print the branch name, remote URL, and instruct the user to create the PR/MR manually via the web UI. Do not stop — the code is pushed and ready.
+
+**If reviewers were assigned:** after the URL, print one line: `Review requested from <reviewers>. Don't merge until it's approved — check with gh pr view --json reviewDecision (GitHub) or glab mr view (GitLab).` On GitHub, /land-and-deploy enforces this gate before merging (Step 3.5a-ter); on GitLab the check is manual. /ship never merges — its job ends at PR creation.
 
 **Output the PR/MR URL** — then proceed to Step 20.
 

@@ -88,3 +88,41 @@ describe('gstack-config explain_level', () => {
     expect(run('get', 'explain_level').stdout).toBe('default');
   });
 });
+
+describe('gstack-config values with spaces', () => {
+  test('workspace_root preserves internal spaces on set/get/list', () => {
+    const value = path.join(os.tmpdir(), 'Conductor Workspaces');
+    expect(run('set', 'workspace_root', value).status).toBe(0);
+
+    expect(run('get', 'workspace_root').stdout).toBe(value);
+
+    const listed = run('list');
+    expect(listed.status).toBe(0);
+    expect(
+      listed.stdout
+        .split('\n')
+        .some((line) => line.includes('workspace_root:') && line.includes(value) && line.includes('(set)')),
+    ).toBe(true);
+  });
+
+  test('hand-edited inline comments are stripped, bare # in a value is kept', () => {
+    // Simulate a user hand-annotating a value in config.yaml (YAML comment).
+    expect(run('set', 'auto_upgrade', 'true').status).toBe(0);
+    const cfg = path.join(tmpHome, 'config.yaml');
+    fs.writeFileSync(cfg, fs.readFileSync(cfg, 'utf-8').replace(/^auto_upgrade: true$/m, 'auto_upgrade: true # enable updates'));
+    expect(run('get', 'auto_upgrade').stdout).toBe('true');
+
+    // A # not preceded by whitespace is part of the value, not a comment.
+    expect(run('set', 'workspace_root', '/srv/builds#nightly').status).toBe(0);
+    expect(run('get', 'workspace_root').stdout).toBe('/srv/builds#nightly');
+  });
+
+  test('an empty value with an inline comment falls through to the default', () => {
+    // YAML null + note: 'explain_level: # decide later' must not return the
+    // comment text as the value.
+    const cfg = path.join(tmpHome, 'config.yaml');
+    expect(run('set', 'explain_level', 'terse').status).toBe(0);
+    fs.writeFileSync(cfg, fs.readFileSync(cfg, 'utf-8').replace(/^explain_level: terse$/m, 'explain_level: # decide later'));
+    expect(run('get', 'explain_level').stdout).toBe('default');
+  });
+});

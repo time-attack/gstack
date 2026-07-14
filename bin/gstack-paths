@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 # gstack-paths — output portable state-root paths for skill bash blocks
-# Usage: eval "$(gstack-paths)"  → sets GSTACK_STATE_ROOT, PLAN_ROOT, TMP_ROOT
-# Or:    gstack-paths            → prints GSTACK_STATE_ROOT=... etc.
+# Usage: eval "$(gstack-paths)"        → sets GSTACK_STATE_ROOT, PLAN_ROOT, TMP_ROOT
+#        gstack-paths                  → prints GSTACK_STATE_ROOT=... etc.
+#        gstack-paths --get <key>      → prints a single resolved path (no KEY= prefix)
+#                                         where <key> is state-root | plan-root | tmp-root
+#
+# The --get form was added so callers can use `PLAN_ROOT=$(gstack-paths --get plan-root)`
+# instead of `eval "$(gstack-paths)"`. The eval form trips Claude Code's PreToolUse
+# bash AST parser (tilde inside $() inside double-quoted eval arg = "Unhandled node
+# type: string"), forcing manual approval on every skill that needs portable roots.
+# See issue #1329 Pattern 2.
 #
 # Resolves three roots with explicit fallback chains so skills work the same
 # whether installed as a Claude Code plugin (CLAUDE_PLUGIN_DATA / CLAUDE_PLANS_DIR
@@ -23,6 +31,27 @@ set -u
 _shell_quote() {
   printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
 }
+
+# Parse optional --get <key> selector.
+_get_key=""
+case "${1:-}" in
+  --help|-h)
+    sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+    ;;
+  --get)
+    if [ -z "${2:-}" ]; then
+      echo "gstack-paths: --get requires a key (state-root|plan-root|tmp-root)" >&2
+      exit 1
+    fi
+    _get_key="$2"
+    ;;
+  "" ) ;;  # bare invocation — backward-compatible default output
+  *)
+    echo "gstack-paths: unknown argument '$1' (expected --get <key>)" >&2
+    exit 1
+    ;;
+esac
 
 # State root: where gstack writes projects/, sessions/, analytics/.
 if [ -n "${GSTACK_HOME:-}" ]; then
@@ -66,6 +95,20 @@ fi
 # will discover that on their own write attempt. Don't fail the eval here.
 mkdir -p "$_tmp_root" 2>/dev/null || true
 
-printf 'GSTACK_STATE_ROOT=%s\n' "$(_shell_quote "$_state_root")"
-printf 'PLAN_ROOT=%s\n' "$(_shell_quote "$_plan_root")"
-printf 'TMP_ROOT=%s\n' "$(_shell_quote "$_tmp_root")"
+if [ -n "$_get_key" ]; then
+  # --get prints the raw value for direct consumption (not eval'd) — no quoting.
+  case "$_get_key" in
+    state-root) printf '%s\n' "$_state_root" ;;
+    plan-root)  printf '%s\n' "$_plan_root" ;;
+    tmp-root)   printf '%s\n' "$_tmp_root" ;;
+    *)
+      echo "gstack-paths: unknown key '$_get_key' (expected state-root|plan-root|tmp-root)" >&2
+      exit 1
+      ;;
+  esac
+else
+  # Bare form is eval'd by consumers — single-quote so paths with spaces survive.
+  printf 'GSTACK_STATE_ROOT=%s\n' "$(_shell_quote "$_state_root")"
+  printf 'PLAN_ROOT=%s\n' "$(_shell_quote "$_plan_root")"
+  printf 'TMP_ROOT=%s\n' "$(_shell_quote "$_tmp_root")"
+fi

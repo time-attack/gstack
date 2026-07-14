@@ -68,6 +68,30 @@ describe("smartypants", () => {
     // it should remain intact. We're lenient here — acceptable either way.
     expect(out).toMatch(/--verbose|—verbose/);
   });
+
+  test("URL directly before a tag does not leak carve placeholders (#2012)", () => {
+    // A URL adjacent to a carved tag placeholder used to swallow it (\S matches
+    // NUL), leaking literal SMARTPANTS_PRESERVED_N text and eating the tag.
+    const out = smartypants(`<p>Visit https://example.com</p>`);
+    expect(out).not.toContain("SMARTPANTS_PRESERVED");
+    expect(out).toContain("</p>");
+    expect(out).toContain("https://example.com");
+  });
+
+  test("input NUL bytes cannot forge a carve placeholder", () => {
+    // A forged placeholder must stay inert (NULs stripped, never substituted
+    // with someone else's carved content).
+    const out = smartypants("<p>x</p> a \u0000SMARTPANTS_PRESERVED_0\u0000 b");
+    expect(out).not.toContain("\u0000");
+    expect(out).toContain("a SMARTPANTS_PRESERVED_0 b");
+    expect(out).toContain("<p>x</p>");
+  });
+
+  test("CJK punctuation opens quotes (fullwidth colon)", () => {
+    const out = smartypants(`<p>他说："hi"</p>`);
+    expect(out).toContain("：“");   // opening after ：, not closing
+    expect(out).toContain("hi”");
+  });
 });
 
 // ─── sanitizer ──────────────────────────────────────────────
@@ -101,18 +125,20 @@ describe("sanitizeUntrustedHtml", () => {
     expect(sanitizeUntrustedHtml(input2)).not.toContain("ONCLICK");
   });
 
-  test("rewrites javascript: URLs in href to #", () => {
+  test("removes javascript: URLs in href", () => {
     const input = `<a href="javascript:alert(1)">bad</a>`;
     const out = sanitizeUntrustedHtml(input);
     expect(out).not.toContain("javascript:");
-    expect(out).toContain('href="#"');
+    expect(out).toContain("<a");
+    expect(out).not.toContain("href=");
   });
 
-  test("strips inline SVG <script>", () => {
+  test("drops inline SVG content", () => {
     const input = `<svg><script>alert(1)</script><circle r="5"/></svg>`;
     const out = sanitizeUntrustedHtml(input);
     expect(out).not.toContain("<script");
-    expect(out).toContain("<circle");
+    expect(out).not.toContain("<svg");
+    expect(out).not.toContain("<circle");
   });
 
   test("strips <object>, <embed>, <link>, <meta>, <base>, <form>", () => {
@@ -136,6 +162,43 @@ describe("sanitizeUntrustedHtml", () => {
   test("strips srcdoc attribute (iframe escape vector)", () => {
     const input = `<div srcdoc="<script>bad</script>">hi</div>`;
     expect(sanitizeUntrustedHtml(input)).not.toContain("srcdoc");
+  });
+
+  test("keeps data-gstack-* attributes (image-policy pipeline contract)", () => {
+    const input = `<img src="x.png" alt="chart" data-gstack-width="50%" data-gstack-page="landscape">`;
+    const out = sanitizeUntrustedHtml(input);
+    expect(out).toContain('data-gstack-width="50%"');
+    expect(out).toContain('data-gstack-page="landscape"');
+  });
+
+  test("keeps GFM task-list checkboxes", () => {
+    const input = `<ul><li><input type="checkbox" checked disabled> done</li></ul>`;
+    const out = sanitizeUntrustedHtml(input);
+    expect(out).toContain("<input");
+    expect(out).toContain('type="checkbox"');
+  });
+
+  test("keeps <del>, <ins>, and ol start", () => {
+    const input = `<del>gone</del><ins>new</ins><ol start="4"><li>x</li></ol>`;
+    const out = sanitizeUntrustedHtml(input);
+    expect(out).toContain("<del>gone</del>");
+    expect(out).toContain("<ins>new</ins>");
+    expect(out).toContain('<ol start="4">');
+  });
+
+  test("keeps inline style attributes (old sanitizer behavior)", () => {
+    const input = `<div style="text-align:center">centered</div>`;
+    expect(sanitizeUntrustedHtml(input)).toContain('style="text-align:center"');
+  });
+
+  test("keeps local image sources (file: URLs and Windows drive paths)", () => {
+    // inlineLocalImages runs post-sanitize and supports both forms.
+    const fileUrl = `<img src="file:///abs/chart.png" alt="a">`;
+    const drive = `<img src="C:/images/chart.png" alt="b">`;
+    expect(sanitizeUntrustedHtml(fileUrl)).toContain('src="file:///abs/chart.png"');
+    expect(sanitizeUntrustedHtml(drive)).toContain('src="C:/images/chart.png"');
+    // javascript: on img is still stripped.
+    expect(sanitizeUntrustedHtml(`<img src="javascript:alert(1)">`)).not.toContain("javascript:");
   });
 });
 
@@ -168,6 +231,14 @@ describe("render (end-to-end)", () => {
       title: "Explicit Title",
     });
     expect(result.meta.title).toBe("Explicit Title");
+  });
+
+  test("image directives survive sanitization end-to-end", () => {
+    const result = render({
+      markdown: `# Doc\n\n![chart](chart.png){width=50% page=landscape}\n`,
+    });
+    expect(result.html).toContain('data-gstack-width="50%"');
+    expect(result.html).toContain('data-gstack-page="landscape"');
   });
 
   test("includes cover block when cover=true", () => {
@@ -227,6 +298,56 @@ describe("render (end-to-end)", () => {
     expect(result.html).toContain("Two");
   });
 
+  test("TOC anchors and page-number targets resolve to heading ids in the body", () => {
+    const result = render({
+      markdown: `# One\n\n## Sub\n\nbody\n\n# Two\n\nbody\n`,
+      toc: true,
+    });
+    const hrefs = [...result.html.matchAll(/href="#(toc-\d+)"/g)].map((m) => m[1]);
+    const targets = [...result.html.matchAll(/data-toc-target="(toc-\d+)"/g)].map((m) => m[1]);
+    const headingIds = [...result.html.matchAll(/<h[1-3][^>]*\bid="([^"]+)"/g)].map((m) => m[1]);
+
+    // Three headings produce three TOC entries, and the page targets mirror the anchors.
+    expect(hrefs).toHaveLength(3);
+    expect(targets).toEqual(hrefs);
+
+    // Every anchor and page target resolves to a real heading id in the body,
+    // assigned in document order (so Paged.js can count pages against them).
+    expect(headingIds).toEqual(["toc-0", "toc-1", "toc-2"]);
+    for (const id of hrefs) expect(headingIds).toContain(id);
+  });
+
+  test("does not inject heading ids when toc is off", () => {
+    const result = render({ markdown: `# One\n\n## Sub\n\nbody\n`, toc: false });
+    expect(result.html).not.toContain(`id="toc-`);
+  });
+
+  test("an empty heading does not shift TOC anchor pairing", () => {
+    const result = render({
+      markdown: `<h2></h2>\n\n# Real\n\nbody\n`,
+      toc: true,
+    });
+    // The empty heading gets no id slot; the visible entry links to the id
+    // that is actually on the "Real" heading.
+    const href = result.html.match(/href="#(toc-\d+)"/)?.[1];
+    expect(href).toBeDefined();
+    expect(result.html).toMatch(new RegExp(`<h1[^>]*id="${href}"[^>]*>Real</h1>`));
+  });
+
+  test("TOC reuses a heading's existing id instead of duplicating it", () => {
+    const result = render({
+      markdown: `<h2 id="intro">Intro</h2>\n\nbody\n`,
+      toc: true,
+    });
+    // The TOC entry points at the heading's own id, and no toc-N id is injected.
+    expect(result.html).toContain(`href="#intro"`);
+    expect(result.html).not.toContain(`id="toc-0"`);
+    // Exactly one id on the heading (no duplicate id attribute).
+    const introHeading = result.html.match(/<h2[^>]*>Intro<\/h2>/);
+    expect(introHeading).not.toBeNull();
+    expect((introHeading![0].match(/\bid=/g) || []).length).toBe(1);
+  });
+
   test("strips dangerous HTML from untrusted markdown", () => {
     const result = render({
       markdown: `# Safe\n\n<script>alert('xss')</script>\n\nBody.`,
@@ -248,6 +369,56 @@ describe("render (end-to-end)", () => {
     const result = render({ markdown: `body` });
     expect(result.printCss).toContain("Hiragino Kaku Gothic");
     expect(result.printCss).toContain("Noto Sans CJK");
+  });
+
+  test("CJK stack lists Simplified Chinese before Japanese (#2012)", () => {
+    const result = render({ markdown: `body` });
+    const css = result.printCss;
+    expect(css.indexOf("PingFang SC")).toBeGreaterThan(-1);
+    expect(css.indexOf("PingFang SC")).toBeLessThan(css.indexOf("Hiragino Kaku Gothic"));
+  });
+
+  // ─── blank-first-page regression (#1904) ────────────────────────
+  // Any content before the first <h1> used to become a standalone preamble
+  // .chapter. That section takes the `:first-of-type { break-before: auto }`
+  // exception, so the first real chapter inherits `break-before: page` and
+  // starts on page 2 — leaving a blank/near-blank page 1.
+
+  test("a leading <style> preamble does not get its own chapter (no blank page 1)", () => {
+    const result = render({ markdown: `<style>h1{color:#000}</style>\n\n# Hello\n\nBody.\n` });
+    const chapters = result.html.match(/class="chapter"/g) ?? [];
+    // One chapter, not two — the invisible <style> no longer forces a page break.
+    expect(chapters.length).toBe(1);
+    // ...and the style is preserved (folded into the first chapter, not dropped).
+    expect(result.html).toContain("<style>h1{color:#000}</style>");
+    expect(result.html).toMatch(/<section class="chapter"><style>[\s\S]*?<\/style>[\s\S]*?<h1/);
+  });
+
+  test("leading YAML frontmatter is stripped, not rendered as body text", () => {
+    const result = render({
+      markdown: `---\ntitle: My Doc\ntype: memo\ntags: [a, b]\n---\n\n# Hello\n\nBody.\n`,
+    });
+    // Frontmatter keys must not leak into the rendered body.
+    expect(result.html).not.toContain("type: memo");
+    expect(result.html).not.toContain("tags: [a, b]");
+    // No preamble chapter -> single chapter, first H1 on page 1.
+    const chapters = result.html.match(/class="chapter"/g) ?? [];
+    expect(chapters.length).toBe(1);
+    expect(result.meta.title).toBe("Hello");
+  });
+
+  test("a real text preamble still gets its own chapter (unchanged behavior)", () => {
+    const result = render({ markdown: `Intro paragraph.\n\n# Hello\n\nBody.\n` });
+    const chapters = result.html.match(/class="chapter"/g) ?? [];
+    expect(chapters.length).toBe(2);
+  });
+
+  test("a `---` thematic break that is not frontmatter is left intact", () => {
+    // Opening with visible text means the later `---` is a real <hr>, not frontmatter.
+    const result = render({ markdown: `# Hello\n\nBefore.\n\n---\n\nAfter.\n` });
+    // sanitize-html serializes void elements self-closing: <hr />
+    expect(result.html).toMatch(/<hr ?\/?>/);
+    expect(result.html).toContain("After.");
   });
 });
 

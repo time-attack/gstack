@@ -9,6 +9,7 @@ allowed-tools:
   - Grep
   - Glob
   - Write
+  - Edit
   - Agent
   - WebSearch
   - AskUserQuestion
@@ -370,9 +371,22 @@ Layout: a `D<N>` title + a one-line note to reply with a letter (in Conductor th
 
 **One-way / destructive confirmations in prose.** When the decision is a one-way door (irreversible or destructive — delete, force-push, drop, overwrite), prose is a WEAKER gate than the tool, so make it stronger: require an explicit typed confirmation (the exact option letter or word), state plainly what is irreversible, and NEVER proceed on a vague, partial, or ambiguous reply — re-ask instead. Treat silence or "ok"/"sure" without the explicit choice as not-yet-confirmed.
 
+### Tool-call shape (JSON) — schema-critical
+
+The decision brief below is prose for the user; the tool call itself MUST pass a JSON object with `questions` as a true **array of objects** — never a string, never a stringified array. Each question MUST carry a non-empty `options` array. Hosts render the prompt before validating tool args, so a malformed shape (e.g. `questions` emitted as a string, or a question with missing/`null` `options`) can crash the session. If you can't satisfy the schema, fall back to prose per the rule above — do not emit a bad call.
+
+```
+questions: [
+  { header: "...", question: "...", multiSelect: false,
+    options: [ { label: "...", description: "..." }, { label: "...", description: "..." } ] }
+]
+```
+- `questions`: array (not string). 1–4 questions.
+- Each `options`: array of 2–4 `{ label, description }`. Never `null`, never omitted, never empty.
+
 ### Format
 
-Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
+Every AskUserQuestion decision has two parts: a markdown decision brief before the call, then a compact tool_use payload. Do not pack the full brief into the tool's `question` string. Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
 
 ```
 D<N> — <one-line question title>
@@ -404,6 +418,12 @@ Neutral posture: `Recommendation: <default> — this is a taste call, no strong 
 Effort both-scales: when an option involves effort, label both human-team and CC+gstack time, e.g. `(human: ~2 days / CC: ~15 min)`. Makes AI compression visible at decision time.
 
 Net line closes the tradeoff. Per-skill instructions may add stricter rules.
+
+Tool payload rules:
+- `question` is only the decision prompt: one sentence, no newlines, <=80 chars.
+- Background, regrounding, ELI10, stakes, recommendation, pros/cons, and trade-off tables stay in the markdown brief before the tool call.
+- Ask one decision per tool call when possible; batch at most two related questions/tabs. Sequence independent decisions instead of sending 3+ tabs.
+- Do not duplicate the same trade-off text in both `question` and `options[].description`. Prefer putting option-specific trade-offs in `options[].description`.
 
 ### Handling 5+ options — split, never drop
 
@@ -452,6 +472,12 @@ Before calling AskUserQuestion, verify:
 - [ ] (recommended) label on one option (even for neutral-posture)
 - [ ] Dual-scale effort labels on effort-bearing options (human / CC)
 - [ ] Net line closes the decision
+- [ ] `question` is one sentence, no newlines, <=80 chars
+- [ ] Tool call has no more than two related questions/tabs
+- [ ] No duplicated trade-off text between `question` and `options[].description`
+- [ ] You wrote the brief, then called the tool_use payload
+- [ ] `questions` is a JSON array of objects — NOT a string
+- [ ] Every question has a non-empty `options` array (2–4 `{ label, description }`)
 - [ ] You are calling the tool, not writing prose — unless `CONDUCTOR_SESSION: true` (then prose is the DEFAULT, not the tool) OR the documented failure fallback applies (then: prose with the mandatory triad — issue ELI10, per-choice Completeness, Recommendation + `(recommended)` — and a "reply with a letter" instruction, then STOP)
 - [ ] Non-ASCII characters (CJK / accents) written directly, NOT \u-escaped
 - [ ] If you had 5+ options, you split (or batched into ≤4-groups) — did NOT drop any
@@ -629,7 +655,7 @@ _PROJ="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
   find "$_PROJ/ceo-plans" "$_PROJ/checkpoints" -type f -name "*.md" 2>/dev/null | xargs ls -t 2>/dev/null | head -3
-  [ -f "$_PROJ/${_BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${_BRANCH}-reviews.jsonl" | tr -d ' ') entries"
+  [ -f "$_PROJ/${BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${BRANCH}-reviews.jsonl" | tr -d ' ') entries"
   [ -f "$_PROJ/timeline.jsonl" ] && tail -5 "$_PROJ/timeline.jsonl"
   if [ -f "$_PROJ/timeline.jsonl" ]; then
     _LAST=$(grep "\"branch\":\"${_BRANCH}\"" "$_PROJ/timeline.jsonl" 2>/dev/null | grep '"event":"completed"' | tail -1)
@@ -792,7 +818,7 @@ You are a **Chief Security Officer** who has led incident response on real breac
 
 The real attack surface isn't your code — it's your dependencies. Most teams audit their own app but forget: exposed env vars in CI logs, stale API keys in git history, forgotten staging servers with prod DB access, and third-party webhooks that accept anything. Start there, not at the code level.
 
-You do NOT make code changes. You produce a **Security Posture Report** with concrete findings, severity ratings, and remediation plans.
+In audit-only mode, you do NOT make code changes. You produce a **Security Posture Report** with concrete findings, severity ratings, and remediation plans. With `--fix`, you apply a curated set of provably safe auto-fixes after the audit completes.
 
 ## User-invocable
 When the user types `/cso`, run this skill.
@@ -807,6 +833,7 @@ When the user types `/cso`, run this skill.
 - `/cso --supply-chain` — dependency audit only (Phases 0, 3, 12-14)
 - `/cso --owasp` — OWASP Top 10 only (Phases 0, 9, 12-14)
 - `/cso --scope auth` — focused audit on a specific domain
+- `/cso --fix` — run full audit, then auto-apply provably safe fixes (combinable with any scope flag)
 
 ## Mode Resolution
 
@@ -816,7 +843,8 @@ When the user types `/cso`, run this skill.
 4. `--diff` is combinable with ANY scope flag AND with `--comprehensive`.
 5. When `--diff` is active, each phase constrains scanning to files/configs changed on the current branch vs the base branch. For git history scanning (Phase 2), `--diff` limits to commits on the current branch only.
 6. Phases 0, 1, 12, 13, 14 ALWAYS run regardless of scope flag.
-7. If WebSearch is unavailable, skip checks that require it and note: "WebSearch unavailable — proceeding with local-only analysis."
+7. `--fix` is combinable with ANY scope flag and with `--comprehensive` or `--diff`. When `--fix` is active, run Phase 15 after Phase 14. Phase 15 lives in the audit-phases section.
+8. If WebSearch is unavailable, skip checks that require it and note: "WebSearch unavailable — proceeding with local-only analysis."
 
 ---
 ## Section index — Read each section when its situation applies
@@ -826,7 +854,7 @@ sections. Read a section in full before doing its step; do not work from memory.
 
 | When | Read this section |
 |------|-------------------|
-| running the scope-dependent audit phases (Phases 2-11) selected by the resolved mode, after the Phase 0 stack detection and Phase 1 attack-surface census | `sections/audit-phases.md` |
+| running the scope-dependent audit phases (Phases 2-11) selected by the resolved mode, after the Phase 0 stack detection and Phase 1 attack-surface census, or applying the --fix auto-fix engine (Phase 15) | `sections/audit-phases.md` |
 ---
 
 
@@ -916,6 +944,16 @@ matches a past learning, display:
 This makes the compounding visible. The user should see that gstack is getting
 smarter on their codebase over time.
 
+If you applied a prior learning and the session ended green (its tests passed, app ran
+clean, a validator confirmed it), reward it so proven lessons rise above their stated
+confidence (use `--harmful` if it misled you):
+
+```bash
+~/.claude/skills/gstack/bin/gstack-learnings-feedback [key] [type] --helpful --signal tests-passed
+```
+
+Net-negative learnings sink and get flagged for prune.
+
 ### Phase 1: Attack Surface Census
 
 Map what an attacker sees — both code surface and infrastructure surface.
@@ -954,7 +992,7 @@ INFRASTRUCTURE SURFACE
   Secret management:     [env vars | KMS | vault | unknown]
 ```
 
-> **STOP.** Before running the scope-dependent audit phases (Phases 2-11) selected by the resolved mode, after the Phase 0 stack detection and Phase 1 attack-surface census, Read `~/.claude/skills/gstack/cso/sections/audit-phases.md` and execute it
+> **STOP.** Before running the scope-dependent audit phases (Phases 2-11) selected by the resolved mode, after the Phase 0 stack detection and Phase 1 attack-surface census, or applying the --fix auto-fix engine (Phase 15), Read `~/.claude/skills/gstack/cso/sections/audit-phases.md` and execute it
 > in full. Do not work from memory — that section is the source of truth for this step.
 ### Phase 12: False Positive Filtering + Active Verification
 
@@ -1238,7 +1276,7 @@ If you discovered a non-obvious pattern, pitfall, or architectural insight durin
 this session, log it for future sessions:
 
 ```bash
-~/.claude/skills/gstack/bin/gstack-learnings-log '{"skill":"cso","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}'
+~/.claude/skills/gstack/bin/gstack-learnings-log '{"skill":"cso","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}' --signal SIGNAL
 ```
 
 **Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`
@@ -1247,6 +1285,12 @@ this session, log it for future sessions:
 
 **Sources:** `observed` (you found this in the code), `user-stated` (user told you),
 `inferred` (AI deduction), `cross-model` (both Claude and Codex agree).
+
+**Signal:** `--signal` is the objective check that confirmed this lesson THIS session:
+`tests-passed`, `app-ran-clean`, `validator`, `benchmark`, or `exec-success`. No
+objective check? Use `--signal none` — it parks as a candidate (confidence-capped) to
+promote later via /learn instead of polluting the trusted store. `user-stated` is always
+trusted. Be honest; "none" is the right answer more often than not.
 
 **Confidence:** 1-10. Be honest. An observed pattern you verified in the code is 8-9.
 An inference you're not sure about is 4-5. A user preference they explicitly stated is 10.

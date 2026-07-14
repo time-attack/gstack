@@ -1,6 +1,6 @@
 {
   "name": "gstack",
-  "version": "1.60.1.0",
+  "version": "1.61.0.0",
   "description": "Garry's Stack — Claude Code skills + fast headless browser. One repo, one install, entire AI engineering workflow.",
   "license": "MIT",
   "type": "module",
@@ -18,7 +18,7 @@
     "gen:skill-docs:user": "bun run scripts/gen-skill-docs.ts --respect-detection",
     "dev": "bun run browse/src/cli.ts",
     "server": "bun run browse/src/server.ts",
-    "test": "bun test browse/test/ test/ make-pdf/test/ --ignore 'test/skill-e2e-*.test.ts' --ignore test/skill-llm-eval.test.ts --ignore test/skill-routing-e2e.test.ts --ignore test/codex-e2e.test.ts --ignore test/gemini-e2e.test.ts && (bun run slop:diff 2>/dev/null || true)",
+    "test": "bun test browse/test/ test/ make-pdf/test/ design/test/ --ignore 'test/skill-e2e-*.test.ts' --ignore test/skill-llm-eval.test.ts --ignore test/skill-routing-e2e.test.ts --ignore test/codex-e2e.test.ts --ignore test/gemini-e2e.test.ts && (bun run slop:diff 2>/dev/null || true)",
     "test:free": "bun run scripts/test-free-shards.ts",
     "test:windows": "bun run scripts/test-free-shards.ts --windows-only",
     "test:evals": "EVALS=1 bun test --retry 2 --concurrent --max-concurrency ${EVALS_CONCURRENCY:-15} test/skill-llm-eval.test.ts test/skill-e2e-*.test.ts test/skill-routing-e2e.test.ts test/codex-e2e.test.ts test/gemini-e2e.test.ts",
@@ -51,11 +51,12 @@
   "dependencies": {
     "@huggingface/transformers": "^4.1.0",
     "@ngrok/ngrok": "^1.7.0",
-    "diff": "^7.0.0",
+    "diff": "^9.0.0",
     "html-to-docx": "1.8.0",
     "marked": "^18.0.2",
     "playwright": "^1.60.0",
     "puppeteer-core": "^24.40.0",
+    "sanitize-html": "^2.17.3",
     "socks": "^2.8.8"
   },
   "engines": {
@@ -76,5 +77,8 @@
     "@anthropic-ai/sdk": "^0.78.0",
     "xterm": "5",
     "xterm-addon-fit": "^0.8.0"
+  },
+  "overrides": {
+    "basic-ftp": "5.3.1"
   }
 }

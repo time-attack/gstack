@@ -128,10 +128,17 @@ Use the install type and directory detected in Step 2:
 **For git installs** (global-git, local-git):
 ```bash
 cd "$INSTALL_DIR"
-STASH_OUTPUT=$(git stash 2>&1)
+STASH_OUTPUT=$(git stash push --include-untracked -m "pre-upgrade-$(date +%Y-%m-%d)" 2>&1)
 git fetch origin
-git reset --hard origin/main
-./setup
+# Try fast-forward first. Safer than reset --hard and passes through guard
+# hooks (Claude Code PreToolUse, pre-commit wrappers) that block destructive
+# ops. Falls back to reset for divergent history — no-op when the working
+# tree is clean and there are no local commits, which is the expected state
+# for a global install.
+if ! git merge --ff-only origin/main 2>/dev/null; then
+  git reset --hard origin/main
+fi
+./setup --host auto
 ```
 If `$STASH_OUTPUT` contains "Saved working directory", warn the user: "Note: local changes were stashed. Run `git stash pop` in the skill directory to restore them."
 
@@ -140,9 +147,12 @@ If `$STASH_OUTPUT` contains "Saved working directory", warn the user: "Note: loc
 PARENT=$(dirname "$INSTALL_DIR")
 TMP_DIR=$(mktemp -d)
 git clone --depth 1 https://github.com/garrytan/gstack.git "$TMP_DIR/gstack"
+# Clear any stale backup from an interrupted prior upgrade — mv onto an
+# existing directory would nest the install inside it (recursive .bak trees).
+rm -rf "$INSTALL_DIR.bak"
 mv "$INSTALL_DIR" "$INSTALL_DIR.bak"
 mv "$TMP_DIR/gstack" "$INSTALL_DIR"
-cd "$INSTALL_DIR" && ./setup
+cd "$INSTALL_DIR" && ./setup --host auto
 rm -rf "$INSTALL_DIR.bak" "$TMP_DIR"
 ```
 
@@ -179,10 +189,13 @@ Tell user: "Removed vendored copy at `$LOCAL_GSTACK` (team mode active — globa
 
 **If `LOCAL_GSTACK` is non-empty AND `TEAM_MODE` is NOT `true`:** Update it by copying from the freshly-upgraded primary install (same approach as README vendored install):
 ```bash
+# Clear any stale backup from an interrupted prior upgrade — mv onto an
+# existing directory would nest the copy inside it (recursive .bak trees).
+rm -rf "$LOCAL_GSTACK.bak"
 mv "$LOCAL_GSTACK" "$LOCAL_GSTACK.bak"
 cp -Rf "$INSTALL_DIR" "$LOCAL_GSTACK"
 rm -rf "$LOCAL_GSTACK/.git"
-cd "$LOCAL_GSTACK" && ./setup
+cd "$LOCAL_GSTACK" && ./setup --host auto
 rm -rf "$LOCAL_GSTACK.bak"
 ```
 Tell user: "Also updated vendored copy at `$LOCAL_GSTACK` — commit `.claude/skills/gstack/` when you're ready."

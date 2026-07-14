@@ -650,33 +650,64 @@ function parseTranscriptJsonl(path: string): ParsedSession | null {
   let messageCount = 0;
   let toolCalls = 0;
   const bodyParts: string[] = [];
+  // Codex rollouts render the same message twice (event_msg + response_item),
+  // always back-to-back. Dedupe ADJACENT repeats only — a global seen-set
+  // would also drop legitimately repeated messages ("continue" sent twice).
+  let lastMessageKey = "";
+  const appendMessage = (role: string, content: string): void => {
+    const normalizedRole = (role || "user").toLowerCase();
+    if (normalizedRole !== "user" && normalizedRole !== "assistant") return;
+    const dedupeKey = `${normalizedRole}\0${content}`;
+    // Only Codex double-renders adjacent duplicates (event_msg + response_item);
+    // Claude transcripts keep every message, matching pre-wave behavior.
+    if (isCodex && dedupeKey === lastMessageKey) return;
+    lastMessageKey = dedupeKey;
+    bodyParts.push(`## ${normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1)}\n\n${content}`);
+    messageCount++;
+  };
+
   for (const rec of parsedLines) {
+    if (isCodex && rec?.payload) {
+      const payload = rec.payload;
+      if (payload?.type === "message" && payload.role) {
+        const content = extractContentText(payload);
+        if (content) appendMessage(payload.role, content);
+      } else if (payload?.type === "user_message" || payload?.type === "agent_message") {
+        const content = extractContentText(payload);
+        if (content) {
+          appendMessage(payload.type === "agent_message" ? "assistant" : "user", content);
+        }
+      } else if (payload?.type === "function_call") {
+        toolCalls++;
+        const tool = payload.name || "tool";
+        bodyParts.push(`### Tool call: ${tool}`);
+      } else if (payload?.message && (payload.message?.role || payload.role)) {
+        // Require an explicit role: codex error/status events also carry a
+        // string `message` but no role — defaulting those to "user" would
+        // fabricate conversation turns.
+        const msg = payload.message;
+        const role = msg.role || payload.role;
+        const content = extractContentText(msg);
+        if (content) appendMessage(role, content);
+      }
+      continue;
+    }
+
     if (rec?.type === "user" || rec?.message?.role === "user") {
       const content = extractContentText(rec);
       if (content) {
-        bodyParts.push(`## User\n\n${content}`);
-        messageCount++;
+        appendMessage("user", content);
       }
     } else if (rec?.type === "assistant" || rec?.message?.role === "assistant") {
       const content = extractContentText(rec);
       if (content) {
-        bodyParts.push(`## Assistant\n\n${content}`);
-        messageCount++;
+        appendMessage("assistant", content);
       }
     } else if (rec?.type === "tool" || rec?.tool_use_id || rec?.tool_call) {
       toolCalls++;
       // Collapse to one-line summary
       const tool = rec?.name || rec?.tool || rec?.tool_call?.name || "tool";
       bodyParts.push(`### Tool call: ${tool}`);
-    } else if (isCodex && rec?.payload?.message) {
-      // Codex shape: each record has payload.message
-      const msg = rec.payload.message;
-      const role = msg.role || "user";
-      const content = extractContentText(msg);
-      if (content) {
-        bodyParts.push(`## ${role.charAt(0).toUpperCase() + role.slice(1)}\n\n${content}`);
-        messageCount++;
-      }
     }
   }
 
@@ -697,18 +728,36 @@ function parseTranscriptJsonl(path: string): ParsedSession | null {
 
 function extractContentText(rec: any): string {
   if (!rec) return "";
+  if (typeof rec === "string") return rec;
   if (typeof rec.content === "string") return rec.content;
   if (typeof rec.text === "string") return rec.text;
+  if (typeof rec.message === "string") return rec.message;
   if (typeof rec.message?.content === "string") return rec.message.content;
   if (Array.isArray(rec.message?.content)) {
     return rec.message.content
-      .map((c: any) => (typeof c === "string" ? c : c?.text || ""))
+      .map((c: any) => {
+        if (typeof c === "string") return c;
+        // tool_result payloads are not conversation text — and their array-form
+        // content would stringify to "[object Object]".
+        if (c?.type === "tool_result") return "";
+        if (typeof c?.text === "string") return c.text;
+        if (typeof c?.content === "string") return c.content;
+        return "";
+      })
       .filter(Boolean)
       .join("\n");
   }
   if (Array.isArray(rec.content)) {
     return rec.content
-      .map((c: any) => (typeof c === "string" ? c : c?.text || ""))
+      .map((c: any) => {
+        if (typeof c === "string") return c;
+        // tool_result payloads are not conversation text — and their array-form
+        // content would stringify to "[object Object]".
+        if (c?.type === "tool_result") return "";
+        if (typeof c?.text === "string") return c.text;
+        if (typeof c?.content === "string") return c.content;
+        return "";
+      })
       .filter(Boolean)
       .join("\n");
   }
