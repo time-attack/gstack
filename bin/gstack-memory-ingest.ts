@@ -527,6 +527,19 @@ function* walkAllSources(ctx: WalkContext): Generator<{ path: string; type: Memo
   yield* walkGstackArtifacts(ctx);
 }
 
+function transcriptIngestMode(): "enabled" | "off" {
+  try {
+    const raw = readFileSync(join(GSTACK_HOME, "config.yaml"), "utf-8");
+    const match = raw.match(/^transcript_ingest_mode:\s*([^#\s]+)\s*(?:#.*)?$/m);
+    const value = match?.[1]?.toLowerCase();
+    return value === "off" ? "off" : "enabled";
+  } catch {
+    // Preserve compatibility for pre-setting installs. Repository trust below
+    // still fails closed for attributed transcripts.
+    return "enabled";
+  }
+}
+
 // ── Renderers ──────────────────────────────────────────────────────────────
 
 interface ParsedSession {
@@ -680,6 +693,29 @@ function resolveGitRemote(cwd: string): string {
     return canonicalizeRemote(out.trim());
   } catch {
     return "";
+  }
+}
+
+let cachedCurrentRepoRemote: string | undefined;
+function currentRepoRemote(): string {
+  if (cachedCurrentRepoRemote !== undefined) return cachedCurrentRepoRemote;
+  cachedCurrentRepoRemote = resolveGitRemote(process.cwd());
+  return cachedCurrentRepoRemote;
+}
+
+let cachedRepoPolicy: Record<string, unknown> | undefined;
+function repoTrustTier(remote: string): string {
+  if (!remote) return "unset";
+  try {
+    cachedRepoPolicy ??= JSON.parse(
+      readFileSync(join(GSTACK_HOME, "gbrain-repo-policy.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    const tier = cachedRepoPolicy[canonicalizeRemote(remote)];
+    return typeof tier === "string" ? tier : "unset";
+  } catch {
+    // Missing, unreadable, or corrupt policy is not authorization.
+    cachedRepoPolicy = {};
+    return "unset";
   }
 }
 
@@ -1170,6 +1206,32 @@ function preparePages(
         if (!args.includeUnattributed && page.git_remote === "_unattributed") {
           skippedUnattributed++;
           continue;
+        }
+        if (args.mode !== "probe") {
+          if (transcriptIngestMode() === "off") {
+            skippedUnattributed++;
+            continue;
+          }
+          const pageRemote = canonicalizeRemote(page.git_remote || "");
+          const explicitlyUnattributed =
+            (!page.git_remote || page.git_remote === "_unattributed") && args.includeUnattributed;
+          if (!explicitlyUnattributed) {
+            const currentRemote = currentRepoRemote();
+            if (
+              !currentRemote ||
+              pageRemote !== currentRemote ||
+              repoTrustTier(pageRemote) !== "read-write"
+            ) {
+              skippedUnattributed++;
+              if (!args.quiet) {
+                console.error(
+                  `[trust-policy] skipped transcript from ${pageRemote || "_unattributed"}; ` +
+                  "only the current repo with an explicit read-write policy may ingest transcripts.",
+                );
+              }
+              continue;
+            }
+          }
         }
         if (page.partial) partialPages++;
       } else {

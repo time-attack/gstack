@@ -29,10 +29,12 @@ function makeTestHome(): string {
 }
 
 function runScript(args: string[], env: Record<string, string> = {}): { stdout: string; stderr: string; exitCode: number } {
+  const { GSTACK_TEST_CWD, ...childEnv } = env;
   const result = spawnSync("bun", [SCRIPT, ...args], {
     encoding: "utf-8",
     timeout: 30000,
-    env: { ...process.env, ...env },
+    cwd: GSTACK_TEST_CWD,
+    env: { ...process.env, ...childEnv },
   });
   return {
     stdout: result.stdout || "",
@@ -248,6 +250,55 @@ describe("gstack-memory-ingest security: untrusted cwd cannot trigger shell subs
 
     rmSync(home, { recursive: true, force: true });
     rmSync(markerDir, { recursive: true, force: true });
+  });
+});
+
+describe("gstack-memory-ingest transcript trust policy", () => {
+  function trustFixture(tier?: "read-write" | "read-only" | "deny") {
+    const home = makeTestHome();
+    const gstackHome = join(home, ".gstack");
+    const repo = mkdtempSync(join(tmpdir(), "gstack-mi-trust-repo-"));
+    mkdirSync(gstackHome, { recursive: true });
+    spawnSync("git", ["init", "-q"], { cwd: repo });
+    spawnSync("git", ["remote", "add", "origin", "https://github.com/example/trusted.git"], { cwd: repo });
+    writeFileSync(join(gstackHome, "config.yaml"), "transcript_ingest_mode: incremental\n");
+    if (tier) {
+      writeFileSync(join(gstackHome, "gbrain-repo-policy.json"), JSON.stringify({
+        _schema_version: 2,
+        "github.com/example/trusted": tier,
+      }));
+    }
+    const session =
+      `{"type":"user","message":{"role":"user","content":"hello"},"timestamp":"2026-07-14T00:00:00Z","cwd":${JSON.stringify(repo)}}\n`;
+    writeClaudeCodeSession(home, "trust-repo", "trust123", session);
+    return { home, gstackHome, repo };
+  }
+
+  it("fails closed when policy is missing, read-only, or deny", () => {
+    for (const tier of [undefined, "read-only", "deny"] as const) {
+      const f = trustFixture(tier);
+      const r = runScript(["--bulk", "--sources", "transcript", "--no-write"], {
+        HOME: f.home,
+        GSTACK_HOME: f.gstackHome,
+      });
+      expect(r.exitCode).toBe(0);
+      expect(r.stdout).toMatch(/written:\s+0/);
+      rmSync(f.home, { recursive: true, force: true });
+      rmSync(f.repo, { recursive: true, force: true });
+    }
+  });
+
+  it("allows the current repo only with explicit read-write policy", () => {
+    const f = trustFixture("read-write");
+    const r = runScript(["--bulk", "--sources", "transcript", "--no-write"], {
+      HOME: f.home,
+      GSTACK_HOME: f.gstackHome,
+      GSTACK_TEST_CWD: f.repo,
+    });
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toMatch(/written:\s+1/);
+    rmSync(f.home, { recursive: true, force: true });
+    rmSync(f.repo, { recursive: true, force: true });
   });
 });
 
