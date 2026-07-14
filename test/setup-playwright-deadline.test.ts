@@ -32,4 +32,3 @@ describe('setup Playwright deadline', () => {
     expect(SETUP.slice(warning, registration)).not.toMatch(/^\s*exit 1\s*$/m);
   });
 });
-
