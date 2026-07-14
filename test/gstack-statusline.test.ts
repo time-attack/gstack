@@ -40,7 +40,9 @@ function run(
     encoding: 'utf-8',
     // GSTACK_STATE_ROOT outranks GSTACK_HOME in the script's fallback chain —
     // blank it so an operator's exported value can't leak real analytics in.
-    env: { ...process.env, GSTACK_STATE_ROOT: '', GSTACK_HOME: path.join(tmpDir, 'empty-home'), ...env },
+    // GSTACK_STATUSLINE_MODE is a documented user knob that would override
+    // the default-mode assertions — blank it too.
+    env: { ...process.env, GSTACK_STATE_ROOT: '', GSTACK_STATUSLINE_MODE: '', GSTACK_HOME: path.join(tmpDir, 'empty-home'), ...env },
     timeout: 10000,
   });
   return stripAnsi(out);
@@ -89,6 +91,23 @@ describe('skill extraction', () => {
     // while-loop spun forever; run() would hit its 10s timeout and throw.
     const out = run({ transcript_path: transcriptWithShip(), cwd: tmpDir }, ['--mode']);
     expect(out).toContain('/ship'); // fell back to full mode and rendered
+  });
+
+  test('strips control bytes smuggled in payload fields', () => {
+    // A hostile model name / cwd could carry raw terminal escapes (OSC title
+    // set, cursor moves) into the ANSI-enabled status bar. stripAnsi() below
+    // only removes the script's own color codes, so any injected ESC that
+    // leaked through the script would still be visible to the assertion.
+    const out = run(
+      {
+        workspace: { current_dir: tmpDir },
+        model: { display_name: 'Opus\u001b]0;pwned\u0007 4.8' },
+      },
+      ['--full'],
+    );
+    expect(out).toContain('Opus');
+    expect(out).not.toContain('\u001b');
+    expect(out).not.toContain('\u0007');
   });
 
   test('renders the full baseline without jq (bun fallback)', () => {
