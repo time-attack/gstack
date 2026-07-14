@@ -367,9 +367,22 @@ Layout: a `D<N>` title + a one-line note to reply with a letter (in Conductor th
 
 **One-way / destructive confirmations in prose.** When the decision is a one-way door (irreversible or destructive — delete, force-push, drop, overwrite), prose is a WEAKER gate than the tool, so make it stronger: require an explicit typed confirmation (the exact option letter or word), state plainly what is irreversible, and NEVER proceed on a vague, partial, or ambiguous reply — re-ask instead. Treat silence or "ok"/"sure" without the explicit choice as not-yet-confirmed.
 
+### Tool-call shape (JSON) — schema-critical
+
+The decision brief below is prose for the user; the tool call itself MUST pass a JSON object with `questions` as a true **array of objects** — never a string, never a stringified array. Each question MUST carry a non-empty `options` array. Hosts render the prompt before validating tool args, so a malformed shape (e.g. `questions` emitted as a string, or a question with missing/`null` `options`) can crash the session. If you can't satisfy the schema, fall back to prose per the rule above — do not emit a bad call.
+
+```
+questions: [
+  { header: "...", question: "...", multiSelect: false,
+    options: [ { label: "...", description: "..." }, { label: "...", description: "..." } ] }
+]
+```
+- `questions`: array (not string). 1–4 questions.
+- Each `options`: array of 2–4 `{ label, description }`. Never `null`, never omitted, never empty.
+
 ### Format
 
-Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
+Every AskUserQuestion decision has two parts: a markdown decision brief before the call, then a compact tool_use payload. Do not pack the full brief into the tool's `question` string. Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
 
 ```
 D<N> — <one-line question title>
@@ -401,6 +414,12 @@ Neutral posture: `Recommendation: <default> — this is a taste call, no strong 
 Effort both-scales: when an option involves effort, label both human-team and CC+gstack time, e.g. `(human: ~2 days / CC: ~15 min)`. Makes AI compression visible at decision time.
 
 Net line closes the tradeoff. Per-skill instructions may add stricter rules.
+
+Tool payload rules:
+- `question` is only the decision prompt: one sentence, no newlines, <=80 chars.
+- Background, regrounding, ELI10, stakes, recommendation, pros/cons, and trade-off tables stay in the markdown brief before the tool call.
+- Ask one decision per tool call when possible; batch at most two related questions/tabs. Sequence independent decisions instead of sending 3+ tabs.
+- Do not duplicate the same trade-off text in both `question` and `options[].description`. Prefer putting option-specific trade-offs in `options[].description`.
 
 ### Handling 5+ options — split, never drop
 
@@ -449,6 +468,12 @@ Before calling AskUserQuestion, verify:
 - [ ] (recommended) label on one option (even for neutral-posture)
 - [ ] Dual-scale effort labels on effort-bearing options (human / CC)
 - [ ] Net line closes the decision
+- [ ] `question` is one sentence, no newlines, <=80 chars
+- [ ] Tool call has no more than two related questions/tabs
+- [ ] No duplicated trade-off text between `question` and `options[].description`
+- [ ] You wrote the brief, then called the tool_use payload
+- [ ] `questions` is a JSON array of objects — NOT a string
+- [ ] Every question has a non-empty `options` array (2–4 `{ label, description }`)
 - [ ] You are calling the tool, not writing prose — unless `CONDUCTOR_SESSION: true` (then prose is the DEFAULT, not the tool) OR the documented failure fallback applies (then: prose with the mandatory triad — issue ELI10, per-choice Completeness, Recommendation + `(recommended)` — and a "reply with a letter" instruction, then STOP)
 - [ ] Non-ASCII characters (CJK / accents) written directly, NOT \u-escaped
 - [ ] If you had 5+ options, you split (or batched into ≤4-groups) — did NOT drop any
@@ -626,7 +651,7 @@ _PROJ="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
   find "$_PROJ/ceo-plans" "$_PROJ/checkpoints" -type f -name "*.md" 2>/dev/null | xargs ls -t 2>/dev/null | head -3
-  [ -f "$_PROJ/${_BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${_BRANCH}-reviews.jsonl" | tr -d ' ') entries"
+  [ -f "$_PROJ/${BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${BRANCH}-reviews.jsonl" | tr -d ' ') entries"
   [ -f "$_PROJ/timeline.jsonl" ] && tail -5 "$_PROJ/timeline.jsonl"
   if [ -f "$_PROJ/timeline.jsonl" ]; then
     _LAST=$(grep "\"branch\":\"${_BRANCH}\"" "$_PROJ/timeline.jsonl" 2>/dev/null | grep '"event":"completed"' | tail -1)
@@ -907,8 +932,13 @@ This keeps the skill working whether installed as a Claude Code plugin
 (`CLAUDE_PLANS_DIR` set), a global `~/.claude/skills/gstack/` install, or a CI
 container where `HOME` may be unset and `/tmp` may be read-only.
 
+`--get <key>` is preferred over `eval "$(...)"` here: the eval form trips Claude
+Code's bash AST parser (tilde inside `$()` inside double-quoted eval arg) and
+forces a manual confirmation on every run. Issue #1329 Pattern 2.
+
 ```bash
-eval "$(~/.claude/skills/gstack/bin/gstack-paths)"
+PLAN_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get plan-root)
+TMP_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get tmp-root)
 ```
 
 After this, every subsequent bash block in this skill uses `"$PLAN_ROOT"` and
@@ -1267,37 +1297,7 @@ fi
 # Fix 1+2: wrap with timeout (gtimeout/timeout fallback chain via probe helper),
 # capture stderr to $TMPERR for auth error detection (was: 2>/dev/null).
 TMPERR=${TMPERR:-$(mktemp "$TMP_ROOT/codex-err-XXXXXX.txt")}
-_gstack_codex_timeout_wrapper 600 codex exec "<prompt>" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached --json < /dev/null 2>"$TMPERR" | PYTHONUNBUFFERED=1 "$PYTHON_CMD" -u -c "
-import sys, json
-turn_completed_count = 0
-for line in sys.stdin:
-    line = line.strip()
-    if not line: continue
-    try:
-        obj = json.loads(line)
-        t = obj.get('type','')
-        if t == 'item.completed' and 'item' in obj:
-            item = obj['item']
-            itype = item.get('type','')
-            text = item.get('text','')
-            if itype == 'reasoning' and text:
-                print(f'[codex thinking] {text}', flush=True)
-                print(flush=True)
-            elif itype == 'agent_message' and text:
-                print(text, flush=True)
-            elif itype == 'command_execution':
-                cmd = item.get('command','')
-                if cmd: print(f'[codex ran] {cmd}', flush=True)
-        elif t == 'turn.completed':
-            turn_completed_count += 1
-            usage = obj.get('usage',{})
-            tokens = usage.get('input_tokens',0) + usage.get('output_tokens',0)
-            if tokens: print(f'\ntokens used: {tokens}', flush=True)
-    except: pass
-# Fix 2: completeness check — warn if no turn.completed received
-if turn_completed_count == 0:
-    print('[codex warning] No turn.completed event received — possible mid-stream disconnect.', flush=True, file=sys.stderr)
-"
+_gstack_codex_timeout_wrapper 600 codex exec "<prompt>" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="high"' --enable web_search_cached --json < /dev/null 2>"$TMPERR" | PYTHONUNBUFFERED=1 "$PYTHON_CMD" ~/.claude/skills/gstack/bin/gstack-codex-jsonl-parser --mode challenge
 _CODEX_EXIT=${PIPESTATUS[0]}
 # Fix 1: hang detection — log + surface actionable message
 if [ "$_CODEX_EXIT" = "124" ]; then
@@ -1422,35 +1422,7 @@ if [ -z "$PYTHON_CMD" ]; then
   exit 1
 fi
 # Fix 1: wrap with timeout (gtimeout/timeout fallback chain via probe helper)
-_gstack_codex_timeout_wrapper 600 codex exec "<prompt>" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="medium"' --enable web_search_cached --json < /dev/null 2>"$TMPERR" | PYTHONUNBUFFERED=1 "$PYTHON_CMD" -u -c "
-import sys, json
-for line in sys.stdin:
-    line = line.strip()
-    if not line: continue
-    try:
-        obj = json.loads(line)
-        t = obj.get('type','')
-        if t == 'thread.started':
-            tid = obj.get('thread_id','')
-            if tid: print(f'SESSION_ID:{tid}', flush=True)
-        elif t == 'item.completed' and 'item' in obj:
-            item = obj['item']
-            itype = item.get('type','')
-            text = item.get('text','')
-            if itype == 'reasoning' and text:
-                print(f'[codex thinking] {text}', flush=True)
-                print(flush=True)
-            elif itype == 'agent_message' and text:
-                print(text, flush=True)
-            elif itype == 'command_execution':
-                cmd = item.get('command','')
-                if cmd: print(f'[codex ran] {cmd}', flush=True)
-        elif t == 'turn.completed':
-            usage = obj.get('usage',{})
-            tokens = usage.get('input_tokens',0) + usage.get('output_tokens',0)
-            if tokens: print(f'\ntokens used: {tokens}', flush=True)
-    except: pass
-"
+_gstack_codex_timeout_wrapper 600 codex exec "<prompt>" -C "$_REPO_ROOT" -s read-only -c 'model_reasoning_effort="medium"' --enable web_search_cached --json < /dev/null 2>"$TMPERR" | PYTHONUNBUFFERED=1 "$PYTHON_CMD" ~/.claude/skills/gstack/bin/gstack-codex-jsonl-parser --mode consult
 # Fix 1: hang detection for Consult new-session (mirrors Challenge + resume)
 _CODEX_EXIT=${PIPESTATUS[0]}
 if [ "$_CODEX_EXIT" = "124" ]; then
@@ -1476,9 +1448,7 @@ if [ -z "$PYTHON_CMD" ]; then
 fi
 cd "$_REPO_ROOT" || exit 1
 # Fix 1: wrap with timeout (gtimeout/timeout fallback chain via probe helper)
-_gstack_codex_timeout_wrapper 600 codex exec resume <session-id> "<prompt>" -c 'sandbox_mode="read-only"' -c 'model_reasoning_effort="medium"' --enable web_search_cached --json < /dev/null 2>"$TMPERR" | PYTHONUNBUFFERED=1 "$PYTHON_CMD" -u -c "
-<same python streaming parser as above, with flush=True on all print() calls>
-"
+_gstack_codex_timeout_wrapper 600 codex exec resume <session-id> "<prompt>" -c 'sandbox_mode="read-only"' -c 'model_reasoning_effort="medium"' --enable web_search_cached --json < /dev/null 2>"$TMPERR" | PYTHONUNBUFFERED=1 "$PYTHON_CMD" ~/.claude/skills/gstack/bin/gstack-codex-jsonl-parser --mode consult
 # Fix 1: same hang detection pattern as new-session block
 _CODEX_EXIT=${PIPESTATUS[0]}
 if [ "$_CODEX_EXIT" = "124" ]; then
@@ -1492,6 +1462,7 @@ elif [ "$_CODEX_EXIT" != "0" ]; then
   head -20 "$TMPERR" 2>/dev/null | sed 's/^/  /' || true
   _gstack_codex_log_event "codex_nonzero_exit" "consult-resume:$_CODEX_EXIT"
 fi
+```
 
 5. Capture session ID from the streamed output. The parser prints `SESSION_ID:<id>`
    from the `thread.started` event. Save it for follow-ups:
@@ -1537,7 +1508,9 @@ The reason must engage with a specific Codex insight and compare against an alte
 
 **Model:** No model is hardcoded — codex uses whatever its current default is (the frontier
 agentic coding model). This means as OpenAI ships newer models, /codex automatically
-uses them. If the user wants a specific model, pass `-m` through to codex.
+uses them. As of July 2026 that frontier is the GPT-5.6 family (ladder: `sol` > `terra` > `luna`;
+the bare `gpt-5.6` API alias routes to `sol`, but Codex with ChatGPT sign-in rejects the bare
+id — pass the full `gpt-5.6-sol`). If the user wants a specific model, pass `-m` through to codex.
 
 **Reasoning effort (per-mode defaults):**
 - **Review (2A):** `high` — bounded diff input, needs thoroughness but not max tokens
@@ -1547,12 +1520,40 @@ uses them. If the user wants a specific model, pass `-m` through to codex.
 `xhigh` uses ~23x more tokens than `high` and causes 50+ minute hangs on large context
 tasks (OpenAI issues #8545, #8402, #6931). Users can override with `--xhigh` flag
 (e.g., `/codex review --xhigh`) when they want maximum reasoning and are willing to wait.
+The GPT-5.6 family adds a `max` level above `xhigh` (and an `ultra` above that on some
+surfaces) — OpenAI positions both as trading latency and cost for depth, so gstack wires
+no flag for them. If you truly need it: codex CLI >= 0.144 with an explicit GPT-5.6 model
+(e.g. `-m gpt-5.6-sol -c model_reasoning_effort=max`) — older CLIs reject the value and
+non-5.6 models return a 400.
 
 **Web search:** All codex commands use `--enable web_search_cached` so Codex can look up
 docs and APIs during review. This is OpenAI's cached index — fast, no extra cost.
 
-If the user specifies a model (e.g., `/codex review -m gpt-5.1-codex-max`
-or `/codex challenge -m gpt-5.2`), pass the `-m` flag through to codex.
+If the user specifies a model (e.g., `/codex review -m gpt-5.6-sol`
+or `/codex challenge -m gpt-5.6-luna`), pass the `-m` flag through to codex.
+
+---
+
+## Image Generation
+
+Codex ships a native image-generation tool (`image_gen.imagegen`) — it produces real
+raster images (illustrations, photo-style renders, diagrams) from a text prompt, not
+just code that draws SVGs. Verified by having Codex enumerate its tools and generate
+a PNG. Image *input* is separate and always available (`codex -i screenshot.png`).
+
+When a consult asks Codex to MAKE an image (not analyze one):
+
+1. **Swap the sandbox.** The tool call works in any sandbox, but saving the result
+   needs write access — run that exec with `-s workspace-write` instead of `-s read-only`.
+2. **Scope the writes to a scratch dir.** Point `-C` at a fresh directory under
+   `$TMP_ROOT` and add `--skip-git-repo-check` (the scratch dir isn't a repo). This
+   keeps generated files out of the user's repo.
+3. **Show the result.** Read the generated image and open it for the user, then
+   report the file path.
+
+This is the one exception to "Never modify files" below — image bytes can't come back
+inline through the CLI, so writing the file is the deliverable. Writes stay confined
+to the scratch directory.
 
 ---
 
@@ -1571,6 +1572,13 @@ If token count is not available, display: `Tokens: unknown`
 - **Binary not found:** Detected in Step 0. Stop with install instructions.
 - **Auth error:** Codex prints an auth error to stderr. Surface the error:
   "Codex authentication failed. Run `codex login` in your terminal to authenticate via ChatGPT."
+- **Auth error — `refresh_token_reused` specifically (Hermes-aware recovery):**
+  When stderr contains `refresh_token_reused`, do **not** go straight to `codex login`. Hermes' `openai-codex` provider can still be serving valid tokens while the standalone `~/.codex/auth.json` credential store has gone stale (split-brain auth). Sending the user to `codex login` in that state wipes a working session that downstream skills relied on.
+  Diagnose, then repair, in this order:
+  1. **Smoke-test the Hermes provider first** (if Hermes is installed). Run a trivial call through Hermes' `openai-codex` provider — e.g. `hermes ask --provider openai-codex 'ping'` or the equivalent profile-routed invocation. If it succeeds, the user's OpenAI session is still good; the failure is local to standalone `codex exec`'s credential store.
+  2. **If Hermes works:** repair `~/.codex/auth.json` from the Hermes-side tokens instead of forcing a re-login. The exact helper varies by Hermes version (look for a `codex-auth-sync` / `hermes export codex-auth` style script in the local Hermes install). After copying the refreshed tokens back into `~/.codex/auth.json`, `chmod 600 ~/.codex/auth.json` and rerun the original `codex exec` to verify.
+  3. **If Hermes is not installed or the Hermes provider also fails:** that confirms the OpenAI session itself is gone; `codex login` is the right next step. Run it, then re-invoke the skill.
+  Tell the user which branch you're on before suggesting any action — "Hermes provider still works, repairing `~/.codex/auth.json` from Hermes tokens" vs. "Hermes provider is also down, running `codex login`" — so they know whether they're about to lose a working Hermes session or not.
 - **Timeout (Bash outer gate):** If the Bash call times out (5 min for Review/Challenge, 10 min for Consult), tell the user:
   "Codex timed out. The prompt may be too large or the API may be slow. Try again or use a smaller scope."
 - **Timeout (inner `timeout` wrapper, exit 124):** If the shell `timeout 600` wrapper fires first, the skill's hang-detection block auto-logs a telemetry event + operational learning and prints: "Codex stalled past 10 minutes. Common causes: model API stall, long prompt, network issue. Try re-running. If persistent, split the prompt or check `~/.codex/logs/`." No extra action needed.
@@ -1583,6 +1591,8 @@ If token count is not available, display: `Tokens: unknown`
 ## Important Rules
 
 - **Never modify files.** This skill is read-only. Codex runs in read-only sandbox mode.
+  Sole exception: image-generation consults, where Codex writes the generated file to a
+  scratch directory (see Image Generation).
 - **Present output verbatim.** Do not truncate, summarize, or editorialize Codex's output
   before showing it. Show it in full inside the CODEX SAYS block.
 - **Add synthesis after, not instead of.** Any Claude commentary comes after the full output.

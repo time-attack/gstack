@@ -76,6 +76,11 @@ class ProgressReporter {
 /**
  * generate — full pipeline. Returns the output PDF path on success.
  */
+// browse pdf validates output via its safe-dirs allowlist (/tmp or cwd on
+// non-Windows), so os.tmpdir() on macOS (/var/folders/...) fails validation.
+// Same convention as PAYLOAD_TMP_DIR in browseClient.ts (#1113).
+const DEFAULT_OUTPUT_DIR = process.platform === "win32" ? os.tmpdir() : "/tmp";
+
 export async function generate(opts: GenerateOptions): Promise<string> {
   const progress = new ProgressReporter(opts);
   const input = path.resolve(opts.input);
@@ -86,7 +91,7 @@ export async function generate(opts: GenerateOptions): Promise<string> {
 
   const to = opts.to ?? "pdf";
   const outputPath = path.resolve(
-    opts.output ?? path.join(os.tmpdir(), `${deriveSlug(input)}.${to}`),
+    opts.output ?? path.join(DEFAULT_OUTPUT_DIR, `${deriveSlug(input)}.${to}`),
   );
 
   // Stage 1: read markdown

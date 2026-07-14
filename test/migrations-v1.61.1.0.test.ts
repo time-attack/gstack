@@ -1,5 +1,5 @@
 /**
- * v1.61.0.0 heal migration: retry the v1.27 gh repo rename for installs whose
+ * v1.61.1.0 heal migration: retry the v1.27 gh repo rename for installs whose
  * earlier migration run hit the bare-name gh bug (rename silently failed,
  * remote.txt already rewritten to a repo that was never created).
  *
@@ -12,7 +12,7 @@ import * as os from 'os';
 import { spawnSync } from 'child_process';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-const MIGRATION = path.join(ROOT, 'gstack-upgrade', 'migrations', 'v1.61.0.0.sh');
+const MIGRATION = path.join(ROOT, 'gstack-upgrade', 'migrations', 'v1.61.1.0.sh');
 
 let tmpHome: string;
 let fakeBinDir: string;
@@ -73,10 +73,10 @@ function run(): { code: number; stderr: string } {
   return { code: r.status ?? -1, stderr: r.stderr || '' };
 }
 
-const doneFile = () => path.join(tmpHome, '.gstack/.migrations/v1.61.0.0.done');
+const doneFile = () => path.join(tmpHome, '.gstack/.migrations/v1.61.1.0.done');
 const remoteTxt = () => path.join(tmpHome, '.gstack-artifacts-remote.txt');
 
-describe('v1.61.0.0 heal migration', () => {
+describe('v1.61.1.0 heal migration', () => {
   test('done touchfile short-circuits silently', () => {
     makeFakeGh();
     fs.mkdirSync(path.dirname(doneFile()), { recursive: true });

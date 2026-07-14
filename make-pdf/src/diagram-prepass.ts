@@ -31,7 +31,7 @@ import * as crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import * as browseClient from "./browseClient";
-import { escapeHtml, sanitizeUntrustedHtml } from "./render";
+import { escapeHtml } from "./render";
 import { imageDims } from "./image-size";
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -257,9 +257,30 @@ export function buildDiagnosticBlock(fence: DiagramFence, errorMessage: string):
  * `--` escaping, which corrupts every mermaid arrow (`-->`) and breaks
  * round-trip recovery.
  */
+/**
+ * Scrub renderer-generated SVG without destroying it. The document-level
+ * sanitizer (sanitize-html) drops <svg> wholesale — correct for arbitrary
+ * markdown-embedded markup, wrong here: this SVG comes from our own
+ * mermaid/excalidraw bundle, and the risk surface is script execution when
+ * the final HTML loads in the print tab. Strip <script>, on* handlers, and
+ * javascript: hrefs (the old sanitizer's SVG posture) and keep the rest.
+ */
+export function sanitizeGeneratedSvg(svg: string): string {
+  let s = svg.replace(/<script\b[\s\S]*?<\/script>/gi, "");
+  s = s.replace(/<script\b[^>]*\/?>/gi, "");
+  s = s.replace(/\s+on[a-zA-Z]+\s*=\s*"[^"]*"/gi, "");
+  s = s.replace(/\s+on[a-zA-Z]+\s*=\s*'[^']*'/gi, "");
+  s = s.replace(/\s+on[a-zA-Z]+\s*=\s*[^\s>]+/gi, "");
+  s = s.replace(
+    /(\s(?:href|xlink:href)\s*=\s*)(?:"javascript:[^"]*"|'javascript:[^']*'|javascript:[^\s>]+)/gi,
+    '$1"#"',
+  );
+  return s;
+}
+
 export function buildDiagramFigure(fence: DiagramFence, svg: string): string {
   const label = diagramLabel(fence);
-  const cleanSvg = sanitizeUntrustedHtml(svg);
+  const cleanSvg = sanitizeGeneratedSvg(svg);
   const captioned = fence.title
     ? `\n<figcaption class="diagram-caption">${escapeHtml(fence.title)}</figcaption>`
     : "";

@@ -334,6 +334,17 @@ describe('gen-skill-docs', () => {
     expect(content).toContain('not function names');
   });
 
+  // #1208: the compact-payload rules must reach generated tier 2+ SKILL.md so
+  // panel hosts (VSCode) render readable question cards.
+  test('tier 2+ skills keep AskUserQuestion panel payloads compact', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'cso', 'SKILL.md'), 'utf-8');
+    expect(content).toContain("Do not pack the full brief into the tool's `question` string");
+    expect(content).toContain('`question` is only the decision prompt');
+    expect(content).toContain('<=80 chars');
+    expect(content).toContain('batch at most two related questions/tabs');
+    expect(content).toContain('No duplicated trade-off text');
+  });
+
   test('tier 1 skills do NOT contain AskUserQuestion format', () => {
     // Use benchmark (tier 1) instead of root — root SKILL.md gets overwritten by Codex test setup
     const content = fs.readFileSync(path.join(ROOT, 'benchmark', 'SKILL.md'), 'utf-8');
@@ -1714,6 +1725,12 @@ describe('Codex generation (--host codex)', () => {
     expect(content).toContain('allow_implicit_invocation: true');
   });
 
+  test('toolRewrites: Codex ship names request_user_input, never AskUserQuestion', () => {
+    const content = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-ship', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('request_user_input');
+    expect(content).not.toContain('AskUserQuestion');
+  });
+
   test('externalSkillName mapping: root is gstack, others are gstack-{dir}', () => {
     // Root → gstack
     expect(fs.existsSync(path.join(AGENTS_DIR, 'gstack', 'SKILL.md'))).toBe(true);
@@ -1785,6 +1802,34 @@ describe('Codex generation (--host codex)', () => {
     expect(content).toContain('--allowedTools Read,Grep,Glob');
     expect(content).toContain('--disallowedTools Bash,Edit,Write');
     expect(content).toContain('is_error');
+    expect(content).toContain('CLAUDE_AUTH_ERROR');
+    expect(content).not.toContain('.credentials.json');
+  });
+
+  test('Codex-host autoplan flips dual voices to host subagent + Claude outside voice', () => {
+    const content = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-autoplan', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Claude CLI not found');
+    expect(content).toContain('claude -p --output-format json');
+    expect(content).toContain('Host-native CEO subagent');
+    expect(content).toMatch(/OUTSIDE VOICE\s*\(CEO/);
+    expect(content).toContain('Dimension                           Subagent Outside Consensus');
+    expect(content).toContain('SOURCE = "subagent+outside", "outside-only", "subagent-only", or "unavailable".');
+    expect(content).not.toContain('Claude CEO subagent');
+    expect(content).not.toContain('CLAUDE SUBAGENT (CEO');
+    expect(content).not.toContain('Run Claude subagent (foreground');
+    expect(content).not.toContain('**Codex outside voice**');
+    expect(content).not.toContain('_gstack_codex_timeout_wrapper 600 codex exec');
+  });
+
+  test('Claude-host autoplan still uses Codex as the outside voice', () => {
+    const content = fs.readFileSync(path.join(ROOT, 'autoplan', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('Codex CLI not found');
+    expect(content).toContain('codex exec');
+    expect(content).toContain('Host-native CEO subagent');
+    expect(content).toMatch(/OUTSIDE VOICE\s*\(CEO/);
+    expect(content).toContain('Dimension                           Subagent Outside Consensus');
+    expect(content).toContain('SOURCE = "subagent+outside", "outside-only", "subagent-only", or "unavailable".');
+    expect(content).not.toContain('Claude CLI not found');
   });
 
   test('Codex review step stripped from Codex-host ship and review', () => {
@@ -1795,6 +1840,25 @@ describe('Codex generation (--host codex)', () => {
     const reviewContent = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-review', 'SKILL.md'), 'utf-8');
     expect(reviewContent).not.toContain('codex review --base');
     expect(reviewContent).not.toContain('CODEX_REVIEWS');
+  });
+
+  test('Codex ship plan verification loads qa-only from gstack root', () => {
+    const shipContent = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-ship', 'SKILL.md'), 'utf-8');
+    expect(shipContent).toContain('$GSTACK_ROOT/../gstack-qa-only/SKILL.md');
+    expect(shipContent).not.toContain('${CLAUDE_SKILL_DIR}/../qa-only/SKILL.md');
+  });
+
+  test('Codex design-shotgun uses image_gen instead of gstack design binary', () => {
+    const content = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-design-shotgun', 'SKILL.md'), 'utf-8');
+    expect(content).toContain('gstack-design-shotgun');
+    expect(content).toContain('image_gen');
+    expect(content).toContain('host-native');
+    expect(content).toContain('no OpenAI API key setup');
+    expect(content).toContain('no `OPENAI_API_KEY` lookup');
+    expect(content).not.toContain('Run: {$D path} generate');
+    expect(content).not.toContain('$D compare --images');
+    expect(content).not.toContain('DESIGN_READY: $D');
+    expect(content).not.toContain('DESIGN_NOT_AVAILABLE');
   });
 
   test('--host codex --dry-run freshness', () => {
@@ -1902,8 +1966,8 @@ describe('Codex generation (--host codex)', () => {
     }
   });
 
-  test('all four path rewrite rules produce correct output', () => {
-    // Test each of the 4 path rewrite rules individually
+  test('Codex path rewrite rules produce correct output', () => {
+    // Test host-configured path rewrite rules individually
     const content = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-review', 'SKILL.md'), 'utf-8');
 
     // Rule 1: ~/.claude/skills/gstack → $GSTACK_ROOT
@@ -1966,8 +2030,10 @@ describe('Codex generation (--host codex)', () => {
       if (skill.dir !== 'pair-agent' && skill.dir !== 'codex' && skill.dir !== 'autoplan') {
         expect(content).not.toContain('~/.codex/');
       }
-      // gstack-upgrade legitimately references .agents/skills for cross-platform detection
-      if (skill.dir !== 'gstack-upgrade') {
+      // gstack-upgrade legitimately references .agents/skills for cross-platform
+      // detection; pair-agent documents the Codex host's global skill root
+      // (~/.agents/skills, per the current Codex skill spec) for --local codex.
+      if (skill.dir !== 'gstack-upgrade' && skill.dir !== 'pair-agent') {
         expect(content).not.toContain('.agents/skills');
       }
     }
@@ -2205,6 +2271,24 @@ describe('Parameterized host smoke tests', () => {
         expect(content).toContain('--disallowedTools Bash,Edit,Write');
       });
 
+      if (hostConfig.name === 'hermes') {
+        test('Hermes frontmatter names are namespaced to match generated skill names', () => {
+          Bun.spawnSync(['bun', 'run', 'scripts/gen-skill-docs.ts', '--host', 'hermes'], {
+            cwd: ROOT, stdout: 'pipe', stderr: 'pipe',
+          });
+
+          const reviewContent = fs.readFileSync(path.join(hostDir, 'gstack-review', 'SKILL.md'), 'utf-8');
+          const qaContent = fs.readFileSync(path.join(hostDir, 'gstack-qa', 'SKILL.md'), 'utf-8');
+          const shipContent = fs.readFileSync(path.join(hostDir, 'gstack-ship', 'SKILL.md'), 'utf-8');
+          const rootContent = fs.readFileSync(path.join(hostDir, 'gstack', 'SKILL.md'), 'utf-8');
+
+          expect(reviewContent).toMatch(/^name:\s*gstack-review$/m);
+          expect(qaContent).toMatch(/^name:\s*gstack-qa$/m);
+          expect(shipContent).toMatch(/^name:\s*gstack-ship$/m);
+          expect(rootContent).toMatch(/^name:\s*gstack$/m);
+        });
+      }
+
       test('--dry-run freshness check passes', () => {
         const result = Bun.spawnSync(
           ['bun', 'run', 'scripts/gen-skill-docs.ts', '--host', hostConfig.name, '--dry-run'],
@@ -2372,16 +2456,31 @@ describe('setup script validation', () => {
     expect(claudeSection).toContain('link_claude_root_skill_alias "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR"');
   });
 
-  test('setup supports --host auto|claude|codex|kiro|opencode', () => {
+  test('setup supports --host auto|claude|codex|kiro|opencode|cursor|slate|qoder|grok-build', () => {
     expect(setupContent).toContain('--host');
-    expect(setupContent).toContain('claude|codex|kiro|factory|opencode|auto');
+    expect(setupContent).toContain('claude|codex|kiro|factory|opencode|cursor|slate|qoder|grok-build|auto');
   });
 
-  test('auto mode detects claude, codex, kiro, and opencode binaries', () => {
+  test('Hermes host banner is explicit that setup is not an installer', () => {
+    const hermesStart = setupContent.indexOf('  hermes)');
+    const hermesEnd = setupContent.indexOf('  gbrain)', hermesStart);
+    expect(hermesStart).toBeGreaterThan(-1);
+    expect(hermesEnd).toBeGreaterThan(hermesStart);
+
+    const hermesBlock = setupContent.slice(hermesStart, hermesEnd);
+    expect(hermesBlock).toContain('./setup --host hermes does not install files into Hermes today.');
+    expect(hermesBlock).toContain('It only prints integration instructions.');
+    expect(hermesBlock).toContain('bun run gen:skill-docs --host hermes');
+    expect(hermesBlock).toContain('This writes .hermes/skills/ in this checkout.');
+  });
+
+  test('auto mode detects claude, codex, kiro, opencode, cursor, and slate binaries', () => {
     expect(setupContent).toContain('command -v claude');
     expect(setupContent).toContain('command -v codex');
     expect(setupContent).toContain('command -v kiro-cli');
     expect(setupContent).toContain('command -v opencode');
+    expect(setupContent).toContain('command -v cursor');
+    expect(setupContent).toContain('command -v slate');
   });
 
   // T1: Sidecar skip guard — prevents .agents/skills/gstack from being linked as a skill
@@ -2423,13 +2522,40 @@ describe('setup script validation', () => {
     expect(setupContent).toContain('dx-hall-of-fame.md');
   });
 
+  test('setup supports --host cursor with install section and Cursor skill path vars', () => {
+    expect(setupContent).toContain('INSTALL_CURSOR=');
+    expect(setupContent).toContain('CURSOR_SKILLS="$HOME/.cursor/skills"');
+    expect(setupContent).toContain('CURSOR_GSTACK="$CURSOR_SKILLS/gstack"');
+  });
+
+  test('setup installs Cursor skills into a nested gstack runtime root', () => {
+    expect(setupContent).toContain('create_cursor_runtime_root');
+    expect(setupContent).toContain('.cursor/skills');
+    expect(setupContent).toContain('link_cursor_skill_dirs');
+    expect(setupContent).toContain('bun run gen:skill-docs --host cursor');
+  });
+
+  test('setup supports --host slate with install section and Slate skill path vars', () => {
+    expect(setupContent).toContain('INSTALL_SLATE=');
+    expect(setupContent).toContain('SLATE_SKILLS="$HOME/.slate/skills"');
+    expect(setupContent).toContain('SLATE_GSTACK="$SLATE_SKILLS/gstack"');
+  });
+
+  test('setup installs Slate skills into a nested gstack runtime root', () => {
+    expect(setupContent).toContain('create_slate_runtime_root');
+    expect(setupContent).toContain('.slate/skills');
+    expect(setupContent).toContain('link_slate_skill_dirs');
+    expect(setupContent).toContain('bun run gen:skill-docs --host slate');
+  });
+
   test('create_agents_sidecar links runtime assets', () => {
-    // Sidecar must link bin, browse, review, qa
+    // Sidecar must link bin, browse, design, review, qa
     const fnStart = setupContent.indexOf('create_agents_sidecar()');
     const fnEnd = setupContent.indexOf('}', setupContent.indexOf('done', fnStart));
     const fnBody = setupContent.slice(fnStart, fnEnd);
     expect(fnBody).toContain('bin');
     expect(fnBody).toContain('browse');
+    expect(fnBody).toContain('design');
     expect(fnBody).toContain('review');
     expect(fnBody).toContain('qa');
   });
@@ -2441,6 +2567,7 @@ describe('setup script validation', () => {
     expect(fnBody).toContain('gstack/SKILL.md');
     expect(fnBody).toContain('browse/dist');
     expect(fnBody).toContain('browse/bin');
+    expect(fnBody).toContain('design/dist');
     expect(fnBody).toContain('gstack-upgrade/SKILL.md');
     // Review runtime assets (individual files, not the whole dir)
     expect(fnBody).toContain('checklist.md');
@@ -2450,7 +2577,7 @@ describe('setup script validation', () => {
     expect(fnBody).not.toContain('_link_or_copy "$gstack_dir" "$codex_gstack"');
   });
 
-  test('direct Codex installs are migrated out of ~/.codex/skills/gstack', () => {
+  test('direct Codex installs are migrated out of ~/.agents/skills/gstack', () => {
     expect(setupContent).toContain('migrate_direct_codex_install');
     expect(setupContent).toContain('$HOME/.gstack/repos/gstack');
     expect(setupContent).toContain('avoid duplicate skill discovery');

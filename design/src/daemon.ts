@@ -86,6 +86,12 @@ let idleExtensions = 0;
 let shuttingDown = false;
 let serverRef: ReturnType<typeof Bun.serve> | null = null;
 let idleInterval: ReturnType<typeof setInterval> | null = null;
+// Timer handles for the /shutdown → gracefulShutdown → process.exit chain.
+// Tracked so resetForTest can cancel them: an uncancelled exit timer from an
+// in-process /shutdown test kills the whole bun test runner mid-suite with
+// exit code 0, silently masking every later test file.
+let shutdownTimer: ReturnType<typeof setTimeout> | null = null;
+let exitTimer: ReturnType<typeof setTimeout> | null = null;
 const startTime = Date.now();
 const daemonLog = openDaemonLog();
 
@@ -203,7 +209,7 @@ async function gracefulShutdown(exitCode = 0): Promise<void> {
   }
   removeStateFile();
   if (daemonLog) daemonLog.end();
-  setTimeout(() => process.exit(exitCode), 50);
+  exitTimer = setTimeout(() => process.exit(exitCode), 50);
 }
 
 export function idleCheckTick(): void {
@@ -486,7 +492,7 @@ export async function fetchHandler(req: Request): Promise<Response> {
         { status: 409 },
       );
     }
-    setTimeout(() => gracefulShutdown(0), 50);
+    shutdownTimer = setTimeout(() => gracefulShutdown(0), 50);
     return Response.json({ shuttingDown: true });
   }
 
@@ -578,5 +584,9 @@ export const __testInternals__ = {
     lastMeaningfulActivity = Date.now();
     idleExtensions = 0;
     shuttingDown = false;
+    // Cancel any pending shutdown/exit timers so an in-process /shutdown
+    // test can't process.exit the runner mid-suite (see timer decls above).
+    if (shutdownTimer) { clearTimeout(shutdownTimer); shutdownTimer = null; }
+    if (exitTimer) { clearTimeout(exitTimer); exitTimer = null; }
   },
 };

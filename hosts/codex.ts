@@ -6,7 +6,7 @@ const codex: HostConfig = {
   cliCommand: 'codex',
   cliAliases: ['agents'],
 
-  globalRoot: '.codex/skills/gstack',
+  globalRoot: '.agents/skills/gstack',
   localSkillRoot: '.agents/skills/gstack',
   hostSubdir: '.agents',
   usesEnvVars: true,
@@ -29,7 +29,13 @@ const codex: HostConfig = {
     { from: '.claude/skills/gstack', to: '.agents/skills/gstack' },
     { from: '.claude/skills/review', to: '.agents/skills/gstack/review' },
     { from: '.claude/skills', to: '.agents/skills' },
+    { from: '${CLAUDE_SKILL_DIR}/../qa-only/SKILL.md', to: '$GSTACK_ROOT/../gstack-qa-only/SKILL.md' },
+    { from: 'CLAUDE.md', to: 'AGENTS.md' },
   ],
+
+  toolRewrites: {
+    'AskUserQuestion': 'request_user_input',
+  },
 
   suppressedResolvers: [
     'DESIGN_OUTSIDE_VOICES',  // design.ts:485 — Codex can't invoke itself
@@ -42,14 +48,14 @@ const codex: HostConfig = {
   ],
 
   runtimeRoot: {
-    globalSymlinks: ['bin', 'browse/dist', 'browse/bin', 'gstack-upgrade', 'ETHOS.md'],
+    globalSymlinks: ['bin', 'browse/dist', 'browse/bin', 'design/dist', 'gstack-upgrade', 'ETHOS.md'],
     globalFiles: {
       'review': ['checklist.md', 'TODOS-format.md'],
     },
   },
   sidecar: {
     path: '.agents/skills/gstack',
-    symlinks: ['bin', 'browse', 'review', 'qa', 'ETHOS.md'],
+    symlinks: ['bin', 'browse', 'design', 'review', 'qa', 'ETHOS.md'],
   },
 
   install: {

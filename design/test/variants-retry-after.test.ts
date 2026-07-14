@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { generateVariant } from "../src/variants";
+import { generateVariant, normalizeVariantCount } from "../src/variants";
 
 // 1x1 transparent PNG, base64 — valid bytes that fs.writeFileSync can write.
 const TINY_PNG_BASE64 =
@@ -82,7 +82,10 @@ describe("generateVariant Retry-After handling", () => {
     expect(result.success).toBe(true);
     expect(calls.length).toBe(2);
     const gap = calls[1].ts - calls[0].ts;
-    expect(gap).toBeGreaterThanOrEqual(2500);
+    // toUTCString() truncates milliseconds, so the honored wait can be up to
+    // ~1s shorter than +3000ms. Floor at 2000, still well above the 1s the
+    // leading exponential would add.
+    expect(gap).toBeGreaterThanOrEqual(2000);
     expect(gap).toBeLessThan(4500);
   });
 
@@ -129,5 +132,89 @@ describe("generateVariant Retry-After handling", () => {
     expect(calls.length).toBe(2);
     const gap = calls[1].ts - calls[0].ts;
     expect(gap).toBeLessThan(500);
+  });
+
+  test("AbortError surfaces the actual configured 240s timeout in the error message", async () => {
+    // Regression: `generateVariant`'s `setTimeout` aborts at 240_000 ms
+    // (240s) but the AbortError branch returned `"Timeout (120s)"`. A
+    // user staring at the failure has no way to know whether to bump
+    // the orchestrator timeout, retry, or drop the call — the message
+    // is off by 2x. Force the abort path and assert the surfaced
+    // string matches the real bound.
+    const fetchFn = (async (_input: any, init?: any): Promise<Response> => {
+      const signal = init?.signal as AbortSignal | undefined;
+      return await new Promise((_resolve, reject) => {
+        if (signal?.aborted) {
+          const err = new Error("aborted");
+          err.name = "AbortError";
+          reject(err);
+          return;
+        }
+        signal?.addEventListener("abort", () => {
+          const err = new Error("aborted");
+          err.name = "AbortError";
+          reject(err);
+        });
+      });
+    }) as typeof globalThis.fetch;
+
+    const originalSetTimeout = globalThis.setTimeout;
+    // Force the 240_000 ms timer to fire on the next event-loop tick
+    // so the test runs in milliseconds instead of 4 minutes. Only the
+    // 240_000 ms timer maps to fast; the leading exponential delays
+    // (2_000+ ms on retry) keep their real value via this branch
+    // because attempt 0 never sleeps.
+    const fastSetTimeout = ((handler: any, timeout?: number, ...rest: any[]): any => {
+      if (timeout === 240_000) {
+        return originalSetTimeout(handler, 0, ...rest);
+      }
+      return originalSetTimeout(handler, timeout as number, ...rest);
+    }) as typeof globalThis.setTimeout;
+    (globalThis as any).setTimeout = fastSetTimeout;
+
+    try {
+      const result = await generateVariant(
+        "fake-key", "prompt", outputPath, "1024x1024", "high", fetchFn,
+      );
+
+      expect(result.success).toBe(false);
+      // Critical: the message MUST report 240s (the real bound), not
+      // 120s (the pre-fix mismatched literal).
+      expect(result.error).toBe("Timeout (240s)");
+    } finally {
+      (globalThis as any).setTimeout = originalSetTimeout;
+    }
+  });
+});
+
+describe("normalizeVariantCount", () => {
+  test("non-numeric (NaN) falls back to the default of 3", () => {
+    // Regression: `--count abc` -> parseInt -> NaN -> Math.min(NaN, 7) -> NaN,
+    // so the loop ran zero times and the JSON result emitted `"count": null`.
+    expect(normalizeVariantCount(NaN)).toBe(3);
+    expect(normalizeVariantCount(Number.parseInt("abc", 10))).toBe(3);
+  });
+
+  test("zero and negative counts clamp up to the minimum of 1", () => {
+    // Regression: `--count 0` / `--count -2` produced zero variants.
+    expect(normalizeVariantCount(0)).toBe(1);
+    expect(normalizeVariantCount(-2)).toBe(1);
+  });
+
+  test("counts above the cap clamp down to 7", () => {
+    expect(normalizeVariantCount(10)).toBe(7);
+    expect(normalizeVariantCount(7)).toBe(7);
+  });
+
+  test("in-range counts pass through unchanged", () => {
+    expect(normalizeVariantCount(1)).toBe(1);
+    expect(normalizeVariantCount(3)).toBe(3);
+    expect(normalizeVariantCount(6)).toBe(6);
+  });
+
+  test("fractional counts truncate toward zero before clamping", () => {
+    expect(normalizeVariantCount(2.9)).toBe(2);
+    expect(normalizeVariantCount(0.5)).toBe(1);
+    expect(normalizeVariantCount(Infinity)).toBe(3);
   });
 });

@@ -72,13 +72,15 @@ function runHook(stdin: object, cwd?: string, extraEnv?: Record<string, string>)
   }
   env.GSTACK_STATE_ROOT = stateRoot;
   delete env.GSTACK_HOME;
-  // Strip ambient Conductor markers so these cases characterize NON-Conductor
-  // behavior deterministically — otherwise running the suite inside Conductor
-  // (CONDUCTOR_WORKSPACE_PATH/PORT set) would flip every defer into the
-  // [conductor] prose deny. The Conductor cases below opt back in explicitly
-  // via extraEnv.
+  // Strip ambient host markers so these cases characterize the plain
+  // (non-transport-avoidance) behavior deterministically — otherwise running the
+  // suite inside Conductor (CONDUCTOR_WORKSPACE_PATH/PORT set) or the Claude
+  // Desktop app (CLAUDE_CODE_ENTRYPOINT=claude-desktop) would flip every defer
+  // into the prose deny. The transport-avoidance cases below opt back in
+  // explicitly via extraEnv.
   delete env.CONDUCTOR_WORKSPACE_PATH;
   delete env.CONDUCTOR_PORT;
+  delete env.CLAUDE_CODE_ENTRYPOINT;
   env.GSTACK_QUESTION_LOG_NO_DERIVE = '1';
   if (extraEnv) Object.assign(env, extraEnv);
   const res = spawnSync(HOOK, [], {
@@ -126,7 +128,7 @@ describe('defers (no enforcement)', () => {
       },
     });
     expect(r.status).toBe(0);
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
   });
 
   test('marker missing → defer (D18)', () => {
@@ -141,7 +143,7 @@ describe('defers (no enforcement)', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
   });
 
   test('always-ask preference → defer', () => {
@@ -156,7 +158,7 @@ describe('defers (no enforcement)', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
   });
 
   test('empty stdin → defer (crash safety)', () => {
@@ -168,13 +170,35 @@ describe('defers (no enforcement)', () => {
     const res = spawnSync(HOOK, [], { env, input: '', encoding: 'utf-8' });
     expect(res.status).toBe(0);
     const parsed = JSON.parse(res.stdout || '{}');
-    expect(parsed.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(parsed.hookSpecificOutput?.permissionDecision).toBeUndefined();
   });
 
   test('non-AUQ tool_name → defer (defensive)', () => {
     writeProjectPref('test-q', 'never-ask');
     const r = runHook({ session_id: 's4', tool_name: 'Bash', tool_use_id: 'tu-4', tool_input: {} });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
+  });
+
+  // Regression: the defer path must NOT emit any permissionDecision. The Claude
+  // Code spec only defines allow/deny/ask; the old code emitted a bogus
+  // "defer" value, which native Claude Code ignored but Conductor's
+  // mcp__conductor__AskUserQuestion bridge could not handle — it hung the
+  // round-trip so the question never rendered and no tool_result came back.
+  // A plain ordinary question (no marker) must therefore produce empty stdout.
+  test('ordinary question (no marker) → empty stdout, no permissionDecision (Conductor AUQ bridge regression)', () => {
+    const r = runHook({
+      session_id: 's-conductor',
+      tool_name: 'mcp__conductor__AskUserQuestion',
+      tool_use_id: 'tu-conductor',
+      tool_input: {
+        questions: [
+          { question: 'Which option do you prefer?', options: ['A) One', 'B) Two'] },
+        ],
+      },
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stdout).not.toContain('permissionDecision');
   });
 });
 
@@ -219,7 +243,7 @@ describe('enforces never-ask preferences', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
   });
 
   test('ambiguous recommendation (two labels) → defer (D2 refuse-on-ambiguous)', () => {
@@ -237,7 +261,7 @@ describe('enforces never-ask preferences', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
   });
 
   test('no recommendation marker AND no prose match → defer', () => {
@@ -255,7 +279,7 @@ describe('enforces never-ask preferences', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
   });
 });
 
@@ -317,7 +341,7 @@ describe('precedence: project wins over global (D8)', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
   });
 });
 
@@ -443,7 +467,82 @@ describe('Conductor prose redirect', () => {
       undefined,
       CONDUCTOR,
     );
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
+  });
+});
+
+// ----------------------------------------------------------------------
+// Claude Desktop app: deny + prose redirect (same transport avoidance as
+// Conductor — CLAUDE_CODE_ENTRYPOINT=claude-desktop; AUQ handler returns a
+// missing-result internal error, and PostToolUse can't rescue it)
+// ----------------------------------------------------------------------
+
+describe('Claude Desktop prose redirect', () => {
+  const DESKTOP = { CLAUDE_CODE_ENTRYPOINT: 'claude-desktop' };
+
+  test('two-way, no preference → deny with [claude-desktop] prose directive', () => {
+    const r = runHook({
+      session_id: 'd1',
+      tool_name: 'AskUserQuestion',
+      tool_use_id: 'tu-d1',
+      tool_input: {
+        questions: [
+          { question: '<gstack-qid:test-q> Need approval?', options: ['A) Yes (recommended)', 'B) No'] },
+        ],
+      },
+    }, undefined, DESKTOP);
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('deny');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecisionReason).toContain('[claude-desktop]');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecisionReason).toMatch(/do not call askuserquestion/i);
+    expect(r.parsed?.hookSpecificOutput?.permissionDecisionReason).toMatch(/reply with a letter/i);
+  });
+
+  test('one-way door → deny (destructive must reach human via prose, not the broken tool)', () => {
+    const r = runHook({
+      session_id: 'd2',
+      tool_name: 'AskUserQuestion',
+      tool_use_id: 'tu-d2',
+      tool_input: {
+        questions: [
+          {
+            question: '<gstack-qid:ship-test-failure-triage> Tests failed.',
+            options: ['A) Fix now (recommended)', 'B) Investigate', 'C) Ack and ship'],
+          },
+        ],
+      },
+    }, undefined, DESKTOP);
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('deny');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecisionReason).toContain('[claude-desktop]');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecisionReason).toMatch(/typed confirmation/i);
+  });
+
+  test('full never-ask auto-decide still wins over the desktop prose redirect', () => {
+    writeProjectPref('ship-pre-landing-review-fix', 'never-ask');
+    const r = runHook({
+      session_id: 'd3',
+      tool_name: 'AskUserQuestion',
+      tool_use_id: 'tu-d3',
+      tool_input: {
+        questions: [
+          {
+            question: '<gstack-qid:ship-pre-landing-review-fix> Pre-landing review flagged issue.',
+            options: ['A) Fix now (recommended)', 'B) Skip'],
+          },
+        ],
+      },
+    }, undefined, DESKTOP);
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('deny');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecisionReason).toContain('plan-tune auto-decide');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecisionReason).not.toContain('[claude-desktop]');
+  });
+
+  test('non-AUQ tool on desktop → pass through (no redirect on unrelated tools)', () => {
+    const r = runHook(
+      { session_id: 'd4', tool_name: 'Bash', tool_use_id: 'tu-d4', tool_input: {} },
+      undefined,
+      DESKTOP,
+    );
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
   });
 });
 

@@ -165,6 +165,23 @@ describe("gstack-security-dashboard — never reports fake zeros (#1947)", () =>
     expect(r.stdout).not.toContain("unverified");
   });
 
+  it('a GENUINE zero still reads as "0 / Good news" — no over-degrade (#2026)', () => {
+    const zeroBody = JSON.stringify({
+      ...JSON.parse(GOOD_BODY_MARKER),
+      security: {
+        attacks_last_7_days: 0,
+        top_attack_domains: [],
+        top_attack_layers: [],
+        verdict_distribution: [],
+      },
+    });
+    const r = run(SEC_BIN, { mode: "ok", body: zeroBody });
+    expect(r.stdout).toContain("Attacks detected last 7 days: 0");
+    expect(r.stdout).toContain("Good news");
+    expect(r.stdout).not.toContain("unknown — backend error");
+    expect(r.stdout).not.toContain("install jq");
+  });
+
   it("200 + status:ok marker → status ok with full security section (json mode)", () => {
     const r = run(SEC_BIN, { mode: "ok", body: GOOD_BODY_MARKER, json: true });
     const parsed = JSON.parse(r.stdout.trim());

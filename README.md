@@ -48,7 +48,7 @@ Fork it. Improve it. Make it yours. And if you want to hate on free open source 
 
 Open Claude Code and paste this. Claude does the rest.
 
-> Install gstack: run **`git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`** then add a "gstack" section to CLAUDE.md that says to use the /browse skill from gstack for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, and lists the available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /investigate, /document-release, /document-generate, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn. Then ask the user if they also want to add gstack to the current project so teammates get it.
+> Install gstack: run **`git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`** then add a "gstack" section to CLAUDE.md that says to use the /browse skill from gstack for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, and lists the available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy, /canary, /benchmark, /browse, /connect-chrome, /qa, /qa-only, /design-review, /setup-browser-cookies, /setup-deploy, /setup-gbrain, /retro, /investigate, /bug-report, /document-release, /document-generate, /codex, /cso, /autoplan, /plan-devex-review, /devex-review, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn. Then ask the user if they also want to add gstack to the current project so teammates get it.
 
 ### Step 2: Team mode — auto-update for shared repos (recommended)
 
@@ -58,7 +58,7 @@ From inside your repo, paste this. Switches you to team mode, bootstraps the rep
 (cd ~/.claude/skills/gstack && ./setup --team) && ~/.claude/skills/gstack/bin/gstack-team-init required && git add .claude/ CLAUDE.md && git commit -m "require gstack for AI-assisted work"
 ```
 
-No vendored files in your repo, no version drift, no manual upgrades. Every Claude Code session starts with a fast auto-update check (throttled to once/hour, network-failure-safe, completely silent).
+Your project stays small, and everyone gets the same up-to-date version of gstack. If gstack is missing or its safety check cannot run, Claude Code and Copilot stop and explain what to do. If everything is ready, the check stays out of the way and your usual permission questions still appear. Updates happen quietly when a Claude Code session starts, at most once an hour.
 
 Swap `required` for `optional` if you'd rather nudge teammates than block them.
 
@@ -138,7 +138,7 @@ These are conversational skills. Your OpenClaw agent runs them directly via chat
 
 ### Other AI Agents
 
-gstack works on 10 AI coding agents, not just Claude. Setup auto-detects which
+gstack works on 15 AI coding agents, not just Claude. Setup auto-detects which
 agents you have installed:
 
 ```bash
@@ -150,17 +150,62 @@ Or target a specific agent with `./setup --host <name>`:
 
 | Agent | Flag | Skills install to |
 |-------|------|-------------------|
-| OpenAI Codex CLI | `--host codex` | `~/.codex/skills/gstack-*/` |
+| OpenAI Codex CLI | `--host codex` | `~/.agents/skills/gstack-*/` |
 | OpenCode | `--host opencode` | `~/.config/opencode/skills/gstack-*/` |
 | Cursor | `--host cursor` | `~/.cursor/skills/gstack-*/` |
 | Factory Droid | `--host factory` | `~/.factory/skills/gstack-*/` |
 | Slate | `--host slate` | `~/.slate/skills/gstack-*/` |
 | Kiro | `--host kiro` | `~/.kiro/skills/gstack-*/` |
-| Hermes | `--host hermes` | `~/.hermes/skills/gstack-*/` |
+| Hermes | `--host hermes` | Prints integration instructions; `bun run gen:skill-docs --host hermes` writes `.hermes/skills/` |
+| Pi | `--host pi` | Prints integration instructions; `bun run gen:skill-docs --host pi` writes `.pi/skills/` |
+| Antigravity | `--host agy` | Prints integration instructions; `bun run gen:skill-docs --host agy` writes `.agy/skills/` |
+| Mistral Vibe | `--host vibe` | Prints integration instructions; `bun run gen:skill-docs --host vibe` writes `.vibe/skills/` |
 | GBrain (mod) | `--host gbrain` | `~/.gbrain/skills/gstack-*/` |
+| Qoder | `--host qoder` | `~/.qoder/skills/gstack-*/` |
 
 **Want to add support for another agent?** See [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md).
 It's one TypeScript config file, zero code changes.
+
+### Claude Code Plugin Marketplace
+
+gstack is also available as a [Claude Code plugin](https://code.claude.com/docs/en/plugins). No git clone, no setup script — just install and go.
+
+```bash
+# Step 1: Register the marketplace
+/plugin marketplace add garrytan/gstack
+
+# Step 2: Install the plugin
+/plugin install gstack@garrytan-gstack
+```
+
+Skills are namespaced under the plugin: `/gstack:review`, `/gstack:qa`, `/gstack:office-hours`, etc.
+
+To upgrade:
+
+```bash
+/plugin update gstack@garrytan-gstack
+```
+
+**Plugin install vs. git clone install:** The plugin install gives you all 50+ skills instantly as methodology prompts. The git clone install (Step 1 above) is still the full experience: it builds the `/browse` headless browser binary, registers hook-based safety skills (`/careful`, `/freeze`, `/guard`), and installs the `bin/` helper scripts (telemetry, learnings, redaction, context recovery) at `~/.claude/skills/gstack/` where the skills look for them. In a plugin-only install those helper calls no-op or degrade gracefully — the review/planning methodology still works, but features that shell out to helpers (redaction scans, learnings capture, `/browse` QA) need the git clone install alongside. If you want everything, run both: the plugin for discovery, the clone for the toolchain.
+
+### Pi
+
+[Pi](https://pi.dev) implements the [Agent Skills standard](https://agentskills.io/specification)
+end-to-end, so every gstack skill works out of the box once the skills directory
+is configured. `./setup --host pi` prints these instructions; the install itself
+is two commands:
+
+```bash
+git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/gstack
+cd ~/gstack && bun run gen:skill-docs --host pi
+mkdir -p ~/.pi/agent/skills && ln -snf "$(pwd)"/.pi/skills/gstack* ~/.pi/agent/skills/
+```
+
+Skills land at `~/.pi/agent/skills/gstack-*/`. For project-local skills (trusted
+project), pi also discovers `.pi/skills/`. Pi loads skill descriptions at startup
+and lazy-loads the full `SKILL.md` on demand, matching Claude Code's behavior.
+
+Invoke a skill with `/skill:<name>` (e.g. `/skill:review`, `/skill:ship`).
 
 ## See it work
 
@@ -223,6 +268,7 @@ Each skill feeds into the next. `/office-hours` writes a design doc that `/plan-
 | `/design-consultation` | **Design Partner** | Build a complete design system from scratch. Researches the landscape, proposes creative risks, generates realistic product mockups. |
 | `/review` | **Staff Engineer** | Find the bugs that pass CI but blow up in production. Auto-fixes the obvious ones. Flags completeness gaps. |
 | `/investigate` | **Debugger** | Systematic root-cause debugging. Iron Law: no fixes without investigation. Traces data flow, tests hypotheses, stops after 3 failed fixes. |
+| `/bug-report` | **Incident Reporter** | Turn an already-observed failure into a redacted, maintainer-ready issue draft and implementation handoff. Describe what broke, then run `/bug-report`; it reconstructs the timeline, captures scoped evidence, attempts safe reproduction, and never fixes or publishes without approval. |
 | `/design-review` | **Designer Who Codes** | Same audit as /plan-design-review, then fixes what it finds. Atomic commits, before/after screenshots. |
 | `/devex-review` | **DX Tester** | Live developer experience audit. Actually tests your onboarding: navigates docs, tries the getting started flow, times TTHW, screenshots errors. Compares against `/plan-devex-review` scores — the boomerang that shows if your plan matched reality. |
 | `/design-shotgun` | **Design Explorer** | "Show me options." Generates 4-6 AI mockup variants, opens a comparison board in your browser, collects your feedback, and iterates. Taste memory learns what you like. Repeat until you love something, then hand it to `/design-html`. |
@@ -393,10 +439,11 @@ rm -rf ~/.claude/skills/gstack
 rm -rf ~/.gstack
 
 # 5. Remove integrations (skip any you never installed)
-rm -rf ~/.codex/skills/gstack* 2>/dev/null
+rm -rf ~/.agents/skills/gstack* ~/.codex/skills/gstack* 2>/dev/null
 rm -rf ~/.factory/skills/gstack* 2>/dev/null
 rm -rf ~/.kiro/skills/gstack* 2>/dev/null
 rm -rf ~/.openclaw/skills/gstack* 2>/dev/null
+rm -rf ~/.qoder/skills/gstack* 2>/dev/null
 
 # 6. Remove temp files
 rm -f /tmp/gstack-* 2>/dev/null
@@ -486,6 +533,7 @@ gstack includes **opt-in** usage telemetry to help improve the project. Here's e
 - **What's sent (if you opt in):** skill name, duration, success/fail, gstack version, OS. That's it.
 - **What's never sent:** code, file paths, repo names, branch names, prompts, or any user-generated content.
 - **Change anytime:** `gstack-config set telemetry off` disables everything instantly.
+- **Update checks:** Once per hour, gstack fetches the current version number from `raw.githubusercontent.com` to check for upgrades. This is a plain GET request — no auth, no payload — but it does reach GitHub's servers regardless of your telemetry setting. Set `update_check: false` in `~/.gstack/config.yaml` to disable it entirely.
 
 Data is stored in [Supabase](https://supabase.com) (open source Firebase alternative). The schema is in [`supabase/migrations/`](supabase/migrations/) — you can verify exactly what's collected. The Supabase publishable key in the repo is a public key (like a Firebase API key) — row-level security policies deny all direct access. Telemetry flows through validated edge functions that enforce schema checks, event type allowlists, and field length limits.
 
@@ -503,7 +551,7 @@ Data is stored in [Supabase](https://supabase.com) (open source Firebase alterna
 
 **Want namespaced commands?** `cd ~/.claude/skills/gstack && ./setup --prefix` — switches from `/qa` to `/gstack-qa`. Useful if you run other skill packs alongside gstack.
 
-**Codex says "Skipped loading skill(s) due to invalid SKILL.md"?** Your Codex skill descriptions are stale. Fix: `cd ~/.codex/skills/gstack && git pull && ./setup --host codex` — or for repo-local installs: `cd "$(readlink -f .agents/skills/gstack)" && git pull && ./setup --host codex`
+**Codex says "Skipped loading skill(s) due to invalid SKILL.md"?** Your Codex skill descriptions are stale. Fix: `cd ~/.agents/skills/gstack && git pull && ./setup --host codex` — or for repo-local installs: `cd "$(readlink -f .agents/skills/gstack)" && git pull && ./setup --host codex`
 
 **Windows users:** gstack works on Windows 11 via Git Bash or WSL. Node.js is required in addition to Bun — Bun has a known bug with Playwright's pipe transport on Windows ([bun#4253](https://github.com/oven-sh/bun/issues/4253)). The browse server automatically falls back to Node.js. Make sure both `bun` and `node` are on your PATH.
 
@@ -517,7 +565,7 @@ Use /browse from gstack for all web browsing. Never use mcp__claude-in-chrome__*
 Available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review,
 /design-consultation, /design-shotgun, /design-html, /review, /ship, /land-and-deploy,
 /canary, /benchmark, /browse, /open-gstack-browser, /qa, /qa-only, /design-review,
-/setup-browser-cookies, /setup-deploy, /setup-gbrain, /sync-gbrain, /retro, /investigate,
+/setup-browser-cookies, /setup-deploy, /setup-gbrain, /sync-gbrain, /retro, /investigate, /bug-report,
 /document-release, /document-generate, /codex, /cso, /autoplan, /pair-agent, /careful, /freeze,
 /guard, /unfreeze, /gstack-upgrade, /learn.
 ```

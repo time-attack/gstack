@@ -366,9 +366,22 @@ Layout: a `D<N>` title + a one-line note to reply with a letter (in Conductor th
 
 **One-way / destructive confirmations in prose.** When the decision is a one-way door (irreversible or destructive — delete, force-push, drop, overwrite), prose is a WEAKER gate than the tool, so make it stronger: require an explicit typed confirmation (the exact option letter or word), state plainly what is irreversible, and NEVER proceed on a vague, partial, or ambiguous reply — re-ask instead. Treat silence or "ok"/"sure" without the explicit choice as not-yet-confirmed.
 
+### Tool-call shape (JSON) — schema-critical
+
+The decision brief below is prose for the user; the tool call itself MUST pass a JSON object with `questions` as a true **array of objects** — never a string, never a stringified array. Each question MUST carry a non-empty `options` array. Hosts render the prompt before validating tool args, so a malformed shape (e.g. `questions` emitted as a string, or a question with missing/`null` `options`) can crash the session. If you can't satisfy the schema, fall back to prose per the rule above — do not emit a bad call.
+
+```
+questions: [
+  { header: "...", question: "...", multiSelect: false,
+    options: [ { label: "...", description: "..." }, { label: "...", description: "..." } ] }
+]
+```
+- `questions`: array (not string). 1–4 questions.
+- Each `options`: array of 2–4 `{ label, description }`. Never `null`, never omitted, never empty.
+
 ### Format
 
-Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
+Every AskUserQuestion decision has two parts: a markdown decision brief before the call, then a compact tool_use payload. Do not pack the full brief into the tool's `question` string. Every AskUserQuestion is a decision brief and must be sent as tool_use, not prose — unless the documented failure fallback above applies (interactive session + the call is unavailable/erroring), in which case the prose fallback is the correct output.
 
 ```
 D<N> — <one-line question title>
@@ -400,6 +413,12 @@ Neutral posture: `Recommendation: <default> — this is a taste call, no strong 
 Effort both-scales: when an option involves effort, label both human-team and CC+gstack time, e.g. `(human: ~2 days / CC: ~15 min)`. Makes AI compression visible at decision time.
 
 Net line closes the tradeoff. Per-skill instructions may add stricter rules.
+
+Tool payload rules:
+- `question` is only the decision prompt: one sentence, no newlines, <=80 chars.
+- Background, regrounding, ELI10, stakes, recommendation, pros/cons, and trade-off tables stay in the markdown brief before the tool call.
+- Ask one decision per tool call when possible; batch at most two related questions/tabs. Sequence independent decisions instead of sending 3+ tabs.
+- Do not duplicate the same trade-off text in both `question` and `options[].description`. Prefer putting option-specific trade-offs in `options[].description`.
 
 ### Handling 5+ options — split, never drop
 
@@ -448,6 +467,12 @@ Before calling AskUserQuestion, verify:
 - [ ] (recommended) label on one option (even for neutral-posture)
 - [ ] Dual-scale effort labels on effort-bearing options (human / CC)
 - [ ] Net line closes the decision
+- [ ] `question` is one sentence, no newlines, <=80 chars
+- [ ] Tool call has no more than two related questions/tabs
+- [ ] No duplicated trade-off text between `question` and `options[].description`
+- [ ] You wrote the brief, then called the tool_use payload
+- [ ] `questions` is a JSON array of objects — NOT a string
+- [ ] Every question has a non-empty `options` array (2–4 `{ label, description }`)
 - [ ] You are calling the tool, not writing prose — unless `CONDUCTOR_SESSION: true` (then prose is the DEFAULT, not the tool) OR the documented failure fallback applies (then: prose with the mandatory triad — issue ELI10, per-choice Completeness, Recommendation + `(recommended)` — and a "reply with a letter" instruction, then STOP)
 - [ ] Non-ASCII characters (CJK / accents) written directly, NOT \u-escaped
 - [ ] If you had 5+ options, you split (or batched into ≤4-groups) — did NOT drop any
@@ -625,7 +650,7 @@ _PROJ="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
 if [ -d "$_PROJ" ]; then
   echo "--- RECENT ARTIFACTS ---"
   find "$_PROJ/ceo-plans" "$_PROJ/checkpoints" -type f -name "*.md" 2>/dev/null | xargs ls -t 2>/dev/null | head -3
-  [ -f "$_PROJ/${_BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${_BRANCH}-reviews.jsonl" | tr -d ' ') entries"
+  [ -f "$_PROJ/${BRANCH}-reviews.jsonl" ] && echo "REVIEWS: $(wc -l < "$_PROJ/${BRANCH}-reviews.jsonl" | tr -d ' ') entries"
   [ -f "$_PROJ/timeline.jsonl" ] && tail -5 "$_PROJ/timeline.jsonl"
   if [ -f "$_PROJ/timeline.jsonl" ]; then
     _LAST=$(grep "\"branch\":\"${_BRANCH}\"" "$_PROJ/timeline.jsonl" 2>/dev/null | grep '"event":"completed"' | tail -1)
@@ -788,8 +813,22 @@ Claude Code) can call it as both a CLI and an MCP tool.
 
 **Scope honesty:** This skill's MCP registration step (5a) uses
 `claude mcp add` and targets Claude Code specifically. Other local hosts
-(Cursor, Codex CLI, etc.) will still get the gbrain CLI on PATH — they can
-register `gbrain serve` in their own MCP config manually after setup.
+(Cursor, Codex CLI, **Grok Build**, etc.) will still get the gbrain CLI on
+PATH — they can register `gbrain serve` in their own MCP config manually
+after setup.
+
+**Grok Build success path (no Claude required):** setup is **COMPATIBLE** when
+(1) `gbrain` is on PATH, (2) the engine is healthy (`gbrain doctor`), and
+(3) AGENTS.md (or project docs) carry gbrain guidance via `/sync-gbrain`.
+Claude MCP registration is optional. Never mark setup FAILED only because
+`claude` is missing. Optional Grok MCP into `~/.grok/config.toml` is a stretch
+(absolute path, structured TOML RMW, gbrain stanza only, atomic write +
+backup; non-interactive refuses non-equivalent overwrite unless `--force` or
+a real TTY confirm).
+
+**Bridge policy:** install prose alone does not green the primary path when
+the CLI is missing — detect/install guidance may be READY; overall bridge is
+DEPENDENT until `gbrain` is present.
 
 **Audience:** local-Mac users. openclaw/hermes agents typically run in cloud
 docker containers with their own gbrain; "sharing" a brain between them and
@@ -1258,9 +1297,14 @@ doctor output and STOP.
 
 ---
 
-## Step 5a: Register gbrain as Claude Code MCP (D18)
+## Step 5a: Register gbrain as Claude Code MCP (D18) — optional
 
-Only if `which claude` resolves. Ask: "Give Claude Code a typed tool surface
+Only if `which claude` resolves. If `claude` is **not** on PATH (typical on
+Grok-only machines): emit "MCP registration skipped — Claude Code not present.
+Grok/other hosts succeed via CLI + AGENTS.md; register `gbrain serve` in host
+MCP config only if desired." Continue to step 6 — **do not fail setup**.
+
+If `claude` is present, ask: "Give Claude Code a typed tool surface
 for gbrain? (recommended yes)"
 
 The registration form depends on the path picked in Step 2:

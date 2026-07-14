@@ -90,11 +90,12 @@ describe('session-runner observability', () => {
     const src = fs.readFileSync(
       path.resolve(__dirname, 'session-runner.ts'), 'utf-8'
     );
-    // Count non-fatal comments — should be present for each new I/O path
+    // Count non-fatal comments — should be present for each new I/O path:
+    // failure transcript, runDir creation, progress.log, heartbeat, NDJSON
+    // append. (The promptFile unlink path was removed with the direct-spawn
+    // shell-injection fix — the prompt no longer touches a temp file.)
     const nonFatalCount = (src.match(/\/\* non-fatal \*\//g) || []).length;
-    // Original had 2 (promptFile unlink + failure transcript), we added 4 more
-    // (runDir creation, progress.log, heartbeat, NDJSON append)
-    expect(nonFatalCount).toBeGreaterThanOrEqual(6);
+    expect(nonFatalCount).toBeGreaterThanOrEqual(5);
   });
 });
 

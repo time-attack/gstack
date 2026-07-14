@@ -20,7 +20,7 @@ import type { TemplateContext, ResolverFn, ResolverValue } from './types';
 import { generatePreamble } from './preamble';
 import { generateTestFailureTriage } from './preamble';
 import { generateCommandReference, generateSnapshotFlags, generateBrowseSetup } from './browse';
-import { generateDesignMethodology, generateDesignHardRules, generateDesignOutsideVoices, generateDesignReviewLite, generateDesignSketch, generateDesignSetup, generateDesignMockup, generateDesignShotgunLoop, generateTasteProfile, generateUXPrinciples } from './design';
+import { generateDesignMethodology, generateDesignHardRules, generateDesignOutsideVoices, generateDesignReviewLite, generateDesignSketch, generateDesignSetup, generateDesignMockup, generateDesignShotgunGeneration, generateDesignShotgunLoop, generateTasteProfile, generateUXPrinciples } from './design';
 import { generateTestBootstrap, generateTestCoverageAuditPlan, generateTestCoverageAuditShip, generateTestCoverageAuditReview } from './testing';
 import { generateReviewDashboard, generatePlanFileReviewReport, generateExitPlanModeGate, generateAntiShortcutClause, generateSpecReviewLoop, generateBenefitsFrom, generateCodexSecondOpinion, generateAdversarialStep, generateCodexPlanReview, generateCodexDocReview, generatePlanCompletionAuditShip, generatePlanCompletionAuditReview, generatePlanVerificationExec, generateScopeDrift, generateCrossReviewDedup } from './review';
 import { generateSlugEval, generateSlugSetup, generateBaseBranchDetect, generateDeployBootstrap, generateQAMethodology, generateCoAuthorTrailer, generateChangelogWorkflow } from './utility';
@@ -36,6 +36,8 @@ import { generateMakePdfSetup } from './make-pdf';
 import { generateTasksSectionEmit, generateTasksSectionAggregate } from './tasks-section';
 import { SECTION, SECTION_INDEX } from './sections';
 import { generateRedactTaxonomyTable, generateRedactInvocationBlock } from './redact-doc';
+import { generateAutoplanOutsideVoiceBlock, generateAutoplanOutsideVoicePreflight } from './autoplan';
+import { generateSpecSpawn, generateSpecExecuteFlag } from './spec-spawn';
 
 export const RESOLVERS: Record<string, ResolverValue> = {
   SLUG_EVAL: generateSlugEval,
@@ -66,6 +68,7 @@ export const RESOLVERS: Record<string, ResolverValue> = {
   DESIGN_SKETCH: generateDesignSketch,
   DESIGN_SETUP: generateDesignSetup,
   DESIGN_MOCKUP: generateDesignMockup,
+  DESIGN_SHOTGUN_GENERATION: generateDesignShotgunGeneration,
   DESIGN_SHOTGUN_LOOP: generateDesignShotgunLoop,
   BENEFITS_FROM: generateBenefitsFrom,
   CODEX_SECOND_OPINION: generateCodexSecondOpinion,
@@ -100,6 +103,10 @@ export const RESOLVERS: Record<string, ResolverValue> = {
   MAKE_PDF_SETUP: generateMakePdfSetup,
   TASKS_SECTION_EMIT: generateTasksSectionEmit,
   TASKS_SECTION_AGGREGATE: generateTasksSectionAggregate,
+  SPEC_SPAWN: generateSpecSpawn,
+  SPEC_EXECUTE_FLAG: generateSpecExecuteFlag,
   SECTION,
   SECTION_INDEX,
+  AUTOPLAN_OUTSIDE_VOICE_PREFLIGHT: generateAutoplanOutsideVoicePreflight,
+  AUTOPLAN_OUTSIDE_VOICE_BLOCK: generateAutoplanOutsideVoiceBlock,
 };

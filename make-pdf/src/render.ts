@@ -12,6 +12,7 @@
  */
 
 import { marked } from "marked";
+import sanitizeHtml from "sanitize-html";
 import { smartypants } from "./smartypants";
 import { printCss, type PrintCssOptions } from "./print-css";
 import { applyImageDirectives } from "./image-policy";
@@ -66,8 +67,10 @@ export interface RenderResult {
  * Pure renderer. No side effects.
  */
 export function render(opts: RenderOptions): RenderResult {
-  // 1. Markdown → HTML
-  const rawHtml = marked.parse(opts.markdown, { async: false }) as string;
+  // 1. Markdown → HTML (strip a leading YAML frontmatter block first; marked
+  //    has no frontmatter awareness and would otherwise render it as a literal
+  //    paragraph of body text on its own first page).
+  const rawHtml = marked.parse(stripFrontmatter(opts.markdown), { async: false }) as string;
 
   // 1.5. Image directive suffixes: `![a](x.png){width=50%}` → data-gstack-*
   // attributes. Before the sanitizer (which keeps data- attrs) so the brace
@@ -194,60 +197,57 @@ function decodeTypographicEntities(html: string): string {
 /**
  * Strip dangerous HTML from markdown-produced output.
  *
- * We can't use DOMPurify (server-side; adds a jsdom dep). A conservative
- * regex sanitizer is fine for this use case because:
- *   1. marked produces structured HTML (never malformed)
- *   2. we only need to strip a fixed blacklist of elements + attrs
- *   3. the output goes through Chromium's parser again, which normalizes
- *
- * What's stripped:
- *   - <script>, <iframe>, <object>, <embed>, <link>, <meta>, <base>, <form>
- *     (and their content).
- *   - on* event handler attributes (onclick, ONCLICK, etc.).
- *   - href/src with javascript: scheme.
- *   - <svg> tags with <script> inside them.
+ * Use a parser-backed sanitizer instead of regex matching. Regex-based HTML
+ * filtering is brittle and can be bypassed by malformed-but-browser-accepted
+ * markup.
  */
+const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  // Keep common markdown output tags only; drop active/embedding content.
+  allowedTags: [
+    ...sanitizeHtml.defaults.allowedTags,
+    "img",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "section", "figure", "figcaption",
+    "table", "thead", "tbody", "tr", "th", "td",
+    // GFM output the defaults miss: task-list checkboxes and strikethrough.
+    "input", "del", "ins",
+    // Embedded <style> blocks are a supported authoring feature (#1904:
+    // docs open with styling before the first H1; wrapChaptersByH1 folds
+    // them into the first chapter). Print context: no script execution,
+    // and the doc author is the only "attacker" of their own document.
+    // allowVulnerableTags silences sanitize-html's warning for style —
+    // script stays OUT of allowedTags and is still stripped.
+    "style",
+  ],
+  allowVulnerableTags: true,
+  allowedAttributes: {
+    a: ["href", "name", "target", "rel", "title"],
+    img: ["src", "alt", "title", "width", "height"],
+    // Task-list checkboxes (marked emits <input type="checkbox" checked disabled>).
+    input: ["type", "checked", "disabled"],
+    // Ordered lists starting at N renumber from 1 without start.
+    ol: ["start"],
+    // data-* is load-bearing: applyImageDirectives runs pre-sanitize and its
+    // data-gstack-* annotations are read post-sanitize by applyImagePolicy
+    // (see image-policy.ts). style matches the old sanitizer's behavior for
+    // legit inline styling in markdown-embedded HTML; inline <svg> stays
+    // dropped (deliberate posture change from the regex sanitizer).
+    '*': ["id", "class", "lang", "dir", "align", "style", "data-*"],
+  },
+  allowedSchemes: ["http", "https", "mailto", "tel", "data"],
+  allowedSchemesByTag: {
+    // img additionally needs file: URLs and Windows drive-letter paths
+    // (C:/x.png parses as a single-letter scheme) — inlineLocalImages runs
+    // post-sanitize and explicitly supports both local forms. Single-letter
+    // "schemes" cannot smuggle javascript:/vbscript:/data: payloads.
+    img: ["http", "https", "data", "file", ..."abcdefghijklmnopqrstuvwxyz"],
+  },
+  allowProtocolRelative: false,
+  disallowedTagsMode: "discard",
+};
+
 export function sanitizeUntrustedHtml(html: string): string {
-  let s = html;
-
-  // Elements to remove entirely (including content).
-  const DANGER_TAGS = [
-    "script", "iframe", "object", "embed", "link", "meta", "base", "form",
-    "applet", "frame", "frameset",
-  ];
-  for (const tag of DANGER_TAGS) {
-    const re = new RegExp(`<${tag}\\b[\\s\\S]*?</${tag}>`, "gi");
-    s = s.replace(re, "");
-    // Self-closing / unclosed variants
-    const selfRe = new RegExp(`<${tag}\\b[^>]*/?>`, "gi");
-    s = s.replace(selfRe, "");
-  }
-
-  // SVG <script>
-  s = s.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/gi, (_, attrs, body) => {
-    return `<svg${attrs}>${body.replace(/<script\b[\s\S]*?<\/script>/gi, "")}</svg>`;
-  });
-
-  // Event handler attributes (on* in any case).
-  s = s.replace(/\s+on[a-zA-Z]+\s*=\s*"[^"]*"/gi, "");
-  s = s.replace(/\s+on[a-zA-Z]+\s*=\s*'[^']*'/gi, "");
-  s = s.replace(/\s+on[a-zA-Z]+\s*=\s*[^\s>]+/gi, "");
-
-  // javascript: URLs in href/src/action/formaction
-  s = s.replace(
-    /(\s(?:href|src|action|formaction|xlink:href)\s*=\s*)(?:"javascript:[^"]*"|'javascript:[^']*'|javascript:[^\s>]+)/gi,
-    '$1"#"',
-  );
-
-  // srcdoc attribute (iframe escape hatch — already stripped via iframe above,
-  // but defense-in-depth).
-  s = s.replace(/\s+srcdoc\s*=\s*"[^"]*"/gi, "");
-  s = s.replace(/\s+srcdoc\s*=\s*'[^']*'/gi, "");
-
-  // style="url(javascript:..)" — strip javascript: inside style attrs.
-  s = s.replace(/url\(\s*javascript:[^)]*\)/gi, "url(#)");
-
-  return s;
+  return sanitizeHtml(html, SANITIZE_OPTIONS);
 }
 
 // ─── Cover / TOC / Chapter helpers ────────────────────────────────────
@@ -315,7 +315,10 @@ function buildTocBlock(html: string, ids: string[] = []): string {
  */
 function addHeadingIds(html: string): { html: string; ids: string[] } {
   const ids: string[] = [];
-  const out = html.replace(/<(h[1-3])([^>]*)>/gi, (full, tag: string, attrs: string) => {
+  const out = html.replace(/<(h[1-3])([^>]*)>([\s\S]*?)<\/\1>/gi, (full, tag: string, attrs: string, body: string) => {
+    // Skip the headings extractHeadings skips (empty text): giving them a
+    // slot would shift the index pairing and mislink every later TOC entry.
+    if (!decodeTextEntities(stripTags(body).trim())) return full;
     const existing = attrs.match(/\bid\s*=\s*["']([^"']*)["']/i)?.[1];
     if (existing) {
       ids.push(existing);
@@ -323,7 +326,7 @@ function addHeadingIds(html: string): { html: string; ids: string[] } {
     }
     const id = `toc-${ids.length}`;
     ids.push(id);
-    return `<${tag}${attrs} id="${id}">`;
+    return `<${tag}${attrs} id="${id}">${body}</${tag}>`;
   });
   return { html: out, ids };
 }
@@ -357,15 +360,49 @@ function wrapChaptersByH1(html: string): string {
   }
   const chunks: string[] = [];
   const preamble = html.slice(0, matches[0]);
+  // A preamble that renders nothing visible (a leading <style> block, an HTML
+  // comment) must NOT become its own .chapter. That section would take the
+  // `.chapter:first-of-type { break-before: auto }` exception, so the first
+  // *real* chapter inherits `break-before: page` and starts on page 2 — leaving
+  // a blank page 1. Keep the non-rendering markup (so its styling still applies)
+  // but fold it into the first real chapter instead of giving it a page break.
+  let carriedPreamble = "";
   if (preamble.trim().length > 0) {
-    chunks.push(`<section class="chapter">${preamble}</section>`);
+    if (stripNonRendering(preamble).trim().length > 0) {
+      chunks.push(`<section class="chapter">${preamble}</section>`);
+    } else {
+      carriedPreamble = preamble;
+    }
   }
   for (let i = 0; i < matches.length; i++) {
     const start = matches[i];
     const end = i + 1 < matches.length ? matches[i + 1] : html.length;
-    chunks.push(`<section class="chapter">${html.slice(start, end)}</section>`);
+    const body = i === 0 ? carriedPreamble + html.slice(start, end) : html.slice(start, end);
+    chunks.push(`<section class="chapter">${body}</section>`);
   }
   return chunks.join("\n");
+}
+
+/**
+ * Strip leading YAML frontmatter (`---\n...\n---`). Only a block at the very
+ * start of the document is removed, so a `---` thematic break elsewhere is
+ * untouched.
+ */
+function stripFrontmatter(md: string): string {
+  return md.replace(/^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/, "");
+}
+
+/**
+ * Remove non-rendering markup (style/script blocks, HTML comments) so an
+ * otherwise-empty preamble is recognized as visually empty. Used only to decide
+ * whether a preamble deserves its own page — the original markup is preserved in
+ * the output.
+ */
+function stripNonRendering(html: string): string {
+  return html
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "");
 }
 
 function extractFirstHeading(html: string): string | null {
@@ -416,7 +453,7 @@ function composeMargins(opts: {
 }
 
 function stripTags(html: string): string {
-  return html.replace(/<[^>]+>/g, "");
+  return sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} });
 }
 
 export function escapeHtml(s: string): string {

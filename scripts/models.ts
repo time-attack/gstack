@@ -14,8 +14,12 @@
 export const ALL_MODEL_NAMES = [
   'claude',
   'opus-4-7',
+  'opus-4-8',
+  'fable-5',
+  'sonnet-5',
   'gpt',
   'gpt-5.4',
+  'gpt-5.6',
   'gemini',
   'o-series',
 ] as const;
@@ -28,6 +32,7 @@ export type Model = (typeof ALL_MODEL_NAMES)[number];
  * Precedence rules:
  * 1. Exact match against ALL_MODEL_NAMES → return as-is.
  * 2. Family heuristics for common variants:
+ *    - `gpt-5.6-sol`, `gpt-5.6-*` → `gpt-5.6`
  *    - `gpt-5.4-mini`, `gpt-5.4-turbo`, `gpt-5.4-*` → `gpt-5.4`
  *    - `gpt-*` (anything else GPT) → `gpt`
  *    - `o3`, `o4`, `o4-mini`, `o1`, `o1-mini`, `o1-pro` → `o-series`
@@ -49,10 +54,14 @@ export function resolveModel(input: string): Model | null {
   }
 
   // Family heuristics
+  if (/^gpt-5\.6(-|$)/.test(s)) return 'gpt-5.6';
   if (/^gpt-5\.4(-|$)/.test(s)) return 'gpt-5.4';
   if (/^gpt(-|$)/.test(s)) return 'gpt';
   if (/^o[0-9]+(-|$)/.test(s)) return 'o-series';
   if (/^claude-opus-4-7(-|$)/.test(s)) return 'opus-4-7';
+  if (/^claude-opus-4-8(-|$)/.test(s)) return 'opus-4-8';
+  if (/^claude-fable-5(-|$)/.test(s)) return 'fable-5';
+  if (/^claude-sonnet-5(-|$)/.test(s)) return 'sonnet-5';
   if (/^claude(-|$)/.test(s)) return 'claude';
   if (/^gemini(-|$)/.test(s)) return 'gemini';
 
