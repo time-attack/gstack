@@ -105,12 +105,12 @@ COMMITS_RECENT=$(git log --format=%H -n 5 2>/dev/null | tr '\\n' '|' | sed 's/|$
 
 AGGREGATED_TASKS=""
 if command -v jq >/dev/null 2>&1; then
-  # Collect entries from all 4 phases, scoped to current branch + commit window.
+  # Collect entries from all phases, scoped to current branch + commit window.
   # For each phase, keep only the latest run_id. Within the surviving set,
   # dedupe by (component, sorted(files), title) — exact match only.
   # Sort by priority (P1 > P2 > P3) then by phase order.
   ALL_JSONL=$(mktemp -t autoplan-tasks.XXXXXXXX)
-  for phase in ceo-review design-review eng-review devex-review; do
+  for phase in ceo-review pm-review design-review eng-review devex-review; do
     # Use find instead of glob expansion — zsh nomatch errors otherwise when
     # a phase produced no JSONL files. Sorting by name keeps the order stable.
     while IFS= read -r f; do
@@ -143,9 +143,9 @@ if command -v jq >/dev/null 2>&1; then
     'group_by([.component, (.files | sort), .title])
      | map(
          # Take the highest-priority entry per group; tie-break by phase order
-         sort_by({P1:0,P2:1,P3:2}[.priority] // 99, {"ceo-review":0,"design-review":1,"eng-review":2,"devex-review":3}[.phase] // 99) | .[0]
+         sort_by({P1:0,P2:1,P3:2}[.priority] // 99, {"ceo-review":0,"pm-review":1,"design-review":2,"eng-review":3,"devex-review":4}[.phase] // 99) | .[0]
        )
-     | sort_by({P1:0,P2:1,P3:2}[.priority] // 99, {"ceo-review":0,"design-review":1,"eng-review":2,"devex-review":3}[.phase] // 99)
+     | sort_by({P1:0,P2:1,P3:2}[.priority] // 99, {"ceo-review":0,"pm-review":1,"design-review":2,"eng-review":3,"devex-review":4}[.phase] // 99)
      | if length == 0 then "_No actionable tasks emitted from any phase._" else
          map("- [ ] **\\(.id) (\\(.priority), human: \\(.effort_human) / CC: \\(.effort_cc)) — \\(.component)** — \\(.title)\\n  - Surfaced by: \\(.phase) — \\(.source_finding)\\n  - Files: \\(.files | join(", "))") | join("\\n")
        end' "$ALL_JSONL" 2>/dev/null | sed 's/^"//;s/"$//;s/\\\\n/\\n/g')

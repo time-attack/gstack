@@ -11,6 +11,7 @@ INPUT=$(cat)
 # across GSTACK_HOME / CLAUDE_PLUGIN_DATA / $HOME/.gstack fallback chain.
 _PATHS_BIN=""
 for _p in \
+    "$(dirname "$0")/../../bin/gstack-paths" \
     "${CLAUDE_SKILL_DIR:-}/../gstack/bin/gstack-paths" \
     "$HOME/.claude/skills/gstack/bin/gstack-paths"; do
   [ -x "$_p" ] && { _PATHS_BIN="$_p"; break; }
@@ -18,10 +19,10 @@ done
 
 if [ -n "$_PATHS_BIN" ]; then
   eval "$("$_PATHS_BIN" 2>/dev/null)" 2>/dev/null || true
-  STATE_DIR="${GSTACK_STATE_ROOT:-${CLAUDE_PLUGIN_DATA:-$HOME/.gstack}}"
-else
-  STATE_DIR="${CLAUDE_PLUGIN_DATA:-$HOME/.gstack}"
 fi
+# Fallback mirrors gstack-paths' chain (GSTACK_HOME first) when the binary
+# is absent or its eval failed.
+STATE_DIR="${GSTACK_STATE_ROOT:-${GSTACK_HOME:-${CLAUDE_PLUGIN_DATA:-$HOME/.gstack}}}"
 
 FREEZE_FILE="$STATE_DIR/freeze-dir.txt"
 
@@ -31,7 +32,9 @@ if [ ! -f "$FREEZE_FILE" ]; then
   exit 0
 fi
 
-FREEZE_DIR=$(tr -d '[:space:]' < "$FREEZE_FILE")
+# First line only, trailing whitespace/CR stripped — internal spaces preserved
+# (paths like "/Users/me/My Project/src" must survive).
+FREEZE_DIR=$(head -n 1 "$FREEZE_FILE" | sed 's/[[:space:]]*$//')
 
 # If freeze dir is empty, allow
 if [ -z "$FREEZE_DIR" ]; then

@@ -5,14 +5,17 @@
  * or Grep won't run cleanly on CLIs that don't have those. The map answers:
  * "which tools does each provider's CLI expose by default?"
  *
- * When a benchmark is scoped to a tool a provider lacks, the harness records
- * `unsupported_tool` in the result and continues with the other providers.
+ * Callers use missingTools() to detect when a benchmark is scoped to a tool a
+ * provider lacks. The runner does not yet consume this map automatically —
+ * wiring an `unsupported_tool` skip into runBenchmark is future work.
  *
  * Source-of-truth references:
  *   - Claude Code: https://code.claude.com/docs/en/tools
  *   - Codex CLI: `codex exec --help` tool listing
  *   - Gemini CLI: `gemini --help` (limited tool surface as of 2026-04)
  */
+
+import type { Family } from './providers/types';
 
 export type ToolName =
   | 'Read'
@@ -26,7 +29,7 @@ export type ToolName =
   | 'WebSearch'
   | 'WebFetch';
 
-export const TOOL_COMPATIBILITY: Record<'claude' | 'gpt' | 'gemini' | 'ollama', Record<ToolName, boolean>> = {
+export const TOOL_COMPATIBILITY: Record<Family, Record<ToolName, boolean>> = {
   claude: {
     Read: true,
     Write: true,
@@ -71,7 +74,9 @@ export const TOOL_COMPATIBILITY: Record<'claude' | 'gpt' | 'gemini' | 'ollama', 
     // Ollama's /api/generate is pure text completion — zero agentic surface.
     // /api/chat with tools[] could expose tool-calling but the adapter
     // currently targets /api/generate for simplicity and predictability.
-    // Benchmarks scoped to any tool will record `unsupported_tool` and skip.
+    // NOTE: the runner does not yet auto-skip tool-scoped benchmarks for
+    // ollama — callers must check missingTools() themselves.
+    // bin/gstack-model-benchmark prints a no-file-access note instead.
     Read: false,
     Write: false,
     Edit: false,
@@ -90,7 +95,7 @@ export const TOOL_COMPATIBILITY: Record<'claude' | 'gpt' | 'gemini' | 'ollama', 
  * Empty array means full compatibility.
  */
 export function missingTools(
-  provider: 'claude' | 'gpt' | 'gemini' | 'ollama',
+  provider: Family,
   requiredTools: ToolName[]
 ): ToolName[] {
   const map = TOOL_COMPATIBILITY[provider];

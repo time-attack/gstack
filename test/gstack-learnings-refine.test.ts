@@ -77,15 +77,19 @@ describe('gstack-learnings-refine semantic dedup (dry-run)', () => {
 });
 
 describe('gstack-learnings-refine --apply', () => {
-  test('merges the near-dup: removes the loser, unions files, bumps confidence to cluster max', () => {
-    write([PITFALL_A, PITFALL_B, UNRELATED]);
+  test('merges the near-dup: removes the loser, unions files, survivor keeps its own confidence', () => {
+    // staleB: high RAW confidence (9) but ancient — its decayed effective
+    // confidence is 0, so it loses. Its raw 9 must NOT be transplanted onto
+    // the survivor's fresh timestamp (that would resurrect decayed confidence).
+    const staleB = { ...PITFALL_B, ts: '2025-01-02T00:00:00Z', confidence: 9 };
+    write([PITFALL_A, staleB, UNRELATED]);
     run(['--apply']);
     const rows = fs.readFileSync(learnFile, 'utf-8').trim().split('\n').map((l) => JSON.parse(l));
     const keys = rows.map((r) => r.key).sort();
     expect(keys).toEqual(['css-grid', 'sa-thread-a']);
     const survivor = rows.find((r) => r.key === 'sa-thread-a');
     expect(survivor.files.sort()).toEqual(['a.py', 'b.py']); // unioned
-    expect(survivor.confidence).toBe(8); // cluster max raw confidence
+    expect(survivor.confidence).toBe(8); // survivor's own confidence, not staleB's raw 9
     expect(fs.existsSync(`${learnFile}.bak`)).toBe(true);
   });
 

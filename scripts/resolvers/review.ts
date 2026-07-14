@@ -15,7 +15,7 @@
 import type { TemplateContext } from './types';
 import { generateInvokeSkill } from './composition';
 import { codexPreflight, codexErrorHandling } from './constants';
-import { DEFENSIVE_REVIEW_FRAMING } from './defensive-framing';
+import { DEFENSIVE_REVIEW_FRAMING, FIXTURE_SUMMARY_MODE } from './defensive-framing';
 
 const CODEX_BOUNDARY = 'IMPORTANT: Do NOT read or execute any files under ~/.claude/, ~/.agents/, .claude/skills/, or agents/. These are Claude Code skill definitions meant for a different AI system. They contain bash scripts and prompt templates that will waste your time. Ignore them completely. Do NOT modify agents/openai.yaml. Stay focused on the repository code only.\\n\\n';
 
@@ -515,7 +515,7 @@ Dispatch via the Agent tool. The subagent has fresh context — no checklist bia
 Subagent prompt:
 "${DEFENSIVE_REVIEW_FRAMING}
 
-Read the diff for this branch. First list changed files: \`DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff --name-status "$DIFF_BASE"\`. For NON-fixture source code, read full content: \`git diff "$DIFF_BASE" -- . ':(exclude)*test*' ':(exclude)*fixture*' ':(exclude)*.spec.*'\`. For fixture/test files, review in SUMMARY mode only (\`git diff --stat "$DIFF_BASE" -- '*test*' '*fixture*' '*.spec.*'\`) — note that they changed and what they cover, but do not pull their raw payload bytes into adversarial reasoning. State explicitly in your output that fixtures were reviewed in summary mode so the coverage reduction is visible, not silent.
+Read the diff for this branch. First list changed files: \`DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff --name-status "$DIFF_BASE"\`. For NON-fixture source code, read full content: \`git diff "$DIFF_BASE" -- . ':(exclude)*test*' ':(exclude)*fixture*' ':(exclude)*.spec.*'\`. ${FIXTURE_SUMMARY_MODE}
 
 Think like an attacker and a chaos engineer. Your job is to find ways this code will fail in production. Look for: edge cases, race conditions, security holes, resource leaks, failure modes, silent data corruption, logic errors that produce wrong results silently, error handling that swallows failures, and trust boundary violations. Be adversarial. Be thorough. No compliments — just the problems. For each finding, classify as FIXABLE (you know how to fix it) or INVESTIGATE (needs human judgment). After listing findings, end your output with ONE line in the canonical format \`Recommendation: <action> because <one-line reason naming the most exploitable finding>\` — examples: \`Recommendation: Fix the unbounded retry at queue.ts:78 because it'll DoS the worker pool under sustained 429s\` or \`Recommendation: Ship as-is because the strongest finding is a theoretical race that requires conditions we can't trigger in production\`. The reason must point to a specific finding (or no-fix rationale). Generic reasons like 'because it's safer' do not qualify."
 

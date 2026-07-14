@@ -818,11 +818,9 @@ compliance, and present a prioritized digest.
 gh pr list --state open --json number,title,author,createdAt,additions,deletions,files,labels,body,headRefName,updatedAt --limit 100
 ```
 
-For each PR, also fetch the diff:
-```bash
-gh pr diff NUMBER --name-only  # file list
-gh pr diff NUMBER              # full diff (read first 500 lines)
-```
+The `files` field in that JSON already contains each PR's changed-file list —
+do NOT re-fetch it with `gh pr diff --name-only`. Don't eagerly download full
+diffs here either; fetch each PR's diff lazily in Step 2 when you score it.
 
 ## Step 2: Score each PR
 
@@ -841,6 +839,12 @@ What does this PR do for gstack users?
 | 1-2 | **Noise** — no user value, or duplicate of existing work | README badge, empty commit, duplicate PR |
 
 To assess impact, read the PR description AND the actual diff. Don't trust the title alone.
+Fetch the diff now, per PR, capped so a huge PR doesn't flood context:
+
+```bash
+gh pr diff NUMBER | head -500
+```
+
 Ask: "If I were a gstack user, would I notice this change? Would I care?"
 
 ### Effort Score (1-10)
@@ -2520,9 +2524,59 @@ Always be respectful. These are people who took time to contribute.
 
 ## Step 7: Create GitHub Issue (if --issue)
 
+The digest quotes titles and diff snippets from community PRs, and the issue is
+world-readable on public repos. Scan the exact digest bytes before filing:
+
+#### Redaction scan — pre-issue (the issue body you're about to file)
+
+Scan-at-sink on the EXACT bytes that will be sent: write to a temp file, scan that
+file, pass the SAME file downstream. Never scan a string then re-render it.
+
 ```bash
+command -v bun >/dev/null 2>&1 || echo "redaction scan skipped — bun not on PATH"
+# Resolve visibility once; cache + reuse. Order: local config (~/.gstack, never
+# committed) → gh → glab → unknown(=public-strict).
+REDACT_VIS=$(~/.claude/skills/gstack/bin/gstack-config get redact_repo_visibility 2>/dev/null)
+[ -z "$REDACT_VIS" ] && REDACT_VIS=$(gh repo view --json visibility -q .visibility 2>/dev/null | tr 'A-Z' 'a-z')
+[ -z "$REDACT_VIS" ] && REDACT_VIS=$(glab repo view -F json 2>/dev/null | grep -o '"visibility":"[^"]*"' | head -1 | sed 's/.*:"//;s/"//' | tr 'A-Z' 'a-z')
+REDACT_VIS="${REDACT_VIS:-unknown}"
+REDACT_FILE=$(mktemp)
+cat > "$REDACT_FILE" <<'REDACT_BODY_EOF'
+<the exact the issue body you're about to file goes here>
+REDACT_BODY_EOF
+REDACT_JSON=$(~/.claude/skills/gstack/bin/gstack-redact --from-file "$REDACT_FILE" --repo-visibility "$REDACT_VIS" --self-email "$(git config user.email 2>/dev/null)" --json)
+REDACT_CODE=$?
+```
+
+Branch on `$REDACT_CODE`:
+
+1. **Exit 3 (HIGH)** — print findings; do NOT file the issue; tell the user to
+   rotate + redact at source, then re-run. No skip flag for HIGH. Do not persist
+   the issue body you're about to file anywhere.
+2. **Exit 2 (MEDIUM)** — AskUserQuestion per finding (cluster identical ids; PUBLIC
+   repos get sterner wording, no batch-acknowledge, no silent-proceed). PII subset
+   (`pii.email`/`pii.phone.e164`/`pii.ssn`/`pii.cc`) gets **Auto-redact** (re-run
+   with `--auto-redact <ids>` → use the printed sanitized body) / **Edit** / **Cancel**;
+   non-PII MEDIUM gets **Proceed (acknowledged)** / **Edit** / **Cancel** (no auto-redact).
+3. **Exit 0 (clean)** — proceed; surface `WARN` (tool-fence degrades) + `LOW` as a
+   one-line FYI (never blocks).
+
+```bash
+rm -f "$REDACT_FILE"
+```
+
+Guardrail, not airtight enforcement — direct `gh`/`git` bypass it; it catches accidents.
+
+When the scan passes (exit 0, or MEDIUM findings acknowledged), file the issue
+from the SAME scanned file — before the cleanup `rm` above. Create the label
+idempotently first so an unattended run never fails on a repo that has never
+defined it (`--force` updates instead of erroring when it already exists):
+
+```bash
+gh label create community-digest --color 0E8A16 \
+  --description "Weekly community PR digest" --force
 gh issue create --title "📋 Community PR Digest — $(date +%Y-%m-%d)" \
-  --body "[DIGEST_CONTENT]" \
+  --body-file "$REDACT_FILE" \
   --label "community-digest"
 ```
 

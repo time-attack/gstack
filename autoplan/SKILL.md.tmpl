@@ -3,7 +3,7 @@ name: autoplan
 preamble-tier: 3
 version: 1.0.0
 description: |
-  Auto-review pipeline — reads the full CEO, design, eng, and DX review skills from disk
+  Auto-review pipeline — reads the full CEO, PM, design, eng, and DX review skills from disk
   and runs them sequentially with auto-decisions using 6 decision principles. Surfaces
   taste decisions (close approaches, borderline scope, codex disagreements) at a final
   approval gate. One command, fully reviewed plan out.
@@ -40,7 +40,7 @@ allowed-tools:
 
 One command. Rough plan in, fully reviewed plan out.
 
-/autoplan reads the full CEO, design, eng, and DX review skill files from disk and follows
+/autoplan reads the full CEO, PM, design, eng, and DX review skill files from disk and follows
 them at full depth — same rigor, same sections, same methodology as running each skill
 manually. The only difference: intermediate AskUserQuestion calls are auto-decided using
 the 6 principles below. Taste decisions (where reasonable people could disagree) are
@@ -216,6 +216,7 @@ Then prepend a one-line HTML comment to the plan file:
 
 Read each file using the Read tool:
 - `~/.claude/skills/gstack/plan-ceo-review/SKILL.md`
+- `~/.claude/skills/gstack/plan-pm-review/SKILL.md` (only when Phase 1.5's run condition is met — that depends on the CEO review output, so load it lazily at the start of Phase 1.5; the section skip list below applies to it the same as any other loaded skill file)
 - `~/.claude/skills/gstack/plan-design-review/SKILL.md` (only if UI scope detected)
 - `~/.claude/skills/gstack/plan-eng-review/SKILL.md`
 - `~/.claude/skills/gstack/plan-devex-review/SKILL.md` (only if DX scope detected)
@@ -427,6 +428,8 @@ defined."
 - Any CEO review item was classified as "borderline scope"
 - TODOS.md exists with items that may conflict or overlap
 
+Read `~/.claude/skills/gstack/plan-pm-review/SKILL.md` now if it was not
+already loaded in Step 3 (the Step 3 section skip list applies to it too).
 Follow plan-pm-review/SKILL.md in **PRIORITIZE** mode by default. Switch to
 **SEGMENT** mode if the CEO review surfaced user-segment ambiguity, or **SHARPEN**
 mode if the CEO review produced vague scope items without acceptance criteria.

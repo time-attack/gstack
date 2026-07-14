@@ -523,8 +523,14 @@ Confirm you Read every section the Section index named as applying to this run, 
 
 ```bash
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" 2>/dev/null || true
-_SESS_REF=$(ls -t ~/.gstack/sessions/ 2>/dev/null | head -1)
-[ -n "$_SESS_REF" ] && _SESS_REF="$HOME/.gstack/sessions/$_SESS_REF"
+# Use THIS session's own start marker (touched by the preamble), not the machine-global
+# newest one — a concurrent gstack session's marker landing after the doc write would
+# otherwise make -newer return empty and mislabel a successful session as no_doc.
+_SESS_REF="$HOME/.gstack/sessions/$PPID"
+if [ ! -f "$_SESS_REF" ]; then
+  _SESS_REF=$(ls -t ~/.gstack/sessions/ 2>/dev/null | head -1)
+  [ -n "$_SESS_REF" ] && _SESS_REF="$HOME/.gstack/sessions/$_SESS_REF"
+fi
 _FRESH_DOC=""
 if [ -n "$_SESS_REF" ] && [ -d ~/.gstack/projects/"${SLUG:-unknown}" ]; then
   _FRESH_DOC=$(find ~/.gstack/projects/"${SLUG:-unknown}" -maxdepth 1 -name '*-design-*.md' -newer "$_SESS_REF" 2>/dev/null | head -1)

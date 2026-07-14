@@ -184,6 +184,13 @@ export interface ClassifyInput {
   queueCheck?: { name?: string; state?: string; bucket?: string } | null;
   /** Whether GitHub auto-merge is enabled (autoMergeRequest non-null). */
   autoMergeEnabled?: boolean;
+  /**
+   * True when auto-merge was observed enabled earlier in this wait. GitHub's
+   * native merge queue posts no PR-visible queue check (unlike Trunk) and
+   * clears autoMergeRequest when it ejects a PR — so enabled-then-disabled
+   * while the PR is still OPEN is the ejection signal for the github regime.
+   */
+  autoMergeWasEnabled?: boolean;
 }
 
 const EJECTED_STATES = new Set(['FAILURE', 'ERROR', 'CANCELLED', 'CANCELED', 'FAIL']);
@@ -217,6 +224,12 @@ export function classifyLand(input: ClassifyInput): { status: LandStatus; reason
   const cs = (input.queueCheck?.state || input.queueCheck?.bucket || '').toUpperCase();
   if (input.queueCheck && EJECTED_STATES.has(cs)) {
     return { status: 'ejected', reason: `merge-queue check reported ${cs}` };
+  }
+  if (input.autoMergeWasEnabled && input.autoMergeEnabled === false) {
+    return {
+      status: 'ejected',
+      reason: 'GitHub auto-merge was disabled while the PR is still open (merge queue ejected it)',
+    };
   }
 
   return { status: 'pending', reason: 'PR is still open (in queue or merge pending)' };

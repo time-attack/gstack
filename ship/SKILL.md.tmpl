@@ -105,10 +105,16 @@ Continue to Step 1.5 — do NOT block or ask. Ship runs its own review in Step 9
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" 2>/dev/null || true
 _PLAN_DIR="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
 _BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
-_PLAN_FILE=$(find "$_PLAN_DIR" -name "*.md" 2>/dev/null | grep -E "ceo-plans|eng-plans" | \
-  grep -i "$(echo "$_BRANCH" | tr '/' '-')" 2>/dev/null | sort -r | head -1)
+_PLAN_GLOB=$(~/.claude/skills/gstack/bin/gstack-config get plan_glob 2>/dev/null || echo "")
+_PLAN_GLOB="${_PLAN_GLOB/#\~/$HOME}"
+if [ -n "$_PLAN_GLOB" ]; then
+  _CANDIDATES=$(ls -t $_PLAN_GLOB 2>/dev/null)
+else
+  _CANDIDATES=$(find "$_PLAN_DIR" -name "*.md" 2>/dev/null | grep -E "ceo-plans|eng-plans" | sort -r)
+fi
+_PLAN_FILE=$(echo "$_CANDIDATES" | grep -i "$(echo "$_BRANCH" | tr '/' '-')" 2>/dev/null | head -1)
 if [ -z "$_PLAN_FILE" ]; then
-  _PLAN_FILE=$(find "$_PLAN_DIR" -name "*.md" 2>/dev/null | grep -E "ceo-plans|eng-plans" | sort -r | head -1)
+  _PLAN_FILE=$(echo "$_CANDIDATES" | head -1)
 fi
 if [ -n "$_PLAN_FILE" ]; then
   _REMAINING=$(grep -c "- \[ \]" "$_PLAN_FILE" 2>/dev/null || echo "0")

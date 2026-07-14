@@ -176,7 +176,9 @@ for (const file of files) {
   for (const e of withKey) {
     const dk = `${e.key}|${e.type}`;
     const ex = seen.get(dk);
-    if (!ex || new Date(e.ts) > new Date(ex.ts)) seen.set(dk, e);
+    // `|| 0` so a dated row beats a ts-less legacy row (NaN comparisons are
+    // always false, which would keep whichever row happened to come first).
+    if (!ex || new Date(e.ts || 0) > new Date(ex.ts || 0)) seen.set(dk, e);
   }
   const live = Array.from(seen.values());
   const exactDropped = withKey.length - live.length;
@@ -229,13 +231,14 @@ for (const file of files) {
     const survivor = ranked[0];
     const members = ranked.slice(1);
     if (TYPE_FILTER && live[survivor].type !== TYPE_FILTER) continue;
+    // Union files only. The survivor keeps its OWN confidence + ts: copying a
+    // dropped member's raw confidence onto the survivor's fresh timestamp
+    // would resurrect confidence that decay had already worn away.
     const fileUnion = new Set();
-    let maxConf = 0;
     for (const k of idxs) {
       for (const f of (live[k].files || [])) fileUnion.add(f);
-      maxConf = Math.max(maxConf, live[k].confidence || 0);
     }
-    mergeInto.set(survivor, { files: fileUnion, conf: maxConf });
+    mergeInto.set(survivor, { files: fileUnion });
     for (const m of members) dropIdx.add(m);
     clusters.push({
       survivor: { key: live[survivor].key, type: live[survivor].type, conf: effConf(live[survivor]), insight: live[survivor].insight },
@@ -271,10 +274,7 @@ for (const file of files) {
       if (dropIdx.has(i)) continue;
       const e = { ...live[i] };
       const merge = mergeInto.get(i);
-      if (merge) {
-        if (merge.files.size) e.files = [...merge.files].sort();
-        if (merge.conf) e.confidence = merge.conf;
-      }
+      if (merge && merge.files.size) e.files = [...merge.files].sort();
       out.push(e);
     }
     const tsOf = (e) => { const t = new Date(e.ts).getTime(); return Number.isFinite(t) ? t : 0; };

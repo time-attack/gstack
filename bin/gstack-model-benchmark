@@ -43,7 +43,8 @@ const ADAPTER_FACTORIES = {
   ollama: () => new OllamaAdapter(),
 };
 
-const VALID_PROVIDERS: Family[] = ['claude', 'gpt', 'gemini', 'ollama'];
+// Derived from the factory map — a new adapter is valid the moment it's wired.
+const VALID_PROVIDERS = Object.keys(ADAPTER_FACTORIES) as Family[];
 
 type OutputFormat = 'table' | 'json' | 'markdown';
 
@@ -119,6 +120,10 @@ async function main(): Promise<void> {
   const skipUnavailable = flag('--skip-unavailable');
   const doJudge = flag('--judge');
   const dryRun = flag('--dry-run');
+
+  if (providers.includes('ollama')) {
+    console.error('NOTE: ollama runs prompt-only over HTTP — no file access, --workdir is ignored for it. File-dependent prompts are not comparable against the agentic CLI providers.');
+  }
 
   if (dryRun) {
     await dryRunReport({ prompt, providers, workdir, timeoutMs, output, doJudge });

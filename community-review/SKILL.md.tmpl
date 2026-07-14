@@ -40,11 +40,9 @@ compliance, and present a prioritized digest.
 gh pr list --state open --json number,title,author,createdAt,additions,deletions,files,labels,body,headRefName,updatedAt --limit 100
 ```
 
-For each PR, also fetch the diff:
-```bash
-gh pr diff NUMBER --name-only  # file list
-gh pr diff NUMBER              # full diff (read first 500 lines)
-```
+The `files` field in that JSON already contains each PR's changed-file list —
+do NOT re-fetch it with `gh pr diff --name-only`. Don't eagerly download full
+diffs here either; fetch each PR's diff lazily in Step 2 when you score it.
 
 ## Step 2: Score each PR
 
@@ -63,6 +61,12 @@ What does this PR do for gstack users?
 | 1-2 | **Noise** — no user value, or duplicate of existing work | README badge, empty commit, duplicate PR |
 
 To assess impact, read the PR description AND the actual diff. Don't trust the title alone.
+Fetch the diff now, per PR, capped so a huge PR doesn't flood context:
+
+```bash
+gh pr diff NUMBER | head -500
+```
+
 Ask: "If I were a gstack user, would I notice this change? Would I care?"
 
 ### Effort Score (1-10)
@@ -198,9 +202,21 @@ Always be respectful. These are people who took time to contribute.
 
 ## Step 7: Create GitHub Issue (if --issue)
 
+The digest quotes titles and diff snippets from community PRs, and the issue is
+world-readable on public repos. Scan the exact digest bytes before filing:
+
+{{REDACT_INVOCATION_BLOCK:pre-issue}}
+
+When the scan passes (exit 0, or MEDIUM findings acknowledged), file the issue
+from the SAME scanned file — before the cleanup `rm` above. Create the label
+idempotently first so an unattended run never fails on a repo that has never
+defined it (`--force` updates instead of erroring when it already exists):
+
 ```bash
+gh label create community-digest --color 0E8A16 \
+  --description "Weekly community PR digest" --force
 gh issue create --title "📋 Community PR Digest — $(date +%Y-%m-%d)" \
-  --body "[DIGEST_CONTENT]" \
+  --body-file "$REDACT_FILE" \
   --label "community-digest"
 ```
 

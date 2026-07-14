@@ -99,6 +99,26 @@ describe('pr-prep scorer: buckets', () => {
     expect(score({ commitKeywords: ['a'], candidates: [] }).bucket).toBe('CLEAN');
   });
 
+  test('normalizes non-canonical state spellings (OPEN_PR / open-pr / openPr)', () => {
+    for (const state of ['OPEN_PR', 'open-pr', 'openPr']) {
+      const input = {
+        commitKeywords: ['a', 'b'],
+        candidates: [{ state, ref: '#3', titleKeywords: ['a', 'b'] }],
+      } as unknown as ScoreInput;
+      expect(score(input).bucket).toBe('EXACT_DUP');
+    }
+  });
+
+  test('unrecognized state is surfaced in reasons, not silently scored as CLEAN "no hits"', () => {
+    const input = {
+      commitKeywords: ['a', 'b'],
+      candidates: [{ state: 'bogus', ref: '#4', titleKeywords: ['a', 'b'] }],
+    } as unknown as ScoreInput;
+    const r = score(input);
+    expect(r.reasons.join(' ')).toContain("unrecognized state 'bogus'");
+    expect(r.reasons.join(' ')).not.toContain('no hits above threshold');
+  });
+
   test('precedence: EXACT_DUP wins over a co-present overlapping issue', () => {
     const input: ScoreInput = {
       commitKeywords: ['a', 'b', 'c'],

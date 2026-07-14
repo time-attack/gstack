@@ -32,6 +32,7 @@ allowed-tools:
 {{SLUG_SETUP}}
 _REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
 _PLAN_GLOB=$(~/.claude/skills/gstack/bin/gstack-config get plan_glob 2>/dev/null || echo "")
+_PLAN_GLOB="${_PLAN_GLOB/#\~/$HOME}"
 _PLAN_DIR="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
 echo "SLUG_RESOLVED: ${SLUG:-unknown}"
 echo "PLAN_DIR: $_PLAN_DIR"
@@ -46,7 +47,9 @@ if [ -z "$_PLANS" ]; then
 else
   echo "$_PLANS"
 fi
-_GIT_LOG=$(git log --oneline $(git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null)..HEAD 2>/dev/null | head -30)
+_BASE=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+_MB=$(git merge-base HEAD "${_BASE:-main}" 2>/dev/null || git merge-base HEAD master 2>/dev/null)
+_GIT_LOG=$(git log --oneline "${_MB:+$_MB..}HEAD" 2>/dev/null | head -30)
 echo "BRANCH_COMMITS:"
 echo "$_GIT_LOG"
 _ANALYTICS="$HOME/.gstack/analytics/skill-usage.jsonl"
@@ -98,11 +101,11 @@ Run these checks. Do them in parallel where possible.
 
 **Git evidence:**
 ```bash
-# Commits on this branch since diverging from main
-git log --oneline $(git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null)..HEAD 2>/dev/null
-
-# Files changed on this branch
-git diff --name-only $(git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null)..HEAD 2>/dev/null
+# Detect the base branch, then list commits + files changed since diverging from it
+_BASE=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+_MB=$(git merge-base HEAD "${_BASE:-main}" 2>/dev/null || git merge-base HEAD master 2>/dev/null)
+git log --oneline "${_MB:+$_MB..}HEAD" 2>/dev/null
+git diff --name-only "${_MB:+$_MB..}HEAD" 2>/dev/null
 ```
 
 **Filesystem evidence** — for each file/directory the plan says should exist or be deleted, check:
@@ -116,7 +119,7 @@ ls <path> 2>/dev/null && echo "STILL EXISTS: <path>" || echo "DELETED: <path>"
 
 **Gemfile evidence** — for each gem the plan says to add or remove:
 ```bash
-grep -E "gem .\"<gemname>\"" Gemfile 2>/dev/null && echo "PRESENT" || echo "ABSENT"
+grep -E "gem ['\"]<gemname>['\"]" Gemfile 2>/dev/null && echo "PRESENT" || echo "ABSENT"
 ```
 
 **Config/initializer evidence** — for any initializers or config the plan says to create:

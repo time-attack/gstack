@@ -15,6 +15,11 @@ import { estimateCostUsd } from '../pricing';
  * Tool-call counting is 0 — the `/api/generate` endpoint emits no tool events.
  * If a future benchmark needs tool calls, switch to `/api/chat` with `tools[]`.
  * Cost is always 0 — Ollama runs locally on the user's machine.
+ *
+ * LIMITATION: `RunOpts.workdir` and `extraArgs` are ignored — `/api/generate`
+ * is prompt-only with no file access, so file-dependent benchmarks are not
+ * comparable against the agentic CLI adapters. `bin/gstack-model-benchmark`
+ * prints a note when ollama is selected.
  */
 export class OllamaAdapter implements ProviderAdapter {
   readonly name = 'ollama';
@@ -102,7 +107,14 @@ export class OllamaAdapter implements ProviderAdapter {
       if (/abort/i.test(msg)) {
         return this.emptyResult(durationMs, model, { code: 'timeout', reason: `exceeded ${opts.timeoutMs}ms` });
       }
-      if (/ECONNREFUSED|fetch failed|getaddrinfo/i.test(msg)) {
+      // Node/undici surfaces connection failures in the message; Bun (the
+      // actual runtime here) says "Unable to connect. Is the computer able to
+      // access the url?" and puts the cause in err.code (e.g. ConnectionRefused).
+      const code = String((err as { code?: unknown }).code ?? '');
+      if (
+        /ECONNREFUSED|fetch failed|getaddrinfo|Unable to connect/i.test(msg) ||
+        /ConnectionRefused|ECONNREFUSED|ENOTFOUND|FailedToOpenSocket/i.test(code)
+      ) {
         return this.emptyResult(durationMs, model, { code: 'binary_missing', reason: `Ollama daemon not reachable at ${this.baseUrl}. Start it with \`ollama serve\`.` });
       }
       return this.emptyResult(durationMs, model, { code: 'unknown', reason: msg.slice(0, 400) });

@@ -17,7 +17,12 @@ function runCli(args: string[], opts: { cwd?: string; home?: string } = {}) {
   const r = spawnSync('bun', [BIN, ...args], {
     encoding: 'utf-8',
     cwd: opts.cwd || process.cwd(),
-    env: { ...process.env, ...(opts.home ? { HOME: opts.home } : {}) },
+    // Pin GSTACK_HOME too: the binary resolves its state root GSTACK_HOME-first,
+    // so an ambient GSTACK_HOME export would bypass the temp HOME entirely.
+    env: {
+      ...process.env,
+      ...(opts.home ? { HOME: opts.home, GSTACK_HOME: join(opts.home, '.gstack') } : {}),
+    },
     timeout: 30000,
   });
   return { code: r.status ?? 1, stdout: r.stdout || '', stderr: r.stderr || '' };
@@ -127,5 +132,17 @@ describe('gstack-merge CLI: argument handling', () => {
   test('submit without --pr exits 2', () => {
     const r = runCli(['submit', '--regime', 'none']);
     expect(r.code).toBe(2);
+  });
+
+  test('submit without --regime exits 2 (a defaulted regime could squash-merge around a queue)', () => {
+    const r = runCli(['submit', '--pr', '42']);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain('--regime is required');
+  });
+
+  test('submit with an invalid --regime exits 2 instead of silently taking the trunk path', () => {
+    const r = runCli(['submit', '--pr', '42', '--regime', 'banana']);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain('invalid --regime');
   });
 });

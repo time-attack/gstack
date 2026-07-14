@@ -57,8 +57,10 @@ recommended action.
    or have only the commits-being-audited. Abort cleanly if the
    working tree has unrelated mid-edit state.
 
-2. Determine the base branch (already set by `{{BASE_BRANCH_DETECT}}`
-   into `$BASE_BRANCH`). Honor `--base <name>` flag override.
+2. Determine the base branch: use the base branch detected in Step 0.
+   Honor `--base <name>` flag override. Substitute it wherever a code
+   block below says `<base>` (each bash block runs in a fresh shell —
+   no variables persist between blocks).
 
 3. Resolve the upstream repo via `gh repo view --json nameWithOwner -q .nameWithOwner`.
    Default uses `origin`; override via `--repo owner/name`.
@@ -68,10 +70,12 @@ recommended action.
    pass BEFORE filing. Cache to `/tmp/pr-prep-contributing.md` for
    the rest of the run.
 
+   Substitute `<repo>` with the upstream repo resolved in item 3:
+
    ```bash
-   gh api "repos/$REPO/contents/CONTRIBUTING.md" --jq .content 2>/dev/null \
+   gh api "repos/<repo>/contents/CONTRIBUTING.md" --jq .content 2>/dev/null \
      | base64 -d > /tmp/pr-prep-contributing.md || \
-     gh api "repos/$REPO/contents/contributing.md" --jq .content 2>/dev/null \
+     gh api "repos/<repo>/contents/contributing.md" --jq .content 2>/dev/null \
      | base64 -d > /tmp/pr-prep-contributing.md || \
      echo "" > /tmp/pr-prep-contributing.md
    ```
@@ -87,7 +91,7 @@ recommended action.
      name", "commit format", "conventional commits". If
      `CONTRIBUTING.md` is silent on commit format, infer the
      de-facto standard from real history:
-     `git log upstream/$BASE_BRANCH --no-merges -20 --format='%s%n%b%n--'`.
+     `git log upstream/<base> --no-merges -20 --format='%s%n%b%n--'`.
      Note the subject shape (e.g. `type(scope): subject`), whether
      bodies are prose or bullets, and any required trailer (e.g. a
      `Co-Authored-By:` line). This is the **authoritative** commit
@@ -97,11 +101,11 @@ recommended action.
    - Banned patterns (e.g. "never add to allowlist", "no new mocks",
      "no breaking changes"). Treat as hard gates.
 
-5. Sanity-check: at least 1 commit in `$BASE_BRANCH..HEAD`. If zero,
-   abort with "no commits to audit; you're already on $BASE_BRANCH".
+5. Sanity-check: at least 1 commit in `<base>..HEAD`. If zero,
+   abort with "no commits to audit; you're already on the base branch".
 
 ```bash
-BASE="${BASE_BRANCH:-main}"
+BASE="<base>"  # the base branch detected in Step 0 (or --base override)
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)
 COMMITS=$(git log "$BASE"..HEAD --pretty='%H' 2>/dev/null)
 if [ -z "$COMMITS" ]; then
@@ -130,16 +134,18 @@ matches.
 
 ## Step 3: Query upstream issues + PRs
 
-For each commit's query, run:
+For each commit's query, run the block below, substituting `<repo>` with
+the upstream repo resolved in Step 1 and `<query>` with this commit's
+search query from Step 2 (fresh shell per block — no variables carry over):
 
 ```bash
 # Open issues + PRs (highest collision risk)
-gh issue list --repo "$REPO" --state open --search "$QUERY" --limit 8 --json number,title,url,labels
-gh pr    list --repo "$REPO" --state open --search "$QUERY" --limit 8 --json number,title,url,headRefName,author
+gh issue list --repo "<repo>" --state open --search "<query>" --limit 8 --json number,title,url,labels
+gh pr    list --repo "<repo>" --state open --search "<query>" --limit 8 --json number,title,url,headRefName,author
 
-# Closed in last 90 days (might be unreleased master fix)
-gh issue list --repo "$REPO" --state closed --search "$QUERY" --limit 5 --json number,title,url,closedAt
-gh pr    list --repo "$REPO" --state merged --search "$QUERY" --limit 5 --json number,title,url,mergedAt
+# Closed in last 90 days (might be an unreleased fix on the base branch)
+gh issue list --repo "<repo>" --state closed --search "<query>" --limit 5 --json number,title,url,closedAt
+gh pr    list --repo "<repo>" --state merged --search "<query>" --limit 5 --json number,title,url,mergedAt
 ```
 
 Hard guard: skip if the search call returns rate-limit (HTTP 429).
@@ -172,10 +178,11 @@ Final severity bucket per commit:
 This bucketing is implemented deterministically in `bin/gstack-pr-prep-score`
 (pure function, unit-tested in `test/pr-prep-score.test.ts`) — the canonical
 scorer. Pipe each commit's candidate set through it as JSON rather than
-re-deriving the thresholds inline:
+re-deriving the thresholds inline. Build the candidate JSON for the
+commit, write it inline in the same block (no cross-block variables):
 
 ```bash
-echo "$CANDIDATE_JSON" | ~/.claude/skills/gstack/bin/gstack-pr-prep-score
+echo '<candidate JSON for this commit>' | ~/.claude/skills/gstack/bin/gstack-pr-prep-score
 # -> {"bucket":"EXACT_DUP","topScore":1,"openIssueCount":0,"reasons":[...]}
 ```
 
@@ -191,17 +198,18 @@ The skill assumes `codex` CLI is on PATH (OpenAI's official CLI;
 this step — don't block. Different model family from Claude gives
 genuine independent signal.
 
+Run the block below once per CLEAN-bucketed commit from Step 4,
+substituting `<sha>` each time (fresh shell per block — no list
+variable carries over):
+
 ```bash
 if command -v codex >/dev/null 2>&1; then
-  for sha in $CLEAN_COMMIT_SHAS; do
-    diff=$(git show "$sha" --stat --pretty=format:"%s")
-    subject=$(git log -1 --format=%s "$sha")
-    codex review "Review commit ${sha:0:8} '${subject}' for correctness,
-      edge cases, and CONTRIBUTING.md compliance. Focus on: regression
-      risk on adjacent code paths, missing tests, hash/version-bump
-      invariants if touching cache keys, ordering bugs if touching
-      conditionals or dispatchers. Flag P0/P1/P2 issues with file:line."
-  done
+  subject=$(git log -1 --format=%s <sha>)
+  codex review "Review commit <sha> '${subject}' for correctness,
+    edge cases, and CONTRIBUTING.md compliance. Focus on: regression
+    risk on adjacent code paths, missing tests, hash/version-bump
+    invariants if touching cache keys, ordering bugs if touching
+    conditionals or dispatchers. Flag P0/P1/P2 issues with file:line."
 else
   echo "[pr-prep] codex CLI not found — skipping second-opinion review.
    Install via 'brew install codex' or pin a fork-specific reviewer in
@@ -255,11 +263,11 @@ PR whose commits read in a different voice than the project signals
 
 Establish the authoritative style once, from Step 1.4 (in priority
 order): the upstream `CONTRIBUTING.md` commit rules if present; else the
-de-facto shape sampled from `git log upstream/$BASE_BRANCH --no-merges`;
+de-facto shape sampled from `git log upstream/<base> --no-merges`;
 else the conventional-commits baseline (`type(scope): imperative
 subject`, blank line, prose body explaining what + why).
 
-Then check each commit in `$BASE_BRANCH..HEAD` against it:
+Then check each commit in `<base>..HEAD` against it:
 
 - **Subject**: matches the repo's shape (type/scope vocabulary, case,
   length, imperative mood). Flag a subject that promises content it
@@ -355,7 +363,7 @@ When invoked by `/ship` (env `GSTACK_FROM_SHIP=1`):
 
 | Flag | Default | Effect |
 |---|---|---|
-| `--base <name>` | `main` | Base branch for commit walk |
+| `--base <name>` | detected base branch (Step 0) | Base branch for commit walk |
 | `--repo owner/name` | from `gh repo view` | Upstream repo for queries |
 | `--force` | off | Proceed past EXACT_DUP (still print report) |
 | `--json` | off | Machine-readable output, no markdown table |

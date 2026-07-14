@@ -955,7 +955,7 @@ gh pr view --json number,state,title,url,mergeStateStatus,mergeable,baseRefName,
      REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)
      ~/.claude/skills/gstack/bin/gstack-merge read-state --slug "$SLUG" --pr <NNN> --repo "$REPO"
      ```
-     - If it prints `LAND_SHA=...` (valid handoff for this PR): tell the user "This PR already landed — skipping the merge and going straight to deploy verification." Capture `LAND_SHA`/`LAND_BASE`/`LAND_REGIME`/`LAND_HEAD`, then skip Steps 1.5 and 2 and go to **Step 3** (post-merge CI auto-deploy detection).
+     - If it prints `LAND_SHA=...` (valid handoff for this PR): tell the user "This PR already landed — skipping the merge and going straight to deploy verification." Skip Step 1.5 and Step 2's `/land` invocation, and go to **Step 2.1** — it captures the full handoff (including `LAND_SHA_EXACT` and its do-not-SHA-match caveat) and Step 2.2 verifies the commit is really on the base — then continue to Step 3.
      - If it prints `READ_STATE_INVALID=...` (no/stale/foreign handoff): **STOP.** "This PR is already merged but I have no landing record for it, so I can't safely match the deploy or offer a revert. Run `/canary <url>` to verify the live site, or revert manually if needed."
 
 ---
@@ -1131,9 +1131,9 @@ done
 
 3. **Vercel/Netlify preview deploys:** Check PR status checks for preview URLs:
 ```bash
-gh pr checks --json name,targetUrl 2>/dev/null | head -20
+gh pr checks --json name,link 2>/dev/null | head -20
 ```
-Look for check names containing "vercel", "netlify", or "preview" and extract the target URL.
+Look for check names containing "vercel", "netlify", or "preview" and extract the URL from the `link` field.
 
 Record any staging targets found. These will be offered in Step 5.
 
@@ -1141,7 +1141,7 @@ Record any staging targets found. These will be offered in Step 5.
 
 Tell the user: "Before I merge any PR, I run a series of readiness checks — code reviews, tests, documentation, PR accuracy. Let me show you what that looks like for this project."
 
-Preview the readiness checks that will run at Step 3.5 (without re-running tests):
+Preview the readiness checks that `/land` will run at its Step 3.5 (without re-running tests):
 
 ```bash
 ~/.claude/skills/gstack/bin/gstack-review-read 2>/dev/null

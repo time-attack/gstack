@@ -155,6 +155,18 @@ describe('OllamaAdapter.run', () => {
     expect(res.output).toBe('');
   });
 
+  test('returns binary_missing error on Bun-style ConnectionRefused (code, not message)', async () => {
+    stubFetch(async () => {
+      const err = new Error('Unable to connect. Is the computer able to access the url?');
+      (err as Error & { code?: string }).code = 'ConnectionRefused';
+      throw err;
+    });
+    const adapter = new OllamaAdapter();
+    const res = await adapter.run({ prompt: 'x', workdir: '/tmp', timeoutMs: 5000 });
+    expect(res.error?.code).toBe('binary_missing');
+    expect(res.error?.reason).toMatch(/ollama serve/);
+  });
+
   test('returns unknown error with helpful message on 404 (model not pulled)', async () => {
     stubFetch(async () => new Response('model "missing" not found', { status: 404 }));
     const adapter = new OllamaAdapter();

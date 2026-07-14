@@ -611,14 +611,6 @@ link_claude_skill_dirs() {
       # Validate target isn't a symlink before creating the link
       if [ -L "$target/SKILL.md" ]; then rm "$target/SKILL.md"; fi
       _link_or_copy "$gstack_dir/$dir_name/SKILL.md" "$target/SKILL.md"
-      # Link the sections/ subdir for carved skills (v2 plan T9). The prefixed
-      # Claude skill dir otherwise holds only SKILL.md, so a runtime
-      # "Read sections/<name>.md" 404s. Route through _link_or_copy so Windows
-      # gets a fresh copy (and re-copies on every ./setup, refreshing staleness).
-      if [ -d "$gstack_dir/$dir_name/sections" ]; then
-        if [ -e "$target/sections" ] || [ -L "$target/sections" ]; then rm -rf "$target/sections"; fi
-        _link_or_copy "$gstack_dir/$dir_name/sections" "$target/sections"
-      fi
       # Mirror supporting .md files (checklist.md, greptile-triage.md, etc.)
       # so SKILL.md can read them via .claude/skills/<skill>/<file>.
       # Excludes SKILL.md (already linked above) and *.tmpl sources.
@@ -629,7 +621,7 @@ link_claude_skill_dirs() {
         if [ -L "$target/$fname" ]; then rm "$target/$fname"; fi
         _link_or_copy "$support_file" "$target/$fname"
       done
-      # Mirror support asset directories (specialists/, references/, templates/, bin/, etc.)
+      # Mirror support asset directories (sections/, specialists/, references/, templates/, bin/, etc.)
       # Excludes build and source dirs: dist, src, test, tests, scripts, node_modules.
       for support_dir in "$gstack_dir/$dir_name"/*/; do
         [ -d "$support_dir" ] || continue
@@ -998,6 +990,11 @@ link_factory_skill_dirs() {
       skill_name="$(basename "$skill_dir")"
       [ "$skill_name" = "gstack" ] && continue
       target="$skills_dir/$skill_name"
+      # Skip the browse skill in no-browser mode; remove any stale entry.
+      if [ "$NO_BROWSER" -eq 1 ] && [ "$skill_name" = "gstack-browse" ]; then
+        rm -rf "$target"
+        continue
+      fi
       if [ -L "$target" ] || [ ! -e "$target" ]; then
         _link_or_copy "$skill_dir" "$target"
         linked+=("$skill_name")
@@ -1030,6 +1027,11 @@ link_opencode_skill_dirs() {
       skill_name="$(basename "$skill_dir")"
       [ "$skill_name" = "gstack" ] && continue
       target="$skills_dir/$skill_name"
+      # Skip the browse skill in no-browser mode; remove any stale entry.
+      if [ "$NO_BROWSER" -eq 1 ] && [ "$skill_name" = "gstack-browse" ]; then
+        rm -rf "$target"
+        continue
+      fi
       if [ -L "$target" ] || [ ! -e "$target" ]; then
         _link_or_copy "$skill_dir" "$target"
         linked+=("$skill_name")
@@ -1214,6 +1216,11 @@ if [ "$INSTALL_KIRO" -eq 1 ]; then
       [ -f "$skill_dir/SKILL.md" ] || continue
       skill_name="$(basename "$skill_dir")"
       target_dir="$KIRO_SKILLS/$skill_name"
+      # Skip the browse skill in no-browser mode; remove any stale entry.
+      if [ "$NO_BROWSER" -eq 1 ] && [ "$skill_name" = "gstack-browse" ]; then
+        rm -rf "$target_dir"
+        continue
+      fi
       mkdir -p "$target_dir"
       # Generated Codex skills use $HOME/.codex (not ~/), plus $GSTACK_ROOT variables.
       # Rewrite the default GSTACK_ROOT value and any remaining literal paths.

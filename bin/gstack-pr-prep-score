@@ -56,6 +56,17 @@ const STATE_WEIGHT: Record<CandidateState, number> = {
   closed_issue: 0.2,
 };
 
+// The candidate JSON is agent-assembled — tolerate "OPEN_PR" / "open-pr" /
+// "openPr" instead of silently scoring NaN (which would let an exact-dup PR
+// pass the audit as CLEAN). Unrecognized states are surfaced in reasons.
+function normalizeState(s: unknown): CandidateState | undefined {
+  const n = String(s ?? '')
+    .replace(/([a-z])([A-Z])/g, '$1_$2')
+    .toLowerCase()
+    .replace(/[^a-z]+/g, '_');
+  return n in STATE_WEIGHT ? (n as CandidateState) : undefined;
+}
+
 function norm(tokens: string[] | undefined): Set<string> {
   return new Set((tokens ?? []).map((t) => t.toLowerCase().trim()).filter(Boolean));
 }
@@ -82,6 +93,13 @@ export function score(input: ScoreInput): ScoreResult {
   let onlyClosed = candidates.length > 0;
 
   for (const c of candidates) {
+    const state = normalizeState(c.state);
+    if (!state) {
+      onlyClosed = false;
+      reasons.push(`${c.ref ? `${c.ref} ` : ''}WARN: unrecognized state '${String(c.state)}' — candidate not scored`);
+      continue;
+    }
+    c.state = state;
     const titleJ = jaccard(input.commitKeywords, c.titleKeywords);
     // File overlap only meaningful for open PRs (we can read their diff).
     const fileJ =

@@ -1099,7 +1099,7 @@ find . ../*/  -maxdepth 3 -name '*.tf' -not -path '*/node_modules/*' -not -path 
 # Use Claude's Grep tool: pattern "resource\s+\"(aws_|google_|azurerm_)" with glob "*.tf"
 
 # Kubernetes manifests (reveals services, deployments, namespaces)
-find . ../*/  -maxdepth 4 \( -name '*.yaml' -o -name '*.yml' \) -path '*/k8s/*' -o -path '*/kubernetes/*' -o -path '*/deploy/*' -o -path '*/manifests/*' 2>/dev/null | head -20
+find . ../*/  -maxdepth 4 \( -name '*.yaml' -o -name '*.yml' \) \( -path '*/k8s/*' -o -path '*/kubernetes/*' -o -path '*/deploy/*' -o -path '*/manifests/*' \) 2>/dev/null | head -20
 
 # Dockerfiles (reveals how the app is built and run)
 find . ../*/  -maxdepth 3 -name 'Dockerfile*' -not -path '*/node_modules/*' 2>/dev/null | head -10
@@ -1129,15 +1129,15 @@ Check what gstack skills and tools are available for this diagnostic session:
 
 ```bash
 # Browse binary (already checked by BROWSE_SETUP above — just reference the result)
-echo "BROWSE: $( [ -n \"$B\" ] && [ -x \"$B\" ] && echo 'READY' || echo 'UNAVAILABLE' )"
+echo "BROWSE: $( [ -n "$B" ] && [ -x "$B" ] && echo 'READY' || echo 'UNAVAILABLE' )"
 
 # Cookie / authentication setup
-_COOKIE_SKILL="${CLAUDE_SKILL_DIR}/../setup-browser-cookies/SKILL.md"
+_COOKIE_SKILL="$HOME/.claude/skills/gstack/setup-browser-cookies/SKILL.md"
 [ -f "$_COOKIE_SKILL" ] && echo "COOKIES: AVAILABLE (can import browser cookies for authenticated testing)" || echo "COOKIES: UNAVAILABLE"
 
 # Other diagnostic-adjacent skills
 for _skill in investigate codex cso; do
-  _path="${CLAUDE_SKILL_DIR}/../${_skill}/SKILL.md"
+  _path="$HOME/.claude/skills/gstack/${_skill}/SKILL.md"
   [ -f "$_path" ] && echo "SKILL_${_skill}: AVAILABLE" || echo "SKILL_${_skill}: UNAVAILABLE"
 done
 ```
@@ -1195,7 +1195,7 @@ Adapt the actual commands to whatever was detected. Mark each tool as VERIFIED o
 Before logging any learnings, verify the learnings file won't be committed to git:
 
 ```bash
-eval "$(gstack-slug 2>/dev/null)" 2>/dev/null || true
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" || true
 _LEARNINGS_DIR="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
 _LEARNINGS_FILE="$_LEARNINGS_DIR/learnings.jsonl"
 

@@ -85,12 +85,14 @@ function ghJson<T>(args: string[]): T | null {
   }
 }
 
-function which(bin: string): boolean {
-  return run('command', ['-v', bin]).code === 0 || run('sh', ['-c', `command -v ${bin}`]).code === 0;
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Normalize + validate a --regime value. Null means invalid/unrecognized. */
+function validRegime(raw: string | undefined): Regime | null {
+  const r = (raw || '').trim().toLowerCase();
+  return r === 'none' || r === 'github' || r === 'trunk' ? (r as Regime) : null;
 }
 
 // --- data gatherers -----------------------------------------------------
@@ -185,15 +187,18 @@ function findQueueCheck(checks: PrCheck[], base: string): PrCheck | null {
 
 async function cmdDetect(flags: Record<string, string>, bools: Set<string>): Promise<number> {
   const pr = flags.pr;
-  const slug = repoSlug();
+  const configRegime = readConfigRegime();
+  // Precedence 1 is the CLAUDE.md config key. When it's set, skip the gh
+  // network probes (pr checks + GraphQL merge-queue) whose results
+  // detectRegime never reads on the config path.
+  const configHit = validRegime(configRegime || '') !== null;
   const base = flags.base || prView(pr)?.baseRefName || 'main';
-  const checks = prChecks(pr);
   const result = detectRegime({
     base,
-    checks,
-    trunkYaml: readTrunkYaml(),
-    configRegime: readConfigRegime(),
-    githubMergeQueue: githubMergeQueueEnabled(slug, base),
+    checks: configHit ? [] : prChecks(pr),
+    trunkYaml: configHit ? null : readTrunkYaml(),
+    configRegime,
+    githubMergeQueue: configHit ? false : githubMergeQueueEnabled(repoSlug(), base),
   });
   if (bools.has('json')) {
     process.stdout.write(JSON.stringify({ ...result, base }) + '\n');
@@ -205,11 +210,21 @@ async function cmdDetect(flags: Record<string, string>, bools: Set<string>): Pro
 
 function cmdSubmit(flags: Record<string, string>): number {
   const pr = flags.pr;
-  const regime = (flags.regime || 'none') as Regime;
   if (!pr) { process.stderr.write('submit: --pr is required\n'); return 2; }
+  // --regime is REQUIRED here: defaulting to 'none' would direct-squash-merge
+  // around a merge queue (and delete a branch Trunk owns).
+  if (flags.regime === undefined) {
+    process.stderr.write('submit: --regime is required (none|github|trunk)\n');
+    return 2;
+  }
+  const regime = validRegime(flags.regime);
+  if (!regime) {
+    process.stderr.write(`submit: invalid --regime "${flags.regime}" (must be none|github|trunk)\n`);
+    return 2;
+  }
 
   const plan = planSubmit(regime, Number(pr), {
-    trunkCliAvailable: which('trunk'),
+    trunkCliAvailable: Bun.which('trunk') !== null,
     trunkToken: !!process.env.TRUNK_API_TOKEN,
     priority: flags.priority,
   });
@@ -244,8 +259,10 @@ function submitViaRest(pr: number, base: string, priority?: string): { code: num
     targetBranch: base || undefined,
     ...(priority ? { priority } : {}),
   });
+  // --fail: an HTTP 4xx/5xx must exit non-zero, or cmdSubmit would print
+  // SUBMIT_OK for an enqueue that never happened (e.g. expired token → 401).
   return run('curl', [
-    '-sS', '-X', 'POST', 'https://api.trunk.io/v1/submitPullRequest',
+    '-sS', '--fail', '-X', 'POST', 'https://api.trunk.io/v1/submitPullRequest',
     '-H', `x-api-token: ${token}`,
     '-H', 'Content-Type: application/json',
     '-d', payload,
@@ -264,6 +281,37 @@ function writeEnqueueState(slug: string, pr: number, repo: string, regime: Regim
   return dest;
 }
 
+function trunkEnqueueTimeoutMsg(base: string): string {
+  return (
+    'TRUNK_ENQUEUE_TIMEOUT — posted "/trunk merge" but no "' + trunkQueueCheckName(base) +
+    '" check appeared. Is the Trunk GitHub App installed and "GitHub commands" enabled?\n'
+  );
+}
+
+/**
+ * Poll until Trunk visibly picked the PR up: already MERGED, or the
+ * "Trunk Merge Queue (<base>)" check appears. Returns how it confirmed, or
+ * null on timeout — a posted "/trunk merge" comment is silently inert if the
+ * GitHub App isn't installed or "GitHub commands" is off. Shared by
+ * confirm-enqueue (the /land default) and wait phase 1 (/land --watch,
+ * /land-and-deploy) so the criteria/message can't drift apart.
+ */
+async function confirmTrunkEnqueue(
+  pr: string,
+  base: string,
+  enqueueMs: number,
+  intervalMs: number,
+): Promise<'merged' | 'check' | null> {
+  const start = Date.now();
+  while (Date.now() - start < enqueueMs) {
+    const v = prView(pr) || {};
+    if ((v.state || '').toUpperCase() === 'MERGED') return 'merged';
+    if (findQueueCheck(prChecks(pr), base)) return 'check';
+    await sleep(Math.min(intervalMs, 15000));
+  }
+  return null;
+}
+
 /**
  * Confirm a queue regime actually picked the PR up, then RETURN (don't wait for
  * it to land). This is the default for /land on a queue regime — the whole
@@ -279,7 +327,8 @@ async function cmdConfirmEnqueue(flags: Record<string, string>): Promise<number>
   const pr = flags.pr;
   const base = flags.base;
   if (!pr || !base) { process.stderr.write('confirm-enqueue: --pr and --base are required\n'); return 2; }
-  const regime = (flags.regime || 'none') as Regime;
+  const regime = validRegime(flags.regime ?? 'none');
+  if (!regime) { process.stderr.write(`confirm-enqueue: invalid --regime "${flags.regime}" (must be none|github|trunk)\n`); return 2; }
   const enqueueMs = (Number(flags['enqueue-timeout']) || 120) * 1000;
   const intervalMs = (Number(flags.interval) || 15) * 1000;
 
@@ -290,34 +339,26 @@ async function cmdConfirmEnqueue(flags: Record<string, string>): Promise<number>
     return 0;
   }
 
-  const start = Date.now();
-  let confirmed = false;
   let how = '';
-  while (Date.now() - start < enqueueMs) {
-    const v = prView(pr) || {};
-    if ((v.state || '').toUpperCase() === 'MERGED') { confirmed = true; how = 'already merged'; break; }
-    if (regime === 'trunk' && findQueueCheck(prChecks(pr), base)) {
-      confirmed = true; how = `${trunkQueueCheckName(base)} check present`; break;
+  if (regime === 'trunk') {
+    const got = await confirmTrunkEnqueue(pr, base, enqueueMs, intervalMs);
+    if (!got) { process.stderr.write(trunkEnqueueTimeoutMsg(base)); return 1; }
+    how = got === 'merged' ? 'already merged' : `${trunkQueueCheckName(base)} check present`;
+  } else {
+    const start = Date.now();
+    while (Date.now() - start < enqueueMs) {
+      const v = prView(pr) || {};
+      if ((v.state || '').toUpperCase() === 'MERGED') { how = 'already merged'; break; }
+      if (v.autoMergeRequest != null) { how = 'GitHub auto-merge enabled'; break; }
+      await sleep(Math.min(intervalMs, 15000));
     }
-    if (regime === 'github' && v.autoMergeRequest != null) {
-      confirmed = true; how = 'GitHub auto-merge enabled'; break;
-    }
-    await sleep(Math.min(intervalMs, 15000));
-  }
-
-  if (!confirmed) {
-    if (regime === 'trunk') {
-      process.stderr.write(
-        'TRUNK_ENQUEUE_TIMEOUT — posted "/trunk merge" but no "' + trunkQueueCheckName(base) +
-        '" check appeared. Is the Trunk GitHub App installed and "GitHub commands" enabled?\n',
-      );
-    } else {
+    if (!how) {
       process.stderr.write(
         'ENQUEUE_UNCONFIRMED — GitHub auto-merge is not enabled on the PR after submit. ' +
         'Check the repo merge-queue / auto-merge settings.\n',
       );
+      return 1;
     }
-    return 1;
   }
 
   let stateFile = '';
@@ -337,23 +378,35 @@ async function cmdWait(flags: Record<string, string>): Promise<number> {
   const pr = flags.pr;
   const base = flags.base;
   if (!pr || !base) { process.stderr.write('wait: --pr and --base are required\n'); return 2; }
-  const regime = (flags.regime || 'none') as Regime;
+  const regime = validRegime(flags.regime ?? 'none');
+  if (!regime) { process.stderr.write(`wait: invalid --regime "${flags.regime}" (must be none|github|trunk)\n`); return 2; }
   const intervalMs = (Number(flags.interval) || 30) * 1000;
   const timeoutMs = (Number(flags.timeout) || 1800) * 1000; // 30 min
   const enqueueMs = (Number(flags['enqueue-timeout']) || 120) * 1000;
   const once = flags.once !== undefined || process.argv.includes('--once');
 
+  // GitHub's native queue posts no PR-visible check; the ejection signal is
+  // auto-merge flipping enabled → disabled while the PR stays OPEN.
+  let sawAutoMerge = false;
   const classifyNow = () => {
     const v = prView(pr) || {};
     const checks = prChecks(pr);
     const queueCheck = findQueueCheck(checks, base);
     const oid = v.mergeCommit?.oid || null;
+    const state = v.state || 'OPEN';
+    const autoMerge = v.autoMergeRequest != null;
+    if (autoMerge) sawAutoMerge = true;
     return classifyLand({
-      state: v.state || 'OPEN',
+      state,
       mergeCommitOid: oid,
-      baseContainsHead: oid ? true : baseContainsHead(base, v.headRefOid || ''),
+      // classifyLand only reads this in the MERGED branch — don't pay the
+      // git fetch on every pending poll tick.
+      baseContainsHead: oid
+        ? true
+        : state.toUpperCase() === 'MERGED' && baseContainsHead(base, v.headRefOid || ''),
       queueCheck,
-      autoMergeEnabled: v.autoMergeRequest != null,
+      autoMergeEnabled: autoMerge,
+      autoMergeWasEnabled: sawAutoMerge,
     });
   };
 
@@ -363,30 +416,18 @@ async function cmdWait(flags: Record<string, string>): Promise<number> {
     return c.status === 'landed' ? 0 : c.status === 'pending' ? 0 : 1;
   }
 
-  const start = Date.now();
-
-  // Trunk phase 1: confirm the comment actually enqueued (the queue check
-  // appears) — a posted "/trunk merge" comment is silently inert if the
-  // GitHub App isn't installed or "GitHub commands" is off.
+  // Trunk phase 1: confirm the comment actually enqueued (shared helper with
+  // confirm-enqueue so the criteria and timeout guidance can't drift).
   if (regime === 'trunk') {
-    let enqueued = false;
-    while (Date.now() - start < enqueueMs) {
-      const v = prView(pr) || {};
-      if ((v.state || '').toUpperCase() === 'MERGED') { enqueued = true; break; }
-      if (findQueueCheck(prChecks(pr), base)) { enqueued = true; break; }
-      await sleep(Math.min(intervalMs, 15000));
-    }
-    if (!enqueued) {
-      process.stderr.write(
-        'TRUNK_ENQUEUE_TIMEOUT — posted "/trunk merge" but no "' + trunkQueueCheckName(base) +
-        '" check appeared. Is the Trunk GitHub App installed and "GitHub commands" enabled?\n',
-      );
+    if (!(await confirmTrunkEnqueue(pr, base, enqueueMs, intervalMs))) {
+      process.stderr.write(trunkEnqueueTimeoutMsg(base));
       return 1;
     }
     process.stdout.write('Trunk picked up the PR — waiting for the queue to finish.\n');
   }
 
   // Phase 2: resolution.
+  const start = Date.now();
   let lastNarrate = Date.now();
   while (Date.now() - start < timeoutMs) {
     const c = classifyNow();
@@ -421,19 +462,20 @@ async function cmdWait(flags: Record<string, string>): Promise<number> {
 function resolveRebasedSha(base: string, headRefOid: string): string | null {
   if (!/^[0-9a-f]{7,40}$/i.test(headRefOid)) return null;
   if (!/^[\w./-]+$/.test(base)) return null;
-  const patchIdOf = (rev: string): string => {
-    const r = spawnSync('bash', ['-c', `git show "$1" | git patch-id --stable`, '--', rev], {
-      encoding: 'utf-8',
-      timeout: 60000,
-    });
-    return ((r.stdout || '').trim().split(' ')[0]) || '';
+  const sh = (cmd: string, arg: string): string => {
+    const r = spawnSync('bash', ['-c', cmd, '--', arg], { encoding: 'utf-8', timeout: 60000 });
+    return (r.stdout || '').trim();
   };
-  const want = patchIdOf(headRefOid);
+  const want = sh('git show "$1" | git patch-id --stable', headRefOid).split(' ')[0];
   if (!want) return null;
-  const commits = run('git', ['rev-list', '--max-count=50', `origin/${base}`]).stdout
+  // One batch pipeline: `git patch-id --stable` natively handles a
+  // multi-commit -p stream, emitting one "<patch-id> <sha>" line per commit —
+  // 2 processes total instead of 3 per candidate commit.
+  const matches = sh('git log -p --max-count=50 "$1" | git patch-id --stable', `origin/${base}`)
     .split('\n')
+    .filter((l) => l.startsWith(`${want} `))
+    .map((l) => l.split(' ')[1])
     .filter(Boolean);
-  const matches = commits.filter((c) => patchIdOf(c) === want);
   return matches.length === 1 ? matches[0] : null;
 }
 
@@ -442,7 +484,8 @@ async function cmdWriteState(flags: Record<string, string>): Promise<number> {
   const base = flags.base;
   const slug = flags.slug;
   if (!pr || !base || !slug) { process.stderr.write('write-state: --pr, --base, --slug are required\n'); return 2; }
-  const regime = (flags.regime || 'none') as Regime;
+  const regime = validRegime(flags.regime ?? 'none');
+  if (!regime) { process.stderr.write(`write-state: invalid --regime "${flags.regime}" (must be none|github|trunk)\n`); return 2; }
   const shaTimeoutMs = (Number(flags['sha-timeout']) || 90) * 1000;
 
   // Poll until MERGED with a non-null merge SHA (the SHA can lag the state
@@ -462,7 +505,9 @@ async function cmdWriteState(flags: Record<string, string>): Promise<number> {
   v = v || prView(pr) || {};
   const state = (v.state || '').toUpperCase();
   const headRefOid = v.headRefOid || '';
-  const contains = baseContainsHead(base, headRefOid);
+  // Lazy: on the common landed path oid is non-null and short-circuits the
+  // guard below, so don't pay the git fetch inside baseContainsHead.
+  const contains = oid ? true : baseContainsHead(base, headRefOid);
 
   if (state !== 'MERGED' || !(oid || contains)) {
     process.stderr.write('write-state: landing not confirmed (PR not MERGED on base) — refusing to write handoff\n');

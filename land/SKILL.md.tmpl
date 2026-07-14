@@ -82,7 +82,7 @@ gh auth status
 ```
 If not authenticated, **STOP**: "I need GitHub CLI access to land your PR. Run `gh auth login`, then try `/land` again."
 
-2. Parse arguments. If the user passed `#NNN`, use that PR number. If they passed `--fast`, remember that for Step 3.5.
+2. Parse arguments. If the user passed `#NNN`, use that PR number. If they passed `--fast`, remember that for Step 3.5. From here on, `<NNN>` in every `gh pr view` / `gh pr checks` command below means this PR's number (from the argument, or from the detection in the next step) — always pass it explicitly, so `/land #123` never reads the current branch's PR by accident.
 
 3. If no PR number was given, detect it from the current branch:
 ```bash
@@ -104,7 +104,7 @@ gh pr view --json number,state,title,url,mergeStateStatus,mergeable,baseRefName,
 Tell the user: "Checking CI status and merge readiness..."
 
 ```bash
-gh pr checks --json name,state,status,conclusion
+gh pr checks <NNN> --json name,state,bucket
 ```
 
 Parse:
@@ -114,7 +114,7 @@ Parse:
 
 Check for merge conflicts:
 ```bash
-gh pr view --json mergeable -q .mergeable
+gh pr view <NNN> --json mergeable -q .mergeable
 ```
 If `CONFLICTING`: **STOP.** "This PR conflicts with {base}. Resolve the conflicts and push, then run `/land` again."
 
@@ -125,7 +125,7 @@ If `CONFLICTING`: **STOP.** "This PR conflicts with {base}. Resolve the conflict
 If required checks are still pending, wait with a 15-minute timeout:
 
 ```bash
-gh pr checks --watch --fail-fast
+gh pr checks <NNN> --watch --fail-fast
 ```
 
 Record the CI wait time.
@@ -140,9 +140,13 @@ Record the CI wait time.
 
 Before gathering readiness evidence, verify the VERSION this PR claims is still the next free slot. A sibling workspace may have shipped and landed since `/ship` ran, leaving this PR's VERSION stale.
 
+Read the PR's own VERSION — not the current checkout's, which may be a different branch when landing by PR number:
+
 ```bash
-BRANCH_VERSION=$(git show HEAD:VERSION 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
-BASE_BRANCH=$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || echo main)
+HEAD_BRANCH=$(gh pr view <NNN> --json headRefName -q .headRefName 2>/dev/null)
+git fetch origin "$HEAD_BRANCH" 2>/dev/null
+BRANCH_VERSION=$(git show "origin/$HEAD_BRANCH:VERSION" 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
+BASE_BRANCH=$(gh pr view <NNN> --json baseRefName -q .baseRefName 2>/dev/null || echo main)
 BASE_VERSION=$(git show origin/$BASE_BRANCH:VERSION 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
 
 QUEUE_JSON=$(bun run ~/.claude/skills/gstack/bin/gstack-next-version \
@@ -231,11 +235,13 @@ Use AskUserQuestion:
 
 ### 3.5b: Test results
 
-**Free tests — run them now.** Read CLAUDE.md for the project's test command. If not specified, use `bun test`. Run it, capture exit code and output.
+**Free tests — run them now.** Read CLAUDE.md for the project's test command. If CLAUDE.md doesn't specify one, ask via AskUserQuestion (let the user give the command, or confirm the project has no test suite), then persist the answer to CLAUDE.md so we never ask again. Run it, capture exit code and output.
 
 ```bash
-bun test 2>&1 | tail -10
+<test command from CLAUDE.md> 2>&1 | tail -10
 ```
+
+If the project genuinely has no test suite: **WARNING** (note it in the readiness report), not a blocker.
 
 If tests fail: **BLOCKER.** Cannot merge with failing tests.
 
@@ -252,8 +258,8 @@ Parse pass/fail for any of today's runs. No E2E today → **WARNING.** Failures 
 ### 3.5c: PR body accuracy check
 
 ```bash
-gh pr view --json body -q .body
-git log --oneline $(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || echo main)..HEAD | head -20
+gh pr view <NNN> --json body -q .body
+git log --oneline $(gh pr view <NNN> --json baseRefName -q .baseRefName 2>/dev/null || echo main)..HEAD | head -20
 ```
 
 Compare the PR body against the actual commits: missing features, stale descriptions, wrong version. If stale or incomplete: **WARNING — PR body may not reflect current changes.**
@@ -261,7 +267,7 @@ Compare the PR body against the actual commits: missing features, stale descript
 ### 3.5d: Document-release check
 
 ```bash
-git diff --name-only $(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || echo main)...HEAD -- README.md CHANGELOG.md ARCHITECTURE.md CONTRIBUTING.md CLAUDE.md VERSION
+git diff --name-only $(gh pr view <NNN> --json baseRefName -q .baseRefName 2>/dev/null || echo main)...HEAD -- README.md CHANGELOG.md ARCHITECTURE.md CONTRIBUTING.md CLAUDE.md VERSION
 ```
 
 If CHANGELOG.md and VERSION were NOT modified and the diff includes new features (new files, commands, skills): **WARNING — /document-release likely not run.** If only docs changed (no code): skip this check.
@@ -374,8 +380,10 @@ force it. Use AskUserQuestion:
 - B) Just merge this PR directly now — maybe later (Completeness: 7/10)
 
 **If A:** Run the hand-held onboarding below, then re-resolve the regime (it should now be
-`trunk`) and continue. **If B:** continue with the `none` path. Either way, do not re-ask on
-later runs (the choice, or the written `## Merge Configuration`, settles it).
+`trunk`) and continue. **If B:** write `Merge queue: none` into a `## Merge Configuration`
+section of CLAUDE.md (create the section if absent), then continue with the `none` path.
+Either way, the written `## Merge Configuration` settles it — later runs read the config
+and never re-ask.
 
 {{MERGE_QUEUE_SETUP}}
 
@@ -405,7 +413,7 @@ no-blind-retry rule applies to `submit` per H4 — never resubmit a failed `/tru
 check status first.)
 
 ```bash
-gh pr view --json state,mergeCommit,mergedAt,mergedBy
+gh pr view <NNN> --json state,mergeCommit,mergedAt,mergedBy
 ```
 
 **If `state == "MERGED"`:**
@@ -414,7 +422,7 @@ The server-side merge succeeded (it may have completed before the local cleanup 
 
 Capture the merge SHA:
 ```bash
-gh pr view --json mergeCommit -q .mergeCommit.oid
+gh pr view <NNN> --json mergeCommit -q .mergeCommit.oid
 ```
 
 Worktree cleanup — non-destructive, candidate-based:
@@ -432,7 +440,7 @@ Then continue to the landing confirmation (Step 5) — `write-state` will confir
 
 Check whether auto-merge / a queue is active:
 ```bash
-gh pr view --json autoMergeRequest -q .autoMergeRequest
+gh pr view <NNN> --json autoMergeRequest -q .autoMergeRequest
 ```
 - If non-null: auto-merge is enabled or merge queue is in use. The open state is expected — continue to 4.3's wait.
 - If null: genuine failure. Surface both the `submit` stderr AND the current PR open state, then **STOP**.
@@ -443,19 +451,17 @@ gh pr view --json autoMergeRequest -q .autoMergeRequest
 
 ### 4.3: Enqueue-and-return (default) or watch until landed
 
-```bash
-{{SLUG_EVAL}}
-```
-
 **Regime `none`** — the direct squash in 4.2 already merged synchronously. Go straight to Step 5 (write-state confirms the SHA).
 
 **Regime `github` / `trunk`, DEFAULT (no `--watch`)** — confirm the queue actually picked the PR up, then return; the queue lands it:
 
 ```bash
+{{SLUG_EVAL}}
 ~/.claude/skills/gstack/bin/gstack-merge confirm-enqueue --regime <regime> --pr <NNN> --base <base> --slug "$SLUG"
 ```
 
-- **exit 0 / `ENQUEUED=...`** — the PR is in the queue and will land on `<base>` on its own. Do NOT run Step 5 (there is no merge SHA yet — `confirm-enqueue` wrote a lightweight `last-enqueue.json`). Go to Step 6's **enqueue summary**, and surface the `WATCH_CHECK` / `WATCH_DASHBOARD` lines from the output so the user knows where to look.
+- **exit 0 with `ENQUEUE_HOW=already merged`** — the PR didn't queue; it MERGED before the poll (e.g. auto-merge fired instantly, or the github regime fell back to a direct squash). Do NOT print the enqueue summary — go to Step 5 (write-state confirms the SHA and writes `last-land.json`), then Step 6's **land summary**.
+- **any other exit 0 / `ENQUEUED=...`** — the PR is in the queue and will land on `<base>` on its own. Do NOT run Step 5 (there is no merge SHA yet — `confirm-enqueue` wrote a lightweight `last-enqueue.json`). Go to Step 6's **enqueue summary**, and surface the `WATCH_CHECK` / `WATCH_DASHBOARD` lines from the output so the user knows where to look.
 - **`TRUNK_ENQUEUE_TIMEOUT`** — **STOP.** "I posted `/trunk merge` but Trunk never picked it up. Confirm the Trunk GitHub App is installed on this repo and 'GitHub commands' is enabled (run `/land` on a no-queue repo, or `/setup-deploy`, for the setup walkthrough), then run `/land` again."
 - **`ENQUEUE_UNCONFIRMED`** (github) — **STOP.** "GitHub auto-merge didn't enable on the PR. Check the repo's merge-queue / auto-merge settings, then run `/land` again."
 

@@ -182,6 +182,39 @@ describe('classifyLand', () => {
     const c = classifyLand({ state: 'CLOSED', mergeCommitOid: null, baseContainsHead: false });
     expect(c.status).toBe('closed');
   });
+
+  test('OPEN with auto-merge flipped enabled → disabled → ejected (github native queue eject)', () => {
+    const c = classifyLand({
+      state: 'OPEN',
+      mergeCommitOid: null,
+      baseContainsHead: false,
+      autoMergeEnabled: false,
+      autoMergeWasEnabled: true,
+    });
+    expect(c.status).toBe('ejected');
+  });
+
+  test('OPEN with auto-merge still enabled → pending (still queued)', () => {
+    const c = classifyLand({
+      state: 'OPEN',
+      mergeCommitOid: null,
+      baseContainsHead: false,
+      autoMergeEnabled: true,
+      autoMergeWasEnabled: true,
+    });
+    expect(c.status).toBe('pending');
+  });
+
+  test('OPEN, auto-merge never observed enabled → pending (no false eject before enqueue)', () => {
+    const c = classifyLand({
+      state: 'OPEN',
+      mergeCommitOid: null,
+      baseContainsHead: false,
+      autoMergeEnabled: false,
+      autoMergeWasEnabled: false,
+    });
+    expect(c.status).toBe('pending');
+  });
 });
 
 describe('buildLandState', () => {
