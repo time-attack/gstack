@@ -31,7 +31,7 @@ import * as crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import * as browseClient from "./browseClient";
-import { escapeHtml, sanitizeUntrustedHtml } from "./render";
+import { escapeHtml } from "./render";
 import { imageDims } from "./image-size";
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -259,7 +259,7 @@ export function buildDiagnosticBlock(fence: DiagramFence, errorMessage: string):
  */
 export function buildDiagramFigure(fence: DiagramFence, svg: string): string {
   const label = diagramLabel(fence);
-  const cleanSvg = sanitizeUntrustedHtml(svg);
+  const cleanSvg = sanitizeGeneratedSvg(svg);
   const captioned = fence.title
     ? `\n<figcaption class="diagram-caption">${escapeHtml(fence.title)}</figcaption>`
     : "";
@@ -272,6 +272,22 @@ export function buildDiagramFigure(fence: DiagramFence, svg: string): string {
     captioned,
     `</figure>`,
   ].join("\n");
+}
+
+/**
+ * Renderer output needs SVG geometry that the document sanitizer deliberately
+ * drops. Keep that trusted structure while removing its executable surfaces.
+ */
+export function sanitizeGeneratedSvg(svg: string): string {
+  let clean = svg.replace(/<script\b[\s\S]*?<\/script>/gi, "");
+  clean = clean.replace(/<script\b[^>]*\/?>/gi, "");
+  clean = clean.replace(/\s+on[a-zA-Z]+\s*=\s*"[^"]*"/gi, "");
+  clean = clean.replace(/\s+on[a-zA-Z]+\s*=\s*'[^']*'/gi, "");
+  clean = clean.replace(/\s+on[a-zA-Z]+\s*=\s*[^\s>]+/gi, "");
+  return clean.replace(
+    /(\s(?:href|xlink:href)\s*=\s*)(?:"javascript:[^"]*"|'javascript:[^']*'|javascript:[^\s>]+)/gi,
+    '$1"#"',
+  );
 }
 
 /** Recover the original fence source from a rendered figure (round-trip). */
