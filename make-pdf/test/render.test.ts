@@ -112,18 +112,23 @@ describe("sanitizeUntrustedHtml", () => {
     expect(sanitizeUntrustedHtml(input2)).not.toContain("ONCLICK");
   });
 
-  test("rewrites javascript: URLs in href to #", () => {
+  test("removes javascript: URLs from href", () => {
     const input = `<a href="javascript:alert(1)">bad</a>`;
     const out = sanitizeUntrustedHtml(input);
     expect(out).not.toContain("javascript:");
-    expect(out).toContain('href="#"');
+    expect(out).toBe("<a>bad</a>");
+  });
+
+  test("removes entity-obfuscated javascript: URLs", () => {
+    const out = sanitizeUntrustedHtml(`<a href="java&#x73;cript:alert(1)">bad</a>`);
+    expect(out).toBe("<a>bad</a>");
   });
 
   test("strips inline SVG <script>", () => {
     const input = `<svg><script>alert(1)</script><circle r="5"/></svg>`;
     const out = sanitizeUntrustedHtml(input);
     expect(out).not.toContain("<script");
-    expect(out).toContain("<circle");
+    expect(out).not.toContain("<circle");
   });
 
   test("strips <object>, <embed>, <link>, <meta>, <base>, <form>", () => {
