@@ -51,6 +51,7 @@ export async function generateVariant(
   size: string,
   quality: string,
   fetchFn: typeof globalThis.fetch = globalThis.fetch,
+  timeoutMs = VARIANT_TIMEOUT_MS,
 ): Promise<{ path: string; success: boolean; error?: string }> {
   const maxRetries = 3;
   const MAX_RETRY_AFTER_MS = 60_000; // cap honored Retry-After to bound stalls
@@ -67,7 +68,7 @@ export async function generateVariant(
     skipLeadingDelay = false;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), VARIANT_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetchFn("https://api.openai.com/v1/responses", {
@@ -134,7 +135,7 @@ export async function generateVariant(
     } catch (err: any) {
       clearTimeout(timeout);
       if (err.name === "AbortError") {
-        return { path: outputPath, success: false, error: `Timeout (${VARIANT_TIMEOUT_MS / 1000}s)` };
+        return { path: outputPath, success: false, error: `Timeout (${timeoutMs / 1000}s)` };
       }
       lastError = err.message;
     }
