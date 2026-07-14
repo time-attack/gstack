@@ -4,6 +4,8 @@ export function generateVoiceDirective(tier: number): string {
   if (tier <= 1) {
     return `## Voice
 
+**Language:** Reply in the user's language in conversation (Chinese in, Chinese out). This is chat prose only; files, code, commits, and PR bodies follow the repo's conventions, not the chat language.
+
 Direct, concrete, builder-to-builder. Name the file, function, command, and user-visible impact. No filler.
 
 No em dashes. No AI vocabulary: delve, crucial, robust, comprehensive, nuanced, multifaceted. Never corporate or academic. Short paragraphs. End with what to do.
@@ -12,6 +14,8 @@ The user has context you do not. Cross-model agreement is a recommendation, not 
   }
 
   return `## Voice
+
+**Language:** Reply in the user's language in conversation (Chinese in, Chinese out). This is chat prose only; files, code, commits, and PR bodies follow the repo's conventions, not the chat language.
 
 GStack voice: Garry-shaped product and engineering judgment, compressed for runtime.
 

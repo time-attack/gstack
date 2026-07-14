@@ -177,6 +177,13 @@ describe('gen-skill-docs', () => {
   // whose plain `description:` scalar contains an interior ": " (read as a nested
   // mapping). Parse EVERY generated frontmatter block with a strict YAML parser,
   // not just string-check that name:/description: exist.
+  //
+  // Bun.YAML landed in bun 1.3; older local bun has no in-process strict YAML
+  // parser (the repo is deliberately zero-dep for YAML). CI pins
+  // `bun-version: latest`, so coverage is guaranteed there — on an old local
+  // bun we skip rather than false-fail.
+  const hasBunYaml = typeof (Bun as any).YAML?.parse === 'function';
+
   function frontmatterBlock(content: string): string {
     expect(content.startsWith('---\n')).toBe(true);
     const end = content.indexOf('\n---', 4);
@@ -184,7 +191,7 @@ describe('gen-skill-docs', () => {
     return content.slice(4, end);
   }
 
-  test('every generated SKILL.md frontmatter parses as strict YAML', () => {
+  test.skipIf(!hasBunYaml)('every generated SKILL.md frontmatter parses as strict YAML', () => {
     for (const skill of CLAUDE_GENERATED_SKILLS) {
       const content = fs.readFileSync(path.join(ROOT, skill.dir, 'SKILL.md'), 'utf-8');
       const fm = frontmatterBlock(content);
@@ -196,7 +203,7 @@ describe('gen-skill-docs', () => {
     }
   });
 
-  test('every generated Codex (.agents/skills) frontmatter parses as strict YAML', () => {
+  test.skipIf(!hasBunYaml)('every generated Codex (.agents/skills) frontmatter parses as strict YAML', () => {
     const agentsDir = path.join(ROOT, '.agents', 'skills');
     if (!fs.existsSync(agentsDir)) return; // skip if external hosts not generated
     for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
@@ -304,7 +311,9 @@ describe('gen-skill-docs', () => {
     expect(content).not.toContain('contributor-logs');
     expect(content).toContain('Operational Self-Improvement');
     expect(content).toContain('gstack-learnings-log');
-    expect(content).toContain('gstack-learnings-search --limit 3');
+    // Preamble learnings limit is now configurable (learnings_preamble_limit,
+    // default 3) rather than a hardcoded --limit 3.
+    expect(content).toContain('gstack-learnings-search --limit "$_LEARN_PREAMBLE_LIMIT"');
   });
 
   test('generated SKILL.md with LEARNINGS_LOG contains operational type', () => {
@@ -323,6 +332,31 @@ describe('gen-skill-docs', () => {
     const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
     expect(content).toContain('_BRANCH');
     expect(content).toContain('git branch --show-current');
+  });
+
+  // #2001: update_check: false silences the binary but the upgrade-handling
+  // instruction prose used to ship unconditionally. Every skill that carries
+  // the runtime config-echo cluster must (a) echo UPDATE_CHECK so the
+  // instruction layer can read it, and (b) gate the UPGRADE_AVAILABLE /
+  // JUST_UPGRADED prose on it — the same echo-then-gate convention every other
+  // flag (PROACTIVE, SKILL_PREFIX, EXPLAIN_LEVEL, QUESTION_TUNING) follows.
+  test('update_check opt-out gates preamble echo and upgrade-handling prose (issue #2001)', () => {
+    let checked = 0;
+    for (const skill of CLAUDE_GENERATED_SKILLS) {
+      const content = fs.readFileSync(path.join(ROOT, skill.dir, 'SKILL.md'), 'utf-8');
+      // Scope: only skills that render the runtime config-echo cluster.
+      if (!content.includes('echo "QUESTION_TUNING: $_QUESTION_TUNING"')) continue;
+      checked++;
+      expect(content, `${skill.dir} must echo UPDATE_CHECK`).toContain('echo "UPDATE_CHECK: $_UPDATE_CHECK"');
+      expect(content, `${skill.dir} must read update_check config`).toContain('_UPDATE_CHECK=$(');
+      // Whenever the upgrade-handling prose ships, it must gate on the flag.
+      if (content.includes('UPGRADE_AVAILABLE <old> <new>')) {
+        expect(content, `${skill.dir} upgrade prose must gate on UPDATE_CHECK`)
+          .toContain('If `UPDATE_CHECK` is `"false"`');
+      }
+    }
+    // Guard against the scope filter silently matching nothing.
+    expect(checked).toBeGreaterThan(0);
   });
 
   test('tier 2+ skills contain ELI10 simplification rules (AskUserQuestion format)', () => {
@@ -2571,6 +2605,38 @@ describe('discover-skills hidden directory filtering', () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('build script validation', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
+  const buildScript = fs.readFileSync(path.join(ROOT, 'scripts', 'build.sh'), 'utf-8');
+
+  test('package.json build delegates to scripts/build.sh', () => {
+    expect(pkg.scripts.build).toBe('bash scripts/build.sh');
+  });
+
+  test('build helper falls back to bun run wrappers when bun compile fails', () => {
+    expect(buildScript).toContain('build_or_wrap()');
+    expect(buildScript).toContain('build --compile');
+    expect(buildScript).toContain('exec bun run');
+    // The wrapper must resolve its dir physically (pwd -P) so a symlinked
+    // dist dir (codex host) doesn't break REL_SCRIPT resolution.
+    expect(buildScript).toContain('pwd -P');
+  });
+
+  test('build helper covers all compiled entrypoints that setup depends on', () => {
+    expect(buildScript).toContain('build_or_wrap browse/src/cli.ts browse/dist/browse ../src/cli.ts');
+    expect(buildScript).toContain('build_or_wrap browse/src/find-browse.ts browse/dist/find-browse ../src/find-browse.ts');
+    expect(buildScript).toContain('build_or_wrap bin/gstack-global-discover.ts bin/gstack-global-discover gstack-global-discover.ts');
+  });
+
+  test('build path does not hide compile failures behind a blanket || true', () => {
+    expect(pkg.scripts.build).not.toContain('|| true');
+    // No `bun build --compile ... || true` — a compile failure must fall through
+    // to build_or_wrap, not get silently swallowed. (A `|| true` on the PATH
+    // probe `command -v bun` is fine and unrelated.)
+    expect(buildScript).not.toMatch(/build --compile[^\n]*\|\| true/);
   });
 });
 

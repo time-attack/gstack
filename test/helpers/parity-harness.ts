@@ -214,7 +214,10 @@ const MONOLITH_INVARIANTS: ParityInvariant[] = [
     // codexPreflight() block (install + auth tri-state + CODEX_MODE branch prose),
     // landing ~6.3% over the v1.53.0.0 baseline. Intentional: it adds proper
     // not-installed vs not-authed handling, not slop.
-    maxSizeRatio: 1.08,
+    // Browse fix-wave: the shared preamble grew ~1.5KB (SESSIONS echo, per-PPID
+    // session-state persistence, language directive, remote-control AUQ gate,
+    // configurable learnings limit) — all runtime-gating, can't move to sections.
+    maxSizeRatio: 1.12,
     minBytes: 70_000,
   },
   {
@@ -223,7 +226,8 @@ const MONOLITH_INVARIANTS: ParityInvariant[] = [
     mustHaveHeadings: ['## Preamble', '## When to invoke'],
     // v1.2.0 activation lift: the unified first-run-guidance section (P4 scaffold +
     // P3 loop tip) is added to every skill's shared preamble — intentional, ~1KB.
-    maxSizeRatio: 1.07,
+    // Browse fix-wave preamble additions (see review invariant) push this higher.
+    maxSizeRatio: 1.13,
     minBytes: 50_000,
   },
   {
@@ -234,7 +238,11 @@ const MONOLITH_INVARIANTS: ParityInvariant[] = [
     // cross-session decision-memory nudge) lands this skill just over the strict 1.05;
     // headroom for the shared preamble additions (matches the carved-skill overrides).
     // v1.2.0 activation lift adds the first-run-guidance section on top.
-    maxSizeRatio: 1.09,
+    // Phase-1 hardening adds the untrusted-error-output guard, git-bisect regression
+    // workflow, and non-reproducible-bug taxonomy (~700B, adapted from
+    // addyosmani/agent-skills, MIT) — intentional security/methodology content.
+    // Browse fix-wave preamble additions land the biggest ratio here (small base).
+    maxSizeRatio: 1.18,
     minBytes: 30_000,
   },
   {
@@ -242,7 +250,8 @@ const MONOLITH_INVARIANTS: ParityInvariant[] = [
     mustContain: ['ceo', 'eng', 'design'],
     mustHaveHeadings: ['## Preamble', '## When to invoke'],
     // v1.2.0 activation lift: shared first-run-guidance preamble section.
-    maxSizeRatio: 1.07,
+    // Browse fix-wave preamble additions (see review invariant) push this higher.
+    maxSizeRatio: 1.10,
     minBytes: 70_000,
   },
 ];

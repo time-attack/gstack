@@ -37,6 +37,13 @@ import {
 } from './token-registry';
 import { validateTempPath } from './path-security';
 import { resolveConfig, ensureStateDir, readVersionHash, resolveChromiumProfile, cleanSingletonLocks } from './config';
+import {
+  isAutoCookiePersistEnabled,
+  acquireLock as acquireAutoCookieLock,
+  releaseLock as releaseAutoCookieLock,
+  saveAutoCookieState,
+  cleanStaleTempFiles as cleanAutoCookieTempFiles,
+} from './auto-cookie-persist';
 import { emitActivity, subscribe, getActivityAfter, getActivityHistory, getSubscriberCount } from './activity';
 import { createSseEndpoint } from './sse-helpers';
 import { initAuditLog, writeAuditEntry } from './audit';
@@ -243,6 +250,14 @@ export interface ServerConfig {
    * reference is the PID record + the file paths.
    */
   ownsTerminalAgent?: boolean;
+  /**
+   * Process-exit seam. shutdown() calls this at the very end of its async
+   * teardown; defaults to process.exit. In-process test runs inject a
+   * recording stub here — the fire-and-forget shutdown path otherwise races
+   * per-test process.exit stubs, and a straggler real exit(0) truncates the
+   * whole bun test run with a green exit code and no failure tally.
+   */
+  exitFn?: (code?: number) => void;
 }
 
 /**
@@ -648,6 +663,64 @@ function idleCheckTick() {
 }
 const idleCheckInterval = setInterval(idleCheckTick, 60_000);
 
+// ─── Auto-cookie persistence (opt-in) ──────────────────────────
+// Checkpoints the live context's persistent cookies to a per-workspace state
+// file so a device-trust cookie survives a daemon restart. Three triggers:
+// (1) a periodic checkpoint below, (2) a debounced checkpoint after mutating
+// commands (scheduleAutoCookieCheckpoint, called from handleCommandInternalImpl),
+// and (3) a final flush in shutdown() before the browser closes. The crash
+// path (emergencyCleanup) deliberately does NOT save — serializing a dying
+// context risks a corrupt write; we rely on the most recent good checkpoint.
+let autoCookieLockHeld = false;
+let autoCookieLastHash: string | null = null;
+let autoCookieDebounce: ReturnType<typeof setTimeout> | null = null;
+let autoCookieCheckpointInFlight: Promise<void> | null = null;
+
+async function autoCookieCheckpoint(): Promise<void> {
+  while (autoCookieCheckpointInFlight) {
+    await autoCookieCheckpointInFlight;
+  }
+  if (!autoCookieLockHeld) return; // never write without owning the lock
+  const run = (async () => {
+    if (!autoCookieLockHeld) return;
+    const res = await saveAutoCookieState(config, activeBrowserManager.getContext(), autoCookieLastHash);
+    if (autoCookieLockHeld) autoCookieLastHash = res.hash;
+  })();
+  autoCookieCheckpointInFlight = run;
+  try {
+    await run;
+  } finally {
+    if (autoCookieCheckpointInFlight === run) autoCookieCheckpointInFlight = null;
+  }
+}
+
+// Debounced checkpoint: coalesces bursts of mutating commands into one write a
+// short while after the last one. unref'd so it never keeps the process alive.
+function scheduleAutoCookieCheckpoint(): void {
+  if (!autoCookieLockHeld) return;
+  if (autoCookieDebounce) clearTimeout(autoCookieDebounce);
+  autoCookieDebounce = setTimeout(() => {
+    autoCookieDebounce = null;
+    void autoCookieCheckpoint();
+  }, 1500);
+  if (typeof autoCookieDebounce.unref === 'function') autoCookieDebounce.unref();
+}
+
+// Periodic safety-net checkpoint (covers crash-before-shutdown where the
+// debounce/flush never runs). unref'd — must not hold the daemon open.
+const autoCookieInterval = setInterval(() => { void autoCookieCheckpoint(); }, 60_000);
+if (typeof autoCookieInterval.unref === 'function') autoCookieInterval.unref();
+
+// Commands that can mutate cookies/browser state and thus warrant a checkpoint.
+const AUTO_COOKIE_MUTATING_COMMANDS = new Set([
+  'chain', 'state', 'newtab', 'tab-each',
+  'js', 'eval',
+]);
+
+function shouldAutoCookieCheckpoint(command: string): boolean {
+  return WRITE_COMMANDS.has(command) || AUTO_COOKIE_MUTATING_COMMANDS.has(command);
+}
+
 // Test-only surface for server-factory.test.ts. Lets the dual-instance
 // idle-timer behavior be exercised deterministically without mutating
 // Date.now (which would interact with the leaked module-level setInterval).
@@ -664,6 +737,11 @@ export const __testInternals__ = {
   // need shutdown to fire. Without this, the second test's shutdown
   // returns early at the `if (isShuttingDown) return;` guard.
   resetShutdownState: () => { isShuttingDown = false; },
+  // Stop the module-level 60s idle interval. In-process test runs import this
+  // module once for the whole suite; the interval otherwise outlives the test
+  // file and can fire a real process.exit(0) mid-suite, silently truncating
+  // the run with a green exit code.
+  stopIdleTimer: () => { clearInterval(idleCheckInterval); },
 };
 
 // ─── Parent-Process Watchdog ────────────────────────────────────────
@@ -958,6 +1036,7 @@ async function handleCommandInternalImpl(
   // so the trail records what the agent actually typed.
   const command = canonicalizeCommand(rawCommand);
   const isAliased = command !== rawCommand;
+  const shouldCheckpointAutoCookies = (opts?.chainDepth ?? 0) === 0 && shouldAutoCookieCheckpoint(command);
 
   // ─── Recursion guard: reject nested chains ──────────────────
   if (command === 'chain' && (opts?.chainDepth ?? 0) > 0) {
@@ -1057,6 +1136,7 @@ async function handleCommandInternalImpl(
   // ─── newtab with ownership for scoped tokens ──────────────
   if (command === 'newtab' && tokenInfo && tokenInfo.clientId !== 'root') {
     const newId = await browserManager.newTab(args[0] || undefined, tokenInfo.clientId);
+    if (shouldCheckpointAutoCookies) scheduleAutoCookieCheckpoint();
     return {
       status: 200, json: true,
       result: JSON.stringify({
@@ -1184,6 +1264,11 @@ async function handleCommandInternalImpl(
       };
     }
 
+    // Auto-cookie checkpoint (opt-in): schedule after the command attempt has
+    // actually run, so slow navigations/login redirects do not snapshot the
+    // pre-command cookie jar. No-op unless the lock is held.
+    if (shouldCheckpointAutoCookies) scheduleAutoCookieCheckpoint();
+
     // ─── Centralized content wrapping (single location for all commands) ───
     // Scoped tokens: content filter + enhanced envelope + datamarking
     // Root tokens: basic untrusted content wrapper (backward compat)
@@ -1255,6 +1340,8 @@ async function handleCommandInternalImpl(
     }
     return { status: 200, result };
   } catch (err: any) {
+    if (shouldCheckpointAutoCookies) scheduleAutoCookieCheckpoint();
+
     // Restore original active tab even on error
     if (savedTabId !== null) {
       try { browserManager.switchTab(savedTabId, { bringToFront: false }); } catch (restoreErr: any) {
@@ -1474,6 +1561,10 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
     throw new Error('buildFetchHandler: cfg.browserManager is required');
   }
 
+  // Exit seam: production defaults to process.exit; tests inject a stub so
+  // in-process shutdowns can never terminate the test runner itself.
+  const exitFn = cfg.exitFn ?? ((code?: number) => process.exit(code));
+
   // Re-run init with cfg-provided values. ensureStateDir is idempotent
   // (mkdir -p); initAuditLog is idempotent (sets a module string);
   // initRegistry is idempotent for same-token, throws for different-token.
@@ -1504,9 +1595,9 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
   // (which would create split-brain — two agents writing the port file,
   // tokens diverging between them, mystery PTY upgrade failures).
   //
-  // Crash-loop guard: 3 respawn attempts inside 60s → stop trying and emit
-  // a one-line error. Manual `forceRestart` from the sidebar clears the
-  // history (the user is the explicit signal to retry).
+  // Crash-loop guard: 3 respawn attempts inside 3 ticks → stop trying and
+  // emit a one-line error. Manual `forceRestart` from the sidebar clears
+  // the history (the user is the explicit signal to retry).
   //
   // Only active when ownsTerminalAgent === true. Embedders that pre-launch
   // their own PTY server (gbrowser phoenix overlay) must not be auto-respawned
@@ -1517,8 +1608,11 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
     process.env.GSTACK_AGENT_WATCHDOG_TICK_MS || '60000',
     10,
   );
-  const RESPAWN_GUARD_WINDOW_MS = 60_000;
   const RESPAWN_GUARD_MAX = 3;
+  // The guard must span at least RESPAWN_GUARD_MAX ticks or it can never
+  // trip: respawn attempts land at most once per tick, so a 60s window
+  // over a 60s tick sees a single attempt forever (see #2151).
+  const RESPAWN_GUARD_WINDOW_MS = Math.max(60_000, AGENT_WATCHDOG_TICK_MS * RESPAWN_GUARD_MAX);
   let agentRespawnGuardTripped = false;
 
   if (ownsTerminalAgent) {
@@ -1607,14 +1701,22 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
     if (cfgBrowserManager.isWatching()) cfgBrowserManager.stopWatch();
     clearInterval(flushInterval);
     clearInterval(idleCheckInterval);
+    clearInterval(autoCookieInterval);
+    if (autoCookieDebounce) { clearTimeout(autoCookieDebounce); autoCookieDebounce = null; }
     if (agentWatchdogInterval) clearInterval(agentWatchdogInterval);
     await flushBuffers();
+
+    // Final cookie checkpoint BEFORE the context closes — this is the graceful
+    // path all intentional shutdowns funnel through (idle timeout, SIGINT,
+    // /stop). Must run while the context still exists. Then release the lock.
+    await autoCookieCheckpoint();
+    if (autoCookieLockHeld) { releaseAutoCookieLock(config); autoCookieLockHeld = false; }
 
     await cfgBrowserManager.close();
 
     cleanSingletonLocks(resolveChromiumProfile());
     safeUnlinkQuiet(config.stateFile);
-    process.exit(exitCode);
+    exitFn(exitCode);
   }
 
   // Named lifecycle helper (matches closeTunnel style). Logs failures so
@@ -1639,6 +1741,20 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
   // after 30 min of HTTP idle because the dead module-level instance still
   // reports connectionMode === 'launched'.
   activeBrowserManager = cfgBrowserManager;
+
+  // Acquire the per-workspace auto-cookie lock once, at daemon start. Holding
+  // it for the daemon's lifetime is what serializes concurrent daemons (e.g.
+  // separate git worktrees) — only the lock holder writes the shared slot.
+  // If a live peer owns it, disable auto-persistence for this daemon (loud) so
+  // two daemons never last-writer-wins each other's cookies. Reads still work
+  // without the lock (atomic writes make a concurrent read safe).
+  if (isAutoCookiePersistEnabled()) {
+    cleanAutoCookieTempFiles(config);
+    autoCookieLockHeld = acquireAutoCookieLock(config);
+    if (!autoCookieLockHeld) {
+      console.warn('[browse] Auto-cookie persistence disabled for this daemon: another instance holds the workspace lock.');
+    }
+  }
 
   // Wire the cfg-instance's onDisconnect to run shutdown when the user
   // closes the headed browser window. CHAIN any caller-provided handler
@@ -1665,8 +1781,21 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
   // `authToken` (the cfg-derived value) explicitly.
   const browserManager = cfgBrowserManager;
 
+  const isExpectedLoopbackHost = (host: string | null): boolean => {
+    if (!host) return false;
+    const normalized = host.toLowerCase();
+    return normalized === `127.0.0.1:${browsePort}` || normalized === `localhost:${browsePort}`;
+  };
 
   const makeFetchHandler = (surface: Surface) => async (req: Request): Promise<Response> => {
+    // A loopback bind is not, by itself, a DNS-rebinding defense: after a
+    // rebinding a page can send Host: attacker.example to 127.0.0.1. Reject
+    // it before dispatch. Tunnel traffic is a separately authenticated surface.
+    if (surface === 'local' && req.headers.has('host') && !isExpectedLoopbackHost(req.headers.get('host'))) {
+      return new Response(JSON.stringify({ error: 'Forbidden host' }), {
+        status: 403, headers: { 'Content-Type': 'application/json' },
+      });
+    }
     const url = new URL(req.url);
 
     // ─── Tunnel surface filter (runs before any route dispatch) ──
@@ -1725,7 +1854,7 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
 
       // Cookie picker routes — HTML page unauthenticated, data/action routes require auth
       if (url.pathname.startsWith('/cookie-picker')) {
-        return handleCookiePickerRoute(url, req, browserManager, authToken);
+        return handleCookiePickerRoute(url, req, browserManager, authToken, scheduleAutoCookieCheckpoint);
       }
 
       // Welcome page — served when GStack Browser launches in headed mode
@@ -1777,14 +1906,8 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
           mode: browserManager.getConnectionMode(),
           uptime: Math.floor((Date.now() - startTime) / 1000),
           tabs: browserManager.getTabCount(),
-          // Auth token for extension bootstrap. Safe: /health is localhost-only.
-          // Previously served unconditionally, but that leaks the token if the
-          // server is tunneled to the internet (ngrok, SSH tunnel).
-          // In headed mode the server is always local, so return token unconditionally
-          // (fixes Playwright Chromium extensions that don't send Origin header).
-          ...(browserManager.getConnectionMode() === 'headed' ||
-              req.headers.get('origin')?.startsWith('chrome-extension://')
-              ? { token: authToken } : {}),
+          // Public liveness/status only. Origin is caller-controlled; exposing
+          // the root bearer here lets a hostile extension mint a PTY session.
           // The chat queue is gone — Terminal pane is the sole sidebar
           // surface. Keep `chatEnabled: false` so any older extension
           // build still treats the chat input as disabled.
@@ -2309,7 +2432,7 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
       // Dual-listener model: binds a SECOND Bun.serve listener on an
       // ephemeral 127.0.0.1 port dedicated to tunnel traffic, then points
       // ngrok.forward() at THAT port.  The existing local listener (which
-      // serves /health+token, /cookie-picker, /inspector/*, welcome, etc.)
+      // serves /health, /cookie-picker, /inspector/*, welcome, etc.)
       // is never exposed to ngrok.
       //
       // Hard fail if the tunnel listener bind fails — NEVER fall back to
@@ -2794,11 +2917,8 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
 
       // GET /memory — diagnostic snapshot (auth required, does NOT reset idle).
       // Same auth model as /activity/stream and /inspector/events: Bearer header
-      // OR view-only SSE-session cookie. Does NOT extend /health (which already
-      // leaks AUTH_TOKEN to any localhost caller in headed mode — see TODOS.md
-      // "Audit /health token distribution"); a separate endpoint with the
-      // standard SSE auth keeps the future /health fix from cascading into the
-      // sidebar footer poll.
+      // OR view-only SSE-session cookie. Keep this separate from /health,
+      // which is public status-only and must never carry AUTH_TOKEN.
       if (url.pathname === '/memory' && req.method === 'GET') {
         const cookieToken = extractSseCookie(req);
         if (!validateAuth(req) && !validateSseSessionToken(cookieToken)) {
@@ -2864,6 +2984,8 @@ export async function start() {
 
   const port = await findPort();
   LOCAL_LISTEN_PORT = port;
+  // The extension needs the real port before it starts and receives auth.
+  browserManager.serverPort = port;
 
   // ─── Proxy config (D8 + codex F5) ──────────────────────────────
   // BROWSE_PROXY_URL is set by the CLI when --proxy was passed. For SOCKS5
@@ -2961,6 +3083,7 @@ export async function start() {
   // write so all consumers see the same value. v1.34.x's module-level
   // AUTH_TOKEN const was deleted in v1.35.0.0.
   const envCfg = resolveConfigFromEnv();
+  browserManager.setExtensionAuthToken(envCfg.authToken);
 
   // Launch browser (headless or headed with extension)
   // BROWSE_HEADLESS_SKIP=1 skips browser launch entirely (for HTTP-only testing)
@@ -3016,8 +3139,6 @@ export async function start() {
   const tmpFile = tmpStatePath();
   fs.writeFileSync(tmpFile, JSON.stringify(state, null, 2), { mode: 0o600 });
   fs.renameSync(tmpFile, config.stateFile);
-
-  browserManager.serverPort = port;
 
   // Navigate to welcome page if in headed mode and still on about:blank
   if (browserManager.getConnectionMode() === 'headed') {

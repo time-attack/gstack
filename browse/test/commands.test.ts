@@ -5,7 +5,7 @@
  * A real browse server is started and commands are sent via the CLI HTTP interface.
  */
 
-import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
+import { describe, test, expect, beforeAll, beforeEach, afterAll } from 'bun:test';
 import { startTestServer } from './test-server';
 import { BrowserManager } from '../src/browser-manager';
 import { resolveServerScript } from '../src/cli';
@@ -94,11 +94,14 @@ beforeAll(async () => {
   await bm.launch();
 });
 
-afterAll(() => {
-  // Force kill browser instead of graceful close (avoids hang)
+afterAll(async () => {
   try { testServer.server.stop(); } catch {}
-  // bm.close() can hang — just let process exit handle it
-  setTimeout(() => process.exit(0), 500);
+  // Close only this file's own browser — never process.exit(): bun test runs
+  // all files in one process, so a delayed exit kills the whole suite
+  // (see test/no-suicide-exit.test.ts). close() can hang when the browser
+  // already died, and its internal 5s timeout ties bun's 5s hook timeout —
+  // so race it at 3s and abandon; the child is reaped at process exit.
+  try { await Promise.race([bm?.close(), new Promise((resolve) => setTimeout(resolve, 3000))]); } catch {}
 });
 
 // ─── Navigation ─────────────────────────────────────────────────
@@ -135,7 +138,12 @@ describe('Navigation', () => {
 // ─── Content Extraction ─────────────────────────────────────────
 
 describe('Content extraction', () => {
-  beforeAll(async () => {
+  // beforeEach, NOT beforeAll: bun <1.3 runs every describe-scoped beforeAll
+  // eagerly at file start (in file order), so a beforeAll goto here is
+  // clobbered by later describes' beforeAll gotos before any test runs.
+  // beforeEach is scoped correctly on all bun versions, and a goto against
+  // the local fixture server costs only a few ms per test.
+  beforeEach(async () => {
     await handleWriteCommand('goto', [baseUrl + '/basic.html'], bm);
   });
 
@@ -193,7 +201,9 @@ describe('Content extraction', () => {
 // ─── JavaScript / CSS / Attrs ───────────────────────────────────
 
 describe('Inspection', () => {
-  beforeAll(async () => {
+  // beforeEach, NOT beforeAll — see 'Content extraction' note (bun <1.3
+  // runs describe-scoped beforeAll hooks eagerly at file start).
+  beforeEach(async () => {
     await handleWriteCommand('goto', [baseUrl + '/basic.html'], bm);
   });
 
@@ -777,6 +787,42 @@ describe('Tabs', () => {
   });
 });
 
+// ─── Server Control ────────────────────────────────────────────
+
+describe('Server Control', () => {
+  test('status returns healthy', async () => {
+    const result = await handleMetaCommand('status', [], bm, async () => {});
+    expect(result).toContain('healthy');
+  });
+
+  test('stop returns response before shutdown fires (regression: crash-loop)', async () => {
+    let shutdownCalled = false;
+    const shutdown = () => { shutdownCalled = true; };
+
+    const result = await handleMetaCommand('stop', [], bm, shutdown);
+    // The fix defers shutdown via setTimeout(0) so the response flushes first.
+    // shutdownCalled must still be false here — the deferred callback hasn't fired yet.
+    expect(shutdownCalled).toBe(false);
+    expect(result).toBe('Server stopped');
+
+    // Wait for the deferred shutdown to fire.
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(shutdownCalled).toBe(true);
+  });
+
+  test('restart returns response before shutdown fires (regression: crash-loop)', async () => {
+    let shutdownCalled = false;
+    const shutdown = () => { shutdownCalled = true; };
+
+    const result = await handleMetaCommand('restart', [], bm, shutdown);
+    expect(shutdownCalled).toBe(false);
+    expect(result).toBe('Restarting...');
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(shutdownCalled).toBe(true);
+  });
+});
+
 // ─── Diff ───────────────────────────────────────────────────────
 
 describe('Diff', () => {
@@ -903,6 +949,47 @@ describe('CLI lifecycle', () => {
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('Status: healthy');
     expect(result.stderr).toContain('Starting server');
+  }, 20000);
+
+  test('sequential CLI invocations reuse the same daemon and page state', async () => {
+    const stateFile = `/tmp/browse-test-persist-${Date.now()}.json`;
+    const cliPath = path.resolve(__dirname, '../src/cli.ts');
+    const cliEnv: Record<string, string> = {};
+    for (const [k, v] of Object.entries(process.env)) {
+      if (v !== undefined) cliEnv[k] = v;
+    }
+    cliEnv.BROWSE_STATE_FILE = stateFile;
+
+    const runCli = (args: string[]) =>
+      new Promise<{ code: number; stdout: string; stderr: string }>((resolve) => {
+        const proc = spawn('bun', ['run', cliPath, ...args], {
+          timeout: 15000,
+          env: cliEnv,
+        });
+        let stdout = '';
+        let stderr = '';
+        proc.stdout.on('data', (d) => stdout += d.toString());
+        proc.stderr.on('data', (d) => stderr += d.toString());
+        proc.on('close', (code) => resolve({ code: code ?? 1, stdout, stderr }));
+      });
+
+    const gotoResult = await runCli(['goto', `${baseUrl}/basic.html`]);
+    expect(gotoResult.code).toBe(0);
+    expect(gotoResult.stdout).toContain('Navigated to');
+
+    const pid1 = JSON.parse(fs.readFileSync(stateFile, 'utf-8')).pid;
+
+    const textResult = await runCli(['text']);
+    expect(textResult.code).toBe(0);
+    expect(textResult.stdout).toContain('Hello World');
+
+    const pid2 = JSON.parse(fs.readFileSync(stateFile, 'utf-8')).pid;
+
+    try { fs.unlinkSync(stateFile); } catch {}
+    try { process.kill(pid2, 'SIGTERM'); } catch {}
+
+    expect(pid1).toBe(pid2);
+    expect(textResult.stderr).not.toContain('Starting server');
   }, 20000);
 });
 
@@ -1071,7 +1158,9 @@ describe('Dialog handling', () => {
 // ─── Element State Checks (is) ─────────────────────────────────
 
 describe('Element state checks', () => {
-  beforeAll(async () => {
+  // beforeEach, NOT beforeAll — see 'Content extraction' note (bun <1.3
+  // runs describe-scoped beforeAll hooks eagerly at file start).
+  beforeEach(async () => {
     await handleWriteCommand('goto', [baseUrl + '/states.html'], bm);
   });
 
@@ -2499,6 +2588,56 @@ describe('viewport --scale', () => {
       expect(true).toBe(false);
     } catch (err: any) {
       expect(err.message).toMatch(/Usage: browse viewport/);
+    }
+  });
+});
+
+// ─── viewport auto / reset / unpin (#1059) ──────────────────────
+
+describe('viewport auto (unpin)', () => {
+  test('viewport auto clears a pinned size and restores window-following', async () => {
+    // Pin a size: Playwright reports the emulated viewport.
+    await handleWriteCommand('viewport', ['375x812'], bm);
+    expect(bm.getPage().viewportSize()).toEqual({ width: 375, height: 812 });
+
+    // Unpin: the recreated context uses `viewport: null`, so viewportSize() is null.
+    const result = await handleWriteCommand('viewport', ['auto'], bm);
+    expect(result).toContain('unpinned');
+    expect(bm.getPage().viewportSize()).toBeNull();
+
+    // Reset for following tests.
+    await handleWriteCommand('viewport', ['1280x720'], bm);
+  });
+
+  test('reset and unpin are accepted aliases', async () => {
+    await handleWriteCommand('viewport', ['400x300'], bm);
+    await handleWriteCommand('viewport', ['reset'], bm);
+    expect(bm.getPage().viewportSize()).toBeNull();
+
+    await handleWriteCommand('viewport', ['200x200'], bm);
+    await handleWriteCommand('viewport', ['unpin'], bm);
+    expect(bm.getPage().viewportSize()).toBeNull();
+
+    await handleWriteCommand('viewport', ['1280x720'], bm);
+  });
+
+  test('viewport auto resets deviceScaleFactor to 1', async () => {
+    await handleWriteCommand('viewport', ['200x200', '--scale', '2'], bm);
+    expect(bm.getDeviceScaleFactor()).toBe(2);
+
+    await handleWriteCommand('viewport', ['auto'], bm);
+    expect(bm.getDeviceScaleFactor()).toBe(1);
+    expect(bm.getPage().viewportSize()).toBeNull();
+
+    await handleWriteCommand('viewport', ['1280x720', '--scale', '1'], bm);
+  });
+
+  test('viewport auto cannot be combined with --scale', async () => {
+    try {
+      await handleWriteCommand('viewport', ['auto', '--scale', '2'], bm);
+      expect(true).toBe(false);
+    } catch (err: any) {
+      expect(err.message).toMatch(/cannot be combined with --scale/);
     }
   });
 });

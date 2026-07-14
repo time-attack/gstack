@@ -16,6 +16,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { spawn as nodeSpawn } from 'child_process';
 import { safeUnlink, safeKill, isProcessAlive } from './error-handling';
 import { writeSecureFile, mkdirSecure } from './file-permissions';
 
@@ -68,7 +69,14 @@ export function spawnTerminalAgent(opts: {
   }
   const script = opts.scriptPath || resolveTerminalAgentScript();
   if (!script || !fs.existsSync(script)) return null;
-  const proc = (Bun as any).spawn(['bun', 'run', script], {
+  // node child_process.spawn (not Bun.spawn) so windowsHide suppresses the
+  // console-window flash when the CLI spawns the agent under real Bun on
+  // Windows (Bun.spawn ignores windowsHide). detached: true makes the agent a
+  // session leader (setsid on POSIX) so it outlives the short-lived CLI that
+  // spawned it — the PTY server is long-lived, and unref alone leaves it in the
+  // parent's process group where the launching shell's exit SIGHUP can reap it
+  // (the same rationale as the main daemon spawn in cli.ts).
+  const proc = nodeSpawn('bun', ['run', script], {
     cwd: opts.cwd || process.cwd(),
     env: {
       ...process.env,
@@ -76,7 +84,9 @@ export function spawnTerminalAgent(opts: {
       BROWSE_SERVER_PORT: String(opts.serverPort),
       ...(opts.extraEnv || {}),
     },
+    detached: true,
     stdio: ['ignore', 'ignore', 'ignore'],
+    windowsHide: true,
   });
   proc.unref?.();
   return proc.pid ?? null;

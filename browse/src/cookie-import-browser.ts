@@ -40,6 +40,8 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import type { Writable as NodeWritable, Readable as NodeReadable } from 'node:stream';
+import { spawn as nodeSpawn } from 'node:child_process';
 import { TEMP_DIR } from './platform';
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -99,6 +101,14 @@ interface BrowserMatch {
   browser: BrowserInfo;
   platform: BrowserPlatform;
   dbPath: string;
+  /**
+   * The profile directory the dbPath actually resolved to. Usually equals the
+   * requested profile, but the "Default"-missing numbered-profile fallback
+   * resolves to e.g. "Profile 5". The Windows App-Bound (v20) CDP path must
+   * launch Chrome with THIS profile, not the caller's original string, or it
+   * inspects the wrong profile and imports nothing (#2139 + #1181 seam).
+   */
+  profile: string;
 }
 
 // ─── Browser Registry ───────────────────────────────────────────
@@ -279,8 +289,14 @@ export async function importCookies(
         const cookie = toPlaywrightCookie(row, value);
         cookies.push(cookie);
         domainCounts[row.host_key] = (domainCounts[row.host_key] || 0) + 1;
-      } catch {
+      } catch (err: any) {
         failed++;
+        if (process.env.GSTACK_DEBUG === '1' || process.env.DEBUG === '1') {
+          const code = err?.code ? ` [${err.code}]` : '';
+          console.error(
+            `[cookie-import] decrypt failed for ${row.host_key}/${row.name}${code}: ${err?.message ?? String(err)}`
+          );
+        }
       }
     }
 
@@ -357,7 +373,7 @@ function findBrowserMatch(browser: BrowserInfo, profile: string): BrowserMatch |
     for (const dbPath of candidates) {
       try {
         if (fs.existsSync(dbPath)) {
-          return { browser, platform, dbPath };
+          return { browser, platform, dbPath, profile };
         }
       } catch {}
     }
@@ -368,6 +384,17 @@ function findBrowserMatch(browser: BrowserInfo, profile: string): BrowserMatch |
 function getBrowserMatch(browser: BrowserInfo, profile: string): BrowserMatch {
   const match = findBrowserMatch(browser, profile);
   if (match) return match;
+
+  // When the caller requested the default profile ("Default") and it doesn't
+  // exist, scan for numbered profiles ("Profile 1", "Profile 12", etc.).
+  // Chrome on macOS 26 and some multi-profile installations never create a
+  // "Default" directory — every account lands in a numbered profile instead.
+  // We return the first numbered profile that has a Cookies file, ordered by
+  // profile number so the result is deterministic.
+  if (profile === 'Default') {
+    const numberedMatch = findFirstNumberedProfile(browser);
+    if (numberedMatch) return numberedMatch;
+  }
 
   const attempted = getSearchPlatforms()
     .map(platform => {
@@ -380,6 +407,62 @@ function getBrowserMatch(browser: BrowserInfo, profile: string): BrowserMatch {
     `${browser.name} is not installed (no cookie database at ${attempted.join(' or ')})`,
     'not_installed',
   );
+}
+
+/**
+ * Scan a browser's data directory for numbered profiles ("Profile 1",
+ * "Profile 2", …) and return a BrowserMatch for the first one (lowest
+ * number) that contains a Cookies file.
+ *
+ * Called as a fallback when the "Default" profile directory doesn't exist.
+ * This handles Chrome on macOS 26+ and other installations that skip the
+ * Default directory entirely and put every account in a numbered profile.
+ */
+function findFirstNumberedProfile(browser: BrowserInfo): BrowserMatch | null {
+  for (const platform of getSearchPlatforms()) {
+    const dataDir = getDataDirForPlatform(browser, platform);
+    if (!dataDir) continue;
+    const browserDir = path.join(getBaseDir(platform), dataDir);
+    if (!fs.existsSync(browserDir)) continue;
+
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(browserDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    // Collect all "Profile N" directories and sort by their number so the
+    // lowest-numbered (usually the primary account) is tried first.
+    const numbered = entries
+      .filter(e => e.isDirectory() && /^Profile \d+$/.test(e.name))
+      .sort((a, b) => {
+        const na = parseInt(a.name.slice('Profile '.length), 10);
+        const nb = parseInt(b.name.slice('Profile '.length), 10);
+        return na - nb;
+      });
+
+    for (const entry of numbered) {
+      validateProfile(entry.name);
+      const profileDir = path.join(browserDir, entry.name);
+      // Chrome 80+ on Windows stores cookies under Network/Cookies; fall back to Cookies.
+      const candidates = platform === 'win32'
+        ? [path.join(profileDir, 'Network', 'Cookies'), path.join(profileDir, 'Cookies')]
+        : [path.join(profileDir, 'Cookies')];
+      for (const dbPath of candidates) {
+        try {
+          if (fs.existsSync(dbPath)) {
+            return { browser, platform, dbPath, profile: entry.name };
+          }
+        } catch {}
+      }
+    }
+
+    // Found the browser directory on this platform but no numbered profile had
+    // cookies — don't try other platforms (they'd find the same browser dir).
+    if (numbered.length > 0) break;
+  }
+  return null;
 }
 
 // ─── Internal: SQLite Access ────────────────────────────────────
@@ -787,14 +870,53 @@ function isBrowserRunning(browserName: string): Promise<boolean> {
   });
 }
 
+export function buildCdpSpawnArgs(
+  exePath: string,
+  userDataDir: string,
+  profile: string,
+): string[] {
+  // First element is the exe path; the rest are argv[1..] for Chrome.
+  // Keeping the exe in the array lets tests assert on a single source of truth.
+  return [
+    exePath,
+    '--remote-debugging-pipe',
+    `--user-data-dir=${userDataDir}`,
+    `--profile-directory=${profile}`,
+    '--headless=new',
+    '--no-first-run',
+    '--disable-background-networking',
+    '--disable-default-apps',
+    '--disable-extensions',
+    '--disable-sync',
+    '--no-default-browser-check',
+  ];
+}
+
 /**
- * Extract cookies via Chrome DevTools Protocol. Launches Chrome headless with
- * remote debugging on the user's real profile directory. Requires Chrome to be
- * closed first (profile lock).
+ * Extract cookies via Chrome DevTools Protocol over a stdio pipe. Launches
+ * Chrome headless with --remote-debugging-pipe on the user's real profile.
+ * Requires Chrome to be closed first (profile lock).
  *
  * v20 App-Bound Encryption binds decryption keys to the original user-data-dir
  * path, so a temp copy of the profile won't work — Chrome silently discards
  * cookies it can't decrypt. We must use the real profile.
+ *
+ * Transport: the CDP transport is Chrome's stdio pipes (parent fd 3 = write,
+ * parent fd 4 = read), not a TCP socket. There is no debug port to scan and
+ * no /json/list HTTP endpoint. A same-user process on the machine cannot
+ * observe or inject CDP traffic because pipe inheritance only reaches the
+ * child we spawned. This closes the v20 cookie exfiltration window tracked
+ * in issue #1136 from the v1.6.0.0 security wave.
+ *
+ * We use node:child_process.spawn instead of Bun.spawn for this subprocess
+ * because Bun.spawn returns raw numeric fds (not stream objects) at stdio
+ * indices >= 3, and Writable.toWeb / Readable.toWeb hang in Bun on the
+ * net.Socket endpoints. node:child_process returns net.Socket objects that
+ * work directly with CdpPipeTransport.
+ *
+ * Debugging note: if this path starts failing after a Chrome update, check
+ * the Chrome version logged below — Chrome's ABE key format (v20) or CDP
+ * pipe framing can change between major versions.
  */
 export async function importCookiesViaCdp(
   browserName: string,
@@ -823,99 +945,60 @@ export async function importCookiesViaCdp(
     );
   }
 
-  // Must use the real user data dir — v20 ABE keys are path-bound
+  // Must use the real user data dir — v20 ABE keys are path-bound.
   const dataDir = getDataDirForPlatform(browser, 'win32');
   if (!dataDir) throw new CookieImportError(`No Windows data dir for ${browser.name}`, 'not_installed');
   const userDataDir = path.join(getBaseDir('win32'), dataDir);
 
-  // Launch Chrome headless with remote debugging on the real profile.
-  //
-  // Security posture of the debug port:
-  //   - Chrome binds --remote-debugging-port to 127.0.0.1 by default. The
-  //     port is NOT exposed to the network. Baseline threat: a local
-  //     process running as the same user can connect.
-  //   - Port is randomized in [9222, 9321] to avoid collisions with other
-  //     Chrome-based tools. Not cryptographic — security relies on
-  //     same-user-access baseline, not port secrecy.
-  //   - Chrome is always killed in the finally block below (even on crash).
-  //
-  // KNOWN NON-GOAL (tracked as a separate hardening task for the next
-  // security wave):
-  //   On Windows 10.15+ with App-Bound Encryption (v20) enabled, a
-  //   same-user process that opens the cookie DB directly cannot decrypt
-  //   v20 values — the DPAPI context is bound to the browser process.
-  //   The CDP port bypasses that: `Network.getAllCookies` runs inside the
-  //   browser, so any same-user process that connects to the debug port
-  //   before we kill Chrome could exfiltrate decrypted v20 cookies.
-  //   Fix direction: switch to `--remote-debugging-pipe` so the CDP
-  //   transport is a parent/child stdio pipe, not TCP. Requires
-  //   restructuring the extractCookiesViaCdp WebSocket client; deferred
-  //   to a follow-up because the transport swap is non-trivial and the
-  //   baseline threat is still "attacker already has same-user access."
-  //
-  // Debugging note: if this path starts failing after a Chrome update,
-  // check the Chrome version logged below — Chrome's ABE key format (v20)
-  // or /json/list shape can change between major versions.
-  const debugPort = 9222 + Math.floor(Math.random() * 100);
-  const chromeProc = Bun.spawn([
-    exePath,
-    `--remote-debugging-port=${debugPort}`,
-    `--user-data-dir=${userDataDir}`,
-    `--profile-directory=${profile}`,
-    '--headless=new',
-    '--no-first-run',
-    '--disable-background-networking',
-    '--disable-default-apps',
-    '--disable-extensions',
-    '--disable-sync',
-    '--no-default-browser-check',
-  ], { stdout: 'pipe', stderr: 'pipe' });
+  // Resolve the profile the cookie DB actually lives in. When "Default" is
+  // absent, getBrowserMatch falls back to the first numbered profile, so we
+  // must launch Chrome with THAT profile — passing the caller's "Default"
+  // string would point --profile-directory at a non-existent/wrong profile
+  // and import nothing (#2139 + #1181 seam).
+  const resolvedProfile = getBrowserMatch(browser, profile).profile;
 
-  // Wait for Chrome to start, then find a page target's WebSocket URL.
-  // Network.getAllCookies is only available on page targets, not browser.
-  let wsUrl: string | null = null;
-  const startTime = Date.now();
-  let loggedVersion = false;
-  while (Date.now() - startTime < 15_000) {
-    try {
-      // One-time version log for future diagnostics when Chrome changes v20 format.
-      if (!loggedVersion) {
-        try {
-          const versionResp = await fetch(`http://127.0.0.1:${debugPort}/json/version`);
-          if (versionResp.ok) {
-            const v = await versionResp.json() as { Browser?: string };
-            console.log(`[cookie-import] CDP fallback: ${browser.name} ${v.Browser || 'unknown version'}`);
-            loggedVersion = true;
-          }
-        } catch {}
-      }
-      const resp = await fetch(`http://127.0.0.1:${debugPort}/json/list`);
-      if (resp.ok) {
-        const targets = await resp.json() as Array<{ type: string; webSocketDebuggerUrl?: string }>;
-        const page = targets.find(t => t.type === 'page');
-        if (page?.webSocketDebuggerUrl) {
-          wsUrl = page.webSocketDebuggerUrl;
-          break;
-        }
-      }
-    } catch {
-      // Not ready yet
-    }
-    await new Promise(r => setTimeout(r, 300));
-  }
+  // Spawn Chrome with CDP over stdio pipes:
+  //   stdio[0] stdin   — ignored (Chrome expects nothing on stdin)
+  //   stdio[1] stdout  — piped
+  //   stdio[2] stderr  — piped
+  //   stdio[3]         — CDP write side (parent -> Chrome, net.Socket)
+  //   stdio[4]         — CDP read side  (Chrome -> parent, net.Socket)
+  const [exe, ...chromeArgs] = buildCdpSpawnArgs(exePath, userDataDir, resolvedProfile);
+  const chromeProc = nodeSpawn(exe, chromeArgs, {
+    stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe'],
+  });
 
-  if (!wsUrl) {
+  // Without this listener, an async spawn failure (ENOENT, EACCES) would
+  // emit 'error' and crash the parent process via Node's default handler.
+  // Errors are surfaced via the transport's error path or the stdio null-check.
+  chromeProc.on('error', () => {});
+
+  const writeSocket = chromeProc.stdio[3] as NodeJS.WritableStream | null;
+  const readSocket = chromeProc.stdio[4] as NodeJS.ReadableStream | null;
+  if (!writeSocket || !readSocket) {
     chromeProc.kill();
     throw new CookieImportError(
-      `${browser.name} headless did not start within 15s`,
-      'cdp_timeout',
-      'retry',
+      'Chrome was spawned but CDP pipe endpoints (stdio[3]/[4]) are not available',
+      'cdp_error',
     );
   }
 
+  const transport = new CdpPipeTransport(
+    writeSocket as unknown as NodeWritable,
+    readSocket as unknown as NodeReadable,
+  );
+
   try {
-    // Connect via CDP WebSocket
-    const cookies = await extractCookiesViaCdp(wsUrl, domains);
+    // One-time version log for future diagnostics when Chrome changes v20 format.
+    try {
+      const v = await transport.send('Browser.getVersion');
+      const product = (v as { product?: string }).product ?? 'unknown version';
+      console.log(`[cookie-import] CDP fallback: ${browser.name} ${product}`);
+    } catch {
+      // Diagnostic only — don't fail the import if Browser.getVersion misbehaves.
+    }
+
+    const cookies = await extractCookiesViaCdpPipe(transport, domains);
 
     const domainCounts: Record<string, number> = {};
     for (const c of cookies) {
@@ -924,78 +1007,9 @@ export async function importCookiesViaCdp(
 
     return { cookies, count: cookies.length, failed: 0, domainCounts };
   } finally {
+    transport.close();
     chromeProc.kill();
   }
-}
-
-async function extractCookiesViaCdp(wsUrl: string, domains: string[]): Promise<PlaywrightCookie[]> {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(wsUrl);
-    let msgId = 1;
-
-    const timeout = setTimeout(() => {
-      ws.close();
-      reject(new CookieImportError('CDP cookie extraction timed out', 'cdp_timeout'));
-    }, 10_000);
-
-    ws.onopen = () => {
-      // Enable Network domain first, then request all cookies
-      ws.send(JSON.stringify({ id: msgId++, method: 'Network.enable' }));
-    };
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(String(event.data));
-
-      // After Network.enable succeeds, request all cookies
-      if (data.id === 1 && !data.error) {
-        ws.send(JSON.stringify({ id: msgId, method: 'Network.getAllCookies' }));
-        return;
-      }
-
-      if (data.id === msgId && data.result?.cookies) {
-        clearTimeout(timeout);
-        ws.close();
-
-        // Normalize domain matching: domains like ".example.com" match "example.com" and vice versa
-        const domainSet = new Set<string>();
-        for (const d of domains) {
-          domainSet.add(d);
-          domainSet.add(d.startsWith('.') ? d.slice(1) : '.' + d);
-        }
-
-        const matched: PlaywrightCookie[] = [];
-        for (const c of data.result.cookies as CdpCookie[]) {
-          if (!domainSet.has(c.domain)) continue;
-          matched.push({
-            name: c.name,
-            value: c.value,
-            domain: c.domain,
-            path: c.path || '/',
-            expires: c.expires === -1 ? -1 : c.expires,
-            secure: c.secure,
-            httpOnly: c.httpOnly,
-            sameSite: cdpSameSite(c.sameSite),
-          });
-        }
-        resolve(matched);
-      } else if (data.id === msgId && data.error) {
-        clearTimeout(timeout);
-        ws.close();
-        reject(new CookieImportError(
-          `CDP error: ${data.error.message}`,
-          'cdp_error',
-        ));
-      }
-    };
-
-    ws.onerror = (err) => {
-      clearTimeout(timeout);
-      reject(new CookieImportError(
-        `CDP WebSocket error: ${(err as any).message || 'unknown'}`,
-        'cdp_error',
-      ));
-    };
-  });
 }
 
 interface CdpCookie {
@@ -1018,6 +1032,238 @@ function cdpSameSite(value: string): 'Strict' | 'Lax' | 'None' {
     case 'None': return 'None';
     default: return 'Lax';
   }
+}
+
+// ─── Internal: CDP-over-pipe transport ─────────────────────────
+// Chrome's --remote-debugging-pipe exposes CDP over anonymous stdio pipes
+// rather than a TCP socket. Framing is simple: UTF-8 JSON payloads delimited
+// by single NUL bytes (0x00), in both directions. No length prefix, no
+// WebSocket envelope.
+//
+// The transport accepts Node-style streams (Writable + Readable) so it can
+// be unit-tested with PassThrough without spawning a real subprocess. In
+// production, the streams come from `child.stdio[3]` (net.Socket, writable —
+// parent→Chrome) and `child.stdio[4]` (net.Socket, readable — Chrome→parent)
+// of a `node:child_process.spawn` child.
+//
+// Why node:child_process and not Bun.spawn: Bun.spawn exposes fds ≥ 3 as
+// raw numeric file descriptors rather than stream objects, and the Node
+// Writable.toWeb / Readable.toWeb bridges hang in Bun. node:child_process
+// gives us net.Socket endpoints that Just Work.
+
+type CdpPending = {
+  resolve: (value: any) => void;
+  reject: (err: Error) => void;
+  timer?: ReturnType<typeof setTimeout>;
+};
+
+// Per-request ceiling. If Chrome stays alive but never answers (hung, or a
+// malformed frame we drop in handleFrame), the pending promise would otherwise
+// resolve NEVER — cookie import never reaches `finally`, so the spawned Chrome
+// keeps the real profile locked. The replaced WebSocket transport had explicit
+// timeouts; keep the invariant. Override via GSTACK_CDP_SEND_TIMEOUT_MS.
+// Read at send-time (not module load) so the env override applies at runtime
+// and tests can exercise the timeout path with a small value.
+function cdpSendTimeoutMs(): number {
+  const v = parseInt(process.env.GSTACK_CDP_SEND_TIMEOUT_MS || '', 10);
+  return Number.isFinite(v) && v > 0 ? v : 30_000;
+}
+
+export class CdpPipeTransport {
+  private nextId = 1;
+  private pending = new Map<number, CdpPending>();
+  private closed = false;
+  private writeStream: NodeWritable;
+  private readStream: NodeReadable;
+  private readBuffer = new Uint8Array(0);
+  private decoder = new TextDecoder();
+
+  constructor(writeStream: NodeWritable, readStream: NodeReadable) {
+    this.writeStream = writeStream;
+    this.readStream = readStream;
+
+    this.readStream.on('data', (chunk: Buffer | string) => {
+      const bytes = typeof chunk === 'string'
+        ? new TextEncoder().encode(chunk)
+        : new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+      this.ingest(bytes);
+    });
+    this.readStream.on('end', () => {
+      if (!this.closed) {
+        this.closed = true;
+        this.abortAll(new CookieImportError('CDP read stream ended unexpectedly', 'cdp_error'));
+      }
+    });
+    this.readStream.on('error', (err: Error) => this.abortAll(err));
+    this.writeStream.on('error', (err: Error) => this.abortAll(err));
+  }
+
+  send(method: string, params?: object, sessionId?: string): Promise<any> {
+    if (this.closed) {
+      return Promise.reject(new CookieImportError('CDP transport closed', 'cdp_error'));
+    }
+    const id = this.nextId++;
+    const frame: Record<string, unknown> = { id, method };
+    if (params !== undefined) frame.params = params;
+    if (sessionId !== undefined) frame.sessionId = sessionId;
+    const timeoutMs = cdpSendTimeoutMs();
+    const promise = new Promise<any>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        if (this.pending.delete(id)) {
+          reject(new CookieImportError(
+            `CDP request '${method}' timed out after ${timeoutMs}ms`,
+            'cdp_error',
+            'retry',
+          ));
+        }
+      }, timeoutMs);
+      // Don't keep the process alive just for this timer.
+      (timer as { unref?: () => void }).unref?.();
+      this.pending.set(id, { resolve, reject, timer });
+    });
+    // Write is fire-and-forget; errors bubble via the 'error' listener above.
+    this.writeStream.write(JSON.stringify(frame) + '\x00');
+    return promise;
+  }
+
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.abortAll(new CookieImportError('CDP transport closed', 'cdp_error'));
+    try { this.writeStream.end(); } catch {}
+  }
+
+  private ingest(chunk: Uint8Array): void {
+    // Append to accumulated buffer.
+    const combined = new Uint8Array(this.readBuffer.length + chunk.length);
+    combined.set(this.readBuffer, 0);
+    combined.set(chunk, this.readBuffer.length);
+    this.readBuffer = combined;
+
+    // Split on NUL; last piece (no trailing NUL) becomes the new buffer.
+    let start = 0;
+    for (let i = 0; i < this.readBuffer.length; i++) {
+      if (this.readBuffer[i] === 0x00) {
+        const frame = this.readBuffer.slice(start, i);
+        start = i + 1;
+        this.handleFrame(this.decoder.decode(frame));
+      }
+    }
+    this.readBuffer = this.readBuffer.slice(start);
+  }
+
+  private handleFrame(text: string): void {
+    if (text.length === 0) return;
+    let msg: any;
+    try {
+      msg = JSON.parse(text);
+    } catch {
+      // Malformed frame — ignore. Real CDP does not send malformed frames;
+      // if we see one, it's a bug, but crashing the transport punishes the
+      // caller for Chrome's bug.
+      return;
+    }
+
+    // Responses have an id. Events (no id) are ignored — we don't subscribe.
+    if (typeof msg.id !== 'number') return;
+
+    const pending = this.pending.get(msg.id);
+    if (!pending) return;
+    this.pending.delete(msg.id);
+    if (pending.timer) clearTimeout(pending.timer);
+
+    if (msg.error) {
+      pending.reject(new CookieImportError(
+        `CDP error: ${msg.error.message || 'unknown'}`,
+        'cdp_error',
+      ));
+    } else {
+      pending.resolve(msg.result ?? {});
+    }
+  }
+
+  private abortAll(err: Error): void {
+    const wrapped = err instanceof CookieImportError
+      ? err
+      : new CookieImportError(`CDP transport error: ${err.message}`, 'cdp_error');
+    for (const pending of this.pending.values()) {
+      if (pending.timer) clearTimeout(pending.timer);
+      pending.reject(wrapped);
+    }
+    this.pending.clear();
+  }
+}
+
+// Minimal transport surface needed by extractCookiesViaCdpPipe. Lets tests
+// pass a scripted mock without constructing a real CdpPipeTransport.
+export interface CdpCallable {
+  send(method: string, params?: object, sessionId?: string): Promise<any>;
+}
+
+/**
+ * Extract cookies over a CDP-over-pipe transport. The transport must already
+ * be wired to a running Chrome process with --remote-debugging-pipe.
+ *
+ * Flow:
+ *   1. Target.getTargets         — find a page target
+ *   2. Target.attachToTarget     — flatten session, get sessionId
+ *   3. Network.enable            — on the page session
+ *   4. Network.getAllCookies     — returns every cookie the browser has
+ *   5. Filter + map to PlaywrightCookie[]
+ */
+export async function extractCookiesViaCdpPipe(
+  transport: CdpCallable,
+  domains: string[],
+): Promise<PlaywrightCookie[]> {
+  if (domains.length === 0) return [];
+
+  const targets = await transport.send('Target.getTargets');
+  const pageTarget = (targets.targetInfos as Array<{ targetId: string; type: string }>)
+    .find(t => t.type === 'page');
+  if (!pageTarget) {
+    throw new CookieImportError(
+      'No page target found in Chrome for CDP cookie extraction',
+      'cdp_error',
+    );
+  }
+
+  const attached = await transport.send('Target.attachToTarget', {
+    targetId: pageTarget.targetId,
+    flatten: true,
+  });
+  const sessionId = attached.sessionId as string | undefined;
+  if (typeof sessionId !== 'string' || sessionId.length === 0) {
+    throw new CookieImportError(
+      'Target.attachToTarget returned no sessionId',
+      'cdp_error',
+    );
+  }
+
+  await transport.send('Network.enable', undefined, sessionId);
+  const cookiesResp = await transport.send('Network.getAllCookies', undefined, sessionId);
+
+  // Normalize domain matching: `.example.com` should match `example.com` and vice versa.
+  const domainSet = new Set<string>();
+  for (const d of domains) {
+    domainSet.add(d);
+    domainSet.add(d.startsWith('.') ? d.slice(1) : '.' + d);
+  }
+
+  const result: PlaywrightCookie[] = [];
+  for (const c of (cookiesResp.cookies ?? []) as CdpCookie[]) {
+    if (!domainSet.has(c.domain)) continue;
+    result.push({
+      name: c.name,
+      value: c.value,
+      domain: c.domain,
+      path: c.path || '/',
+      expires: c.expires === -1 ? -1 : c.expires,
+      secure: c.secure,
+      httpOnly: c.httpOnly,
+      sameSite: cdpSameSite(c.sameSite),
+    });
+  }
+  return result;
 }
 
 /**

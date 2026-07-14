@@ -41,6 +41,7 @@ export const META_COMMANDS = new Set([
   'watch',
   'state',
   'frame',
+  'record',
   'ux-audit',
   'domain-skill',
   'skill',
@@ -127,7 +128,7 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   'scroll':  { category: 'Interaction', description: 'With a selector, smooth-scrolls the element into view. Without a selector, jumps to page bottom. No --by/--to amount option; for pixel-precise scrolling use `js window.scrollTo(0, N)`.', usage: 'scroll [sel|@ref]' },
   'wait':    { category: 'Interaction', description: 'Wait for element, network idle, or page load (timeout: 15s)', usage: 'wait <sel|--networkidle|--load>' },
   'upload':  { category: 'Interaction', description: 'Upload file(s)', usage: 'upload <sel> <file> [file2...]' },
-  'viewport':{ category: 'Interaction', description: 'Set viewport size and optional deviceScaleFactor (1-3, for retina screenshots). --scale requires a context rebuild.', usage: 'viewport [<WxH>] [--scale <n>]' },
+  'viewport':{ category: 'Interaction', description: 'Set viewport size and optional deviceScaleFactor (1-3, for retina screenshots). --scale requires a context rebuild. Use `auto` (alias `reset`/`unpin`) to clear a pinned size and follow the window again.', usage: 'viewport [<WxH>|auto] [--scale <n>]' },
   'cookie':  { category: 'Interaction', description: 'Set cookie on current page domain', usage: 'cookie <name>=<value>' },
   'cookie-import': { category: 'Interaction', description: 'Import cookies from JSON file', usage: 'cookie-import <json>' },
   'cookie-import-browser': { category: 'Interaction', description: 'Import cookies from installed Chromium browsers (opens picker, or use --domain for direct import)', usage: 'cookie-import-browser [browser] [--domain d]' },
@@ -142,7 +143,7 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   // Visual
   'screenshot': { category: 'Visual', description: 'Save screenshot. --selector targets a specific element (explicit flag form). Positional selectors starting with ./#/@/[ still work.', usage: 'screenshot [--selector <css>] [--viewport] [--clip x,y,w,h] [--base64] [selector|@ref] [path]' },
   'pdf':     { category: 'Visual', description: 'Save the current page as PDF. Supports page layout (--format, --width, --height, --margins, --margin-*), structure (--toc waits for Paged.js), branding (--header-template, --footer-template, --page-numbers), accessibility (--tagged, --outline), and --from-file <payload.json> for large payloads. Use --tab-id <N> to target a specific tab.', usage: 'pdf [path] [--format letter|a4|legal] [--width <dim> --height <dim>] [--margins <dim>] [--margin-top <dim> --margin-right <dim> --margin-bottom <dim> --margin-left <dim>] [--header-template <html>] [--footer-template <html>] [--page-numbers] [--tagged] [--outline] [--print-background] [--prefer-css-page-size] [--toc] [--tab-id <N>]  |  pdf --from-file <payload.json> [--tab-id <N>]' },
-  'responsive': { category: 'Visual', description: 'Screenshots at mobile (375x812), tablet (768x1024), desktop (1280x720). Saves as {prefix}-mobile.png etc.', usage: 'responsive [prefix]' },
+  'responsive': { category: 'Visual', description: 'Screenshots at mobile (375x812), tablet (768x1024), desktop (default viewport, or BROWSE_VIEWPORT). Saves as {prefix}-mobile.png etc.', usage: 'responsive [prefix]' },
   'diff':    { category: 'Visual', description: 'Text diff between pages', usage: 'diff <url1> <url2>' },
   // Tabs
   'tabs':    { category: 'Tabs', description: 'List open tabs' },
@@ -170,6 +171,8 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   'watch':   { category: 'Meta', description: 'Passive observation — periodic snapshots while user browses', usage: 'watch [stop]' },
   // State
   'state':   { category: 'Server', description: 'Save/load browser state (cookies + URLs)', usage: 'state save|load <name>' },
+  // Recording
+  'record':  { category: 'Server', description: 'Record video of browser activity to .webm. Useful as repro evidence for interactive bug findings. `start` saves session state, rebuilds the context with recordVideo enabled, and restores state; `stop` closes the context (which flushes the .webm files) and returns the paths; `status` prints the active recording dir. Calling `start` while already recording auto-stops the prior recording first.', usage: 'record start [path] [--size WxH]  |  record stop  |  record status' },
   // Frame
   'frame':   { category: 'Meta', description: 'Switch to iframe context (or main to return)', usage: 'frame <sel|@ref|--name n|--url pattern|main>' },
   // CSS Inspector
@@ -225,6 +228,7 @@ export function canonicalizeCommand(cmd: string): string {
  */
 export const NEW_IN_VERSION: Record<string, string> = {
   'load-html': '0.19.0.0',
+  'record': '1.35.0.0',
 };
 
 /**

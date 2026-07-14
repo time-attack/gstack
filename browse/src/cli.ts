@@ -11,7 +11,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { spawn as nodeSpawn } from 'child_process';
+import { spawn as nodeSpawn, spawnSync as nodeSpawnSync } from 'child_process';
 import { safeUnlink, safeUnlinkQuiet, safeKill, isProcessAlive } from './error-handling';
 import { writeSecureFile, mkdirSecure } from './file-permissions';
 import { resolveConfig, ensureStateDir, readVersionHash } from './config';
@@ -21,7 +21,29 @@ import { spawnTerminalAgent } from './terminal-agent-control';
 
 const config = resolveConfig();
 const IS_WINDOWS = process.platform === 'win32';
-const MAX_START_WAIT = IS_WINDOWS ? 15000 : (process.env.CI ? 30000 : 8000); // Node+Chromium takes longer on Windows
+
+/**
+ * Startup health-probe budget (ms) for a freshly spawned server. The daemon is
+ * detached + unref'd, so it keeps booting regardless of how long the CLI is
+ * willing to poll — this constant only bounds how long `startServer` waits
+ * before reporting failure.
+ *
+ * Overridable via `BROWSE_START_TIMEOUT` (ms) for hosts where even the platform
+ * ceiling isn't enough — e.g. Windows under heavy load (#1846), where the 15s
+ * budget can still elapse before a busy box finishes booting Node+Chromium.
+ * Mirrors the `BROWSE_*` tunable convention used throughout server.ts
+ * (BROWSE_PORT, BROWSE_IDLE_TIMEOUT, ...). A non-positive or unparseable value
+ * falls back to the platform default. Pure + exported for tests.
+ */
+export function resolveStartTimeout(env: NodeJS.ProcessEnv = process.env): number {
+  // Windows: Node+Chromium boot is slower. POSIX: 8s proved too tight on
+  // loaded dev boxes (multiple Conductor worktrees + eval runs) — a healthy
+  // daemon can take >8s to answer its first /health under contention.
+  const platformDefault = IS_WINDOWS ? 15000 : (env.CI ? 30000 : 15000);
+  const override = parseInt(env.BROWSE_START_TIMEOUT || '', 10);
+  return Number.isFinite(override) && override > 0 ? override : platformDefault;
+}
+const MAX_START_WAIT = resolveStartTimeout();
 
 export function resolveServerScript(
   env: Record<string, string | undefined> = process.env,
@@ -55,7 +77,11 @@ export function resolveServerScript(
   );
 }
 
-const SERVER_SCRIPT = resolveServerScript();
+// Windows uses NODE_SERVER_SCRIPT (server-node.mjs) exclusively and its layout
+// may not ship browse/src/server.ts, so resolveServerScript() would throw at
+// module load and brick every command. Resolve lazily to null on Windows; the
+// non-Windows spawn path is the only consumer (SERVER_SCRIPT! below). (#797)
+const SERVER_SCRIPT = IS_WINDOWS ? null : resolveServerScript();
 
 /**
  * On Windows, resolve the Node.js-compatible server bundle.
@@ -89,7 +115,7 @@ if (IS_WINDOWS && !NODE_SERVER_SCRIPT) {
   );
 }
 
-interface ServerState {
+export interface ServerState {
   pid: number;
   port: number;
   token: string;
@@ -103,6 +129,16 @@ interface ServerState {
   xvfbPid?: number;
   xvfbStartTime?: number;
   xvfbDisplay?: string;
+}
+
+/** A daemon whose process still exists may be busy even when HTTP health checks
+ * time out. Preserve it (and its browser session) instead of guessing that it
+ * is dead. The caller can retry once the current page load settles. */
+export function shouldPreserveUnresponsiveServer(
+  state: ServerState | null,
+  processAlive: (pid: number) => boolean = isProcessAlive,
+): boolean {
+  return !!state?.pid && processAlive(state.pid);
 }
 
 // ─── State File ────────────────────────────────────────────────
@@ -141,10 +177,13 @@ async function killServer(pid: number): Promise<void> {
   if (IS_WINDOWS) {
     // taskkill /T /F kills the process tree (Node + Chromium)
     try {
-      Bun.spawnSync(
-        ['taskkill', '/PID', String(pid), '/T', '/F'],
-        { stdout: 'pipe', stderr: 'pipe', timeout: 5000 }
-      );
+      const proc = nodeSpawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], {
+        stdout: 'pipe',
+        stderr: 'pipe',
+        timeout: 5000,
+        windowsHide: true,
+      });
+      if (proc.error) throw proc.error;
     } catch (err: any) {
       if (err?.code !== 'ENOENT') throw err;
     }
@@ -275,16 +314,35 @@ export function buildRestartEnv(
 }
 
 /** macOS only: pull the headed Chromium window to the user's current Space.
- * "Google Chrome for Testing" frequently opens behind the active window or on
- * another Space — the first thing users read as "I can't see the browser"
- * (#1781). Best-effort, fire-and-forget, never throws. The app name is a fixed
- * literal (no interpolation). */
+ * The window frequently opens behind the active window or on another Space —
+ * the first thing users read as "I can't see the browser" (#1781).
+ *
+ * launchHeaded() patches the Chromium .app's Info.plist to rename it from
+ * "Google Chrome for Testing" to "GStack Browser" for better branding. That
+ * patch means the old hard-coded name no longer works for the osascript
+ * activate call. We try both names: "GStack Browser" first (post-patch),
+ * then "Google Chrome for Testing" as a fallback (pre-patch / patch skipped).
+ *
+ * Best-effort, fire-and-forget, never throws. App names are fixed literals —
+ * no interpolation. */
 function raiseHeadedWindowMacOS(): void {
   if (process.platform !== 'darwin') return;
+  // Try GStack Browser (Info.plist patched by launchHeaded) first; fall back
+  // to the original Playwright bundle name if the rename didn't apply.
+  const script = [
+    'try',
+    '  tell application "GStack Browser" to activate',
+    'on error',
+    '  try',
+    '    tell application "Google Chrome for Testing" to activate',
+    '  end try',
+    'end try',
+  ].join('\n');
   try {
-    nodeSpawn('osascript', ['-e', 'tell application "Google Chrome for Testing" to activate'], {
+    nodeSpawn('osascript', ['-e', script], {
       stdio: 'ignore',
       detached: true,
+      windowsHide: true,
     }).unref();
   } catch {
     // osascript missing or app not present — non-fatal
@@ -323,9 +381,13 @@ async function startServer(extraEnv?: Record<string, string>): Promise<ServerSta
     const launcherCode =
       `const{spawn}=require('child_process');` +
       `spawn(process.execPath,[${JSON.stringify(NODE_SERVER_SCRIPT)}],` +
-      `{detached:true,stdio:['ignore','ignore','ignore'],env:Object.assign({},process.env,` +
+      `{detached:true,windowsHide:true,stdio:['ignore','ignore','ignore'],env:Object.assign({},process.env,` +
       `${extraEnvStr})}).unref()`;
-    Bun.spawnSync(['node', '-e', launcherCode], { stdio: ['ignore', 'ignore', 'ignore'] });
+    const proc = nodeSpawnSync('node', ['-e', launcherCode], {
+      stdio: ['ignore', 'ignore', 'ignore'],
+      windowsHide: true,
+    });
+    if (proc.error) throw proc.error;
   } else {
     // macOS/Linux: Bun.spawn().unref() only removes the child from Bun's event
     // loop — it does NOT call setsid(), so the spawned server stays in the
@@ -338,8 +400,9 @@ async function startServer(extraEnv?: Record<string, string>): Promise<ServerSta
     // which calls setsid() so the server becomes its own session leader
     // (PPID=1, STAT=Ss) and survives the spawning shell's exit. Mirrors
     // the Windows path's rationale — same root cause, different OS API.
-    nodeSpawn('bun', ['run', SERVER_SCRIPT], {
+    nodeSpawn('bun', ['run', SERVER_SCRIPT!], {
       detached: true,
+      windowsHide: true,
       stdio: ['ignore', 'ignore', 'ignore'],
       env: { ...process.env, BROWSE_STATE_FILE: config.stateFile, BROWSE_PARENT_PID: parentPid, ...extraEnv },
     }).unref();
@@ -357,6 +420,17 @@ async function startServer(extraEnv?: Record<string, string>): Promise<ServerSta
     await Bun.sleep(100);
   }
 
+  // One last check before declaring failure. The daemon is detached + unref'd,
+  // so on a loaded machine it can become healthy in the gap between the poll
+  // loop's final tick and now — the probe timed out, the launch did not
+  // (#1846). Re-checking here turns that false negative into a success, and
+  // mirrors the post-loop recovery already done in ensureServer(). A genuinely
+  // failed server is still unhealthy, so this falls through to the error report.
+  const lateState = readState();
+  if (lateState && await isServerHealthy(lateState.port)) {
+    return lateState;
+  }
+
   // Server didn't start in time — check the on-disk startup error log.
   // Both platforms now spawn with stdio: 'ignore', so the server writes
   // errors to disk for the CLI to read (see server.ts start().catch).
@@ -372,12 +446,31 @@ async function startServer(extraEnv?: Record<string, string>): Promise<ServerSta
   throw new Error(`Server failed to start within ${MAX_START_WAIT / 1000}s`);
 }
 
+function errorCode(err: unknown): string {
+  if (err && typeof err === 'object' && 'code' in err) {
+    const code = (err as { code?: unknown }).code;
+    if (typeof code === 'string' && code.length > 0) return code;
+  }
+  return 'UNKNOWN';
+}
+
+function errorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === 'string' && message.length > 0) return message;
+  }
+  return String(err);
+}
+
+function logServerLockError(action: string, lockPath: string, err: unknown): void {
+  console.error(`[browse] acquireServerLock: unexpected ${errorCode(err)} while ${action} ${lockPath}: ${errorMessage(err)}`);
+}
+
 /**
  * Acquire an exclusive lockfile to prevent concurrent ensureServer() races (TOCTOU).
  * Returns a cleanup function that releases the lock.
  */
-function acquireServerLock(): (() => void) | null {
-  const lockPath = `${config.stateFile}.lock`;
+export function acquireServerLock(lockPath: string = `${config.stateFile}.lock`): (() => void) | null {
   try {
     // 'wx' — create exclusively, fails if file already exists (atomic check-and-create)
     // Using string flag instead of numeric constants for Bun Windows compatibility
@@ -385,19 +478,36 @@ function acquireServerLock(): (() => void) | null {
     fs.writeSync(fd, `${process.pid}\n`);
     fs.closeSync(fd);
     return () => { safeUnlink(lockPath); };
-  } catch {
-    // Lock already held — check if the holder is still alive
-    try {
-      const holderPid = parseInt(fs.readFileSync(lockPath, 'utf8').trim(), 10);
-      if (holderPid && isProcessAlive(holderPid)) {
-        return null; // Another live process holds the lock
-      }
-      // Stale lock — remove and retry
-      fs.unlinkSync(lockPath);
-      return acquireServerLock();
-    } catch {
+  } catch (err) {
+    if (errorCode(err) !== 'EEXIST') {
+      logServerLockError('opening', lockPath, err);
       return null;
     }
+
+    // Lock already held — check if the holder is still alive
+    let holderPid: number;
+    try {
+      holderPid = parseInt(fs.readFileSync(lockPath, 'utf8').trim(), 10);
+    } catch (readErr) {
+      if (errorCode(readErr) === 'ENOENT') {
+        return acquireServerLock(lockPath);
+      }
+      logServerLockError('reading holder PID from', lockPath, readErr);
+      return null;
+    }
+
+    if (holderPid && isProcessAlive(holderPid)) {
+      return null; // Another live process holds the lock
+    }
+
+    // Stale lock — remove and retry
+    try {
+      fs.unlinkSync(lockPath);
+    } catch (unlinkErr) {
+      logServerLockError('removing stale', lockPath, unlinkErr);
+      return null;
+    }
+    return acquireServerLock(lockPath);
   }
 }
 
@@ -451,12 +561,14 @@ async function ensureServer(flags?: GlobalFlags): Promise<ServerState> {
     process.exit(1);
   }
 
-  // Guard: never silently replace a headed server with a headless one.
-  // Headed mode means a user-visible Chrome window is (or was) controlled.
-  // Silently replacing it would be confusing — tell the user to reconnect.
-  if (state && state.mode === 'headed' && isProcessAlive(state.pid)) {
-    console.error(`[browse] Headed server running (PID ${state.pid}) but not responding.`);
-    console.error(`[browse] Run '/open-gstack-browser' to restart.`);
+  // A live daemon can stop answering HTTP while Chromium finishes a heavy
+  // navigation. Restarting here destroys tabs, cookies, and login state. Only
+  // auto-restart after the daemon process itself is demonstrably gone.
+  if (shouldPreserveUnresponsiveServer(state)) {
+    console.error(`[browse] Server running (PID ${state!.pid}) but not responding — busy, not restarting.`);
+    console.error(state!.mode === 'headed'
+      ? `[browse] Retry shortly, or run '/open-gstack-browser' to restart intentionally.`
+      : '[browse] Retry shortly, or run `browse disconnect` to restart intentionally.');
     process.exit(1);
   }
 
@@ -584,16 +696,24 @@ async function sendCommand(state: ServerState, command: string, args: string[], 
       process.exit(1);
     }
     // Connection error — server may have crashed, OR may just be busy.
-    if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET' || err.message?.includes('fetch failed')) {
+    // Bun's fetch throws PascalCase codes ('ConnectionRefused', 'ConnectionReset')
+    // with message 'Unable to connect...' instead of Node's ECONNREFUSED family
+    // (repro: bun -e "fetch('http://127.0.0.1:1').catch(e=>console.log(e.code))").
+    if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET' || err.message?.includes('fetch failed')
+        || err.code === 'ConnectionRefused' || err.code === 'ConnectionReset' || err.code === 'ConnectionClosed'
+        || err.message?.includes('Unable to connect')) {
       const oldState = readState();
       // #1781 busy-vs-dead: a single-threaded daemon under beacon/extension load
       // can briefly stop answering HTTP while still alive. Before declaring a
       // crash, if the process is alive give /health a bounded chance to recover
       // and just retry the command — never kill+restart a live-but-busy server.
-      if (oldState?.pid && isProcessAlive(oldState.pid) && await probeHealthWithBackoff(oldState.port)) {
-        if (retries >= 1) throw new Error('[browse] Server unresponsive after retry — aborting');
-        console.error('[browse] Server was briefly unresponsive (busy); retrying command...');
-        return sendCommand(oldState, command, args, retries + 1);
+      if (shouldPreserveUnresponsiveServer(oldState)) {
+        if (await probeHealthWithBackoff(oldState!.port)) {
+          if (retries >= 1) throw new Error('[browse] Server unresponsive after retry — aborting');
+          console.error('[browse] Server was briefly unresponsive (busy); retrying command...');
+          return sendCommand(oldState!, command, args, retries + 1);
+        }
+        throw new Error('[browse] Server is still running but unresponsive — busy, not restarting. Retry shortly.');
       }
       // Truly dead (or health never recovered) → restart.
       if (retries >= 1) throw new Error('[browse] Server crashed twice in a row — aborting');
@@ -1006,7 +1126,7 @@ Navigation:     goto <url> | back | forward | reload | url
 Content:        text | html [sel] | links | forms | accessibility
 Interaction:    click <sel> | fill <sel> <val> | select <sel> <val>
                 hover <sel> | type <text> | press <key>
-                scroll [sel] | wait <sel|--networkidle|--load> | viewport <WxH>
+                scroll [sel] | wait <sel|--networkidle|--load> | viewport <WxH|auto>
                 upload <sel> <file1> [file2...]
                 cookie-import <json-file>
                 cookie-import-browser [browser] [--domain <d>]

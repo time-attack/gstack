@@ -54,7 +54,8 @@
     "diff": "^7.0.0",
     "html-to-docx": "1.8.0",
     "marked": "^18.0.2",
-    "playwright": "^1.58.2",
+    "playwright": "^1.60.0",
+    "playwright-core": "^1.60.0",
     "puppeteer-core": "^24.40.0",
     "socks": "^2.8.8"
   },
@@ -76,5 +77,11 @@
     "@anthropic-ai/sdk": "^0.78.0",
     "xterm": "5",
     "xterm-addon-fit": "^0.8.0"
+  },
+  "optionalDependencies": {
+    "patchright": "^1.59.0"
+  },
+  "patchedDependencies": {
+    "playwright-core@1.60.0": "patches/playwright-core@1.60.0.patch"
   }
 }

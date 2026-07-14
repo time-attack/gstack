@@ -60,9 +60,21 @@ After workflow completion, log telemetry. Use skill \`name:\` from frontmatter. 
 Run this bash:
 
 \`\`\`bash
+# Restore the telemetry start-state the preamble persisted (this Bash block runs
+# in a fresh shell — the preamble's _TEL_START/_SESSION_ID/_TEL don't survive).
+# Keyed per-PPID so concurrent sessions don't read each other's state.
+[ -f ~/.gstack/analytics/.session-state-"$PPID" ] && . ~/.gstack/analytics/.session-state-"$PPID"
+# Fail SAFE on telemetry: if the state file was missing (orphan / PPID mismatch),
+# _TEL is unset here, and an unset _TEL must NOT open the analytics gate below
+# and write skill-usage.jsonl for a user who configured telemetry off. Default
+# to off; the preamble only ever persists "off" or a real opted-in value.
+_TEL="\${_TEL:-off}"
 _TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
+# Degrade to duration 0 when the state file is missing or PPID differs, rather
+# than logging a garbage duration off an unset _TEL_START.
+_TEL_DUR=$(( _TEL_END - \${_TEL_START:-$_TEL_END} ))
 rm -f ~/.gstack/analytics/.pending-"$_SESSION_ID" 2>/dev/null || true
+rm -f ~/.gstack/analytics/.session-state-"$PPID" 2>/dev/null || true
 # Session timeline: record skill completion (local-only, never sent anywhere)
 ~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"SKILL_NAME","event":"completed","branch":"'$(git branch --show-current 2>/dev/null || echo unknown)'","outcome":"OUTCOME","duration_s":"'"$_TEL_DUR"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null || true
 # Local analytics (gated on telemetry setting)

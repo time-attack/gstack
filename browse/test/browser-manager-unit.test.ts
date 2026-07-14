@@ -190,6 +190,20 @@ describe('resolveDisconnectCause', () => {
     const { resolveDisconnectCause } = await import('../src/browser-manager');
     expect(await resolveDisconnectCause(null)).toBe('crash');
   });
+
+  // Regression: persistent contexts in headed mode expose a Browser stub
+  // whose `.process` is undefined (not a function). Pre-fix, calling
+  // `browser?.process()` on such a value threw an unhandled rejection
+  // ("browser?.process is not a function"), crashed the bun process, and
+  // put gbd into a respawn loop on every tab close. The contract for that
+  // case is: default to 'clean' so gbd exits 0 and the user keeps lifecycle
+  // control. Live evidence in gbrowser amsterdam-v7's browse-server.log
+  // before this fix landed.
+  it('clean: browser without .process method (persistent context)', async () => {
+    const { resolveDisconnectCause } = await import('../src/browser-manager');
+    const fake = {} as never;  // truthy, no .process → would have thrown pre-fix
+    expect(await resolveDisconnectCause(fake)).toBe('clean');
+  });
 });
 
 // ─── onDisconnect exit-code propagation (regression test) ──────────
@@ -301,5 +315,75 @@ describe('stealth injected on every context-creation path', () => {
     const src = readFileSync(join(import.meta.dir, '..', 'src', 'browser-manager.ts'), 'utf-8');
     const sites = src.match(/ignoreDefaultArgs:\s*STEALTH_IGNORE_DEFAULT_ARGS/g) || [];
     expect(sites.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ─── getDefaultViewport tests ───────────────────────────────────
+
+describe('getDefaultViewport', () => {
+  let originalViewport: string | undefined;
+
+  beforeEach(() => {
+    originalViewport = process.env.BROWSE_VIEWPORT;
+  });
+
+  afterEach(() => {
+    if (originalViewport === undefined) {
+      delete process.env.BROWSE_VIEWPORT;
+    } else {
+      process.env.BROWSE_VIEWPORT = originalViewport;
+    }
+  });
+
+  it('returns 1280x720 when BROWSE_VIEWPORT is unset', async () => {
+    delete process.env.BROWSE_VIEWPORT;
+    const { getDefaultViewport } = await import('../src/browser-manager');
+    expect(getDefaultViewport()).toEqual({ width: 1280, height: 720 });
+  });
+
+  it('parses valid BROWSE_VIEWPORT', async () => {
+    process.env.BROWSE_VIEWPORT = '1920x1080';
+    const { getDefaultViewport } = await import('../src/browser-manager');
+    expect(getDefaultViewport()).toEqual({ width: 1920, height: 1080 });
+  });
+
+  it('falls back to 1280x720 on malformed input', async () => {
+    process.env.BROWSE_VIEWPORT = 'notaviewport';
+    const { getDefaultViewport } = await import('../src/browser-manager');
+    expect(getDefaultViewport()).toEqual({ width: 1280, height: 720 });
+  });
+
+  it('clamps excessively large dimensions', async () => {
+    process.env.BROWSE_VIEWPORT = '99999x99999';
+    const { getDefaultViewport } = await import('../src/browser-manager');
+    expect(getDefaultViewport()).toEqual({ width: 7680, height: 4320 });
+  });
+});
+
+// ─── Stealth backend selection (GSTACK_STEALTH_BACKEND) ─────────
+
+describe('stealth backend (patchright)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(import.meta.dir, '..', 'src', 'browser-manager.ts'), 'utf-8');
+
+  it('opt-in gates on GSTACK_STEALTH_BACKEND (separate from GSTACK_STEALTH)', () => {
+    // The driver swap must key off its own env var so it composes with the
+    // JS-layer GSTACK_STEALTH=extended knob instead of colliding with it.
+    expect(src).toContain("process.env.GSTACK_STEALTH_BACKEND === 'patchright'");
+    expect(src).not.toContain("process.env.GSTACK_STEALTH === 'patchright'");
+  });
+
+  it('routes every launch site through getChromium() (no bare chromium.launch call)', () => {
+    // A missed launch site would silently skip the stealth backend there.
+    // Match actual awaited calls, not the two prose comment mentions.
+    expect(/await chromium\.launch/.test(src)).toBe(false);
+    expect(src).toContain('async function getChromium()');
+    expect(src).toContain('await chromiumDriver');
+  });
+
+  it('falls back to vanilla Playwright when the backend package is absent', () => {
+    // The fallback path must exist so an unset/failed backend never breaks launch.
+    expect(src).toContain('_cachedChromium = playwrightChromium');
   });
 });

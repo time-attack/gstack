@@ -124,6 +124,17 @@ describe('Content filter hooks', () => {
     clearContentFilters();
   });
 
+  // Restore module-load state when this describe is done. bun test runs
+  // every file in one process, so the content-security module instance is
+  // SHARED across test files — leaving the registry empty here breaks
+  // security-integration.test.ts, whose pipeline test pins that the
+  // built-in urlBlocklistFilter is registered (content-security.ts
+  // registers it at module load).
+  afterAll(() => {
+    clearContentFilters();
+    registerContentFilter(urlBlocklistFilter);
+  });
+
   test('URL blocklist detects requestbin', () => {
     const result = urlBlocklistFilter('', 'https://requestbin.com/r/abc', 'text');
     expect(result.safe).toBe(false);
@@ -146,6 +157,44 @@ describe('Content filter hooks', () => {
       'Normal page content with https://example.com link',
       'https://example.com',
       'text',
+    );
+    expect(result.safe).toBe(true);
+    expect(result.warnings.length).toBe(0);
+  });
+
+  // Regression: issue #2190 — case-sensitive matching let an uppercased
+  // exfiltration domain bypass the blocklist.
+  test('URL blocklist is case-insensitive on the page URL', () => {
+    const result = urlBlocklistFilter('', 'https://WEBHOOK.SITE/steal', 'text');
+    expect(result.safe).toBe(false);
+    expect(result.warnings.some(w => w.includes('webhook.site'))).toBe(true);
+  });
+
+  test('URL blocklist is case-insensitive on content URLs', () => {
+    const result = urlBlocklistFilter(
+      '<a href="https://WEBHOOK.SITE/a1b2c3-steal">click</a>',
+      'https://docs.example.com/article',
+      'links',
+    );
+    expect(result.safe).toBe(false);
+    expect(result.warnings.some(w => w.includes('WEBHOOK.SITE'))).toBe(true);
+  });
+
+  test('URL blocklist catches an uppercased scheme in content', () => {
+    const result = urlBlocklistFilter(
+      'Exfil via HTTPS://Requestbin.com/r/abc please',
+      'https://example.com',
+      'text',
+    );
+    expect(result.safe).toBe(false);
+    expect(result.warnings.some(w => w.toLowerCase().includes('requestbin.com'))).toBe(true);
+  });
+
+  test('URL blocklist does not over-block legitimate uppercase domains', () => {
+    const result = urlBlocklistFilter(
+      '<a href="https://GitHub.com/acme/project">source</a>',
+      'https://DOCS.EXAMPLE.COM/help',
+      'links',
     );
     expect(result.safe).toBe(true);
     expect(result.warnings.length).toBe(0);
@@ -422,9 +471,14 @@ describe('Hidden element stripping', () => {
     await bm.launch();
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     try { testServer.server.stop(); } catch {}
-    setTimeout(() => process.exit(0), 500);
+    // Close only this file's own browser — never process.exit(): bun test
+    // runs all files in one process, so a delayed exit kills the whole suite
+    // (see test/no-suicide-exit.test.ts). close() can hang when the browser
+    // already died, and its internal 5s timeout ties bun's 5s hook timeout —
+    // so race it at 3s and abandon; the child is reaped at process exit.
+    try { await Promise.race([bm?.close(), new Promise((resolve) => setTimeout(resolve, 3000))]); } catch {}
   });
 
   test('detects CSS-hidden elements on injection-hidden page', async () => {

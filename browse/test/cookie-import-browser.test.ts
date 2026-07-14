@@ -19,6 +19,8 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { PassThrough } from 'node:stream';
+import { CdpPipeTransport, extractCookiesViaCdpPipe, buildCdpSpawnArgs } from '../src/cookie-import-browser';
 
 // ─── Test Constants ─────────────────────────────────────────────
 
@@ -515,5 +517,512 @@ describe('Cookie Import Browser', () => {
         expect(err.message).toContain('chrome');
       }
     });
+  });
+
+  describe('Numbered Profile Fallback (macOS 26 / no Default profile)', () => {
+    // Chrome on macOS 26 and some multi-profile installations place cookies in
+    // "Profile 4", "Profile 12", etc. instead of "Default". When the caller
+    // requests the default profile and "Default" doesn't exist, the module
+    // should fall back to the lowest-numbered profile that has a Cookies file.
+
+    async function withNumberedProfile<T>(
+      relativeBrowserDir: string,
+      sourceDb: string,
+      profileName: string,
+      run: () => Promise<T>,
+    ): Promise<T> {
+      const homeDir = os.homedir();
+      const profileDir = path.join(homeDir, relativeBrowserDir, profileName);
+      const cookiesPath = path.join(profileDir, 'Cookies');
+      const hadOriginal = fs.existsSync(cookiesPath);
+      const backupPath = path.join(profileDir, `Cookies.backup-${crypto.randomUUID()}`);
+
+      fs.mkdirSync(profileDir, { recursive: true });
+      if (hadOriginal) fs.copyFileSync(cookiesPath, backupPath);
+      fs.copyFileSync(sourceDb, cookiesPath);
+
+      // Also ensure no "Default" profile exists (we want the fallback to fire)
+      const defaultDir = path.join(homeDir, relativeBrowserDir, 'Default');
+      const defaultCookies = path.join(defaultDir, 'Cookies');
+      const hadDefault = fs.existsSync(defaultCookies);
+      const defaultBackup = path.join(defaultDir, `Cookies.backup-${crypto.randomUUID()}`);
+      if (hadDefault) {
+        fs.copyFileSync(defaultCookies, defaultBackup);
+        fs.unlinkSync(defaultCookies);
+      }
+
+      try {
+        return await run();
+      } finally {
+        if (hadDefault) {
+          fs.copyFileSync(defaultBackup, defaultCookies);
+          fs.unlinkSync(defaultBackup);
+        }
+        if (hadOriginal) {
+          fs.copyFileSync(backupPath, cookiesPath);
+          fs.unlinkSync(backupPath);
+        } else {
+          try { fs.unlinkSync(cookiesPath); } catch {}
+          try { fs.rmdirSync(profileDir); } catch {}
+        }
+      }
+    }
+
+    test('falls back to numbered profile when Default is missing (Linux Chromium)', async () => {
+      // Place the fixture DB under ~/.config/chromium/Profile 4/Cookies (no Default)
+      await withNumberedProfile('.config/chromium', LINUX_FIXTURE_DB, 'Profile 4', async () => {
+        // importCookies uses profile='Default' by default — should fall through to Profile 4
+        const result = await importCookies('chromium', ['.linux-plain.com']);
+        expect(result.count).toBe(1);
+        expect(result.cookies[0].name).toBe('plain');
+        expect(result.cookies[0].value).toBe('plain-linux');
+      });
+    });
+
+    test('picks the lowest-numbered profile when multiple exist (Linux Chromium)', async () => {
+      // Place fixtures under Profile 10 and Profile 4 (Profile 4 should win)
+      const homeDir = os.homedir();
+      const basePath = '.config/chromium';
+      const prof4Dir = path.join(homeDir, basePath, 'Profile 4');
+      const prof10Dir = path.join(homeDir, basePath, 'Profile 10');
+
+      // Temporarily ensure Profile 4 has the Linux fixture, Profile 10 has Mac fixture
+      const had4 = fs.existsSync(path.join(prof4Dir, 'Cookies'));
+      const had10 = fs.existsSync(path.join(prof10Dir, 'Cookies'));
+      const bk4 = path.join(prof4Dir, `Cookies.bk-${crypto.randomUUID()}`);
+      const bk10 = path.join(prof10Dir, `Cookies.bk-${crypto.randomUUID()}`);
+
+      // Disable Default if present
+      const defaultDir = path.join(homeDir, basePath, 'Default');
+      const defaultCookies = path.join(defaultDir, 'Cookies');
+      const hadDefault = fs.existsSync(defaultCookies);
+      const defaultBackup = path.join(defaultDir, `Cookies.bk-${crypto.randomUUID()}`);
+      if (hadDefault) {
+        fs.copyFileSync(defaultCookies, defaultBackup);
+        fs.unlinkSync(defaultCookies);
+      }
+
+      fs.mkdirSync(prof4Dir, { recursive: true });
+      fs.mkdirSync(prof10Dir, { recursive: true });
+      if (had4) fs.copyFileSync(path.join(prof4Dir, 'Cookies'), bk4);
+      if (had10) fs.copyFileSync(path.join(prof10Dir, 'Cookies'), bk10);
+      fs.copyFileSync(LINUX_FIXTURE_DB, path.join(prof4Dir, 'Cookies'));
+      fs.copyFileSync(FIXTURE_DB, path.join(prof10Dir, 'Cookies'));  // Mac fixture (different domain)
+
+      try {
+        const result = await importCookies('chromium', ['.linux-plain.com', '.github.com']);
+        // Profile 4 (Linux fixture) should be selected — it has .linux-plain.com
+        expect(result.domainCounts['.linux-plain.com']).toBe(1);
+        // .github.com is only in Profile 10 (Mac fixture, wrong profile), should be absent
+        expect(result.domainCounts['.github.com']).toBeUndefined();
+      } finally {
+        if (hadDefault) {
+          fs.copyFileSync(defaultBackup, defaultCookies);
+          fs.unlinkSync(defaultBackup);
+        }
+        if (had4) { fs.copyFileSync(bk4, path.join(prof4Dir, 'Cookies')); fs.unlinkSync(bk4); }
+        else { try { fs.unlinkSync(path.join(prof4Dir, 'Cookies')); } catch {} try { fs.rmdirSync(prof4Dir); } catch {} }
+        if (had10) { fs.copyFileSync(bk10, path.join(prof10Dir, 'Cookies')); fs.unlinkSync(bk10); }
+        else { try { fs.unlinkSync(path.join(prof10Dir, 'Cookies')); } catch {} try { fs.rmdirSync(prof10Dir); } catch {} }
+      }
+    });
+
+    test('listDomains falls back to numbered profile when Default is absent', async () => {
+      await withNumberedProfile('.config/chromium', LINUX_FIXTURE_DB, 'Profile 12', async () => {
+        const result = listDomains('chromium');  // no profile arg → defaults to 'Default'
+        expect(result.domains.map((d: any) => d.domain)).toContain('.linux-plain.com');
+      });
+    });
+  });
+});
+
+// ─── CdpPipeTransport ────────────────────────────────────────────
+
+// Helper: create a controllable pair of PassThrough streams mimicking Chrome's
+// pipe ends. `writeToChild` is the stream the transport writes TO (Chrome
+// would read). `readFromChild` is the stream the transport reads FROM (Chrome
+// would write). PassThrough is structurally equivalent to the net.Socket ends
+// that node:child_process.spawn returns at stdio[3]/[4] for this purpose.
+function makeMockPipes() {
+  const writeToChild = new PassThrough();
+  const readFromChild = new PassThrough();
+  const writtenChunks: Buffer[] = [];
+  writeToChild.on('data', (chunk: Buffer) => writtenChunks.push(chunk));
+
+  return {
+    writeToChild,
+    readFromChild,
+    getWritten: () => Buffer.concat(writtenChunks).toString('utf-8'),
+    pushFromChild: (s: string) => readFromChild.write(s),
+    closeFromChild: () => readFromChild.end(),
+    errorFromChild: (err: Error) => readFromChild.destroy(err),
+  };
+}
+
+// Flush pending I/O ticks so writes reach the PassThrough 'data' listener.
+const flush = async () => {
+  for (let i = 0; i < 5; i++) await new Promise(r => setImmediate(r));
+};
+
+describe('CdpPipeTransport', () => {
+  test('send writes a NUL-terminated JSON frame with monotonic id', async () => {
+    const pipes = makeMockPipes();
+    const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+
+    // Attach catch handlers — we never await these, but close() will reject them.
+    t.send('Network.enable').catch(() => {});
+    t.send('Network.getAllCookies').catch(() => {});
+    await flush();
+
+    const written = pipes.getWritten();
+    expect(written).toBe(
+      '{"id":1,"method":"Network.enable"}\x00' +
+      '{"id":2,"method":"Network.getAllCookies"}\x00'
+    );
+
+    t.close();
+  });
+
+  test('send resolves when matching id arrives as a single frame', async () => {
+    const pipes = makeMockPipes();
+    const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+
+    const pending = t.send('Network.enable');
+    pipes.pushFromChild('{"id":1,"result":{}}\x00');
+    const result = await pending;
+    expect(result).toEqual({});
+
+    t.close();
+  });
+
+  test('send resolves when response arrives split across two reads at the NUL boundary', async () => {
+    const pipes = makeMockPipes();
+    const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+
+    const pending = t.send('Network.getAllCookies');
+    pipes.pushFromChild('{"id":1,"result":{"coo');
+    pipes.pushFromChild('kies":[]}}\x00');
+    const result = await pending;
+    expect(result).toEqual({ cookies: [] });
+
+    t.close();
+  });
+
+  test('ingest handles multiple frames arriving in one chunk', async () => {
+    const pipes = makeMockPipes();
+    const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+
+    const p1 = t.send('Network.enable');
+    const p2 = t.send('Network.getAllCookies');
+    pipes.pushFromChild('{"id":1,"result":{}}\x00{"id":2,"result":{"cookies":[{"name":"x"}]}}\x00');
+
+    expect(await p1).toEqual({});
+    expect(await p2).toEqual({ cookies: [{ name: 'x' }] });
+
+    t.close();
+  });
+
+  test('error frame rejects the matching pending promise with cdp_error', async () => {
+    const pipes = makeMockPipes();
+    const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+
+    const pending = t.send('Network.getAllCookies');
+    pipes.pushFromChild('{"id":1,"error":{"code":-32000,"message":"nope"}}\x00');
+
+    let caught: any = null;
+    try { await pending; } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(CookieImportError);
+    expect(caught!.code).toBe('cdp_error');
+    expect(caught!.message).toContain('nope');
+
+    t.close();
+  });
+
+  test('close rejects pending promises with cdp_error', async () => {
+    const pipes = makeMockPipes();
+    const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+
+    const pending = t.send('Network.enable');
+    t.close();
+
+    let caught: any = null;
+    try { await pending; } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(CookieImportError);
+    expect(caught!.code).toBe('cdp_error');
+    expect(caught!.message.toLowerCase()).toContain('closed');
+  });
+
+  test('unexpected read-stream end rejects pending with cdp_error', async () => {
+    const pipes = makeMockPipes();
+    const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+
+    const pending = t.send('Network.enable');
+    pipes.closeFromChild();
+
+    let caught: any = null;
+    try { await pending; } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(CookieImportError);
+    expect(caught!.code).toBe('cdp_error');
+  });
+
+  test('send after read-stream end rejects immediately (closed flag flipped)', async () => {
+    const pipes = makeMockPipes();
+    const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+
+    pipes.closeFromChild();
+    // Give the 'end' handler a tick to fire.
+    await flush();
+
+    let caught: any = null;
+    try {
+      await t.send('Network.enable');
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CookieImportError);
+    expect(caught.code).toBe('cdp_error');
+    expect(caught.message.toLowerCase()).toContain('closed');
+  });
+
+  test('send with explicit sessionId includes it in the frame', async () => {
+    const pipes = makeMockPipes();
+    const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+
+    t.send('Network.enable', undefined, 'SESSION123').catch(() => {});
+    await flush();
+
+    const written = pipes.getWritten();
+    expect(written).toBe('{"id":1,"method":"Network.enable","sessionId":"SESSION123"}\x00');
+
+    t.close();
+  });
+
+  test('send with params serializes them into the frame', async () => {
+    const pipes = makeMockPipes();
+    const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+
+    t.send('Target.attachToTarget', { targetId: 'T1', flatten: true }).catch(() => {});
+    await flush();
+
+    const written = pipes.getWritten();
+    expect(written).toBe(
+      '{"id":1,"method":"Target.attachToTarget","params":{"targetId":"T1","flatten":true}}\x00'
+    );
+
+    t.close();
+  });
+
+  test('send rejects when the child stays alive but never answers (timeout fires)', async () => {
+    // The real hang codex flagged: Chrome alive but silent → the pending promise
+    // must not wait forever (which would leave cookie import hung, holding the
+    // profile lock). Set a tiny per-request timeout and push NO response.
+    const prev = process.env.GSTACK_CDP_SEND_TIMEOUT_MS;
+    process.env.GSTACK_CDP_SEND_TIMEOUT_MS = '60';
+    try {
+      const pipes = makeMockPipes();
+      const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+      const started = Date.now();
+      let err: any;
+      try {
+        await t.send('Network.getAllCookies'); // no pushFromChild → never answered
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeDefined();
+      expect(String(err?.message)).toContain('timed out');
+      // Rejected promptly (well under the 30s production default), not hung.
+      expect(Date.now() - started).toBeLessThan(2000);
+      t.close();
+    } finally {
+      if (prev === undefined) delete process.env.GSTACK_CDP_SEND_TIMEOUT_MS;
+      else process.env.GSTACK_CDP_SEND_TIMEOUT_MS = prev;
+    }
+  });
+
+  test('a response clears the timeout (no late spurious rejection)', async () => {
+    const prev = process.env.GSTACK_CDP_SEND_TIMEOUT_MS;
+    process.env.GSTACK_CDP_SEND_TIMEOUT_MS = '80';
+    try {
+      const pipes = makeMockPipes();
+      const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+      const pending = t.send('Network.enable');
+      pipes.pushFromChild('{"id":1,"result":{"ok":true}}\x00');
+      expect(await pending).toEqual({ ok: true });
+      // Wait past the timeout window; the resolved promise must not re-reject.
+      await new Promise(r => setTimeout(r, 150));
+      t.close();
+    } finally {
+      if (prev === undefined) delete process.env.GSTACK_CDP_SEND_TIMEOUT_MS;
+      else process.env.GSTACK_CDP_SEND_TIMEOUT_MS = prev;
+    }
+  });
+});
+
+// A mock transport that replays scripted responses per-method.
+// The test writes scripts keyed by method name; send() returns the next
+// scripted response for that method.
+class ScriptedTransport {
+  private scripts: Record<string, unknown[]> = {};
+  sent: Array<{ method: string; params?: unknown; sessionId?: string }> = [];
+
+  script(method: string, ...responses: unknown[]) {
+    this.scripts[method] = (this.scripts[method] ?? []).concat(responses);
+  }
+
+  async send(method: string, params?: object, sessionId?: string): Promise<any> {
+    this.sent.push({ method, params, sessionId });
+    const queue = this.scripts[method];
+    if (!queue || queue.length === 0) {
+      throw new Error(`No scripted response for ${method}`);
+    }
+    const next = queue.shift();
+    if (next instanceof Error) throw next;
+    return next;
+  }
+}
+
+describe('extractCookiesViaCdpPipe', () => {
+  test('happy path: attaches to first page target, requests cookies, filters by domain', async () => {
+    const transport = new ScriptedTransport();
+    transport.script('Target.getTargets', {
+      targetInfos: [
+        { targetId: 'BROWSER1', type: 'browser' },
+        { targetId: 'PAGE1', type: 'page', url: 'about:blank' },
+      ],
+    });
+    transport.script('Target.attachToTarget', { sessionId: 'S1' });
+    transport.script('Network.enable', {});
+    transport.script('Network.getAllCookies', {
+      cookies: [
+        { name: 'sid', value: 'abc', domain: 'example.com', path: '/', expires: 1800000000, size: 4, httpOnly: true, secure: true, session: false, sameSite: 'Lax' },
+        { name: 'other', value: 'xyz', domain: 'other.com', path: '/', expires: -1, size: 3, httpOnly: false, secure: false, session: true, sameSite: 'None' },
+      ],
+    });
+
+    const cookies = await extractCookiesViaCdpPipe(transport as any, ['example.com']);
+    expect(cookies).toHaveLength(1);
+    expect(cookies[0]).toEqual({
+      name: 'sid',
+      value: 'abc',
+      domain: 'example.com',
+      path: '/',
+      expires: 1800000000,
+      secure: true,
+      httpOnly: true,
+      sameSite: 'Lax',
+    });
+
+    expect(transport.sent.map(s => s.method)).toEqual([
+      'Target.getTargets',
+      'Target.attachToTarget',
+      'Network.enable',
+      'Network.getAllCookies',
+    ]);
+
+    expect(transport.sent[1].params).toEqual({ targetId: 'PAGE1', flatten: true });
+
+    expect(transport.sent[2].sessionId).toBe('S1');
+    expect(transport.sent[3].sessionId).toBe('S1');
+  });
+
+  test('matches cookies with leading-dot domain normalization', async () => {
+    const transport = new ScriptedTransport();
+    transport.script('Target.getTargets', { targetInfos: [{ targetId: 'P', type: 'page' }] });
+    transport.script('Target.attachToTarget', { sessionId: 'S1' });
+    transport.script('Network.enable', {});
+    transport.script('Network.getAllCookies', {
+      cookies: [
+        { name: 'a', value: '1', domain: '.example.com', path: '/', expires: -1, size: 1, httpOnly: false, secure: false, session: true, sameSite: 'Lax' },
+      ],
+    });
+
+    const cookies = await extractCookiesViaCdpPipe(transport as any, ['example.com']);
+    expect(cookies).toHaveLength(1);
+    expect(cookies[0].domain).toBe('.example.com');
+  });
+
+  test('throws cdp_error if no page target exists', async () => {
+    const transport = new ScriptedTransport();
+    transport.script('Target.getTargets', {
+      targetInfos: [{ targetId: 'BROWSER1', type: 'browser' }],
+    });
+
+    let caught: any = null;
+    try {
+      await extractCookiesViaCdpPipe(transport as any, ['example.com']);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CookieImportError);
+    expect(caught!.code).toBe('cdp_error');
+    expect(caught!.message.toLowerCase()).toContain('page target');
+  });
+
+  test('empty domains list short-circuits to empty result', async () => {
+    const transport = new ScriptedTransport();
+    const cookies = await extractCookiesViaCdpPipe(transport as any, []);
+    expect(cookies).toEqual([]);
+    expect(transport.sent).toHaveLength(0);
+  });
+
+  test('returns empty array when Network.getAllCookies response has no cookies field', async () => {
+    const transport = new ScriptedTransport();
+    transport.script('Target.getTargets', { targetInfos: [{ targetId: 'P', type: 'page' }] });
+    transport.script('Target.attachToTarget', { sessionId: 'S1' });
+    transport.script('Network.enable', {});
+    transport.script('Network.getAllCookies', {}); // no 'cookies' field
+
+    const cookies = await extractCookiesViaCdpPipe(transport as any, ['example.com']);
+    expect(cookies).toEqual([]);
+  });
+
+  test('throws cdp_error when attachToTarget returns no sessionId', async () => {
+    const transport = new ScriptedTransport();
+    transport.script('Target.getTargets', { targetInfos: [{ targetId: 'P', type: 'page' }] });
+    transport.script('Target.attachToTarget', {}); // missing sessionId
+
+    let caught: any = null;
+    try {
+      await extractCookiesViaCdpPipe(transport as any, ['example.com']);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(CookieImportError);
+    expect(caught.code).toBe('cdp_error');
+    expect(caught.message.toLowerCase()).toContain('sessionid');
+  });
+});
+
+describe('buildCdpSpawnArgs', () => {
+  test('includes --remote-debugging-pipe', () => {
+    const args = buildCdpSpawnArgs('C:\\chrome.exe', 'C:\\udd', 'Default');
+    expect(args).toContain('--remote-debugging-pipe');
+  });
+
+  test('never includes --remote-debugging-port', () => {
+    const args = buildCdpSpawnArgs('C:\\chrome.exe', 'C:\\udd', 'Default');
+    expect(args.some(a => /^--remote-debugging-port/.test(a))).toBe(false);
+  });
+
+  test('passes user-data-dir and profile-directory', () => {
+    const args = buildCdpSpawnArgs('C:\\chrome.exe', 'C:\\udd', 'Profile 1');
+    expect(args).toContain('--user-data-dir=C:\\udd');
+    expect(args).toContain('--profile-directory=Profile 1');
+  });
+
+  test('includes headless and hardening flags', () => {
+    const args = buildCdpSpawnArgs('C:\\chrome.exe', 'C:\\udd', 'Default');
+    for (const expected of [
+      '--remote-debugging-pipe',
+      '--headless=new',
+      '--no-first-run',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-extensions',
+      '--disable-sync',
+      '--no-default-browser-check',
+    ]) {
+      expect(args).toContain(expected);
+    }
   });
 });

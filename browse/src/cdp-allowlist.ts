@@ -155,6 +155,25 @@ export const CDP_ALLOWLIST: ReadonlyArray<CdpAllowEntry> = Object.freeze([
     output: 'trusted',
     justification: 'UA override on the active tab. NOTE: changes affect future requests; fine for tests.',
   },
+  {
+    domain: 'Emulation',
+    method: 'setGeolocationOverride',
+    scope: 'tab',
+    output: 'trusted',
+    justification: 'Geolocation override on the active tab. Same threat profile as setDeviceMetricsOverride: pure input, no data exfiltration. Enables GPS testing.',
+  },
+  {
+    domain: 'Emulation',
+    method: 'clearGeolocationOverride',
+    scope: 'tab',
+    output: 'trusted',
+    justification: 'Clear geolocation override. Mirrors clearDeviceMetricsOverride for cleanup symmetry.',
+  },
+  // NOTE: Browser.grantPermissions is intentionally NOT added here. It is a
+  // browser-scope CDP method that cannot be forwarded through the page-level
+  // CDPSession that the browse bridge uses. Geolocation testing requires either
+  // a Playwright script (which grants permissions at context creation) or a
+  // future browser-scope CDP routing path in the bridge.
   // ─── Page capture (output, not navigation) ─────────────────
   {
     domain: 'Page',
@@ -198,6 +217,14 @@ export const CDP_ALLOWLIST: ReadonlyArray<CdpAllowEntry> = Object.freeze([
     scope: 'tab',
     output: 'untrusted',
     justification: 'Inspect properties of an existing remote object. Read-only; output may contain page data.',
+  },
+  // ─── Input (synthetic trusted user gestures) ───────────────
+  {
+    domain: 'Input',
+    method: 'dispatchMouseEvent',
+    scope: 'tab',
+    output: 'trusted',
+    justification: 'Trusted mouse gesture for widgets that ignore JS clicks (e.g. Personio Gefahrtarifstelle "Monat auswählen" dropdown). Focused tab only; returns an ack, no page content.',
   },
 ]);
 

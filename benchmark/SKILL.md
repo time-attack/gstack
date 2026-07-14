@@ -45,6 +45,7 @@ _SKILL_PREFIX=$(~/.claude/skills/gstack/bin/gstack-config get skill_prefix 2>/de
 echo "PROACTIVE: $_PROACTIVE"
 echo "PROACTIVE_PROMPTED: $_PROACTIVE_PROMPTED"
 echo "SKILL_PREFIX: $_SKILL_PREFIX"
+echo "SESSIONS: $_SESSIONS"
 source <(~/.claude/skills/gstack/bin/gstack-repo-mode 2>/dev/null) || true
 REPO_MODE=${REPO_MODE:-unknown}
 echo "REPO_MODE: $REPO_MODE"
@@ -77,18 +78,45 @@ _TEL_START=$(date +%s)
 _SESSION_ID="$$-$(date +%s)"
 echo "TELEMETRY: ${_TEL:-off}"
 echo "TEL_PROMPTED: $_TEL_PROMPTED"
+# Remote-control detection: when Claude Code is driven via the Anthropic app's
+# remote control, native AskUserQuestion renders an un-clickable menu, so skills
+# fall back to the prose decision brief (same as the Conductor path). Env var
+# wins; otherwise consult config. Empty/0 → normal AskUserQuestion.
+_REMOTE_CONTROL="${GSTACK_REMOTE_CONTROL:-}"
+if [ -z "$_REMOTE_CONTROL" ]; then
+  _REMOTE_CONTROL=$(~/.claude/skills/gstack/bin/gstack-config get remote_control 2>/dev/null || echo "")
+fi
+_REMOTE_CONTROL="${_REMOTE_CONTROL:-0}"
+echo "REMOTE_CONTROL: $_REMOTE_CONTROL"
 _EXPLAIN_LEVEL=$(~/.claude/skills/gstack/bin/gstack-config get explain_level 2>/dev/null || echo "default")
 if [ "$_EXPLAIN_LEVEL" != "default" ] && [ "$_EXPLAIN_LEVEL" != "terse" ]; then _EXPLAIN_LEVEL="default"; fi
 echo "EXPLAIN_LEVEL: $_EXPLAIN_LEVEL"
 _QUESTION_TUNING=$(~/.claude/skills/gstack/bin/gstack-config get question_tuning 2>/dev/null || echo "false")
 echo "QUESTION_TUNING: $_QUESTION_TUNING"
+_UPDATE_CHECK=$(~/.claude/skills/gstack/bin/gstack-config get update_check 2>/dev/null || echo "true")
+echo "UPDATE_CHECK: $_UPDATE_CHECK"
 mkdir -p ~/.gstack/analytics
+# Reap orphaned per-PPID session-state files (>2h old) — the completion block
+# deletes its own on a clean run, but a killed/crashed skill leaves one behind,
+# so sweep like the ~/.gstack/sessions markers do. Bounds unbounded growth.
+find ~/.gstack/analytics -maxdepth 1 -name '.session-state-*' -mmin +120 -exec rm {} + 2>/dev/null || true
+# Persist telemetry start-state so the separate "Telemetry (run last)" Bash
+# call (which runs in its own shell — vars don't survive between blocks) can
+# read a real start time and session id instead of logging duration 0 /
+# session "unknown". Keyed per-PPID (stable per host session, same premise as
+# the ~/.gstack/sessions marker) so concurrent Conductor worktrees don't race a
+# shared file. Deleted at completion.
+cat > ~/.gstack/analytics/.session-state-"$PPID" 2>/dev/null <<SESSTATE || true
+_TEL_START=$_TEL_START
+_SESSION_ID=$_SESSION_ID
+_TEL=${_TEL:-off}
+SESSTATE
 if [ "$_TEL" != "off" ]; then
 echo '{"skill":"benchmark","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(_repo=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null | tr -cd 'a-zA-Z0-9._-'); echo "${_repo:-unknown}")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 fi
 for _PF in $(find ~/.gstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null); do
   if [ -f "$_PF" ]; then
-    if [ "$_TEL" != "off" ] && [ -x "~/.claude/skills/gstack/bin/gstack-telemetry-log" ]; then
+    if [ "$_TEL" != "off" ] && [ -x "$HOME/.claude/skills/gstack/bin/gstack-telemetry-log" ]; then
       ~/.claude/skills/gstack/bin/gstack-telemetry-log --event-type skill_run --skill _pending_finalize --outcome unknown --session-id "$_SESSION_ID" 2>/dev/null || true
     fi
     rm -f "$_PF" 2>/dev/null || true
@@ -97,11 +125,12 @@ for _PF in $(find ~/.gstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" 2>/dev/null || true
 _LEARN_FILE="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}/learnings.jsonl"
+_LEARN_PREAMBLE_LIMIT=$(~/.claude/skills/gstack/bin/gstack-config get learnings_preamble_limit 2>/dev/null || echo "3")
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
   if [ "$_LEARN_COUNT" -gt 5 ] 2>/dev/null; then
-    ~/.claude/skills/gstack/bin/gstack-learnings-search --limit 3 2>/dev/null || true
+    ~/.claude/skills/gstack/bin/gstack-learnings-search --limit "$_LEARN_PREAMBLE_LIMIT" 2>/dev/null || true
   fi
 else
   echo "LEARNINGS: 0"
@@ -139,7 +168,7 @@ else
   export GSTACK_PLAN_MODE="inactive"
 fi
 echo "GSTACK_PLAN_MODE: $GSTACK_PLAN_MODE"
-[ -n "$OPENCLAW_SESSION" ] && echo "SPAWNED_SESSION: true" || true
+~/.claude/skills/gstack/bin/gstack-spawned-session-status 2>/dev/null || true
 ```
 
 ## Plan Mode Safe Operations
@@ -153,6 +182,8 @@ If the user invokes a skill in plan mode, the skill takes precedence over generi
 If `PROACTIVE` is `"false"`, do not auto-invoke or proactively suggest skills. If a skill seems useful, ask: "I think /skillname might help here — want me to run it?"
 
 If `SKILL_PREFIX` is `"true"`, suggest/invoke `/gstack-*` names. Disk paths stay `~/.claude/skills/gstack/[skill-name]/SKILL.md`.
+
+If `UPDATE_CHECK` is `"false"`, skip the next two lines — the update-check binary emits nothing in that mode, so there is no `UPGRADE_AVAILABLE` / `JUST_UPGRADED` output to act on.
 
 If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/gstack/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined).
 
@@ -341,8 +372,8 @@ if [ -f "$HOME/.gstack-artifacts-remote.txt" ]; then
 else
   _BRAIN_REMOTE_FILE="$HOME/.gstack-brain-remote.txt"
 fi
-_BRAIN_SYNC_BIN="~/.claude/skills/gstack/bin/gstack-brain-sync"
-_BRAIN_CONFIG_BIN="~/.claude/skills/gstack/bin/gstack-config"
+_BRAIN_SYNC_BIN="$HOME/.claude/skills/gstack/bin/gstack-brain-sync"
+_BRAIN_CONFIG_BIN="$HOME/.claude/skills/gstack/bin/gstack-config"
 
 # /sync-gbrain context-load: teach the agent to use gbrain when it's available.
 # Per-worktree pin: post-spike redesign uses kubectl-style `.gbrain-source` in the
@@ -451,8 +482,8 @@ If A/B and `~/.gstack/.git` is missing, ask whether to run `gstack-artifacts-ini
 At skill END before telemetry:
 
 ```bash
-"~/.claude/skills/gstack/bin/gstack-brain-sync" --discover-new 2>/dev/null || true
-"~/.claude/skills/gstack/bin/gstack-brain-sync" --once 2>/dev/null || true
+"$HOME/.claude/skills/gstack/bin/gstack-brain-sync" --discover-new 2>/dev/null || true
+"$HOME/.claude/skills/gstack/bin/gstack-brain-sync" --once 2>/dev/null || true
 ```
 
 
@@ -475,6 +506,8 @@ the user course-correct cheaply instead of mid-flight.
 equivalents (cat, sed, find, grep). The dedicated tools are cheaper and clearer.
 
 ## Voice
+
+**Language:** Reply in the user's language in conversation (Chinese in, Chinese out). This is chat prose only; files, code, commits, and PR bodies follow the repo's conventions, not the chat language.
 
 Direct, concrete, builder-to-builder. Name the file, function, command, and user-visible impact. No filler.
 
@@ -512,9 +545,21 @@ After workflow completion, log telemetry. Use skill `name:` from frontmatter. OU
 Run this bash:
 
 ```bash
+# Restore the telemetry start-state the preamble persisted (this Bash block runs
+# in a fresh shell — the preamble's _TEL_START/_SESSION_ID/_TEL don't survive).
+# Keyed per-PPID so concurrent sessions don't read each other's state.
+[ -f ~/.gstack/analytics/.session-state-"$PPID" ] && . ~/.gstack/analytics/.session-state-"$PPID"
+# Fail SAFE on telemetry: if the state file was missing (orphan / PPID mismatch),
+# _TEL is unset here, and an unset _TEL must NOT open the analytics gate below
+# and write skill-usage.jsonl for a user who configured telemetry off. Default
+# to off; the preamble only ever persists "off" or a real opted-in value.
+_TEL="${_TEL:-off}"
 _TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
+# Degrade to duration 0 when the state file is missing or PPID differs, rather
+# than logging a garbage duration off an unset _TEL_START.
+_TEL_DUR=$(( _TEL_END - ${_TEL_START:-$_TEL_END} ))
 rm -f ~/.gstack/analytics/.pending-"$_SESSION_ID" 2>/dev/null || true
+rm -f ~/.gstack/analytics/.session-state-"$PPID" 2>/dev/null || true
 # Session timeline: record skill completion (local-only, never sent anywhere)
 ~/.claude/skills/gstack/bin/gstack-timeline-log '{"skill":"SKILL_NAME","event":"completed","branch":"'$(git branch --show-current 2>/dev/null || echo unknown)'","outcome":"OUTCOME","duration_s":"'"$_TEL_DUR"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null || true
 # Local analytics (gated on telemetry setting)

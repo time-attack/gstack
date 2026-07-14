@@ -35,6 +35,7 @@ _SKILL_PREFIX=$($GSTACK_BIN/gstack-config get skill_prefix 2>/dev/null || echo "
 echo "PROACTIVE: $_PROACTIVE"
 echo "PROACTIVE_PROMPTED: $_PROACTIVE_PROMPTED"
 echo "SKILL_PREFIX: $_SKILL_PREFIX"
+echo "SESSIONS: $_SESSIONS"
 source <($GSTACK_BIN/gstack-repo-mode 2>/dev/null) || true
 REPO_MODE=${REPO_MODE:-unknown}
 echo "REPO_MODE: $REPO_MODE"
@@ -67,12 +68,39 @@ _TEL_START=$(date +%s)
 _SESSION_ID="$$-$(date +%s)"
 echo "TELEMETRY: ${_TEL:-off}"
 echo "TEL_PROMPTED: $_TEL_PROMPTED"
+# Remote-control detection: when Claude Code is driven via the Anthropic app's
+# remote control, native AskUserQuestion renders an un-clickable menu, so skills
+# fall back to the prose decision brief (same as the Conductor path). Env var
+# wins; otherwise consult config. Empty/0 → normal AskUserQuestion.
+_REMOTE_CONTROL="${GSTACK_REMOTE_CONTROL:-}"
+if [ -z "$_REMOTE_CONTROL" ]; then
+  _REMOTE_CONTROL=$($GSTACK_BIN/gstack-config get remote_control 2>/dev/null || echo "")
+fi
+_REMOTE_CONTROL="${_REMOTE_CONTROL:-0}"
+echo "REMOTE_CONTROL: $_REMOTE_CONTROL"
 _EXPLAIN_LEVEL=$($GSTACK_BIN/gstack-config get explain_level 2>/dev/null || echo "default")
 if [ "$_EXPLAIN_LEVEL" != "default" ] && [ "$_EXPLAIN_LEVEL" != "terse" ]; then _EXPLAIN_LEVEL="default"; fi
 echo "EXPLAIN_LEVEL: $_EXPLAIN_LEVEL"
 _QUESTION_TUNING=$($GSTACK_BIN/gstack-config get question_tuning 2>/dev/null || echo "false")
 echo "QUESTION_TUNING: $_QUESTION_TUNING"
+_UPDATE_CHECK=$($GSTACK_BIN/gstack-config get update_check 2>/dev/null || echo "true")
+echo "UPDATE_CHECK: $_UPDATE_CHECK"
 mkdir -p ~/.gstack/analytics
+# Reap orphaned per-PPID session-state files (>2h old) — the completion block
+# deletes its own on a clean run, but a killed/crashed skill leaves one behind,
+# so sweep like the ~/.gstack/sessions markers do. Bounds unbounded growth.
+find ~/.gstack/analytics -maxdepth 1 -name '.session-state-*' -mmin +120 -exec rm {} + 2>/dev/null || true
+# Persist telemetry start-state so the separate "Telemetry (run last)" Bash
+# call (which runs in its own shell — vars don't survive between blocks) can
+# read a real start time and session id instead of logging duration 0 /
+# session "unknown". Keyed per-PPID (stable per host session, same premise as
+# the ~/.gstack/sessions marker) so concurrent Conductor worktrees don't race a
+# shared file. Deleted at completion.
+cat > ~/.gstack/analytics/.session-state-"$PPID" 2>/dev/null <<SESSTATE || true
+_TEL_START=$_TEL_START
+_SESSION_ID=$_SESSION_ID
+_TEL=${_TEL:-off}
+SESSTATE
 if [ "$_TEL" != "off" ]; then
 echo '{"skill":"ship","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(_repo=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null | tr -cd 'a-zA-Z0-9._-'); echo "${_repo:-unknown}")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 fi
@@ -87,11 +115,12 @@ for _PF in $(find ~/.gstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null
 done
 eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)" 2>/dev/null || true
 _LEARN_FILE="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}/learnings.jsonl"
+_LEARN_PREAMBLE_LIMIT=$($GSTACK_BIN/gstack-config get learnings_preamble_limit 2>/dev/null || echo "3")
 if [ -f "$_LEARN_FILE" ]; then
   _LEARN_COUNT=$(wc -l < "$_LEARN_FILE" 2>/dev/null | tr -d ' ')
   echo "LEARNINGS: $_LEARN_COUNT entries loaded"
   if [ "$_LEARN_COUNT" -gt 5 ] 2>/dev/null; then
-    $GSTACK_BIN/gstack-learnings-search --limit 3 2>/dev/null || true
+    $GSTACK_BIN/gstack-learnings-search --limit "$_LEARN_PREAMBLE_LIMIT" 2>/dev/null || true
   fi
 else
   echo "LEARNINGS: 0"
@@ -129,7 +158,7 @@ else
   export GSTACK_PLAN_MODE="inactive"
 fi
 echo "GSTACK_PLAN_MODE: $GSTACK_PLAN_MODE"
-[ -n "$OPENCLAW_SESSION" ] && echo "SPAWNED_SESSION: true" || true
+$GSTACK_BIN/gstack-spawned-session-status 2>/dev/null || true
 ```
 
 ## Plan Mode Safe Operations
@@ -143,6 +172,8 @@ If the user invokes a skill in plan mode, the skill takes precedence over generi
 If `PROACTIVE` is `"false"`, do not auto-invoke or proactively suggest skills. If a skill seems useful, ask: "I think /skillname might help here — want me to run it?"
 
 If `SKILL_PREFIX` is `"true"`, suggest/invoke `/gstack-*` names. Disk paths stay `$GSTACK_ROOT/[skill-name]/SKILL.md`.
+
+If `UPDATE_CHECK` is `"false"`, skip the next two lines — the update-check binary emits nothing in that mode, so there is no `UPGRADE_AVAILABLE` / `JUST_UPGRADED` output to act on.
 
 If output shows `UPGRADE_AVAILABLE <old> <new>`: read `$GSTACK_ROOT/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined).
 
@@ -327,6 +358,8 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 "AskUserQuestion" can resolve to two tools at runtime: the **host MCP variant** (e.g. `mcp__conductor__AskUserQuestion` — appears in your tool list when the host registers it) or the **native** Claude Code tool.
 
 **Conductor rule (read before the MCP rule):** if `CONDUCTOR_SESSION: true` was echoed by the preamble, do NOT call AskUserQuestion at all — neither native nor any `mcp__*__AskUserQuestion` variant. Render EVERY decision brief as the **prose form** below and STOP. This is proactive, not a reaction to a failure: Conductor disables native AUQ and its MCP variant is flaky (it returns `[Tool result missing due to internal error]`), so prose is the reliable path. **Auto-decide preferences still apply first:** if a `[plan-tune auto-decide] <id> → <option>` result has already surfaced for a question, proceed with that option (no prose). Because in Conductor you go straight to prose without ever calling the tool, this auto-decide-first ordering is enforced HERE, not only by the PreToolUse hook. When you render a Conductor prose brief, also capture it with `bin/gstack-question-log` (the PostToolUse capture hook never fires on a prose path, so `/plan-tune` history/learning depends on this call).
+
+**Remote-control rule (read alongside the Conductor rule):** the authoritative signal is `REMOTE_CONTROL` from the preamble. If it is truthy (not empty or `0`), do NOT call AskUserQuestion (native or `mcp__*__AskUserQuestion`) — the Anthropic app's remote-control surface renders it as an un-clickable menu; render the **prose form** below, capture with `bin/gstack-question-log`, and STOP. Only if `REMOTE_CONTROL` is unset may you fall back to the transcript, and only when remote control is clearly THIS session's live state (a `Remote Control connecting…` with no later disconnect, still active). Do not trip on an incidental mention; when unsure, prefer the tool.
 
 **Rule (non-Conductor):** if any `mcp__*__AskUserQuestion` variant is in your tool list, prefer it. Hosts may disable native AUQ via `--disallowedTools AskUserQuestion` (Conductor does, by default) and route through their MCP variant; calling native there silently fails. Same questions/options shape; same decision-brief format applies.
 
@@ -591,6 +624,8 @@ equivalents (cat, sed, find, grep). The dedicated tools are cheaper and clearer.
 
 ## Voice
 
+**Language:** Reply in the user's language in conversation (Chinese in, Chinese out). This is chat prose only; files, code, commits, and PR bodies follow the repo's conventions, not the chat language.
+
 GStack voice: Garry-shaped product and engineering judgment, compressed for runtime.
 
 - Lead with the point. Say what it does, why it matters, and what changes for the builder.
@@ -765,9 +800,21 @@ After workflow completion, log telemetry. Use skill `name:` from frontmatter. OU
 Run this bash:
 
 ```bash
+# Restore the telemetry start-state the preamble persisted (this Bash block runs
+# in a fresh shell — the preamble's _TEL_START/_SESSION_ID/_TEL don't survive).
+# Keyed per-PPID so concurrent sessions don't read each other's state.
+[ -f ~/.gstack/analytics/.session-state-"$PPID" ] && . ~/.gstack/analytics/.session-state-"$PPID"
+# Fail SAFE on telemetry: if the state file was missing (orphan / PPID mismatch),
+# _TEL is unset here, and an unset _TEL must NOT open the analytics gate below
+# and write skill-usage.jsonl for a user who configured telemetry off. Default
+# to off; the preamble only ever persists "off" or a real opted-in value.
+_TEL="${_TEL:-off}"
 _TEL_END=$(date +%s)
-_TEL_DUR=$(( _TEL_END - _TEL_START ))
+# Degrade to duration 0 when the state file is missing or PPID differs, rather
+# than logging a garbage duration off an unset _TEL_START.
+_TEL_DUR=$(( _TEL_END - ${_TEL_START:-$_TEL_END} ))
 rm -f ~/.gstack/analytics/.pending-"$_SESSION_ID" 2>/dev/null || true
+rm -f ~/.gstack/analytics/.session-state-"$PPID" 2>/dev/null || true
 # Session timeline: record skill completion (local-only, never sent anywhere)
 $GSTACK_ROOT/bin/gstack-timeline-log '{"skill":"SKILL_NAME","event":"completed","branch":"'$(git branch --show-current 2>/dev/null || echo unknown)'","outcome":"OUTCOME","duration_s":"'"$_TEL_DUR"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null || true
 # Local analytics (gated on telemetry setting)
@@ -1862,12 +1909,13 @@ Add a `## Verification Results` section to the PR body (Step 19):
 Search for relevant learnings from previous sessions:
 
 ```bash
+_LEARN_SKILL_LIMIT=$($GSTACK_BIN/gstack-config get learnings_skill_limit 2>/dev/null || echo "10")
 _CROSS_PROJ=$($GSTACK_BIN/gstack-config get cross_project_learnings 2>/dev/null || echo "unset")
 echo "CROSS_PROJECT: $_CROSS_PROJ"
 if [ "$_CROSS_PROJ" = "true" ]; then
-  $GSTACK_BIN/gstack-learnings-search --limit 10 --query "release ship version changelog merge pr" --cross-project 2>/dev/null || true
+  $GSTACK_BIN/gstack-learnings-search --limit "$_LEARN_SKILL_LIMIT" --query "release ship version changelog merge pr" --cross-project 2>/dev/null || true
 else
-  $GSTACK_BIN/gstack-learnings-search --limit 10 --query "release ship version changelog merge pr" 2>/dev/null || true
+  $GSTACK_BIN/gstack-learnings-search --limit "$_LEARN_SKILL_LIMIT" --query "release ship version changelog merge pr" 2>/dev/null || true
 fi
 ```
 
@@ -2600,6 +2648,8 @@ stay agent judgment; the slot pick stays `gstack-next-version`.
 2. **Decide the bump level** from the diff (agent judgment):
    - **MICRO**: <50 lines, trivial tweaks/config. **PATCH**: 50+ lines, no feature signals.
    - **MINOR**: **ASK** if any feature signal (new route/page, migration, new module), OR 500+ lines. **MAJOR**: **ASK** — milestones or breaking changes only.
+
+   **Breaking-change check (overrides line counts):** before settling on MICRO/PATCH, scan the diff for changes to anything a consumer relies on — API response shapes, exported function signatures, config/env formats, DB schema used by other code, URL routes. A "patch" that changes behavior consumers relied on is a major change wearing a disguise (Hyrum's Law). **When unsure whether a change is breaking, assume it is and ASK** — a surprise major is far cheaper than a broken consumer.
    Save as `BUMP_LEVEL`. The level is the user-intended bump; queue-aware placement may advance the slot without changing the level.
 
 3. **Queue-aware pick** (workspace-aware ship):
@@ -2662,6 +2712,10 @@ stay agent judgment; the slot pick stays `gstack-next-version`.
    reflect all K themes.
 
 **Do NOT ask the user to describe changes.** Infer from the diff and commit history.
+
+**Going forward, write changelog entries WITH the change, not at ship time.** This step reconstructs impact from commit archaeology — half of it gets lost that way. When implementing, add the entry in the same commit that makes the change while the impact is fresh; this step then just consolidates.
+
+**Feature-flag hygiene (if the diff adds or touches flags):** every flag gets an owner and an expiration date noted in the CHANGELOG entry; flags are cleaned up within 2 weeks of full rollout; don't nest flags; CI must exercise both states. A flag that outlives its rollout is dead code wearing a disguise.
 
 ---
 

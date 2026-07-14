@@ -260,7 +260,13 @@ ensure_playwright_browser() {
   else
     (
       cd "$SOURCE_GSTACK_DIR"
-      bun --eval 'import { chromium } from "playwright"; const browser = await chromium.launch(); await browser.close();'
+      if [ -n "$GSTACK_CHROMIUM_PATH" ]; then
+        # GSTACK_CHROMIUM_PATH set: verify that custom Chromium instead (e.g. a
+        # NixOS system binary, where Playwright's bundled Chromium can't run).
+        bun --eval 'import { chromium } from "playwright"; const browser = await chromium.launch({ executablePath: process.env.GSTACK_CHROMIUM_PATH, args: ["--no-sandbox"] }); await browser.close();'
+      else
+        bun --eval 'import { chromium } from "playwright"; const browser = await chromium.launch(); await browser.close();'
+      fi
     ) >/dev/null 2>&1
   fi
 }
@@ -1017,8 +1023,9 @@ if [ "$INSTALL_CLAUDE" -eq 1 ]; then
     log "  browse: $BROWSE_BIN"
   else
     # Not inside a skills/ directory — would symlink the source into
-    # ~/.claude/skills/gstack/ and register from there.
-    CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
+    # ~/.claude/skills/gstack/ and register from there. Honor CLAUDE_CONFIG_DIR
+    # so users with a non-default Claude config path register correctly (#349).
+    CLAUDE_SKILLS_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills"
     CLAUDE_GSTACK_LINK="$CLAUDE_SKILLS_DIR/gstack"
 
     # Conductor worktree guard: if ~/.claude/skills/gstack is already a real
@@ -1198,6 +1205,27 @@ fi
 # so the runtime assets must live there for both global and repo-local installs.
 if [ "$INSTALL_CODEX" -eq 1 ]; then
   create_agents_sidecar "$SOURCE_GSTACK_DIR"
+fi
+
+# 7.5. Repair a missing or corrupt Playwright cache before Browse is first
+# launched. This is bounded and opt-out so setup cannot hang on a bad network.
+# The normal macOS repair uses Chrome for Testing's versioned archive because
+# Playwright's installer can leave a partial cache behind after interruption.
+if [ "${GSTACK_SKIP_BROWSER_REPAIR:-0}" != "1" ] && [ -f "$SOURCE_GSTACK_DIR/bin/gstack-browse-repair.ts" ]; then
+  log "Checking Browse browser runtime..."
+  bun "$SOURCE_GSTACK_DIR/bin/gstack-browse-repair.ts" --repair \
+    || log "warning: Browse browser runtime repair failed; run bin/gstack-browse-repair.ts --repair"
+fi
+
+# 7.6. Security migration for the pre-#1324 unpacked Browse extension. This
+# intentionally runs on every setup, not only a version transition: a fresh
+# install can reuse an existing ~/.gstack Chromium profile. The migrator is
+# idempotent and leaves a private rollback copy of only the old extension data.
+if [ -f "$SOURCE_GSTACK_DIR/bin/gstack-browse-migrate.ts" ]; then
+  log "Migrating legacy Browse extension identity..."
+  bun "$SOURCE_GSTACK_DIR/bin/gstack-browse-migrate.ts" --apply \
+    --legacy-extension-path "$SOURCE_GSTACK_DIR/extension" \
+    || log "warning: Browse migration deferred; close GStack Browser and rerun ./setup"
 fi
 
 # 8. Run pending version migrations

@@ -109,7 +109,7 @@ Run with `browse <command> [args]`. Full reference: `browse/SKILL.md`.
 - `type <text>`: Type into focused element
 - `upload <sel> <file> [file2...]`: Upload file(s)
 - `useragent <string>`: Set user agent
-- `viewport [<WxH>] [--scale <n>]`: Set viewport size and optional deviceScaleFactor (1-3, for retina screenshots).
+- `viewport [<WxH>|auto] [--scale <n>]`: Set viewport size and optional deviceScaleFactor (1-3, for retina screenshots).
 - `wait <sel|--networkidle|--load>`: Wait for element, network idle, or page load (timeout: 15s)
 
 ### Meta
@@ -143,6 +143,7 @@ Run with `browse <command> [args]`. Full reference: `browse/SKILL.md`.
 - `focus [@ref]`: Bring headed browser window to foreground (macOS)
 - `handoff [message]`: Open visible Chrome at current page for user takeover
 - `memory [--json]`: Snapshot Bun heap + per-tab JS heap + Chromium process tree + bounded buffer sizes.
+- `record start [path] [--size WxH]  |  record stop  |  record status`: Record video of browser activity to .webm.
 - `restart`: Restart server
 - `resume`: Re-snapshot after user takeover, return control to AI
 - `state save|load <name>`: Save/load browser state (cookies + URLs)
@@ -163,7 +164,7 @@ Run with `browse <command> [args]`. Full reference: `browse/SKILL.md`.
 - `diff <url1> <url2>`: Text diff between pages
 - `pdf [path] [--format letter|a4|legal] [--width <dim> --height <dim>] [--margins <dim>] [--margin-top <dim> --margin-right <dim> --margin-bottom <dim> --margin-left <dim>] [--header-template <html>] [--footer-template <html>] [--page-numbers] [--tagged] [--outline] [--print-background] [--prefer-css-page-size] [--toc] [--tab-id <N>]  |  pdf --from-file <payload.json> [--tab-id <N>]`: Save the current page as PDF.
 - `prettyscreenshot [--scroll-to sel|text] [--cleanup] [--hide sel...] [--width px] [path]`: Clean screenshot with optional cleanup, scroll positioning, and element hiding
-- `responsive [prefix]`: Screenshots at mobile (375x812), tablet (768x1024), desktop (1280x720).
+- `responsive [prefix]`: Screenshots at mobile (375x812), tablet (768x1024), desktop (default viewport, or BROWSE_VIEWPORT).
 - `screenshot [--selector <css>] [--viewport] [--clip x,y,w,h] [--base64] [selector|@ref] [path]`: Save screenshot.
 
 ## More

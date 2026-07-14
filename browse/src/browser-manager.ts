@@ -15,15 +15,46 @@
  *   restores state. Falls back to clean slate on any failure.
  */
 
-import { chromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page, type Locator, type Cookie } from 'playwright';
-import { writeSecureFile, mkdirSecure } from './file-permissions';
+import { execSync } from 'child_process';
+import { chromium as playwrightChromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page, type Locator, type Cookie, type Worker } from 'playwright';
+
+// ─── Stealth Backend Selection ────────────────────────────────────────
+// When GSTACK_STEALTH_BACKEND=patchright is set AND the `patchright` package
+// is installed, gstack drives Chromium through it instead of vanilla
+// Playwright. Patchright is a drop-in Playwright replacement that eliminates
+// the CDP `Runtime.Enable` leak — the single biggest automation signal that
+// Cloudflare, DataDome, Imperva, and X fingerprint on. This is a SEPARATE knob
+// from GSTACK_STEALTH=extended (the JS-layer patch set in stealth.ts); the two
+// compose. Falls back to vanilla Playwright with a warning if patchright is
+// not installed. Safe by default: existing users see no change.
+let _cachedChromium: typeof playwrightChromium | null = null;
+async function getChromium(): Promise<typeof playwrightChromium> {
+  if (_cachedChromium) return _cachedChromium;
+  if (process.env.GSTACK_STEALTH_BACKEND === 'patchright') {
+    try {
+      const pr = await import('patchright');
+      console.error('[browse] stealth backend: patchright enabled');
+      _cachedChromium = pr.chromium as unknown as typeof playwrightChromium;
+      return _cachedChromium;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[browse] GSTACK_STEALTH_BACKEND=patchright set but patchright not installed: ${msg}`);
+      console.error('[browse] Install: bun add -O patchright && bunx patchright install chrome');
+      console.error('[browse] Falling back to vanilla Playwright Chromium.');
+    }
+  }
+  _cachedChromium = playwrightChromium;
+  return _cachedChromium;
+}
 import { addConsoleEntry, addNetworkEntry, addDialogEntry, networkBuffer, type DialogEntry } from './buffers';
 import { emitActivity } from './activity';
 import { validateNavigationUrl } from './url-validation';
 import { TabSession, type RefEntry } from './tab-session';
 import { resolveChromiumProfile, cleanSingletonLocks } from './config';
+import { parseExtraChromiumArgs, parseHttpCredentials } from './launch-overrides';
 import { withCdpSession } from './cdp-bridge';
 import type { MemorySnapshot, MemoryStructureStats, MemoryTabSnapshot, MemoryProcess } from './memory-snapshot';
+import { isTrustedGstackExtensionWorkerUrl } from './extension-identity';
 
 /**
  * Detect whether GSTACK_CHROMIUM_PATH points at a custom Chromium build that
@@ -91,7 +122,22 @@ export function shouldEnableChromiumSandbox(): boolean {
  * restarts on backoff.
  */
 export async function resolveDisconnectCause(browser: Browser | null): Promise<'clean' | 'crash'> {
-  const proc = browser?.process();
+  // Null browser → 'crash' (defensive default, matches existing contract
+  // pinned by the unit test "null browser returns crash").
+  if (browser === null) return 'crash';
+
+  // Persistent contexts (headed mode) expose a Browser object via
+  // BrowserContext.browser(), but Playwright doesn't surface the underlying
+  // Chromium process through it — `browser.process` is undefined on that
+  // object. Pre-fix, `browser?.process()` evaluated to `undefined()` and
+  // threw an unhandled rejection, crashing the bun process and putting gbd
+  // into a respawn loop. Without process introspection we can't distinguish
+  // "user pressed Cmd+Q or closed all tabs" from "Chromium crashed". In
+  // headed mode the user controls the lifecycle, so the right default is
+  // 'clean': exit 0, gbd does not restart, user re-launches if they want.
+  if (typeof browser.process !== 'function') return 'clean';
+
+  const proc = browser.process();
   if (proc && proc.exitCode === null && proc.signalCode === null) {
     await new Promise<void>((resolve) => {
       const timer = setTimeout(resolve, 1000);
@@ -124,6 +170,24 @@ export type { RefEntry };
 
 // Re-export TabSession for consumers
 export { TabSession };
+
+/**
+ * Default fresh-session viewport, overridable via BROWSE_VIEWPORT=WIDTHxHEIGHT
+ * (clamped to 320-7680 x 240-4320). Malformed values fall back to 1280x720.
+ * Read at call time so daemon start picks up the launching shell's env.
+ */
+export function getDefaultViewport(): { width: number; height: number } {
+  const raw = process.env.BROWSE_VIEWPORT;
+  if (raw) {
+    const match = raw.match(/^(\d+)x(\d+)$/);
+    if (match) {
+      const width = Math.max(320, Math.min(7680, parseInt(match[1], 10)));
+      const height = Math.max(240, Math.min(4320, parseInt(match[2], 10)));
+      return { width, height };
+    }
+  }
+  return { width: 1280, height: 720 };
+}
 
 export interface BrowserState {
   cookies: Cookie[];
@@ -167,7 +231,21 @@ export class BrowserManager {
   // require recreateContext(). Viewport width/height can change on-page, but we
   // track the latest so context recreation restores it instead of hardcoding 1280x720.
   private deviceScaleFactor: number = 1;
-  private currentViewport: { width: number; height: number } = { width: 1280, height: 720 };
+  private currentViewport: { width: number; height: number } = getDefaultViewport();
+  // When true, contexts are (re)created with Playwright `viewport: null` so the
+  // viewport follows the real window size instead of being pinned to
+  // currentViewport. Set by `viewport auto`; cleared whenever an explicit size
+  // or deviceScaleFactor is applied. recreateContext() honors it.
+  private viewportAuto: boolean = false;
+
+  // ─── Video recording (context option) ────────────────────────
+  // Playwright records video at the context level via recordVideo: { dir, size? }.
+  // The .webm files are written when the context closes, so start/stop both go
+  // through recreateContext() — start flips the flag and rebuilds; stop collects
+  // the page.video() paths, clears the flag, and rebuilds again to flush.
+  private recordVideoDir: string | null = null;
+  private recordVideoSize: { width: number; height: number } | null = null;
+  private recordedVideoPaths: string[] = [];
 
   /** Server port — set after server starts, used by cookie-import-browser command */
   public serverPort: number = 0;
@@ -196,6 +274,8 @@ export class BrowserManager {
   // ─── Headed State ────────────────────────────────────────
   private connectionMode: 'launched' | 'headed' = 'launched';
   private intentionalDisconnect = false;
+  /** Root auth is provisioned only into the loaded gstack extension's storage. */
+  private extensionAuthToken: string | null = null;
 
   // ─── Tab Count Guardrail (D5 + Codex single-tab flag) ───────
   // Idempotent threshold trackers: each guardrail fires exactly once per
@@ -253,6 +333,14 @@ export class BrowserManager {
   public onDisconnect: ((exitCode?: number) => void | Promise<void>) | null = null;
 
   getConnectionMode(): 'launched' | 'headed' { return this.connectionMode; }
+
+  /**
+   * The live browser context, or null before launch / after close. Exposed for
+   * the auto-cookie-persist layer (server.ts) to snapshot cookies on a
+   * checkpoint without reaching into private state. Callers must null-check —
+   * a checkpoint can fire between close() and the next launch().
+   */
+  getContext(): import('playwright').BrowserContext | null { return this.context; }
 
   // ─── Watch Mode Methods ─────────────────────────────────
   isWatching(): boolean { return this.watching; }
@@ -318,12 +406,114 @@ export class BrowserManager {
   }
 
   /**
+   * Give the bundled extension its bearer without publishing it through a
+   * loopback HTTP endpoint. chrome.storage.session is isolated per extension
+   * ID and restricted to trusted extension contexts, unlike an Origin header,
+   * which any local caller can forge.
+   */
+  private async provisionExtensionAuth(authToken?: string): Promise<void> {
+    if (authToken) this.extensionAuthToken = authToken;
+    const token = authToken ?? this.extensionAuthToken;
+    if (!token || !this.context) return;
+
+    const writeToken = async (worker: Worker): Promise<void> => {
+      await worker.evaluate(async ({ storedToken, port }) => {
+        const chromeApi = (globalThis as any).chrome;
+        // storage.session defaults to trusted contexts, but set the access
+        // level explicitly so a future manifest/content-script change cannot
+        // silently expose the root bearer. The port is non-secret and remains
+        // in local storage for existing discovery behavior.
+        await chromeApi.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
+        await chromeApi.storage.session.set({ gstackAuthToken: storedToken });
+        await chromeApi.storage.local.remove('gstackAuthToken');
+        await chromeApi.storage.local.set({ port });
+      }, { storedToken: token, port: this.serverPort || 34567 });
+    };
+
+    // A component-baked extension may start after the browser context. Keep
+    // listening rather than falling back to the unsafe /health bootstrap.
+    this.context.on('serviceworker', (worker) => {
+      void (async () => {
+        if (!(await this.isGstackExtensionWorker(worker))) return;
+        await writeToken(worker);
+      })().catch((err: any) => {
+        console.warn(`[browse] Could not provision late extension auth storage: ${err.message}`);
+      });
+    });
+
+    let worker: Worker | undefined;
+    for (const candidate of this.context.serviceWorkers()) {
+      if (await this.isGstackExtensionWorker(candidate)) {
+        worker = candidate;
+        break;
+      }
+    }
+    if (!worker) {
+      try {
+        const candidate = await this.context.waitForEvent('serviceworker', { timeout: 5000 });
+        if (await this.isGstackExtensionWorker(candidate)) worker = candidate;
+      } catch {
+        console.warn('[browse] Extension service worker not ready; auth will be provisioned when it starts');
+        return;
+      }
+    }
+    if (!worker) return;
+
+    try {
+      await writeToken(worker);
+    } catch (err: any) {
+      console.warn(`[browse] Could not provision extension auth storage: ${err.message}`);
+    }
+  }
+
+  private async isGstackExtensionWorker(worker: Worker): Promise<boolean> {
+    if (!isTrustedGstackExtensionWorkerUrl(worker.url())) return false;
+    try {
+      const manifest = await worker.evaluate(() => (globalThis as any).chrome.runtime.getManifest?.());
+      return manifest?.name === 'gstack browse'
+        && manifest?.background?.service_worker === 'background.js';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Set the proxy config applied to chromium.launch() in launch() and
    * launchHeaded(). Called by server.ts at startup once the (optional) SOCKS5
    * bridge is up.
    */
   setProxyConfig(cfg: { server: string; username?: string; password?: string } | null): void {
     this.proxyConfig = cfg;
+  }
+
+  setExtensionAuthToken(token: string | undefined): void {
+    if (token) this.extensionAuthToken = token;
+  }
+
+  /**
+   * Parse GSTACK_EXTRA_EXTENSIONS (comma-separated paths) and return the list
+   * of unpacked extension directories that actually contain a manifest.json.
+   * Invalid entries are warned about and skipped so a typo doesn't block launch.
+   */
+  private findExtraExtensionPaths(): string[] {
+    const raw = process.env.GSTACK_EXTRA_EXTENSIONS;
+    if (!raw) return [];
+    const fs = require('fs');
+    const path = require('path');
+    const paths = raw.split(',').map(s => s.trim()).filter(Boolean);
+    const valid: string[] = [];
+    for (const p of paths) {
+      try {
+        if (fs.existsSync(path.join(p, 'manifest.json'))) {
+          valid.push(p);
+        } else {
+          console.warn(`[browse] GSTACK_EXTRA_EXTENSIONS: skipping ${p} (no manifest.json)`);
+        }
+      } catch (err: any) {
+        console.warn(`[browse] GSTACK_EXTRA_EXTENSIONS: skipping ${p} (${err?.message ?? 'error'})`);
+      }
+    }
+    return valid;
   }
 
   /**
@@ -354,6 +544,48 @@ export class BrowserManager {
       launchArgs.push('--no-sandbox');
     }
 
+    // System proxy handling on macOS. Local VPN/proxy apps (Shadowrocket,
+    // ClashX, Surge) intercept traffic in TWO modes that need OPPOSITE
+    // Chromium configs:
+    //
+    //   HTTP-proxy-only mode: app registers at 127.0.0.1:<port> as an HTTPS
+    //     proxy. Chromium inherits via system proxy → proxy MITMs TLS →
+    //     Chromium rejects the MITM cert → net_error -100. Fix:
+    //     --proxy-server=direct:// bypasses the proxy entirely.
+    //
+    //   TUN mode: app creates a utun interface (typically 198.18.0.0/15,
+    //     the IANA benchmark range) and captures ALL traffic at the
+    //     routing layer. direct:// does NOT escape — packets still flow
+    //     through TUN and get MITM'd. But when Chromium connects to the
+    //     HTTPS proxy explicitly (inherited from system), the proxy
+    //     serves a cert signed by a CA installed in the macOS keychain
+    //     that Chromium trusts on that path → works. So: no flag works,
+    //     direct:// breaks.
+    //
+    // Default: opt-in via BROWSE_NO_PROXY=1 (preserves original behavior).
+    // Auto-override: if user set =1 but current VPN is in TUN mode
+    // (detected via utun interface in 198.18.x.x), skip the flag and log.
+    // This protects users with `export BROWSE_NO_PROXY=1` in their shell
+    // rc when their VPN app silently switches modes.
+    if (process.env.BROWSE_NO_PROXY === '1') {
+      let tunMode = false;
+      if (process.platform === 'darwin') {
+        try {
+          const ifOut = execSync('ifconfig', { encoding: 'utf8', timeout: 2000 });
+          tunMode = /^utun\d+:[\s\S]*?inet 198\.18\./m.test(ifOut);
+        } catch {
+          // ifconfig failed — assume non-TUN (preserves original behavior).
+        }
+      }
+      if (tunMode) {
+        console.log('[browse] BROWSE_NO_PROXY=1 but VPN appears to be in TUN mode (utun with 198.18.x.x). Skipping --proxy-server=direct:// because it would break TLS in this mode. Set BROWSE_NO_PROXY=force to override.');
+      } else {
+        launchArgs.push('--proxy-server=direct://');
+      }
+    } else if (process.env.BROWSE_NO_PROXY === 'force') {
+      launchArgs.push('--proxy-server=direct://');
+    }
+
     if (extensionsDir) {
       // Skip --load-extension when running against a custom Chromium build that
       // already bakes the extension in (e.g., GBrowser / GStack Browser.app).
@@ -369,17 +601,91 @@ export class BrowserManager {
       console.log(`[browse] Extensions loaded from: ${extensionsDir}`);
     }
 
-    this.browser = await chromium.launch({
-      headless: useHeadless,
-      // On Windows, Chromium's sandbox fails when the server is spawned through
-      // the Bun→Node process chain (GitHub #276). Disable it — local daemon
-      // browsing user-specified URLs has marginal sandbox benefit. Also disabled
-      // on Linux root/CI/container, where the sandbox requires unprivileged user
-      // namespaces that aren't available.
-      chromiumSandbox: shouldEnableChromiumSandbox(),
-      ...(launchArgs.length > 0 ? { args: launchArgs } : {}),
-      ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
-    });
+    // User-supplied extra Chromium flags (GSTACK_CHROMIUM_ARGS), no-op when unset.
+    launchArgs.push(...parseExtraChromiumArgs());
+
+    const contextOptions: BrowserContextOptions = this.viewportContextOptions();
+    if (this.customUserAgent) {
+      contextOptions.userAgent = this.customUserAgent;
+    }
+    // Auto-answer HTTP basic-auth (401) challenges (GSTACK_HTTP_CREDENTIALS),
+    // undefined when unset.
+    const headlessHttpCredentials = parseHttpCredentials();
+    if (headlessHttpCredentials) {
+      contextOptions.httpCredentials = headlessHttpCredentials;
+    }
+
+    // Video recording (opt-in via the `record` command). Playwright records
+    // per-context, so the dir/size must be set at context creation.
+    if (this.recordVideoDir) {
+      contextOptions.recordVideo = {
+        dir: this.recordVideoDir,
+        ...(this.recordVideoSize ? { size: this.recordVideoSize } : {}),
+      };
+    }
+
+    // Auto-cookie persistence (opt-in): seed the fresh context with previously
+    // persisted cookies so a device-trust cookie survives a daemon restart.
+    // Read-only + best-effort — the writer path (server.ts) owns the lock; a
+    // concurrent read of an atomically-written file is always a complete file.
+    // recreateContext() does NOT go through here (it restores in-memory state
+    // itself), so there's no double-restore.
+    try {
+      const { resolveConfig } = await import('./config');
+      const { loadAutoCookieState, warnPlaintextOnce } = await import('./auto-cookie-persist');
+      const cfg = resolveConfig();
+      warnPlaintextOnce(cfg);
+      const restored = loadAutoCookieState(cfg);
+      if (restored && restored.cookies.length > 0) {
+        contextOptions.storageState = restored;
+        console.log(`[browse] Restored ${restored.cookies.length} persisted cookie(s) from auto-state`);
+      }
+    } catch {
+      // Never block launch on the persistence layer.
+    }
+
+    if (extensionsDir) {
+      // Extensions do not attach to incognito contexts created by
+      // browser.newContext(). An empty userDataDir gives this off-screen mode a
+      // temporary persistent profile, so its real service worker can receive
+      // auth without sharing state with the user's headed GStack profile.
+      const { STEALTH_IGNORE_DEFAULT_ARGS } = await import('./stealth');
+      const chromiumDriverExt = await getChromium();
+      this.context = await chromiumDriverExt.launchPersistentContext('', {
+        ...contextOptions,
+        headless: false,
+        // Honor GSTACK_CHROMIUM_PATH here too — this branch replaces the plain
+        // headless launch when an extensions dir is set, and custom Chromium
+        // builds (e.g. a NixOS system binary) must work in both modes.
+        ...(process.env.GSTACK_CHROMIUM_PATH ? { executablePath: process.env.GSTACK_CHROMIUM_PATH } : {}),
+        chromiumSandbox: shouldEnableChromiumSandbox(),
+        args: launchArgs,
+        ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
+        ignoreDefaultArgs: STEALTH_IGNORE_DEFAULT_ARGS,
+      });
+      this.browser = this.context.browser();
+      if (!this.browser) throw new Error('Persistent extension browser did not start');
+    } else {
+      const chromiumDriver = await getChromium();
+      this.browser = await chromiumDriver.launch({
+        headless: useHeadless,
+        // Honor GSTACK_CHROMIUM_PATH on the headless launch path. The headed
+        // path (launchPersistentContext) already respects it; this keeps both
+        // modes consistent for custom Chromium builds — e.g. a NixOS system
+        // binary, where Playwright's bundled chrome-headless-shell can't run.
+        // No-op when the env var is unset.
+        ...(process.env.GSTACK_CHROMIUM_PATH ? { executablePath: process.env.GSTACK_CHROMIUM_PATH } : {}),
+        // On Windows, Chromium's sandbox fails when the server is spawned through
+        // the Bun→Node process chain (GitHub #276). Disable it — local daemon
+        // browsing user-specified URLs has marginal sandbox benefit. Also disabled
+        // on Linux root/CI/container, where the sandbox requires unprivileged user
+        // namespaces that aren't available.
+        chromiumSandbox: shouldEnableChromiumSandbox(),
+        ...(launchArgs.length > 0 ? { args: launchArgs } : {}),
+        ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
+      });
+      this.context = await this.browser.newContext(contextOptions);
+    }
 
     // Chromium disconnect → distinguish clean user-quit from crash. Both
     // events look identical to Playwright (one 'disconnected' fires), but
@@ -394,15 +700,6 @@ export class BrowserManager {
       void handleChromiumDisconnect(this.browser);
     });
 
-    const contextOptions: BrowserContextOptions = {
-      viewport: { width: this.currentViewport.width, height: this.currentViewport.height },
-      deviceScaleFactor: this.deviceScaleFactor,
-    };
-    if (this.customUserAgent) {
-      contextOptions.userAgent = this.customUserAgent;
-    }
-    this.context = await this.browser.newContext(contextOptions);
-
     if (Object.keys(this.extraHeaders).length > 0) {
       await this.context.setExtraHTTPHeaders(this.extraHeaders);
     }
@@ -414,6 +711,7 @@ export class BrowserManager {
     // faking those to fixed values flags more bot-like, not less (D7).
     const { applyStealth } = await import('./stealth');
     await applyStealth(this.context);
+    if (extensionsDir) await this.provisionExtensionAuth();
 
     // Create first tab
     await this.newTab();
@@ -450,6 +748,8 @@ export class BrowserManager {
       // empty-fallback returns native), so this is safe on stock Playwright
       // Chromium too.
       ...buildGStackLaunchArgs(),
+      // User-supplied extra Chromium flags (GSTACK_CHROMIUM_ARGS), no-op when unset.
+      ...parseExtraChromiumArgs(),
     ];
     if (extensionPath) {
       // Skip --load-extension when running against a custom Chromium build
@@ -457,25 +757,21 @@ export class BrowserManager {
       // (gbrowser / GStack Browser.app). Loading it twice causes a
       // ServiceWorkerState::SetWorkerId DCHECK crash.
       if (!isCustomChromium()) {
-        launchArgs.push(`--disable-extensions-except=${extensionPath}`);
-        launchArgs.push(`--load-extension=${extensionPath}`);
-      }
-      // Write auth token for extension bootstrap (still required even when
-      // the extension is component-baked — it reads ~/.gstack/.auth.json at
-      // startup to learn how to call the daemon).
-      // Write to ~/.gstack/.auth.json (not the extension dir, which may be read-only
-      // in .app bundles and breaks codesigning).
-      if (authToken) {
-        const fs = require('fs');
-        const path = require('path');
-        const gstackDir = path.join(process.env.HOME || '/tmp', '.gstack');
-        mkdirSecure(gstackDir);
-        const authFile = path.join(gstackDir, '.auth.json');
-        try {
-          writeSecureFile(authFile, JSON.stringify({ token: authToken, port: this.serverPort || 34567 }));
-        } catch (err: any) {
-          console.warn(`[browse] Could not write .auth.json: ${err.message}`);
+        // Combine gstack's extension with any user-provided extras (see
+        // GSTACK_EXTRA_EXTENSIONS). Chromium accepts comma-separated paths for
+        // both flags, so both extensions load and neither blocks the other.
+        const allExtensionPaths = [extensionPath, ...this.findExtraExtensionPaths()];
+        launchArgs.push(`--disable-extensions-except=${allExtensionPaths.join(',')}`);
+        launchArgs.push(`--load-extension=${allExtensionPaths.join(',')}`);
+        if (allExtensionPaths.length > 1) {
+          console.log(`[browse] Loading ${allExtensionPaths.length} extensions: ${allExtensionPaths.join(', ')}`);
         }
+      }
+      // Auth is provisioned into extension storage after the persistent
+      // context starts. Do not write a reusable token to a local file or
+      // return it from a public endpoint.
+      if (authToken) {
+        console.log('[browse] Extension auth will be provisioned via chrome.storage');
       }
     }
 
@@ -503,7 +799,7 @@ export class BrowserManager {
     // Rebrand Chromium → GStack Browser in macOS menu bar / Dock / Cmd+Tab.
     // Patch the Chromium .app's Info.plist so macOS shows our name.
     // This works for both dev mode (system Playwright cache) and .app bundle.
-    const chromePath = executablePath || chromium.executablePath();
+    const chromePath = executablePath || playwrightChromium.executablePath();
     try {
       // Walk up from binary to the .app's Info.plist
       // e.g. .../Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
@@ -553,7 +849,7 @@ export class BrowserManager {
     let customUA: string | undefined;
     if (!this.customUserAgent) {
       // Detect Chrome version from the Chromium binary
-      const chromePath = executablePath || chromium.executablePath();
+      const chromePath = executablePath || playwrightChromium.executablePath();
       try {
         const versionProc = Bun.spawnSync([chromePath, '--version'], {
           stdout: 'pipe', stderr: 'pipe', timeout: 5000,
@@ -575,8 +871,20 @@ export class BrowserManager {
     // and the chrome-runtime shape changes Playwright otherwise triggers) and
     // three more (--disable-popup-blocking, --disable-component-update,
     // --disable-default-apps — each a documented automation tell per Patchright).
+    // macOS 26 (Sequoia) tightened window activation policy: Chromium windows
+    // spawned by a non-app process close immediately unless the app is properly
+    // registered with the window server via NSApplicationActivateIgnoringOtherApps.
+    // --disable-features=MacControlledWindowBehavior suppresses the new OS-level
+    // window-hiding behavior introduced in macOS 26 while Playwright handles
+    // activation via its own NSApp startup sequence.
+    // This flag is a no-op on macOS < 26 and on non-macOS platforms.
+    if (process.platform === 'darwin') {
+      launchArgs.push('--disable-features=MacControlledWindowBehavior');
+    }
+
     const { STEALTH_IGNORE_DEFAULT_ARGS } = await import('./stealth');
-    this.context = await chromium.launchPersistentContext(userDataDir, {
+    const chromiumDriverHeaded = await getChromium();
+    this.context = await chromiumDriverHeaded.launchPersistentContext(userDataDir, {
       headless: false,
       // Match the sandbox policy used by launch() above. Without this,
       // Playwright auto-adds --no-sandbox on every headed launch and the user
@@ -585,7 +893,12 @@ export class BrowserManager {
       args: launchArgs,
       viewport: null,  // Use browser's default viewport (real window size)
       userAgent: this.customUserAgent || customUA,
-      ...(executablePath ? { executablePath } : {}),
+      // Auto-answer HTTP basic-auth (401) challenges (GSTACK_HTTP_CREDENTIALS).
+      ...(parseHttpCredentials() ? { httpCredentials: parseHttpCredentials() } : {}),
+      // Playwright 1.49+ defaults headless:true to chrome-headless-shell, which
+      // cannot load Chrome extensions. Explicitly pin the full Chromium binary
+      // so future Playwright upgrades don't silently break /open-gstack-browser.
+      executablePath: executablePath || playwrightChromium.executablePath(),
       ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
       ignoreDefaultArgs: STEALTH_IGNORE_DEFAULT_ARGS,
     });
@@ -604,6 +917,7 @@ export class BrowserManager {
     // this headed path.
     const { applyStealth } = await import('./stealth');
     await applyStealth(this.context);
+    await this.provisionExtensionAuth(authToken);
 
     // Inject visual indicator — subtle top-edge amber gradient
     // Extension's content script handles the floating pill
@@ -798,19 +1112,31 @@ export class BrowserManager {
     const page = this.pages.get(tabId);
     if (!page) throw new Error(`Tab ${tabId} not found`);
 
+    // Capture BEFORE close(): the page 'close' event handler wired in
+    // wirePageEvents() can fire while page.close() is awaited. It removes
+    // the tab from the maps and reassigns activeTabId (to 0 when no tabs
+    // remain), so a post-close `tabId === this.activeTabId` check is
+    // order-dependent — whether the event dispatches before or after
+    // close() resolves varies across Playwright/Chromium versions and
+    // machines, and losing the race means the last-tab auto-create below
+    // never runs, leaving the manager with zero tabs.
+    const wasActive = tabId === this.activeTabId;
+
     await page.close();
     this.pages.delete(tabId);
     this.tabSessions.delete(tabId);
     this.tabOwnership.delete(tabId);
 
     // Switch to another tab if we closed the active one
-    if (tabId === this.activeTabId) {
+    if (wasActive) {
       const remaining = [...this.pages.keys()];
-      if (remaining.length > 0) {
-        this.activeTabId = remaining[remaining.length - 1];
-      } else {
+      if (remaining.length === 0) {
         // No tabs left — create a new blank one
         await this.newTab();
+      } else if (!this.pages.has(this.activeTabId)) {
+        // The 'close' handler may have already switched to a valid tab;
+        // only reassign when activeTabId no longer points at a live tab.
+        this.activeTabId = remaining[remaining.length - 1];
       }
     }
   }
@@ -1212,7 +1538,49 @@ export class BrowserManager {
   // ─── Viewport ──────────────────────────────────────────────
   async setViewport(width: number, height: number) {
     this.currentViewport = { width, height };
+    // An explicit size pins the viewport, so leave window-follow ("auto") mode.
+    this.viewportAuto = false;
     await this.getPage().setViewportSize({ width, height });
+  }
+
+  /**
+   * Restore window-following viewport (Playwright `viewport: null`), undoing a
+   * prior `viewport WxH` pin without tearing down the Chrome session. Rebuilds
+   * the context (state, cookies, tab URLs preserved) the same way a
+   * `viewport --scale` change does. deviceScaleFactor resets to 1 because a
+   * non-1 scale requires a concrete viewport size — `viewport: null` and a
+   * custom scale are mutually exclusive in Playwright.
+   *
+   * Returns null on success, or an error string if the new context couldn't be
+   * built (state may have been lost, per recreateContext's fallback behavior).
+   */
+  async resetViewportToAuto(): Promise<string | null> {
+    if (this.connectionMode === 'headed') {
+      throw new Error('viewport auto is not supported in headed mode — the viewport already follows the real browser window.');
+    }
+    if (this.viewportAuto) {
+      return null; // already following the window; nothing to rebuild
+    }
+
+    const prevAuto = this.viewportAuto;
+    const prevScale = this.deviceScaleFactor;
+    this.viewportAuto = true;
+    this.deviceScaleFactor = 1;
+
+    const err = await this.recreateContext();
+    if (err !== null) {
+      // recreateContext's fallback built a blank context using the NEW (auto)
+      // settings. Roll the tracked fields back, then force a second recreate so
+      // live state matches tracked state (mirrors setDeviceScaleFactor).
+      this.viewportAuto = prevAuto;
+      this.deviceScaleFactor = prevScale;
+      const rollbackErr = await this.recreateContext();
+      if (rollbackErr !== null) {
+        return `${err} (rollback also encountered: ${rollbackErr})`;
+      }
+      return err;
+    }
+    return null;
   }
 
   // ─── Extra Headers ─────────────────────────────────────────
@@ -1389,6 +1757,21 @@ export class BrowserManager {
   }
 
   /**
+   * Viewport/scale slice of the context options, honoring window-follow mode.
+   * In `viewportAuto` mode we pass `viewport: null` (and no deviceScaleFactor,
+   * which Playwright forbids alongside a null viewport) so the page tracks the
+   * real window size; otherwise we pin currentViewport + deviceScaleFactor.
+   */
+  private viewportContextOptions(): BrowserContextOptions {
+    return this.viewportAuto
+      ? { viewport: null }
+      : {
+          viewport: { width: this.currentViewport.width, height: this.currentViewport.height },
+          deviceScaleFactor: this.deviceScaleFactor,
+        };
+  }
+
+  /**
    * Recreate the browser context to apply user agent changes.
    * Saves and restores cookies, localStorage, sessionStorage, and open pages.
    * Falls back to a clean slate on any failure.
@@ -1414,12 +1797,21 @@ export class BrowserManager {
       await this.context.close().catch(() => {});
 
       // 3. Create new context with updated settings
-      const contextOptions: BrowserContextOptions = {
-        viewport: { width: this.currentViewport.width, height: this.currentViewport.height },
-        deviceScaleFactor: this.deviceScaleFactor,
-      };
+      const contextOptions: BrowserContextOptions = this.viewportContextOptions();
       if (this.customUserAgent) {
         contextOptions.userAgent = this.customUserAgent;
+      }
+      // Re-apply GSTACK_HTTP_CREDENTIALS: a fresh context drops httpCredentials,
+      // so basic-auth would start 401ing after useragent/viewport/record rebuilds.
+      const rebuildCreds = parseHttpCredentials();
+      if (rebuildCreds) {
+        contextOptions.httpCredentials = rebuildCreds;
+      }
+      if (this.recordVideoDir) {
+        contextOptions.recordVideo = {
+          dir: this.recordVideoDir,
+          ...(this.recordVideoSize ? { size: this.recordVideoSize } : {}),
+        };
       }
       this.context = await this.browser.newContext(contextOptions);
 
@@ -1446,12 +1838,19 @@ export class BrowserManager {
         this.tabSessions.clear();
         if (this.context) await this.context.close().catch(() => {});
 
-        const contextOptions: BrowserContextOptions = {
-          viewport: { width: this.currentViewport.width, height: this.currentViewport.height },
-          deviceScaleFactor: this.deviceScaleFactor,
-        };
+        const contextOptions: BrowserContextOptions = this.viewportContextOptions();
         if (this.customUserAgent) {
           contextOptions.userAgent = this.customUserAgent;
+        }
+        const rebuildCredsFallback = parseHttpCredentials();
+        if (rebuildCredsFallback) {
+          contextOptions.httpCredentials = rebuildCredsFallback;
+        }
+        if (this.recordVideoDir) {
+          contextOptions.recordVideo = {
+            dir: this.recordVideoDir,
+            ...(this.recordVideoSize ? { size: this.recordVideoSize } : {}),
+          };
         }
         this.context = await this.browser!.newContext(contextOptions);
         // Stealth applies to the fallback blank context too.
@@ -1464,6 +1863,87 @@ export class BrowserManager {
       }
       return `Context recreation failed: ${err instanceof Error ? err.message : String(err)}. Browser reset to blank tab.`;
     }
+  }
+
+  // ─── Video Recording ────────────────────────────────────────
+  /**
+   * Begin recording video of subsequent browser activity to `dir`.
+   *
+   * Playwright records video at the context level — once a context is created
+   * with `recordVideo: { dir }`, every page in that context records a .webm.
+   * The file is finalized when the context closes. To toggle recording on we
+   * set the flag and recreate the context; the existing save/restore path in
+   * recreateContext() preserves cookies, URLs, and open pages.
+   *
+   * Single-recording invariant: calling startRecording() while already
+   * recording auto-stops the prior recording and starts a fresh one. Callers
+   * can call stopRecording() first if they want the paths of the prior
+   * recording.
+   */
+  async startRecording(dir: string, size?: { width: number; height: number }): Promise<string | null> {
+    if (this.connectionMode === 'headed') {
+      throw new Error('record is not supported in headed mode (use disconnect first).');
+    }
+    if (this.recordVideoDir) {
+      // Already recording — flush the prior recording before starting fresh.
+      await this.stopRecording().catch(() => {});
+    }
+    this.recordVideoDir = dir;
+    this.recordVideoSize = size ?? null;
+    this.recordedVideoPaths = [];
+    return this.recreateContext();
+  }
+
+  /**
+   * Stop the current recording and return the paths of the .webm files
+   * Playwright wrote (one per page that was open during the recording).
+   *
+   * Calling stopRecording() when not currently recording is a no-op and
+   * returns an empty array.
+   */
+  async stopRecording(): Promise<string[]> {
+    if (!this.recordVideoDir) return [];
+
+    // Collect video file paths from each live page before tearing the
+    // context down. Playwright assigns the path eagerly so this resolves
+    // even before close, but we still need the context to close before
+    // the files are flushed to disk.
+    const paths: string[] = [];
+    for (const page of this.pages.values()) {
+      const video = page.video();
+      if (!video) continue;
+      try {
+        const p = await video.path();
+        if (p) paths.push(p);
+      } catch {
+        // Page may have been torn down already; skip.
+      }
+    }
+
+    // Clear the flag so the rebuilt context does NOT continue recording.
+    this.recordVideoDir = null;
+    this.recordVideoSize = null;
+
+    // Rebuilding the context closes the old one, which flushes the .webm files.
+    await this.recreateContext();
+
+    this.recordedVideoPaths = paths;
+    return paths;
+  }
+
+  /** True iff recordVideo is currently enabled on the active context. */
+  isRecording(): boolean {
+    return this.recordVideoDir !== null;
+  }
+
+  /** The directory videos are written to, or null if not recording. */
+  getRecordVideoDir(): string | null {
+    return this.recordVideoDir;
+  }
+
+  /** Paths of the last completed recording, or [] if no recording has finished. */
+  getRecordedVideoPaths(): string[] {
+    return [...this.recordedVideoPaths];
   }
 
   /**
@@ -1490,8 +1970,11 @@ export class BrowserManager {
 
     const prevScale = this.deviceScaleFactor;
     const prevViewport = { ...this.currentViewport };
+    const prevAuto = this.viewportAuto;
     this.deviceScaleFactor = scale;
     this.currentViewport = { width, height };
+    // An explicit scale pins a concrete viewport, so leave window-follow mode.
+    this.viewportAuto = false;
 
     const err = await this.recreateContext();
     if (err !== null) {
@@ -1502,6 +1985,7 @@ export class BrowserManager {
       // so live state matches tracked state.
       this.deviceScaleFactor = prevScale;
       this.currentViewport = prevViewport;
+      this.viewportAuto = prevAuto;
       const rollbackErr = await this.recreateContext();
       if (rollbackErr !== null) {
         // Second recreate also failed — we're in a clean blank slate via fallback, but
@@ -1556,26 +2040,29 @@ export class BrowserManager {
       const { STEALTH_LAUNCH_ARGS, buildGStackLaunchArgs } = await import('./stealth');
       // Same blink-level stealth flags as launch()/launchHeaded(). Without
       // STEALTH_LAUNCH_ARGS the handed-off browser kept the AutomationControlled
-      // tell that the other two paths strip.
-      const launchArgs: string[] = ['--hide-crash-restore-bubble', ...STEALTH_LAUNCH_ARGS, ...buildGStackLaunchArgs()];
+      // tell that the other two paths strip. User-supplied extras
+      // (GSTACK_CHROMIUM_ARGS) come last, no-op when unset.
+      const launchArgs: string[] = ['--hide-crash-restore-bubble', ...STEALTH_LAUNCH_ARGS, ...buildGStackLaunchArgs(), ...parseExtraChromiumArgs()];
       if (extensionPath) {
-        launchArgs.push(`--disable-extensions-except=${extensionPath}`);
-        launchArgs.push(`--load-extension=${extensionPath}`);
-        // Auth token is served via /health endpoint now (no file write needed).
-        // Extension reads token from /health on connect.
-        console.log(`[browse] Handoff: loading extension from ${extensionPath}`);
+        const allExtensionPaths = [extensionPath, ...this.findExtraExtensionPaths()];
+        launchArgs.push(`--disable-extensions-except=${allExtensionPaths.join(',')}`);
+        launchArgs.push(`--load-extension=${allExtensionPaths.join(',')}`);
+        // Auth is provisioned into extension storage after the context starts.
+        // /health deliberately remains public status-only.
+        console.log(`[browse] Handoff: loading ${allExtensionPaths.length} extension(s): ${allExtensionPaths.join(', ')}`);
       } else {
         console.log('[browse] Handoff: extension not found — headed mode without side panel');
       }
 
-      const userDataDir = path.join(process.env.HOME || '/tmp', '.gstack', 'chromium-profile');
+      const userDataDir = resolveChromiumProfile();
       fs.mkdirSync(userDataDir, { recursive: true });
 
       // T1: same automation-tell-stripping defaults as launchHeaded().
       // The handoff path (headless → headed re-launch) takes the same
       // anti-detection posture.
       const { STEALTH_IGNORE_DEFAULT_ARGS } = await import('./stealth');
-      newContext = await chromium.launchPersistentContext(userDataDir, {
+      const chromiumDriverHandoff = await getChromium();
+      newContext = await chromiumDriverHandoff.launchPersistentContext(userDataDir, {
         headless: false,
         // Match the sandbox policy used by launchHeaded() / launch(). The
         // handoff path is the headless→headed re-launch and shares the same
@@ -1583,6 +2070,8 @@ export class BrowserManager {
         chromiumSandbox: shouldEnableChromiumSandbox(),
         args: launchArgs,
         viewport: null,
+        // Auto-answer HTTP basic-auth (401) challenges (GSTACK_HTTP_CREDENTIALS).
+        ...(parseHttpCredentials() ? { httpCredentials: parseHttpCredentials() } : {}),
         ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
         ignoreDefaultArgs: STEALTH_IGNORE_DEFAULT_ARGS,
         timeout: 15000,
@@ -1613,6 +2102,8 @@ export class BrowserManager {
       if (Object.keys(this.extraHeaders).length > 0) {
         await newContext.setExtraHTTPHeaders(this.extraHeaders);
       }
+
+      await this.provisionExtensionAuth();
 
       // Register disconnect handler on new browser. Same clean-vs-crash
       // discrimination as launch() / launchHeaded() above so a user-initiated

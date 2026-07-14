@@ -299,6 +299,49 @@ describe('Update check preamble', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout.toString().trim()).toBe('UPGRADE_AVAILABLE 0.3.3 0.4.0');
   });
+
+  test('update check bash block surfaces CHECK_FAILED when script crashes', () => {
+    const tempRoot = fs.mkdtempSync(path.join(ROOT, '.tmp-update-check-'));
+    const gstackDir = path.join(tempRoot, 'gstack');
+    const stateDir = path.join(tempRoot, 'state');
+    const binDir = path.join(gstackDir, 'bin');
+    const fallbackBinDir = path.join(tempRoot, '.agents', 'skills', 'gstack', 'bin');
+    fs.mkdirSync(binDir, { recursive: true });
+    fs.mkdirSync(fallbackBinDir, { recursive: true });
+    fs.mkdirSync(stateDir, { recursive: true });
+    fs.writeFileSync(path.join(gstackDir, 'VERSION'), '0.3.3\n');
+    fs.writeFileSync(path.join(gstackDir, 'REMOTE_VERSION'), '0.4.0\n');
+    fs.writeFileSync(path.join(stateDir, '.codex-desc-healed'), '');
+    fs.writeFileSync(path.join(stateDir, 'just-upgraded-from'), '0.2.0\n');
+    fs.symlinkSync(path.join(ROOT, 'bin', 'gstack-config'), path.join(binDir, 'gstack-config'));
+    fs.symlinkSync(path.join(ROOT, 'bin', 'gstack-update-check'), path.join(binDir, 'gstack-update-check'));
+    fs.symlinkSync(path.join(ROOT, 'bin', 'gstack-update-check'), path.join(fallbackBinDir, 'gstack-update-check'));
+
+    fs.chmodSync(stateDir, 0o555);
+    try {
+      const result = Bun.spawnSync(['bash', '-c',
+        '_UPD=$($GSTACK_BIN/gstack-update-check 2>/dev/null || .agents/skills/gstack/bin/gstack-update-check 2>/dev/null || true); [ -n "$_UPD" ] && echo "$_UPD" || true'
+      ], {
+        cwd: tempRoot,
+        env: {
+          ...process.env,
+          GSTACK_BIN: binDir,
+          GSTACK_DIR: gstackDir,
+          GSTACK_STATE_DIR: stateDir,
+          GSTACK_REMOTE_URL: `file://${path.join(gstackDir, 'REMOTE_VERSION')}`,
+        },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.toString().trim()).toContain('CHECK_FAILED');
+      expect(result.stdout.toString().trim()).toContain('rm');
+    } finally {
+      fs.chmodSync(stateDir, 0o755);
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 // --- Part 7: Cross-skill path consistency (A1) ---
@@ -1898,6 +1941,65 @@ describe('no compiled binaries in git', () => {
 // claude PTY (terminal-agent.ts); these assertions had no target file.
 // Terminal-pane invariants are covered by browse/test/sidebar-tabs.test.ts
 // and browse/test/terminal-agent.test.ts.
+
+// Issue #1656 (regression of #785): tilde inside double quotes is literal —
+// bash only expands `~` when unquoted at the start of a word. SKILL.md files
+// that assign a tilde-prefixed bin path inside double quotes, or `-x`-test it
+// in quotes, silently break because the exec sees `~/...` verbatim. The
+// surrounding `2>/dev/null || true` swallows the ENOENT and the brain-sync
+// preamble becomes a no-op. Lock the generator output so the pattern cannot
+// reappear under any resolver edit.
+describe('SKILL.md: no literal tilde in quoted assignments or -x tests (issue #1656)', () => {
+  function listGeneratedSkillFiles(): string[] {
+    const out: string[] = [];
+    const rootSkill = path.join(ROOT, 'SKILL.md');
+    if (fs.existsSync(rootSkill)) out.push(rootSkill);
+    for (const entry of fs.readdirSync(ROOT, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+      const candidate = path.join(ROOT, entry.name, 'SKILL.md');
+      if (fs.existsSync(candidate)) out.push(candidate);
+    }
+    return out;
+  }
+
+  test('no SKILL.md contains `="~/` (tilde literal inside quoted assignment)', () => {
+    const offenders: Array<{ file: string; line: number; text: string }> = [];
+    for (const file of listGeneratedSkillFiles()) {
+      const lines = fs.readFileSync(file, 'utf-8').split('\n');
+      lines.forEach((line, idx) => {
+        if (/="~\//.test(line)) {
+          offenders.push({ file: path.relative(ROOT, file), line: idx + 1, text: line.trim() });
+        }
+      });
+    }
+    if (offenders.length > 0) {
+      const sample = offenders.slice(0, 5).map(o => `${o.file}:${o.line}: ${o.text}`).join('\n');
+      throw new Error(
+        `Found ${offenders.length} tilde-literal-in-quoted-assignment site(s) in generated SKILL.md files (issue #1656). Use $HOME/ instead of ~/ in any double-quoted bash assignment. Sample:\n${sample}`,
+      );
+    }
+    expect(offenders.length).toBe(0);
+  });
+
+  test('no SKILL.md contains `[ -x "~/` (tilde literal inside quoted -x test)', () => {
+    const offenders: Array<{ file: string; line: number; text: string }> = [];
+    for (const file of listGeneratedSkillFiles()) {
+      const lines = fs.readFileSync(file, 'utf-8').split('\n');
+      lines.forEach((line, idx) => {
+        if (/\[\s+-x\s+"~\//.test(line)) {
+          offenders.push({ file: path.relative(ROOT, file), line: idx + 1, text: line.trim() });
+        }
+      });
+    }
+    if (offenders.length > 0) {
+      const sample = offenders.slice(0, 5).map(o => `${o.file}:${o.line}: ${o.text}`).join('\n');
+      throw new Error(
+        `Found ${offenders.length} \`[ -x "~/...\` site(s) in generated SKILL.md (issue #1656). The quoted tilde never expands, so the -x test always returns false and the gated block becomes dead code. Use $HOME instead. Sample:\n${sample}`,
+      );
+    }
+    expect(offenders.length).toBe(0);
+  });
+});
 
 // ─── Browser-skills validation ──────────────────────────────────
 //
