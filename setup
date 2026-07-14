@@ -203,14 +203,35 @@ case "$HOST" in
     echo ""
     exit 0 ;;
   hermes)
-    echo ""
-    echo "Hermes integration uses the same model as OpenClaw — Hermes spawns"
-    echo "Claude Code sessions, and gstack provides methodology artifacts."
-    echo ""
-    echo "To integrate gstack with Hermes:"
-    echo "  1. Tell your Hermes agent: 'install gstack for hermes'"
-    echo "  2. Or generate artifacts: bun run gen:skill-docs --host hermes"
-    echo ""
+    HERMES_SKILLS="$HOME/.hermes/skills"
+    mkdir -p "$HERMES_SKILLS"
+    (
+      cd "$SOURCE_GSTACK_DIR"
+      bun install --frozen-lockfile 2>/dev/null || bun install
+      bun run gen:skill-docs --host hermes
+    )
+    for _hermes_src in "$SOURCE_GSTACK_DIR"/.hermes/skills/gstack*; do
+      [ -d "$_hermes_src" ] || continue
+      _hermes_dst="$HERMES_SKILLS/$(basename "$_hermes_src")"
+      if [ -e "$_hermes_dst" ] || [ -L "$_hermes_dst" ]; then
+        _hermes_owned=0
+        if [ -L "$_hermes_dst" ] && [ "$(cd "$(dirname "$_hermes_dst")" && cd "$(dirname "$(readlink "$_hermes_dst")")" 2>/dev/null && pwd -P)/$(basename "$(readlink "$_hermes_dst")")" = "$_hermes_src" ]; then
+          _hermes_owned=1
+        elif [ -f "$_hermes_dst/.gstack-install-owner" ] && [ "$(cat "$_hermes_dst/.gstack-install-owner")" = "$SOURCE_GSTACK_DIR" ]; then
+          _hermes_owned=1
+        fi
+        if [ "$_hermes_owned" -ne 1 ]; then
+          echo "warning: preserving unowned Hermes skill at $_hermes_dst" >&2
+          continue
+        fi
+        rm -rf "$_hermes_dst"
+      fi
+      _link_or_copy "$_hermes_src" "$_hermes_dst"
+      if [ ! -L "$_hermes_dst" ]; then
+        printf '%s\n' "$SOURCE_GSTACK_DIR" > "$_hermes_dst/.gstack-install-owner"
+      fi
+    done
+    echo "Hermes skills installed. Verify with: hermes skills list --source local"
     exit 0 ;;
   gbrain)
     echo ""

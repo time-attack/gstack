@@ -95,7 +95,11 @@ REMOVED=()
 # checkout. A basename such as "gstack-personal" is not ownership proof.
 is_owned_skill_link() {
   local item="$1"
-  [ -L "$item" ] || return 1
+  if [ ! -L "$item" ]; then
+    [ -f "$item/.gstack-install-owner" ] || return 1
+    [ "$(cat "$item/.gstack-install-owner" 2>/dev/null || true)" = "$GSTACK_DIR" ]
+    return
+  fi
   local target resolved
   target="$(readlink "$item" 2>/dev/null || true)"
   [ -n "$target" ] || return 1
@@ -211,6 +215,18 @@ if [ -d "$KIRO_SKILLS" ]; then
     if is_owned_skill_link "$_ITEM"; then
       rm -f "$_ITEM"
       REMOVED+=("kiro/$(basename "$_ITEM")")
+    fi
+  done
+fi
+
+# ─── Remove Hermes skills ────────────────────────────────────
+HERMES_SKILLS="$HOME/.hermes/skills"
+if [ -d "$HERMES_SKILLS" ]; then
+  for _ITEM in "$HERMES_SKILLS"/gstack*; do
+    [ -e "$_ITEM" ] || [ -L "$_ITEM" ] || continue
+    if is_owned_skill_link "$_ITEM"; then
+      rm -rf "$_ITEM"
+      REMOVED+=("hermes/$(basename "$_ITEM")")
     fi
   done
 fi
