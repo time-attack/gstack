@@ -37,3 +37,20 @@ describe('/gstack-upgrade host refresh', () => {
     expect(lines.filter(line => line === './setup' || line.endsWith('&& ./setup'))).toEqual([]);
   });
 });
+
+describe('/gstack-upgrade git-install and backup safety', () => {
+  // Static pins for the other two upgrade fixes shipped alongside --host auto:
+  // ff-only-before-reset (guard-hook-friendly upgrades) and stale-.bak
+  // clearing (recursive backup trees, #922). Both in template AND generated.
+  for (const [name, src] of [['template', TEMPLATE], ['generated', GENERATED]] as const) {
+    test(`${name} tries a fast-forward before falling back to reset --hard`, () => {
+      expect(src).toContain('if ! git merge --ff-only origin/main');
+      expect(src).toContain('git reset --hard origin/main');
+    });
+
+    test(`${name} clears stale .bak dirs before both backup mvs`, () => {
+      expect(src).toContain('rm -rf "$INSTALL_DIR.bak"\nmv "$INSTALL_DIR" "$INSTALL_DIR.bak"');
+      expect(src).toContain('rm -rf "$LOCAL_GSTACK.bak"\nmv "$LOCAL_GSTACK" "$LOCAL_GSTACK.bak"');
+    });
+  }
+});
