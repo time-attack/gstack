@@ -59,6 +59,16 @@ describe("findExecutable", () => {
     const found = findExecutable("/nonexistent/path/to/nothing");
     expect(found).toBeNull();
   });
+
+  test("rejects an executable directory", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "make-pdf-browse-dir-"));
+    try {
+      fs.chmodSync(dir, 0o755);
+      expect(findExecutable(dir)).toBeNull();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("resolveBrowseBin", () => {
