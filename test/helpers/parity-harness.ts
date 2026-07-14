@@ -217,7 +217,7 @@ const MONOLITH_INVARIANTS: ParityInvariant[] = [
     // Browse fix-wave: the shared preamble grew ~1.5KB (SESSIONS echo, per-PPID
     // session-state persistence, language directive, remote-control AUQ gate,
     // configurable learnings limit) — all runtime-gating, can't move to sections.
-    maxSizeRatio: 1.10,
+    maxSizeRatio: 1.12,
     minBytes: 70_000,
   },
   {

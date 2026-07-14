@@ -147,7 +147,7 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     behavioral: 'external',
     externalTest: 'test/skill-e2e-plan-ceo-review-section-loading.test.ts',
     // Browse fix-wave preamble additions (see ship guard) lift the skeleton ~2.5KB.
-    maxSkeletonBytes: 93_000,
+    maxSkeletonBytes: 94_000,
     minUnionBytes: 80_000,
     mustContain: ['SCOPE EXPANSION', 'SELECTIVE EXPANSION', 'HOLD SCOPE', 'SCOPE REDUCTION'],
     // Default-on Codex outside-voice (codexPreflight block + CODEX_MODE branch
@@ -176,7 +176,7 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // default-on Codex outside-voice (codexPreflight block + CODEX_MODE branch
     // prose, replacing the smaller opt-in question) land this at ~6.6% over the
     // v1.53.0.0 baseline, and the browse fix-wave preamble additions push further.
-    maxSizeRatio: 1.10,
+    maxSizeRatio: 1.12,
   },
   'plan-design-review': {
     skill: 'plan-design-review',
@@ -194,7 +194,7 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // always-loaded AskUserQuestion Format section.
     // v1.2.0 activation lift (shared first-run-guidance preamble) + #2077 ask-first scope gate.
     // Browse fix-wave preamble additions (see ship guard) lift the skeleton ~2KB.
-    maxSkeletonBytes: 90_500,
+    maxSkeletonBytes: 91_500,
     minUnionBytes: 70_000,
     mustContain: ['design', 'visual'],
     maxSizeRatio: 1.09,
@@ -215,7 +215,7 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // continuation protocol in the always-loaded AskUserQuestion Format section.
     // v1.2.0 activation lift: first-run-guidance section in the shared preamble.
     // Browse fix-wave preamble additions (see ship guard) lift the skeleton ~2KB.
-    maxSkeletonBytes: 82_500,
+    maxSkeletonBytes: 83_500,
     minUnionBytes: 70_000,
     mustContain: ['developer experience', 'Getting Started'],
     // Default-on Codex outside-voice (codexPreflight block + CODEX_MODE branch
@@ -240,10 +240,10 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // v1.2.0 activation lift: first-run-guidance section in the shared preamble,
     // plus the P1 office-hours closing handoff (AUQ that launches the next skill).
     // Browse fix-wave preamble additions (see ship guard) lift the skeleton ~2.5KB.
-    maxSkeletonBytes: 101_000,
+    maxSkeletonBytes: 102_000,
     minUnionBytes: 70_000,
     mustContain: ['design doc', 'problem statement'],
-    maxSizeRatio: 1.09,
+    maxSizeRatio: 1.11,
   },
   'document-release': {
     skill: 'document-release',
@@ -291,14 +291,14 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // always-loaded AskUserQuestion Format section.
     // v1.2.0 activation lift: first-run-guidance section in the shared preamble.
     // Browse fix-wave preamble additions (see ship guard) lift the skeleton ~2.3KB.
-    maxSkeletonBytes: 72_000,
+    maxSkeletonBytes: 73_000,
     minUnionBytes: 72_000,
     mustContain: ['Typography', 'Color', 'Aesthetic Direction'],
     // Cross-cutting preamble growth (v1.57.2.0 AUQ-failure prose fallback ~2KB +
     // the cross-session decision-memory nudge) lands this carved skeleton just over
     // the strict 1.05; headroom for the shared preamble additions, plus the browse
     // fix-wave preamble additions.
-    maxSizeRatio: 1.10,
+    maxSizeRatio: 1.12,
   },
   cso: {
     skill: 'cso',
@@ -339,7 +339,7 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // cross-cutting preamble growth (v1.57.2.0 AUQ-failure prose fallback ~2KB + the
     // decision-memory nudge) lands it just over 1.05; headroom for the shared additions,
     // plus the browse fix-wave preamble additions.
-    maxSizeRatio: 1.10,
+    maxSizeRatio: 1.12,
   },
 };
 

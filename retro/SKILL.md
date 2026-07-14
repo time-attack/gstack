@@ -113,6 +113,10 @@ echo "QUESTION_TUNING: $_QUESTION_TUNING"
 _UPDATE_CHECK=$(~/.claude/skills/gstack/bin/gstack-config get update_check 2>/dev/null || echo "true")
 echo "UPDATE_CHECK: $_UPDATE_CHECK"
 mkdir -p ~/.gstack/analytics
+# Reap orphaned per-PPID session-state files (>2h old) — the completion block
+# deletes its own on a clean run, but a killed/crashed skill leaves one behind,
+# so sweep like the ~/.gstack/sessions markers do. Bounds unbounded growth.
+find ~/.gstack/analytics -maxdepth 1 -name '.session-state-*' -mmin +120 -exec rm {} + 2>/dev/null || true
 # Persist telemetry start-state so the separate "Telemetry (run last)" Bash
 # call (which runs in its own shell — vars don't survive between blocks) can
 # read a real start time and session id instead of logging duration 0 /
@@ -382,7 +386,7 @@ AI orchestrator (e.g., OpenClaw). In spawned sessions:
 
 **Conductor rule (read before the MCP rule):** if `CONDUCTOR_SESSION: true` was echoed by the preamble, do NOT call AskUserQuestion at all — neither native nor any `mcp__*__AskUserQuestion` variant. Render EVERY decision brief as the **prose form** below and STOP. This is proactive, not a reaction to a failure: Conductor disables native AUQ and its MCP variant is flaky (it returns `[Tool result missing due to internal error]`), so prose is the reliable path. **Auto-decide preferences still apply first:** if a `[plan-tune auto-decide] <id> → <option>` result has already surfaced for a question, proceed with that option (no prose). Because in Conductor you go straight to prose without ever calling the tool, this auto-decide-first ordering is enforced HERE, not only by the PreToolUse hook. When you render a Conductor prose brief, also capture it with `bin/gstack-question-log` (the PostToolUse capture hook never fires on a prose path, so `/plan-tune` history/learning depends on this call).
 
-**Remote-control rule (read alongside the Conductor rule):** if `REMOTE_CONTROL` from the preamble is truthy (anything other than empty or `0`), OR the transcript shows `Remote Control connecting…` without a later `Remote Control disconnected.`, do NOT call AskUserQuestion (native or any `mcp__*__AskUserQuestion` variant) — the Anthropic app's remote-control surface renders it as an un-clickable menu. Render EVERY decision brief as the **prose form** below, capture it with `bin/gstack-question-log` (same as the Conductor path), and STOP.
+**Remote-control rule (read alongside the Conductor rule):** the authoritative signal is `REMOTE_CONTROL` from the preamble. If it is truthy (not empty or `0`), do NOT call AskUserQuestion (native or `mcp__*__AskUserQuestion`) — the Anthropic app's remote-control surface renders it as an un-clickable menu; render the **prose form** below, capture with `bin/gstack-question-log`, and STOP. Only if `REMOTE_CONTROL` is unset may you fall back to the transcript, and only when remote control is clearly THIS session's live state (a `Remote Control connecting…` with no later disconnect, still active). Do not trip on an incidental mention; when unsure, prefer the tool.
 
 **Rule (non-Conductor):** if any `mcp__*__AskUserQuestion` variant is in your tool list, prefer it. Hosts may disable native AUQ via `--disallowedTools AskUserQuestion` (Conductor does, by default) and route through their MCP variant; calling native there silently fails. Same questions/options shape; same decision-brief format applies.
 
@@ -647,7 +651,7 @@ equivalents (cat, sed, find, grep). The dedicated tools are cheaper and clearer.
 
 ## Voice
 
-**Language:** Match the user's language. If the user is writing mostly in Chinese, respond in Chinese. Do not switch languages unless the user asks you to, or the source material is clearer in the original language.
+**Language:** Reply in the user's language in conversation (Chinese in, Chinese out). This is chat prose only; files, code, commits, and PR bodies follow the repo's conventions, not the chat language.
 
 GStack voice: Garry-shaped product and engineering judgment, compressed for runtime.
 
@@ -809,6 +813,11 @@ Run this bash:
 # in a fresh shell — the preamble's _TEL_START/_SESSION_ID/_TEL don't survive).
 # Keyed per-PPID so concurrent sessions don't read each other's state.
 [ -f ~/.gstack/analytics/.session-state-"$PPID" ] && . ~/.gstack/analytics/.session-state-"$PPID"
+# Fail SAFE on telemetry: if the state file was missing (orphan / PPID mismatch),
+# _TEL is unset here, and an unset _TEL must NOT open the analytics gate below
+# and write skill-usage.jsonl for a user who configured telemetry off. Default
+# to off; the preamble only ever persists "off" or a real opted-in value.
+_TEL="${_TEL:-off}"
 _TEL_END=$(date +%s)
 # Degrade to duration 0 when the state file is missing or PPID differs, rather
 # than logging a garbage duration off an unset _TEL_START.

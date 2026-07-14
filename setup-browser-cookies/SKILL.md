@@ -90,6 +90,10 @@ echo "QUESTION_TUNING: $_QUESTION_TUNING"
 _UPDATE_CHECK=$(~/.claude/skills/gstack/bin/gstack-config get update_check 2>/dev/null || echo "true")
 echo "UPDATE_CHECK: $_UPDATE_CHECK"
 mkdir -p ~/.gstack/analytics
+# Reap orphaned per-PPID session-state files (>2h old) — the completion block
+# deletes its own on a clean run, but a killed/crashed skill leaves one behind,
+# so sweep like the ~/.gstack/sessions markers do. Bounds unbounded growth.
+find ~/.gstack/analytics -maxdepth 1 -name '.session-state-*' -mmin +120 -exec rm {} + 2>/dev/null || true
 # Persist telemetry start-state so the separate "Telemetry (run last)" Bash
 # call (which runs in its own shell — vars don't survive between blocks) can
 # read a real start time and session id instead of logging duration 0 /
@@ -497,7 +501,7 @@ equivalents (cat, sed, find, grep). The dedicated tools are cheaper and clearer.
 
 ## Voice
 
-**Language:** Match the user's language. If the user is writing mostly in Chinese, respond in Chinese. Do not switch languages unless the user asks you to, or the source material is clearer in the original language.
+**Language:** Reply in the user's language in conversation (Chinese in, Chinese out). This is chat prose only; files, code, commits, and PR bodies follow the repo's conventions, not the chat language.
 
 Direct, concrete, builder-to-builder. Name the file, function, command, and user-visible impact. No filler.
 
@@ -539,6 +543,11 @@ Run this bash:
 # in a fresh shell — the preamble's _TEL_START/_SESSION_ID/_TEL don't survive).
 # Keyed per-PPID so concurrent sessions don't read each other's state.
 [ -f ~/.gstack/analytics/.session-state-"$PPID" ] && . ~/.gstack/analytics/.session-state-"$PPID"
+# Fail SAFE on telemetry: if the state file was missing (orphan / PPID mismatch),
+# _TEL is unset here, and an unset _TEL must NOT open the analytics gate below
+# and write skill-usage.jsonl for a user who configured telemetry off. Default
+# to off; the preamble only ever persists "off" or a real opted-in value.
+_TEL="${_TEL:-off}"
 _TEL_END=$(date +%s)
 # Degrade to duration 0 when the state file is missing or PPID differs, rather
 # than logging a garbage duration off an unset _TEL_START.
