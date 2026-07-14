@@ -164,6 +164,220 @@ describe('gstack-codex-probe: auth probe', () => {
       fs.rmSync(altCodex, { recursive: true, force: true });
     }
   });
+
+  // --- Custom provider fallback (config.toml [model_providers.*].env_key) ---
+  // Lets users with mimo / self-hosted / proxy OpenAI-compatible providers
+  // run /codex without forking gstack. The probe reads the env var named by
+  // each [model_providers.*].env_key entry; a non-empty match → AUTH_OK.
+
+  test('config.toml with env_key + matching env var set → AUTH_OK', () => {
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        '[model_providers.mimo]\nenv_key = "MIMO_API_KEY"\n'
+      );
+      const r = runProbe({
+        snippet: '_gstack_codex_auth_probe',
+        env: { MIMO_API_KEY: 'tp-test-key' },
+        home,
+      });
+      expect(r.stdout.trim()).toBe('AUTH_OK');
+      expect(r.status).toBe(0);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('config.toml with single-quoted env_key (TOML literal string) → AUTH_OK', () => {
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        "[model_providers.mimo]\nenv_key = 'MIMO_API_KEY'\n"
+      );
+      const r = runProbe({
+        snippet: '_gstack_codex_auth_probe',
+        env: { MIMO_API_KEY: 'tp-test-key' },
+        home,
+      });
+      expect(r.stdout.trim()).toBe('AUTH_OK');
+      expect(r.status).toBe(0);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('inline-commented env_key does not cause false AUTH_OK', () => {
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        '[model_providers.mimo]\nbase_url = "http://localhost/v1" # env_key = "PATH"\n'
+      );
+      const r = runProbe({ snippet: '_gstack_codex_auth_probe', home });
+      expect(r.stdout.trim()).toBe('AUTH_FAILED');
+      expect(r.status).toBe(1);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('substring key like my_env_key does not match', () => {
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        '[model_providers.mimo]\nmy_env_key = "MIMO_API_KEY"\n'
+      );
+      const r = runProbe({
+        snippet: '_gstack_codex_auth_probe',
+        env: { MIMO_API_KEY: 'tp-test-key' },
+        home,
+      });
+      expect(r.stdout.trim()).toBe('AUTH_FAILED');
+      expect(r.status).toBe(1);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('config.toml with env_key + matching env var unset → AUTH_FAILED', () => {
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        '[model_providers.mimo]\nenv_key = "MIMO_API_KEY"\n'
+      );
+      const r = runProbe({
+        snippet: '_gstack_codex_auth_probe',
+        env: { MIMO_API_KEY: undefined },
+        home,
+      });
+      expect(r.stdout.trim()).toBe('AUTH_FAILED');
+      expect(r.status).toBe(1);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('config.toml with env_key + whitespace-only env var → AUTH_FAILED', () => {
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        '[model_providers.mimo]\nenv_key = "MIMO_API_KEY"\n'
+      );
+      const r = runProbe({
+        snippet: '_gstack_codex_auth_probe',
+        env: { MIMO_API_KEY: '   \t\n' },
+        home,
+      });
+      expect(r.stdout.trim()).toBe('AUTH_FAILED');
+      expect(r.status).toBe(1);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('config.toml with multiple providers, one env var matches → AUTH_OK', () => {
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        [
+          '[model_providers.a]',
+          'env_key = "MISSING_KEY_A"',
+          '',
+          '[model_providers.b]',
+          'env_key = "MIMO_API_KEY"',
+          '',
+          '[model_providers.c]',
+          'env_key = "MISSING_KEY_C"',
+          '',
+        ].join('\n')
+      );
+      const r = runProbe({
+        snippet: '_gstack_codex_auth_probe',
+        env: { MIMO_API_KEY: 'tp-test-key' },
+        home,
+      });
+      expect(r.stdout.trim()).toBe('AUTH_OK');
+      expect(r.status).toBe(0);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('config.toml present but env var absent → AUTH_FAILED (negative path)', () => {
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        '[model_providers.mimo]\nenv_key = "MIMO_API_KEY"\n'
+      );
+      const r = runProbe({ snippet: '_gstack_codex_auth_probe', home });
+      expect(r.stdout.trim()).toBe('AUTH_FAILED');
+      expect(r.status).toBe(1);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('commented-out env_key + env var set → AUTH_FAILED (no comment match)', () => {
+    // Regression guard: grep -oE would match env_key inside `# env_key = "..."`
+    // comments. The probe strips comment lines first via `grep -v '^[[:space:]]*#'`.
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        [
+          '[model_providers.mimo]',
+          '# env_key = "DEPRECATED_KEY"',
+          'env_key = "MIMO_API_KEY"',
+          '# env_key = "OLD_KEY"',
+          '',
+        ].join('\n')
+      );
+      // Set the commented-out keys but NOT the live one
+      const r = runProbe({
+        snippet: '_gstack_codex_auth_probe',
+        env: { DEPRECATED_KEY: 'tp-old', OLD_KEY: 'tp-older' },
+        home,
+      });
+      expect(r.stdout.trim()).toBe('AUTH_FAILED');
+      expect(r.status).toBe(1);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('malformed config.toml → AUTH_FAILED, no crash', () => {
+    // Garbage content must NOT crash the probe. It should fall through to
+    // AUTH_FAILED cleanly.
+    const home = tempHome();
+    try {
+      fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(home, '.codex', 'config.toml'),
+        '\x00\x01\x02 binary garbage \xff\xfe[broken bracket\n=no equals=\n'
+      );
+      const r = runProbe({ snippet: '_gstack_codex_auth_probe', home });
+      expect(r.stdout.trim()).toBe('AUTH_FAILED');
+      expect(r.status).toBe(1);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
 });
 
 // --- Group 2: Version check -------------------------------------------------
@@ -426,4 +640,141 @@ describe('codex SKILL.md.tmpl Step 2A: PROMPT + --base mutual exclusion guard', 
       expect(bareReview || execRoute).toBe(true);
     });
   }
+});
+
+// ── Pattern-guard: security hooks (issue #1329) ────────────────────────────
+// Guards against re-introducing inline `python -u -c "..."` blocks (Pattern 4
+// of issue #1329) in the /codex and /autoplan templates. Inline python with
+// `#` comments triggers Claude Code PreToolUse security hooks; the JSONL
+// streaming is handled by bin/gstack-codex-jsonl-parser instead.
+// Patterns 1 (source ~/ probe) and 3 (bare cd "$_REPO_ROOT") are still
+// present on the templates by design of the current probe architecture and
+// are NOT guarded here — see issue #1329 for the remaining work.
+
+describe('codex/autoplan templates: security hook trigger patterns (issue #1329)', () => {
+  for (const label of [
+    'codex/SKILL.md.tmpl',
+    'codex/SKILL.md',
+    'autoplan/SKILL.md.tmpl',
+    'autoplan/SKILL.md',
+  ]) {
+    test(`${label}: Pattern 4 — no inline python -c invocations of any spelling`, () => {
+      const content = fs.readFileSync(path.join(ROOT, label), 'utf-8');
+      // Guard the CLASS, not the retired exact idiom: any python/python3/
+      // $PYTHON_CMD command word followed by -c re-triggers the security-hook
+      // bug. The parser binary is the only sanctioned streaming path.
+      const inlinePythonRe = /(^|[|;&(\s])("?\$PYTHON_CMD"?|python3?)\s+(-[A-Za-z]+\s+)*-c\s/m;
+      expect(inlinePythonRe.test(content)).toBe(false);
+    });
+  }
+});
+
+describe('gstack-codex-jsonl-parser: binary hygiene', () => {
+  test('bin/gstack-codex-jsonl-parser exists and is executable', () => {
+    const p = path.join(ROOT, 'bin/gstack-codex-jsonl-parser');
+    expect(fs.existsSync(p)).toBe(true);
+    const stat = fs.statSync(p);
+    expect(stat.mode & 0o111).toBeGreaterThan(0);
+  });
+
+  test('bin/gstack-codex-jsonl-parser is syntactically valid Python', () => {
+    const p = path.join(ROOT, 'bin/gstack-codex-jsonl-parser');
+    const result = spawnSync('python3', ['-c', `import ast; ast.parse(open(${JSON.stringify(p)}).read())`], { timeout: 5000 });
+    expect(result.status).toBe(0);
+  });
+});
+
+describe('gstack-codex-jsonl-parser: streaming output', () => {
+  const PARSER = path.join(ROOT, 'bin/gstack-codex-jsonl-parser');
+
+  function runParser(input: string, args: string[] = []): { stdout: string; stderr: string } {
+    const result = spawnSync('python3', [PARSER, ...args], {
+      input,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 5000,
+    });
+    return {
+      stdout: (result.stdout ?? '').toString(),
+      stderr: (result.stderr ?? '').toString(),
+    };
+  }
+
+  test('extracts agent_message text from item.completed', () => {
+    const line = JSON.stringify({
+      type: 'item.completed',
+      item: { type: 'agent_message', text: 'Hello from codex' },
+    });
+    const { stdout } = runParser(line + '\n');
+    expect(stdout).toContain('Hello from codex');
+  });
+
+  test('extracts SESSION_ID from thread.started in consult mode', () => {
+    const line = JSON.stringify({ type: 'thread.started', thread_id: 'tid-abc123' });
+    const { stdout } = runParser(line + '\n', ['--mode', 'consult']);
+    expect(stdout).toContain('SESSION_ID:tid-abc123');
+  });
+
+  test('does NOT emit SESSION_ID in challenge mode', () => {
+    const line = JSON.stringify({ type: 'thread.started', thread_id: 'tid-xyz' });
+    const { stdout } = runParser(line + '\n', ['--mode', 'challenge']);
+    expect(stdout).not.toContain('SESSION_ID:');
+  });
+
+  test('emits turn.completed disconnect warning to stderr in challenge mode', () => {
+    const { stderr } = runParser('', ['--mode', 'challenge']);
+    expect(stderr).toContain('No turn.completed event received');
+  });
+
+  test('no disconnect warning in consult mode when no events', () => {
+    const { stderr } = runParser('', ['--mode', 'consult']);
+    expect(stderr).not.toContain('No turn.completed');
+  });
+
+  test('emits token count from turn.completed', () => {
+    const line = JSON.stringify({
+      type: 'turn.completed',
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+    const { stdout } = runParser(line + '\n');
+    expect(stdout).toContain('tokens used: 150');
+  });
+
+  test('emits [codex thinking] for reasoning items', () => {
+    const line = JSON.stringify({
+      type: 'item.completed',
+      item: { type: 'reasoning', text: 'Thinking about X' },
+    });
+    const { stdout } = runParser(line + '\n');
+    expect(stdout).toContain('[codex thinking] Thinking about X');
+  });
+
+  test('emits [codex ran] for command_execution items', () => {
+    const line = JSON.stringify({
+      type: 'item.completed',
+      item: { type: 'command_execution', command: 'git diff HEAD' },
+    });
+    const { stdout } = runParser(line + '\n');
+    expect(stdout).toContain('[codex ran] git diff HEAD');
+  });
+
+  test('non-UTF8 bytes in the stream do not kill remaining output', () => {
+    const before = JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'before' } });
+    const after = JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'after' } });
+    const input = Buffer.concat([
+      Buffer.from(before + '\n'),
+      Buffer.from([0xff, 0xfe, 0x0a]),
+      Buffer.from(after + '\n'),
+    ]);
+    const result = spawnSync('python3', [PARSER], { input, stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000 });
+    const stdout = (result.stdout ?? '').toString();
+    expect(result.status).toBe(0);
+    expect(stdout).toContain('before');
+    expect(stdout).toContain('after');
+  });
+
+  test('ignores malformed JSON lines without crashing', () => {
+    const input = 'not-json\n{"broken":}\n' + JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'ok' } }) + '\n';
+    const { stdout } = runParser(input);
+    expect(stdout).toContain('ok');
+  });
 });
