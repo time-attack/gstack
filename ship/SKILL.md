@@ -815,11 +815,15 @@ fi
 if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
   ~/.claude/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
-    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
+    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" \
+    --error-message "ERROR_MESSAGE" --failed-step "FAILED_STEP" 2>/dev/null &
 fi
 ```
 
-Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running.
+Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running. Replace
+`ERROR_MESSAGE` with a short description of the error (never file paths; empty
+string "" unless outcome is error) and `FAILED_STEP` with the step name or number
+where the failure occurred (empty string "" unless outcome is error).
 
 ## Plan Status Footer
 
@@ -994,7 +998,82 @@ If CEO Review is missing, mention as informational ("CEO Review not run — reco
 
 For Design Review: run `source <(~/.claude/skills/gstack/bin/gstack-diff-scope <base> 2>/dev/null)`. If `SCOPE_FRONTEND=true` and no design review (plan-design-review or design-review-lite) exists in the dashboard, mention: "Design Review not run — this PR changes frontend code. The lite design check will run automatically in Step 9, but consider running /design-review for a full visual audit post-implementation." Still never block.
 
-Continue to Step 2 — do NOT block or ask. Ship runs its own review in Step 9.
+Continue to Step 1.5 — do NOT block or ask. Ship runs its own review in Step 9.
+
+5. Check for open plan items:
+
+```bash
+eval "$(~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null)" 2>/dev/null || true
+_PLAN_DIR="${GSTACK_HOME:-$HOME/.gstack}/projects/${SLUG:-unknown}"
+_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
+_PLAN_GLOB=$(~/.claude/skills/gstack/bin/gstack-config get plan_glob 2>/dev/null || echo "")
+_PLAN_GLOB="${_PLAN_GLOB/#\~/$HOME}"
+if [ -n "$_PLAN_GLOB" ]; then
+  _CANDIDATES=$(ls -t $_PLAN_GLOB 2>/dev/null)
+else
+  _CANDIDATES=$(find "$_PLAN_DIR" -name "*.md" 2>/dev/null | grep -E "ceo-plans|eng-plans" | sort -r)
+fi
+_PLAN_FILE=$(echo "$_CANDIDATES" | grep -i "$(echo "$_BRANCH" | tr '/' '-')" 2>/dev/null | head -1)
+if [ -z "$_PLAN_FILE" ]; then
+  _PLAN_FILE=$(echo "$_CANDIDATES" | head -1)
+fi
+if [ -n "$_PLAN_FILE" ]; then
+  _REMAINING=$(grep -c "- \[ \]" "$_PLAN_FILE" 2>/dev/null || echo "0")
+  echo "PLAN_FILE: $_PLAN_FILE"
+  echo "OPEN_CHECKBOXES: $_REMAINING"
+else
+  echo "PLAN_FILE: none"
+fi
+```
+
+If `OPEN_CHECKBOXES` > 0, print an informational warning (never block):
+"Note: Plan has N open checkbox(es) in `<plan filename>`. Run /plan-status to review what's REMAINING before the PR lands — or proceed if these items are intentionally deferred."
+
+If `PLAN_FILE` is none, skip silently.
+
+---
+
+## Step 1.5: Upstream duplicate audit (pr-prep gate)
+
+Catches the case where a contributor's branch would file a PR that
+duplicates an already-open upstream PR or issue. Without this gate
+the duplicate gets filed and is closed days later, costing reviewer
+time + contributor goodwill.
+
+Skip on:
+- Forks that don't have a tracked upstream remote
+- Branches where the base is the user's own fork (no upstream to dup)
+- Explicit `--skip-pr-prep` flag
+
+First check whether an upstream repo is configured (solo-repo case):
+
+```bash
+gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "NO_UPSTREAM"
+```
+
+If the output is `NO_UPSTREAM`, print "[ship] no upstream repo detected, skipping pr-prep audit" and continue to Step 2.
+
+Otherwise, run the `/pr-prep` skill **inline**: read
+`~/.claude/skills/gstack/pr-prep/SKILL.md` (or the `pr-prep` skill wherever
+this gstack install lives) and execute its steps as if invoked with
+`GSTACK_FROM_SHIP=1 --base <base> --json` — non-interactive (skip its
+AskUserQuestion confirmations), writing the machine-readable JSON report to
+`/tmp/ship-pr-prep.json`.
+
+Interpret the result:
+- **EXACT_DUP on any commit** — STOP the ship and show the collision report plus resolution paths:
+  1. Close your version, comment on the upstream PR with your angle
+  2. Cherry-pick unique parts to a new branch + file separately
+  3. Override with `/ship --skip-pr-prep` if coordinated with the upstream PR author
+- **CLEAN / OVERLAP / SIBLING** — print the one-line summary and continue.
+
+Note: the JSON report path (`/tmp/ship-pr-prep.json`) is read again in
+Step 19 (PR body assembly) to surface SIBLING / OVERLAP findings as a
+collapsed "Upstream context" section in the PR body. SIBLING context
+helps reviewers triage faster; it does NOT block ship.
+
+If the pr-prep skill is not installed (older gstack install), print a
+warning and continue. Don't hard-fail ship on a missing skill.
 
 ---
 

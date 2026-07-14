@@ -38,8 +38,10 @@ import { SECTION, SECTION_INDEX } from './sections';
 import { generateRedactTaxonomyTable, generateRedactInvocationBlock } from './redact-doc';
 import { generateAutoplanOutsideVoiceBlock, generateAutoplanOutsideVoicePreflight } from './autoplan';
 import { generateSpecSpawn, generateSpecExecuteFlag } from './spec-spawn';
+import { generateMergeQueueSetup } from './merge-queue-setup';
 
 export const RESOLVERS: Record<string, ResolverValue> = {
+  MERGE_QUEUE_SETUP: generateMergeQueueSetup,
   SLUG_EVAL: generateSlugEval,
   SLUG_SETUP: generateSlugSetup,
   REDACT_TAXONOMY_TABLE: generateRedactTaxonomyTable,

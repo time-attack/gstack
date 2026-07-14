@@ -15,6 +15,7 @@ Invoke them by name (e.g., `/office-hours`).
 |-------|-------------|
 | `/office-hours` | Start here. Reframes your product idea before you write code. |
 | `/plan-ceo-review` | CEO-level review: find the 10-star product in the request. |
+| `/plan-pm-review` | PM-mode review: RICE prioritization, JTBD segmentation, acceptance criteria. |
 | `/plan-eng-review` | Lock architecture, data flow, edge cases, and tests. |
 | `/plan-design-review` | Rate each design dimension 0-10, explain what a 10 looks like. |
 | `/plan-devex-review` | DX-mode review: TTHW, magical moments, friction points, persona traces. |
@@ -22,6 +23,7 @@ Invoke them by name (e.g., `/office-hours`).
 | `/autoplan` | One command runs CEO → design → eng → DX review. |
 | `/design-consultation` | Build a complete design system from scratch. |
 | `/spec` | Turn vague intent into a precise, executable spec in five phases. Files a GitHub issue, optionally spawns a Claude Code agent in a fresh worktree, and lets `/ship` close the source issue on merge. |
+| `/fanout` | Decompose a finished design doc into N parallel agent tasks with worktree dispatch. |
 
 ### Implementation + review
 
@@ -31,6 +33,8 @@ Invoke them by name (e.g., `/office-hours`).
 | `/codex` | Second opinion via OpenAI Codex. Review, challenge, or consult modes. |
 | `/investigate` | Systematic root-cause debugging. No fixes without investigation. |
 | `/bug-report` | Reconstruct what happened, capture safe diagnostics, and draft an exact maintainer-ready issue plus PR guidance. |
+| `/diagnose` | Evidence-based root-cause proof across systems. Report only, no code changes. |
+| `/community-review` | Review and prioritize open community PRs into a ranked digest. |
 | `/design-review` | Live-site visual audit + fix loop with atomic commits. |
 | `/design-shotgun` | Generate multiple AI design variants, comparison board, iterate. |
 | `/design-html` | Generate production-quality Pretext-native HTML/CSS. |
@@ -44,6 +48,7 @@ Invoke them by name (e.g., `/office-hours`).
 
 | Skill | What it does |
 |-------|-------------|
+| `/pr-prep` | Pre-PR upstream duplicate audit. Scores each commit against upstream issues + PRs; blocks on exact duplicates. Hooks into `/ship` as Step 1.5. |
 | `/ship` | Run tests, review, push, open PR. Workspace-aware version queue. |
 | `/land-and-deploy` | Merge the PR, wait for CI and deploy, verify production health. |
 | `/canary` | Post-deploy monitoring loop using the browse daemon. |
@@ -60,11 +65,13 @@ Invoke them by name (e.g., `/office-hours`).
 | `/context-save` | Save working context (git state, decisions, remaining work). |
 | `/context-restore` | Resume from a saved context, even across Conductor workspaces. |
 | `/learn` | Manage what gstack learned across sessions. |
+| `/plan-status` | Check progress of a plan against the codebase and git log. Phase-by-phase DONE/PARTIAL/REMAINING dashboard. |
 | `/retro` | Weekly retro with per-person breakdowns and shipping streaks. |
 | `/health` | Code quality dashboard (type checker, linter, tests, dead code). |
 | `/benchmark` | Performance regression detection (page load, Core Web Vitals). |
 | `/benchmark-models` | Cross-model benchmark for skills (Claude, GPT, Gemini side-by-side). |
 | `/cso` | OWASP Top 10 + STRIDE security audit. |
+| `/setup-search-mcp` | Set up free web search (Exa Search MCP) for Search Before Building. |
 | `/setup-gbrain` | Set up gbrain for cross-machine session memory sync. |
 | `/sync-gbrain` | Keep gbrain current with this repo's code; refresh agent search guidance in CLAUDE.md. |
 

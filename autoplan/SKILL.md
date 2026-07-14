@@ -2,7 +2,7 @@
 name: autoplan
 preamble-tier: 3
 version: 1.0.0
-description: Auto-review pipeline — reads the full CEO, design, eng, and DX review skills from disk and runs them sequentially with auto-decisions using 6 decision principles. (gstack)
+description: Auto-review pipeline — reads the full CEO, PM, design, eng, and DX review skills from disk and runs them sequentially with auto-decisions using 6 decision principles. (gstack)
 benefits-from: [office-hours]
 triggers:
   - run all reviews
@@ -819,11 +819,15 @@ fi
 if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
   ~/.claude/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
-    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
+    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" \
+    --error-message "ERROR_MESSAGE" --failed-step "FAILED_STEP" 2>/dev/null &
 fi
 ```
 
-Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running.
+Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running. Replace
+`ERROR_MESSAGE` with a short description of the error (never file paths; empty
+string "" unless outcome is error) and `FAILED_STEP` with the step name or number
+where the failure occurred (empty string "" unless outcome is error).
 
 ## Plan Status Footer
 
@@ -929,7 +933,7 @@ If none was produced (user may have cancelled), proceed with standard review.
 
 One command. Rough plan in, fully reviewed plan out.
 
-/autoplan reads the full CEO, design, eng, and DX review skill files from disk and follows
+/autoplan reads the full CEO, PM, design, eng, and DX review skill files from disk and follows
 them at full depth — same rigor, same sections, same methodology as running each skill
 manually. The only difference: intermediate AskUserQuestion calls are auto-decided using
 the 6 principles below. Taste decisions (where reasonable people could disagree) are
@@ -1092,11 +1096,20 @@ Then prepend a one-line HTML comment to the plan file:
   a developer tool (the plan describes something developers install, integrate, or build
   on top of) or if an AI agent is the primary user (OpenClaw actions, Claude Code skills,
   MCP servers).
+- Record the match COUNT for each scope, not just yes/no, and never skip a phase
+  silently. A scope under the 2-match threshold means the phase is dropped, so make the
+  miss visible: when a scope lands at 0-1 matches yet the plan plausibly touches it
+  (hyphenated terms like `form-control`/`api-endpoint`, synonyms not in the list, or
+  terms inside code fences that grep skips), flag it as a near-miss rather than a clean
+  no. A scope sitting at exactly 2 matches is borderline — one fewer match on a re-run
+  would silently drop the phase — so call that out too. In every case offer the override:
+  the user can tell you to force the phase and you run it regardless of the count.
 
 ### Step 3: Load skill files from disk
 
 Read each file using the Read tool:
 - `~/.claude/skills/gstack/plan-ceo-review/SKILL.md`
+- `~/.claude/skills/gstack/plan-pm-review/SKILL.md` (only when Phase 1.5's run condition is met — that depends on the CEO review output, so load it lazily at the start of Phase 1.5; the section skip list below applies to it the same as any other loaded skill file)
 - `~/.claude/skills/gstack/plan-design-review/SKILL.md` (only if UI scope detected)
 - `~/.claude/skills/gstack/plan-eng-review/SKILL.md`
 - `~/.claude/skills/gstack/plan-devex-review/SKILL.md` (only if DX scope detected)
@@ -1118,8 +1131,11 @@ Read each file using the Read tool:
 
 Follow ONLY the review-specific methodology, sections, and required outputs.
 
-Output: "Here's what I'm working with: [plan summary]. UI scope: [yes/no]. DX scope: [yes/no].
-Loaded review skills from disk. Starting full review pipeline with auto-decisions."
+Output: "Here's what I'm working with: [plan summary]. UI scope: [yes/no] ([N] matches).
+DX scope: [yes/no] ([N] matches). [For any scope that is not detected or borderline (0-2
+matches), add: "Note: <scope> review will be <skipped / included on a thin margin> — if
+that's wrong, tell me to force it and I'll run the phase."] Loaded review skills from disk.
+Starting full review pipeline with auto-decisions."
 
 ---
 
@@ -1249,8 +1265,10 @@ CEO DUAL VOICES — CONSENSUS TABLE:
   5. Competitive/market risks covered? —       —      —
   6. 6-month trajectory sound?         —       —      —
 ═══════════════════════════════════════════════════════════════
-CONFIRMED = both agree. DISAGREE = models differ (→ taste decision).
-Missing voice = N/A (not CONFIRMED). Single critical finding from one voice = flagged regardless.
+CONFIRMED = both voices agree. CONFIRMED-1V = only one voice ran (other N/A); the
+orchestrator concurs with the sole reviewer, so the row is NOT dual-confirmed.
+DISAGREE = models differ (→ taste decision). A missing voice is N/A, never CONFIRMED.
+Single critical finding from one voice = flagged regardless.
 ```
 
 Sections 1-10 — for EACH section, run the evaluation criteria from the loaded skill file:
@@ -1272,8 +1290,52 @@ Sections 1-10 — for EACH section, run the evaluation criteria from the loaded 
 > Consensus: [X/6 confirmed, Y disagreements → surfaced at gate].
 > Passing to Phase 2.
 
-Do NOT begin Phase 2 until all Phase 1 outputs are written to the plan file
+Do NOT begin Phase 1.5 until all Phase 1 outputs are written to the plan file
 and the premise gate has been passed.
+
+---
+
+**Pre-Phase 1.5 checklist (verify before starting):**
+- [ ] CEO completion summary written to plan file
+- [ ] CEO dual voices ran (Codex + Claude subagent, or noted unavailable)
+- [ ] CEO consensus table produced
+- [ ] Premise gate passed (user confirmed)
+- [ ] Phase-transition summary emitted
+
+## Phase 1.5: PM Review (conditional — run when prioritization or user-segment clarity is needed)
+
+**Skip condition:** Skip Phase 1.5 if ALL of the following are true:
+- The plan has 3 or fewer distinct deliverables (no prioritization needed)
+- The target user segment is already explicitly named in the CEO review
+- No TODOS.md items compete with this plan's scope
+
+If skipping, log: "Phase 1.5 skipped — plan scope is small and segment is already
+defined."
+
+**Run condition:** Run Phase 1.5 if ANY of the following is true:
+- The CEO review produced more than 5 distinct work items
+- The plan touches multiple user segments or personas
+- Any CEO review item was classified as "borderline scope"
+- TODOS.md exists with items that may conflict or overlap
+
+Read `~/.claude/skills/gstack/plan-pm-review/SKILL.md` now if it was not
+already loaded in Step 3 (the Step 3 section skip list applies to it too).
+Follow plan-pm-review/SKILL.md in **PRIORITIZE** mode by default. Switch to
+**SEGMENT** mode if the CEO review surfaced user-segment ambiguity, or **SHARPEN**
+mode if the CEO review produced vague scope items without acceptance criteria.
+
+**Override rules:**
+- Mode selection: auto-select based on what the CEO review revealed (PRIORITIZE
+  by default; SEGMENT if personas are unclear; SHARPEN if items are vague)
+- RICE scoring: use CC+gstack effort estimates, not human-team estimates
+- Cut list: P3 items → TODOS.md automatically (P3)
+- AskUserQuestion: suppress all except items with Confidence < 50% or where both
+  CEO and PM scoring conflict — surface those at the Final Gate
+
+**PHASE 1.5 COMPLETE.** Emit phase-transition summary:
+> **Phase 1.5 complete.** PM mode: [PRIORITIZE/SEGMENT/SHARPEN]. Items scored: N.
+> P1 items: N. P2 items: N. P3 items deferred to TODOS: N.
+> Passing to Phase 2.
 
 ---
 
@@ -1282,7 +1344,7 @@ and the premise gate has been passed.
 - [ ] CEO dual voices ran (subagent + outside voice, or noted unavailable)
 - [ ] CEO consensus table produced
 - [ ] Premise gate passed (user confirmed)
-- [ ] Phase-transition summary emitted
+- [ ] Phase 1.5 ran (or skipped with reason logged)
 
 ## Phase 2: Design Review (conditional — skip if no UI scope)
 
@@ -1440,8 +1502,10 @@ ENG DUAL VOICES — CONSENSUS TABLE:
   5. Error paths handled?              —       —      —
   6. Deployment risk manageable?       —       —      —
 ═══════════════════════════════════════════════════════════════
-CONFIRMED = both agree. DISAGREE = models differ (→ taste decision).
-Missing voice = N/A (not CONFIRMED). Single critical finding from one voice = flagged regardless.
+CONFIRMED = both voices agree. CONFIRMED-1V = only one voice ran (other N/A); the
+orchestrator concurs with the sole reviewer, so the row is NOT dual-confirmed.
+DISAGREE = models differ (→ taste decision). A missing voice is N/A, never CONFIRMED.
+Single critical finding from one voice = flagged regardless.
 ```
 
 3. Section 1 (Architecture): Produce ASCII dependency graph showing new components
@@ -1563,8 +1627,10 @@ DX DUAL VOICES — CONSENSUS TABLE:
   5. Upgrade path safe?                —       —      —
   6. Dev environment friction-free?    —       —      —
 ═══════════════════════════════════════════════════════════════
-CONFIRMED = both agree. DISAGREE = models differ (→ taste decision).
-Missing voice = N/A (not CONFIRMED). Single critical finding from one voice = flagged regardless.
+CONFIRMED = both voices agree. CONFIRMED-1V = only one voice ran (other N/A); the
+orchestrator concurs with the sole reviewer, so the row is NOT dual-confirmed.
+DISAGREE = models differ (→ taste decision). A missing voice is N/A, never CONFIRMED.
+Single critical finding from one voice = flagged regardless.
 ```
 
 3. Passes 1-8: Run each from loaded skill. Rate 0-10. Auto-decide each issue.
@@ -1621,6 +1687,15 @@ produced. Check the plan file and conversation for each item.
 - [ ] Dual voices ran (subagent + outside voice, or noted unavailable)
 - [ ] CEO consensus table produced
 
+**Phase 1.5 (PM) outputs — only if ran (not skipped):**
+- [ ] Mode selected (PRIORITIZE / SHARPEN / SEGMENT) and logged
+- [ ] Scope challenge: primary user named, riskiest assumption identified
+- [ ] Mode-specific output produced (RICE table OR acceptance criteria OR JTBD blocks)
+- [ ] "NOT in scope" section written
+- [ ] "What already exists" section written
+- [ ] TODOS cross-reference ran
+- [ ] Phase 1.5 ran (or explicitly skipped with reason logged)
+
 **Phase 2 (Design) outputs — only if UI scope detected:**
 - [ ] All 7 dimensions evaluated with scores
 - [ ] Issues identified and auto-decided
@@ -1676,12 +1751,12 @@ COMMITS_RECENT=$(git log --format=%H -n 5 2>/dev/null | tr '\n' '|' | sed 's/|$/
 
 AGGREGATED_TASKS=""
 if command -v jq >/dev/null 2>&1; then
-  # Collect entries from all 4 phases, scoped to current branch + commit window.
+  # Collect entries from all phases, scoped to current branch + commit window.
   # For each phase, keep only the latest run_id. Within the surviving set,
   # dedupe by (component, sorted(files), title) — exact match only.
   # Sort by priority (P1 > P2 > P3) then by phase order.
   ALL_JSONL=$(mktemp -t autoplan-tasks.XXXXXXXX)
-  for phase in ceo-review design-review eng-review devex-review; do
+  for phase in ceo-review pm-review design-review eng-review devex-review; do
     # Use find instead of glob expansion — zsh nomatch errors otherwise when
     # a phase produced no JSONL files. Sorting by name keeps the order stable.
     while IFS= read -r f; do
@@ -1689,8 +1764,11 @@ if command -v jq >/dev/null 2>&1; then
       # Filter to current branch + recent commits, then keep records for the
       # latest run_id only. (Single phase may have multiple files if the user
       # re-ran the review; aggregator takes the newest.)
+      # Bind the record's .commit to $c BEFORE entering the split-array pipe —
+      # inside ($commits | split("|") | ...) the input is the array, so a bare
+      # index(.commit) would index the array with the string "commit" and error.
       jq -c --arg branch "$BRANCH" --arg commits "$COMMITS_RECENT" \
-        'select(.branch == $branch and ($commits | split("|") | index(.commit) != null))' \
+        'select(.branch == $branch and (.commit as $c | ($commits | split("|") | index($c)) != null))' \
         "$f" 2>/dev/null >> "$ALL_JSONL" || true
     done < <(find "$TASKS_DIR" -maxdepth 1 -name "tasks-$phase-*.jsonl" 2>/dev/null | sort)
     # Reduce to latest run_id per phase
@@ -1711,9 +1789,9 @@ if command -v jq >/dev/null 2>&1; then
     'group_by([.component, (.files | sort), .title])
      | map(
          # Take the highest-priority entry per group; tie-break by phase order
-         sort_by({P1:0,P2:1,P3:2}[.priority] // 99, {"ceo-review":0,"design-review":1,"eng-review":2,"devex-review":3}[.phase] // 99) | .[0]
+         sort_by({P1:0,P2:1,P3:2}[.priority] // 99, {"ceo-review":0,"pm-review":1,"design-review":2,"eng-review":3,"devex-review":4}[.phase] // 99) | .[0]
        )
-     | sort_by({P1:0,P2:1,P3:2}[.priority] // 99, {"ceo-review":0,"design-review":1,"eng-review":2,"devex-review":3}[.phase] // 99)
+     | sort_by({P1:0,P2:1,P3:2}[.priority] // 99, {"ceo-review":0,"pm-review":1,"design-review":2,"eng-review":3,"devex-review":4}[.phase] // 99)
      | if length == 0 then "_No actionable tasks emitted from any phase._" else
          map("- [ ] **\(.id) (\(.priority), human: \(.effort_human) / CC: \(.effort_cc)) — \(.component)** — \(.title)\n  - Surfaced by: \(.phase) — \(.source_finding)\n  - Files: \(.files | join(", "))") | join("\n")
        end' "$ALL_JSONL" 2>/dev/null | sed 's/^"//;s/"$//;s/\\n/\n/g')
@@ -1744,6 +1822,14 @@ Present as a message, then use AskUserQuestion:
 ```
 ## /autoplan Review Complete
 
+### Review Mode
+[If any review phase ran single-voice (Codex unavailable/degraded — see the
+degradation matrix), show this banner; otherwise omit the whole section:]
+⚠ SINGLE-VOICE MODE — Codex unavailable for [N] of [M] review phases. The
+consensus columns for those phases reflect one independent reviewer, not two;
+their confirmed rows read CONFIRMED-1V (orchestrator concurs with the sole
+reviewer), not CONFIRMED.
+
 ### Plan Summary
 [1-3 sentence summary]
 
@@ -1773,6 +1859,7 @@ I recommend [X] — [principle]. But [Y] is also viable:
 ### Review Scores
 - CEO: [summary]
 - CEO Voices: Outside [summary], Subagent [summary], Consensus [X/6 confirmed]
+- PM: [mode run + key finding, or "skipped, plan ≤3 deliverables + segment already named"]
 - Design: [summary or "skipped, no UI scope"]
 - Design Voices: Outside [summary], Subagent [summary], Consensus [X/7 confirmed] (or "skipped")
 - Eng: [summary]
@@ -1794,6 +1881,7 @@ I recommend [X] — [principle]. But [Y] is also viable:
 ```
 
 **Cognitive load management:**
+- All review phases ran dual voices: skip the "Review Mode" banner. Any phase single-voice (Codex unavailable): show it, with N = phases that ran without Codex and M = total review phases.
 - 0 user challenges: skip "User Challenges" section
 - 0 taste decisions: skip "Your Choices" section
 - 1-7 taste decisions: flat list
@@ -1829,6 +1917,11 @@ TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-ceo-review","timestamp":"'"$TIMESTAMP"'","status":"STATUS","unresolved":N,"critical_gaps":N,"mode":"SELECTIVE_EXPANSION","via":"autoplan","commit":"'"$COMMIT"'"}'
 
 ~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-eng-review","timestamp":"'"$TIMESTAMP"'","status":"STATUS","unresolved":N,"critical_gaps":N,"issues_found":N,"mode":"FULL_REVIEW","via":"autoplan","commit":"'"$COMMIT"'"}'
+```
+
+If Phase 1.5 ran (PM scope):
+```bash
+~/.claude/skills/gstack/bin/gstack-review-log '{"skill":"plan-pm-review","timestamp":"'"$TIMESTAMP"'","status":"STATUS","unresolved":N,"critical_gaps":0,"mode":"MODE","via":"autoplan","commit":"'"$COMMIT"'"}'
 ```
 
 If Phase 2 ran (UI scope):

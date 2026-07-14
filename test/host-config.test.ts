@@ -25,9 +25,10 @@ import {
   qoder,
   grokBuild,
 } from '../hosts/index';
-import { HOST_PATHS } from '../scripts/resolvers/types';
+import { HOST_PATHS, type TemplateContext } from '../scripts/resolvers/types';
 import { RESOLVERS } from '../scripts/resolvers';
-import { resolveDistBinary } from '../scripts/resolvers/browse';
+import { generateBrowseSetup, resolveDistBinary } from '../scripts/resolvers/browse';
+import { generateDesignSetup, generateDesignMockup } from '../scripts/resolvers/design';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const RESOLVER_NAMES = new Set(Object.keys(RESOLVERS));
@@ -316,6 +317,37 @@ describe('HOST_PATHS derivation from configs', () => {
     for (const name of ALL_HOST_NAMES) {
       expect(HOST_PATHS[name]).toBeDefined();
     }
+  });
+});
+
+// ─── Env-var path resolver regression ───────────────────────
+
+describe('env-var path resolver regression', () => {
+  const hermesCtx: TemplateContext = {
+    skillName: 'gstack',
+    tmplPath: 'gstack/SKILL.md.tmpl',
+    host: 'hermes',
+    paths: HOST_PATHS.hermes,
+  };
+
+  test('browse setup preserves Hermes GSTACK_BROWSE env var path', () => {
+    const setup = generateBrowseSetup(hermesCtx);
+    expect(setup).toContain('B="$GSTACK_BROWSE/browse"');
+    expect(setup).not.toContain('$HOME$GSTACK_BROWSE');
+  });
+
+  test('design setup preserves Hermes GSTACK_DESIGN and GSTACK_BROWSE env var paths', () => {
+    const setup = generateDesignSetup(hermesCtx);
+    expect(setup).toContain('D="$GSTACK_DESIGN/design"');
+    expect(setup).toContain('B="$GSTACK_BROWSE/browse"');
+    expect(setup).not.toContain('$HOME$GSTACK_DESIGN');
+    expect(setup).not.toContain('$HOME$GSTACK_BROWSE');
+  });
+
+  test('design mockup preserves Hermes GSTACK_DESIGN env var path', () => {
+    const mockup = generateDesignMockup(hermesCtx);
+    expect(mockup).toContain('D="$GSTACK_DESIGN/design"');
+    expect(mockup).not.toContain('$HOME$GSTACK_DESIGN');
   });
 });
 

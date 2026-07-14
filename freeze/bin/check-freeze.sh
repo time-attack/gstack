@@ -1,14 +1,29 @@
 #!/usr/bin/env bash
 # check-freeze.sh — PreToolUse hook for /freeze skill
 # Reads JSON from stdin, checks if file_path is within the freeze boundary.
-# Returns {"permissionDecision":"deny","message":"..."} to block, or {} to allow.
+# Returns hookSpecificOutput with permissionDecision "deny" to block, or {} to allow.
 set -euo pipefail
 
 # Read stdin
 INPUT=$(cat)
 
-# Locate the freeze directory state file
-STATE_DIR="${CLAUDE_PLUGIN_DATA:-$HOME/.gstack}"
+# Locate the freeze directory state file via gstack-paths for consistent resolution
+# across GSTACK_HOME / CLAUDE_PLUGIN_DATA / $HOME/.gstack fallback chain.
+_PATHS_BIN=""
+for _p in \
+    "$(dirname "$0")/../../bin/gstack-paths" \
+    "${CLAUDE_SKILL_DIR:-}/../gstack/bin/gstack-paths" \
+    "$HOME/.claude/skills/gstack/bin/gstack-paths"; do
+  [ -x "$_p" ] && { _PATHS_BIN="$_p"; break; }
+done
+
+if [ -n "$_PATHS_BIN" ]; then
+  eval "$("$_PATHS_BIN" 2>/dev/null)" 2>/dev/null || true
+fi
+# Fallback mirrors gstack-paths' chain (GSTACK_HOME first) when the binary
+# is absent or its eval failed.
+STATE_DIR="${GSTACK_STATE_ROOT:-${GSTACK_HOME:-${CLAUDE_PLUGIN_DATA:-$HOME/.gstack}}}"
+
 FREEZE_FILE="$STATE_DIR/freeze-dir.txt"
 
 # If no freeze file exists, allow everything (not yet configured)
@@ -17,7 +32,9 @@ if [ ! -f "$FREEZE_FILE" ]; then
   exit 0
 fi
 
-FREEZE_DIR=$(tr -d '[:space:]' < "$FREEZE_FILE")
+# First line only, trailing whitespace/CR stripped — internal spaces preserved
+# (paths like "/Users/me/My Project/src" must survive).
+FREEZE_DIR=$(head -n 1 "$FREEZE_FILE" | sed 's/[[:space:]]*$//')
 
 # If freeze dir is empty, allow
 if [ -z "$FREEZE_DIR" ]; then
@@ -52,11 +69,26 @@ esac
 FILE_PATH=$(printf '%s' "$FILE_PATH" | sed 's|/\+|/|g;s|/$||')
 
 # Resolve symlinks and .. sequences (POSIX-portable, works on macOS)
+# For directories (like FREEZE_DIR), cd into them and use pwd -P.
+# For files, resolve the parent directory and append the basename.
 _resolve_path() {
+  local _input="$1"
+
+  # If it's a directory, cd into it and resolve with pwd -P
+  if [ -d "$_input" ]; then
+    cd "$_input" 2>/dev/null && pwd -P && return 0
+  fi
+
+  # For non-directories or if cd failed, resolve component-by-component
   local _dir _base
-  _dir="$(dirname "$1")"
-  _base="$(basename "$1")"
-  _dir="$(cd "$_dir" 2>/dev/null && pwd -P || printf '%s' "$_dir")"
+  _dir="$(dirname "$_input")"
+  _base="$(basename "$_input")"
+
+  # If the parent directory exists and is accessible, resolve it
+  if [ -d "$_dir" ]; then
+    _dir="$(cd "$_dir" 2>/dev/null && pwd -P || printf '%s' "$_dir")"
+  fi
+
   printf '%s/%s' "$_dir" "$_base"
 }
 FILE_PATH=$(_resolve_path "$FILE_PATH")
@@ -74,6 +106,7 @@ case "$FILE_PATH" in
     mkdir -p ~/.gstack/analytics 2>/dev/null || true
     echo '{"event":"hook_fire","skill":"freeze","pattern":"boundary_deny","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}' >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 
-    printf '{"permissionDecision":"deny","message":"[freeze] Blocked: %s is outside the freeze boundary (%s). Only edits within the frozen directory are allowed."}\n' "$FILE_PATH" "$FREEZE_DIR"
+    _REASON=$(printf '[freeze] Blocked: %s is outside the freeze boundary (%s). Only edits within the frozen directory are allowed.' "$FILE_PATH" "$FREEZE_DIR" | sed 's/"/\\"/g')
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$_REASON"
     ;;
 esac

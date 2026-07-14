@@ -23,12 +23,12 @@ hooks:
     - matcher: "Edit"
       hooks:
         - type: command
-          command: 'bash -c ''S="${CLAUDE_SKILL_DIR}/../freeze/bin/check-freeze.sh"; [ -x "$S" ] || S="${CLAUDE_SKILL_DIR}/../gstack-freeze/bin/check-freeze.sh"; [ -x "$S" ] && bash "$S" || exit 0'''
+          command: 'bash -c ''S="$HOME/.claude/skills/gstack/freeze/bin/check-freeze.sh"; [ -x "$S" ] && bash "$S" || exit 0'''
           statusMessage: "Checking debug scope boundary..."
     - matcher: "Write"
       hooks:
         - type: command
-          command: 'bash -c ''S="${CLAUDE_SKILL_DIR}/../freeze/bin/check-freeze.sh"; [ -x "$S" ] || S="${CLAUDE_SKILL_DIR}/../gstack-freeze/bin/check-freeze.sh"; [ -x "$S" ] && bash "$S" || exit 0'''
+          command: 'bash -c ''S="$HOME/.claude/skills/gstack/freeze/bin/check-freeze.sh"; [ -x "$S" ] && bash "$S" || exit 0'''
           statusMessage: "Checking debug scope boundary..."
 gbrain:
   schema: 1
@@ -834,11 +834,15 @@ fi
 if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
   ~/.claude/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
-    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
+    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" \
+    --error-message "ERROR_MESSAGE" --failed-step "FAILED_STEP" 2>/dev/null &
 fi
 ```
 
-Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running.
+Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running. Replace
+`ERROR_MESSAGE` with a short description of the error (never file paths; empty
+string "" unless outcome is error) and `FAILED_STEP` with the step name or number
+where the failure occurred (empty string "" unless outcome is error).
 
 ## Plan Status Footer
 
@@ -945,8 +949,7 @@ If any learnings come back, name which one applies to your investigation in one 
 After forming your root cause hypothesis, lock edits to the affected module to prevent scope creep.
 
 ```bash
-_FREEZE_SCRIPT="${CLAUDE_SKILL_DIR}/../freeze/bin/check-freeze.sh"
-[ -x "$_FREEZE_SCRIPT" ] || _FREEZE_SCRIPT="${CLAUDE_SKILL_DIR}/../gstack-freeze/bin/check-freeze.sh"
+_FREEZE_SCRIPT="$HOME/.claude/skills/gstack/freeze/bin/check-freeze.sh"
 [ -x "$_FREEZE_SCRIPT" ] && echo "FREEZE_AVAILABLE" || echo "FREEZE_UNAVAILABLE"
 ```
 

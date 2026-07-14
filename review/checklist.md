@@ -123,6 +123,51 @@ When the diff changes the CONDITION that guards a user-facing string (error mess
 - Internal tools not distributed outside the team
 - Test-only CI changes (adding test steps, not publish steps)
 
+#### Script & Shell Quality
+- Shell scripts without `set -euo pipefail` (or individual `set -e`, `set -u`) — failures silently ignored
+- Missing or incorrect shebang lines (`#!/usr/bin/env bash` preferred over `#!/bin/bash` for portability)
+- Unquoted variables in shell scripts (`$VAR` instead of `"$VAR"`) — word splitting and globbing bugs
+- `eval` usage with variable interpolation — injection risk
+- Platform-specific commands without guards (e.g., `sed -i ''` is macOS-only, Linux needs `sed -i`)
+- Scripts missing `chmod +x` or not matching the executable permissions of sibling scripts in the same directory
+
+**DO NOT flag:**
+- Scripts that are explicitly single-platform (documented in comments or filename like `*.bat`)
+- Helper scripts only run via a parent script that already sets shell options
+
+#### Platform & Convention Consistency
+- New files using a different toolchain than existing files in the same directory (e.g., `.bat` script added to a directory of `.sh` scripts, `Makefile` added alongside existing `package.json` scripts)
+- CI workflow targeting an OS not covered by the project's test matrix or existing CI jobs (e.g., Windows step in a Linux-only CI)
+- New config files duplicating settings already managed by an existing config (e.g., adding `.prettierrc` when `package.json` already has prettier config)
+- Naming convention violations: new files not matching the case/separator pattern of sibling files (e.g., `myScript.sh` among `kebab-case.sh` files)
+
+**DO NOT flag:**
+- Cross-platform additions that are clearly intentional (documented in PR or commit message)
+- Files in new directories that establish their own conventions
+
+#### Configuration & Infrastructure Safety
+- CI workflows with `pull_request_target` trigger without explicit commit SHA pinning — allows arbitrary code execution from forks
+- Docker images pinned by mutable tag (`:latest`, `:main`) instead of SHA digest in CI — supply chain risk
+- Overly broad file permissions in scripts (`chmod 777` or world-writable)
+- Missing `.gitignore` entries for new generated/build artifact directories
+- Environment-specific paths hardcoded (e.g., `/home/runner/`, `/Users/`) instead of using variables
+
+**DO NOT flag:**
+- Development-only Docker compose files using `:latest`
+- Local development scripts with relaxed permissions
+
+#### MCP Server Packaging
+When the diff adds or modifies an MCP server package (look for `glama.json`, `mcpServers` in package.json, or a `server.ts` entry point):
+
+- **`package.json` exports point to `src/` not `dist/`** — MCP registries (Glama, etc.) run Docker builds that execute the compiled output. If `"exports"` or `"main"` resolves to a `.ts` file or a `src/` path, the server will fail to start in the registry's container. Fix: change to `"./dist/index.js"` (or equivalent compiled output path). This is AUTO-FIX if the dist path is unambiguous.
+- **ESM imports missing `.js` extensions** — If `tsconfig.json` uses `"moduleResolution": "NodeNext"` or `"Node16"`, TypeScript requires all relative imports to include `.js` extensions (e.g., `import { foo } from "./foo.js"` not `"./foo"`). Using `"bundler"` moduleResolution locally can hide this because bundlers resolve extensions automatically, but Node.js ESM does not. Grep for `from "\./` in `.ts` files and flag any import missing `.js`. This is AUTO-FIX.
+- **`moduleResolution: "bundler"` on a Node.js MCP package** — `bundler` mode is correct for frontend/Vite projects but wrong for Node.js packages distributed via npm or Docker. If the package is a standalone Node.js MCP server, `tsconfig.json` should use `"module": "NodeNext"` and `"moduleResolution": "NodeNext"`. Flag if `bundler` is set on a non-frontend package. This is ASK.
+- **Registry manifest malformed** — Only when the project already publishes to an MCP registry (a manifest like `glama.json` exists at the repo root): verify the manifest is well-formed per that registry's schema (for `glama.json`: `$schema` and a `maintainers` array). Fix malformed fields. This is AUTO-FIX if the correct values are determinable. Do not suggest adopting a registry the project doesn't already use.
+
+**DO NOT flag:**
+- Frontend packages using `"moduleResolution": "bundler"` — correct for that context
+- MCP packages that are consumed as libraries (not standalone servers) — Docker packaging doesn't apply
+
 ---
 
 ## Severity Classification
@@ -138,7 +183,10 @@ CRITICAL (highest severity):      INFORMATIONAL (main agent):      SPECIALIST (p
                                    ├─ Type Coercion at Boundaries   └─ Red Team (conditional)
                                    ├─ View/Frontend
                                    ├─ Stale User-Facing Strings
-                                   └─ Distribution & CI/CD Pipeline
+                                   ├─ Distribution & CI/CD Pipeline
+                                   ├─ Script & Shell Quality
+                                   ├─ Platform & Convention Consistency
+                                   └─ Configuration & Infrastructure Safety
 
 All findings are actioned via Fix-First Review. Severity determines
 presentation order and classification of AUTO-FIX vs ASK — critical

@@ -842,11 +842,15 @@ fi
 if [ "$_TEL" != "off" ] && [ -x ~/.claude/skills/gstack/bin/gstack-telemetry-log ]; then
   ~/.claude/skills/gstack/bin/gstack-telemetry-log \
     --skill "SKILL_NAME" --duration "$_TEL_DUR" --outcome "OUTCOME" \
-    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" 2>/dev/null &
+    --used-browse "USED_BROWSE" --session-id "$_SESSION_ID" \
+    --error-message "ERROR_MESSAGE" --failed-step "FAILED_STEP" 2>/dev/null &
 fi
 ```
 
-Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running.
+Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running. Replace
+`ERROR_MESSAGE` with a short description of the error (never file paths; empty
+string "" unless outcome is error) and `FAILED_STEP` with the step name or number
+where the failure occurred (empty string "" unless outcome is error).
 
 ## Plan Status Footer
 
@@ -922,6 +926,8 @@ Do NOT make any code changes. Do NOT start implementation. Your only job right n
 * I err on the side of handling more edge cases, not fewer; thoughtfulness > speed.
 * Bias toward explicit over clever.
 * Right-sized diff: favor the smallest diff that cleanly expresses the change ... but don't compress a necessary rewrite into a minimal patch. If the existing foundation is broken, invoke permission #9 and say "scrap it and do this instead."
+* **Data model exception to "right-sized diff": for schema and model changes, diff size is NOT a goal.** Normalize first; denormalize only for measured performance reasons. Three clean models that each do one thing are better than one model doing three things, in all respects. When tempted to merge new fields into an existing model to reduce table count, ask: "does each model have exactly one job?" If splitting is honest, split. Count concepts, not tables.
+* **JSONField is not an escape hatch for polymorphism.** When tempted to add a JSONField/HStoreField/payload column to encode variant-specific data (different keys for different kinds), promote it to explicit columns instead. JSONField loses FK enforcement, cascade/protect behavior, CheckConstraints on shape, queryability, type system, and self-documentation. Diagnostic: if you find yourself documenting "what keys appear in this JSONField for which variant," you have schema, you just put it in a place where the DB can't help you. Legitimate JSONField uses are genuinely schemaless data (third-party API response caches, user preference bags, opaque blobs). Polymorphism with knowable variants belongs in explicit columns + CheckConstraints.
 * Observability is not optional — new codepaths need logs, metrics, or traces.
 * Security is not optional — new codepaths need threat modeling.
 * Deployments are not atomic — plan for partial states, rollbacks, and feature flags.
@@ -1375,6 +1381,10 @@ adversarial independence.
 
 Prompt the subagent with:
 - The file path of the document just written
+- "READ the referenced sources before judging codebase claims. If the doc names
+  codebase paths, migrations, RLS policies, server actions, triggers, constraints,
+  or columns, open/read those sources yourself and report doc-vs-code mismatches.
+  Do not limit review to internal doc consistency."
 - "Read this document and review it on 5 dimensions. For each dimension, note PASS or
   list specific issues with suggested fixes. At the end, output a quality score (1-10)
   across all dimensions."

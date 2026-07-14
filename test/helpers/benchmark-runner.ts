@@ -12,17 +12,16 @@ import { ClaudeAdapter } from './providers/claude';
 import { GptAdapter } from './providers/gpt';
 import { GeminiAdapter } from './providers/gemini';
 import { GrokAdapter } from './providers/grok';
-
-export type ProviderName = 'claude' | 'gpt' | 'gemini' | 'grok';
+import { OllamaAdapter } from './providers/ollama';
 
 export interface BenchmarkInput {
   prompt: string;
   workdir: string;
   timeoutMs?: number;
-  /** Adapter names to run (e.g., ['claude', 'gpt', 'gemini', 'grok']). */
-  providers: ProviderName[];
+  /** Adapter names to run (e.g., ['claude', 'gpt', 'gemini', 'grok', 'ollama']). */
+  providers: Family[];
   /** Optional per-provider model overrides. */
-  models?: Partial<Record<ProviderName, string>>;
+  models?: Partial<Record<Family, string>>;
   /** If true, skip providers whose available() returns !ok. If false, include them with error. */
   skipUnavailable?: boolean;
 }
@@ -47,11 +46,12 @@ export interface BenchmarkReport {
   entries: BenchmarkEntry[];
 }
 
-const ADAPTERS: Record<ProviderName, () => ProviderAdapter> = {
+const ADAPTERS: Record<Family, () => ProviderAdapter> = {
   claude: () => new ClaudeAdapter(),
   gpt: () => new GptAdapter(),
   gemini: () => new GeminiAdapter(),
   grok: () => new GrokAdapter(),
+  ollama: () => new OllamaAdapter(),
 };
 
 export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkReport> {

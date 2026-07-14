@@ -67,6 +67,7 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'review-enum-completeness': ['review/**', 'test/fixtures/review-eval-enum*.rb'],
   'review-base-branch':       ['review/**'],
   'review-design-lite':       ['review/**', 'test/fixtures/review-eval-design-slop.*'],
+  'review-ci-blindspot':      ['review/**', 'test/fixtures/review-eval-ci-*'],
 
   // Review Army (specialist dispatch)
   'review-army-migration-safety': ['review/**', 'scripts/resolvers/review-army.ts', 'bin/gstack-diff-scope'],
@@ -89,6 +90,7 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'plan-ceo-review-expansion-energy': ['plan-ceo-review/**', 'scripts/resolvers/preamble.ts', 'test/fixtures/mode-posture/**', 'test/helpers/llm-judge.ts'],
   'plan-eng-review':           ['plan-eng-review/**'],
   'plan-eng-review-artifact':  ['plan-eng-review/**'],
+  'plan-eng-review-data-model-bias': ['plan-eng-review/**'],
   'plan-review-report':        ['plan-eng-review/**', 'scripts/gen-skill-docs.ts'],
 
   // Plan-mode smoke tests — gate-tier safety regression tests. Each test file
@@ -228,7 +230,7 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // Ship
   'ship-base-branch': ['ship/**', 'bin/gstack-repo-mode'],
   'ship-local-workflow': ['ship/**', 'scripts/gen-skill-docs.ts'],
-  'review-dashboard-via': ['ship/**', 'scripts/resolvers/review.ts', 'codex/**', 'autoplan/**', 'land-and-deploy/**'],
+  'review-dashboard-via': ['ship/**', 'scripts/resolvers/review.ts', 'codex/**', 'autoplan/**', 'land-and-deploy/**', 'land/**'],
   'ship-plan-completion': ['ship/**', 'scripts/gen-skill-docs.ts'],
   'ship-plan-verification': ['ship/**', 'scripts/gen-skill-docs.ts'],
 
@@ -244,8 +246,15 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'cso-diff-mode':    ['cso/**'],
   'cso-infra-scope':  ['cso/**'],
 
+  // Diagnose
+  'diagnose-discovery': ['diagnose/**', 'scripts/gen-skill-docs.ts', 'scripts/resolvers/learnings.ts'],
+  'diagnose-no-edit':   ['diagnose/**'],
+
   // Learnings
   'learnings-show': ['learn/**', 'bin/gstack-learnings-search', 'bin/gstack-learnings-log', 'scripts/resolvers/learnings.ts'],
+
+  // Plan Status
+  'plan-status': ['plan-status/**', 'test/fixtures/plans/sample-ruby-llm-plan.md'],
 
   // Session Intelligence (timeline, context recovery, /context-save + /context-restore)
   'timeline-event-flow':            ['bin/gstack-timeline-log', 'bin/gstack-timeline-read'],
@@ -313,13 +322,16 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // gstack-upgrade
   'gstack-upgrade-happy-path': ['gstack-upgrade/**'],
 
-  // Deploy skills
-  'land-and-deploy-workflow':      ['land-and-deploy/**', 'scripts/gen-skill-docs.ts'],
-  'land-and-deploy-first-run':     ['land-and-deploy/**', 'scripts/gen-skill-docs.ts', 'bin/gstack-slug'],
-  'land-and-deploy-review-gate':   ['land-and-deploy/**', 'bin/gstack-review-read'],
+  // Deploy skills. land-and-deploy now composes /land and drives merges through
+  // bin/gstack-merge (lib/merge.ts), so those are dependencies of every
+  // land-and-deploy E2E — a change to the land skill or the merge helper must
+  // re-run the composition path.
+  'land-and-deploy-workflow':      ['land-and-deploy/**', 'land/**', 'bin/gstack-merge', 'lib/merge.ts', 'scripts/resolvers/merge-queue-setup.ts', 'scripts/gen-skill-docs.ts'],
+  'land-and-deploy-first-run':     ['land-and-deploy/**', 'land/**', 'bin/gstack-merge', 'lib/merge.ts', 'scripts/resolvers/merge-queue-setup.ts', 'scripts/gen-skill-docs.ts', 'bin/gstack-slug'],
+  'land-and-deploy-review-gate':   ['land-and-deploy/**', 'land/**', 'bin/gstack-review-read'],
   'canary-workflow':               ['canary/**', 'browse/src/**'],
   'benchmark-workflow':            ['benchmark/**', 'browse/src/**'],
-  'setup-deploy-workflow':         ['setup-deploy/**', 'scripts/gen-skill-docs.ts'],
+  'setup-deploy-workflow':         ['setup-deploy/**', 'bin/gstack-merge', 'lib/merge.ts', 'scripts/resolvers/merge-queue-setup.ts', 'scripts/gen-skill-docs.ts'],
 
   // Sidebar agent
   'sidebar-navigate':              ['browse/src/server.ts', 'browse/src/sidebar-agent.ts', 'browse/src/sidebar-utils.ts', 'extension/**'],
@@ -343,6 +355,9 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
     'browser-skills/hackernews-frontpage/**',
   ],
   'scrape-prototype-path': [
+    'scrape/**', 'browse/src/browser-skills.ts', 'browse/src/browser-skill-commands.ts',
+  ],
+  'scrape-evidence-gate': [
     'scrape/**', 'browse/src/browser-skills.ts', 'browse/src/browser-skill-commands.ts',
   ],
   'skillify-happy-path': [
@@ -480,6 +495,7 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'review-enum-completeness': 'gate',
   'review-base-branch': 'gate',
   'review-design-lite': 'periodic',   // 4/7 threshold is subjective
+  'review-ci-blindspot': 'periodic',  // 2/3 detection threshold is non-deterministic
   'review-coverage-audit': 'gate',
   'review-plan-completion': 'gate',
   'review-dashboard-via': 'gate',
@@ -520,6 +536,7 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'plan-ceo-review-expansion-energy': 'gate',  // V1.1 mode-posture regression gate (Opus generator, Sonnet judge)
   'plan-eng-review': 'periodic',
   'plan-eng-review-artifact': 'periodic',
+  'plan-eng-review-data-model-bias': 'periodic',
   'plan-eng-coverage-audit': 'gate',
   'plan-review-report': 'gate',
 
@@ -665,8 +682,15 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'cso-diff-mode': 'gate',
   'cso-infra-scope': 'periodic',
 
+  // Diagnose — gate (safety guardrail: read-only skill must not edit)
+  'diagnose-discovery': 'gate',
+  'diagnose-no-edit': 'gate',
+
   // Learnings — gate (functional guardrail: seeded learnings must appear)
   'learnings-show': 'gate',
+
+  // Plan Status — gate (deterministic, read-only, filesystem-only fixture, < $0.50/run)
+  'plan-status': 'gate',
 
   // Document-release — gate (CHANGELOG guardrail)
   'document-release': 'gate',
@@ -720,6 +744,8 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   // Browser-skills Phase 2a — gate (D1/D3 contracts must not silently break)
   'scrape-match-path': 'gate',
   'scrape-prototype-path': 'gate',
+  // Evidence gate asserts on model judgment (unbackable checkpoint) — periodic.
+  'scrape-evidence-gate': 'periodic',
   'skillify-happy-path': 'gate',
   'skillify-provenance-refusal': 'gate',
   'skillify-approval-reject': 'gate',

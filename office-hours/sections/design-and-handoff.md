@@ -49,6 +49,9 @@ Supersedes: {prior filename — omit this line if first design on this branch}
 ## Constraints
 {from Phase 2A}
 
+## Codebase Surface
+{from Phase 1 Codebase Surface Map — include migration/policy/server-action paths and observed triggers/constraints/checks/columns; omit this section if Codebase Surface was not applicable}
+
 ## Premises
 {from Phase 3}
 
@@ -106,6 +109,9 @@ Supersedes: {prior filename — omit this line if first design on this branch}
 ## Constraints
 {from Phase 2B}
 
+## Codebase Surface
+{from Phase 1 Codebase Surface Map — include migration/policy/server-action paths and observed triggers/constraints/checks/columns; omit this section if Codebase Surface was not applicable}
+
 ## Premises
 {from Phase 3}
 
@@ -152,6 +158,10 @@ adversarial independence.
 
 Prompt the subagent with:
 - The file path of the document just written
+- "READ the referenced sources before judging codebase claims. If the doc names
+  codebase paths, migrations, RLS policies, server actions, triggers, constraints,
+  or columns, open/read those sources yourself and report doc-vs-code mismatches.
+  Do not limit review to internal doc consistency."
 - "Read this document and review it on 5 dimensions. For each dimension, note PASS or
   list specific issues with suggested fixes. At the end, output a quality score (1-10)
   across all dimensions."
@@ -203,6 +213,19 @@ echo '{"skill":"office-hours","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","iteration
 Replace ITERATIONS, FOUND, FIXED, REMAINING, SCORE with actual values from the review.
 
 ---
+
+**Before asking for approval, output the full design doc inline.**
+
+Print the complete contents of the design doc as direct assistant text in the
+conversation — do NOT ask the user to open the file, and do NOT rely on a
+`Bash cat` or `Read` tool call to show it. Tool outputs are frequently
+collapsed in the Claude Code UI, which leaves the user approving a document
+they cannot actually see. The one place the full doc is guaranteed to render
+is the assistant message itself.
+
+Format: a short preamble (`Here is the design doc saved to {path} — please
+review before approving:`) followed by the verbatim document body. Then
+proceed to the AskUserQuestion below.
 
 Present the reviewed design doc to the user via AskUserQuestion:
 - A) Approve — mark Status: APPROVED and proceed to handoff

@@ -4,7 +4,7 @@
   "note": "Routing / voice-trigger prose extracted from SKILL.md frontmatter descriptions during catalog trim. Loaded on demand when routing guidance is needed.",
   "skills": {
     "autoplan": {
-      "lead": "Auto-review pipeline — reads the full CEO, design, eng, and DX review skills from disk and runs them sequentially with auto-decisions using 6 decision principles.",
+      "lead": "Auto-review pipeline — reads the full CEO, PM, design, eng, and DX review skills from disk and runs them sequentially with auto-decisions using 6 decision principles.",
       "routing": "Surfaces\ntaste decisions (close approaches, borderline scope, codex disagreements) at a final\napproval gate. One command, fully reviewed plan out.\nUse when asked to \"auto review\", \"autoplan\", \"run all reviews\", \"review this plan\nautomatically\", or \"make the decisions for me\".\nProactively suggest when the user has a plan file and wants to run the full review\ngauntlet without answering 15-30 intermediate questions.",
       "voice_line": "Voice triggers (speech-to-text aliases): \"auto plan\", \"automatic review\"."
     },
@@ -15,7 +15,7 @@
     },
     "benchmark-models": {
       "lead": "Cross-model benchmark for gstack skills.",
-      "routing": "Runs the same prompt through Claude,\nGPT (via Codex CLI), Gemini, and Grok side-by-side — compares latency, tokens,\ncost, and optionally quality via LLM judge. Answers \"which model is actually\nbest for this skill?\" with data instead of vibes. Separate from /benchmark,\nwhich measures web page performance. Use when: \"benchmark models\", \"compare\nmodels\", \"which model is best for X\", \"cross-model comparison\", \"model\nshootout\".",
+      "routing": "Runs the same prompt through Claude,\nGPT (via Codex CLI), Gemini, Grok, and Ollama (local) side-by-side — compares\nlatency, tokens, cost, and optionally quality via LLM judge. Answers \"which\nmodel is actually best for this skill?\" with data instead of vibes. Separate\nfrom /benchmark, which measures web page performance. Use when: \"benchmark\nmodels\", \"compare models\", \"which model is best for X\", \"cross-model\ncomparison\", \"model shootout\".",
       "voice_line": "Voice triggers (speech-to-text aliases): \"compare models\", \"model shootout\", \"which model is best\"."
     },
     "browse": {
@@ -42,6 +42,11 @@
       "lead": "OpenAI Codex CLI wrapper — three modes.",
       "routing": "Code review: independent diff review via\ncodex review with pass/fail gate. Challenge: adversarial mode that tries to break\nyour code. Consult: ask codex anything with session continuity for follow-ups.\nThe \"200 IQ autistic developer\" second opinion. Use when asked to \"codex review\",\n\"codex challenge\", \"ask codex\", \"second opinion\", or \"consult codex\".",
       "voice_line": "Voice triggers (speech-to-text aliases): \"code x\", \"code ex\", \"get another opinion\"."
+    },
+    "community-review": {
+      "lead": "Review and prioritize open community PRs.",
+      "routing": "Analyzes each PR for impact,\neffort, template compliance, and code quality. Outputs a prioritized\ndigest and auto-comments on PRs with specific feedback.\nUse when asked to \"review community PRs\", \"check open PRs\", \"PR inbox\",\nor \"what should I merge\".",
+      "voice_line": null
     },
     "context-restore": {
       "lead": "Restore working context saved earlier by /context-save.",
@@ -83,6 +88,11 @@
       "routing": "Uses the browse tool to actually TEST the\ndeveloper experience: navigates docs, tries the getting started flow, times\nTTHW, screenshots error messages, evaluates CLI help text. Produces a DX\nscorecard with evidence. Compares against /plan-devex-review scores if they\nexist (the boomerang: plan said 3 minutes, reality says 8). Use when asked to\n\"test the DX\", \"DX audit\", \"developer experience test\", or \"try the\nonboarding\". Proactively suggest after shipping a developer-facing feature.",
       "voice_line": "Voice triggers (speech-to-text aliases): \"dx audit\", \"test the developer experience\", \"try the onboarding\", \"developer experience test\"."
     },
+    "diagnose": {
+      "lead": "Deep diagnostic root cause analysis — overcomes the model's natural bias towards action, forcing evidence-based investigation before any conclusion.",
+      "routing": "/investigate\nis a debug-and-fix cycle; /diagnose proves root cause with evidence chains, traces\ne2e workflows across systems, produces a report — no code changes, just proof.\nMulti-system: databases, error trackers, analytics. Evidence gates prevent premature\nconvergence. Use /investigate for bugs you want fixed. Use /diagnose when: bug\nspans systems, /investigate escalated, you need certainty before a risky fix, it\nrecurs, or you need the full e2e chain.\nTriggers: \"why is this actually happening\", \"diagnose this\", \"deep dive\",\n\"root cause analysis\", \"what's really going on\".\nProactively invoke for production issues, cross-service bugs, intermittent\nfailures, or multi-system problems.",
+      "voice_line": null
+    },
     "diagram": {
       "lead": "Turn an English description (or mermaid source) into a diagram triplet: the source, an editable .excalidraw file you can open",
       "routing": "on excalidraw.com,\nand rendered SVG + PNG (clean mermaid style; the .excalidraw carries the\nhand-drawn aesthetic). Fully offline.\nUse when asked to \"make a diagram\", \"draw the architecture\", \"create a\nflowchart\", \"diagram this\", or \"visualize this flow\".",
@@ -97,6 +107,11 @@
       "lead": "Post-ship documentation update.",
       "routing": "Reads all project docs, cross-references the\ndiff, builds a Diataxis coverage map (reference/how-to/tutorial/explanation),\nupdates README/ARCHITECTURE/CONTRIBUTING/CLAUDE.md to match what shipped,\ndetects architecture diagram drift, polishes CHANGELOG voice with a sell-test\nrubric, cleans up TODOS, and optionally bumps VERSION. Surfaces documentation\ndebt in the PR body. Use when asked to \"update the docs\", \"sync documentation\",\nor \"post-ship docs\". Proactively suggest after a PR is merged or code is shipped.",
       "voice_line": null
+    },
+    "fanout": {
+      "lead": "Decompose a finished design doc into N parallel agent tasks with worktree dispatch.",
+      "routing": "Takes a markdown file path, identifies independent slabs of work plus a shared-groundwork\nSlab 0, and writes a Parallel Execution Plan section back to the doc plus a\nworktree-dispatch.sh sidecar. Run after office-hours + eng-review + design when you\nwant 2-3 agents to implement the design in parallel worktrees.\nUse when asked to \"fan out a design\", \"parallelize this design doc\", \"split into\nmultiple agents\", \"run agents in parallel\", or when a finished design doc is ready\nfor multi-agent execution.",
+      "voice_line": "Voice triggers (speech-to-text aliases): \"fan this out\", \"parallelize this\"."
     },
     "freeze": {
       "lead": "Restrict file edits to a specific directory for the session.",
@@ -120,7 +135,7 @@
     },
     "health": {
       "lead": "Code quality dashboard.",
-      "routing": "Wraps existing project tools (type checker, linter,\ntest runner, dead code detector, shell linter), computes a weighted composite\n0-10 score, and tracks trends over time. Use when: \"health check\",\n\"code quality\", \"how healthy is the codebase\", \"run all checks\",\n\"quality score\".",
+      "routing": "Wraps existing project tools (type checker, linter,\ntest runner, dead code detector, shell linter) plus a read-only structure\nscan, computes a weighted composite 0-10 score, and tracks trends over time. Use when: \"health check\",\n\"code quality\", \"how healthy is the codebase\", \"run all checks\",\n\"quality score\".",
       "voice_line": null
     },
     "investigate": {
@@ -152,6 +167,11 @@
       "lead": "Regenerate the iOS debug bridge against the latest upstream gstack templates.",
       "routing": "Updates StateServer.swift, DebugOverlay.swift, Package.swift,\nand the typed @Observable state accessors. Use after you upgrade gstack\nor add new ViewModels/properties that need accessor coverage.\nUse when asked to \"resync the iOS debug bridge\", \"regenerate iOS\naccessors\", or \"update the gstack iOS instrumentation\".",
       "voice_line": "Voice triggers (speech-to-text aliases): \"resync the iOS debug bridge\", \"regenerate iOS accessors\", \"update the gstack iOS instrumentation\"."
+    },
+    "land": {
+      "lead": "Land a PR through the right merge regime: pre-flight, CI wait, VERSION-drift check, pre-merge readiness gate, then merge via no-queue,",
+      "routing": "GitHub native merge\nqueue, or trunk.io merge queue. This is the \"land\" half of /land-and-deploy,\nusable on its own when you want to merge but not deploy. Use when: \"land\",\n\"land the pr\", \"land it\", \"merge\", \"merge the pr\", \"merge it\", \"get it merged\".\nFor deploy + canary verification after landing, use /land-and-deploy.",
+      "voice_line": null
     },
     "land-and-deploy": {
       "lead": "Land and deploy workflow.",
@@ -208,9 +228,24 @@
       "routing": "Lock in the execution plan — architecture,\ndata flow, diagrams, edge cases, test coverage, performance. Walks through\nissues interactively with opinionated recommendations. Use when asked to\n\"review the architecture\", \"engineering review\", or \"lock in the plan\".\nProactively suggest when the user has a plan or design doc and is about to\nstart coding — to catch architecture issues before implementation.",
       "voice_line": "Voice triggers (speech-to-text aliases): \"tech review\", \"technical review\", \"plan engineering review\"."
     },
+    "plan-pm-review": {
+      "lead": "Product manager-mode plan review.",
+      "routing": "Prioritize with frameworks (RICE/ICE/WSJF),\nmap user segments and JTBD, write acceptance criteria and done definitions,\nproduce a ranked roadmap with explicit tradeoffs. Three modes: PRIORITIZE\n(RICE/ICE scoring + cut list), SHARPEN (acceptance criteria + done definitions),\nSEGMENT (JTBD + user segment analysis). Use when asked to \"PM review\",\n\"prioritize this\", \"RICE scoring\", \"acceptance criteria\", or \"roadmap ranking\".\nProactively suggest when the user has a plan or TODOS list and needs to know\nwhat to cut, what to defer, or who the feature is actually for.",
+      "voice_line": "Voice triggers (speech-to-text aliases): \"PM review\", \"product review\", \"prioritize the plan\", \"RICE scoring\", \"acceptance criteria\", \"roadmap ranking\"."
+    },
+    "plan-status": {
+      "lead": "Check progress of a gstack plan against the current codebase and git log.",
+      "routing": "Reads a plan file (CEO plan, eng plan, or any gstack plan doc), extracts\nphases and success-criteria checkboxes, cross-references git commits and\nfilesystem state, and produces a done/in-progress/remaining status report.\nUse when: \"plan status\", \"how far along is the plan\", \"what's done\",\n\"what's left\", \"check plan progress\", \"where are we on the plan\".",
+      "voice_line": null
+    },
     "plan-tune": {
       "lead": "Self-tuning question sensitivity + developer psychographic for gstack (v1: observational).",
       "routing": "Review which AskUserQuestion prompts fire across gstack skills, set per-question preferences\n(never-ask / always-ask / ask-only-for-one-way), inspect the dual-track\nprofile (what you declared vs what your behavior suggests), and enable/disable\nquestion tuning. Conversational interface — no CLI syntax required.\n\nUse when asked to \"tune questions\", \"stop asking me that\", \"too many questions\",\n\"show my profile\", \"what questions have I been asked\", \"show my vibe\",\n\"developer profile\", or \"turn off question tuning\". \n\nProactively suggest when the user says the same gstack question has come up before,\nor when they explicitly override a recommendation for the Nth time.",
+      "voice_line": null
+    },
+    "pr-prep": {
+      "lead": "Pre-PR upstream duplicate audit.",
+      "routing": "Walks `git log base..HEAD`, derives\nsearch keywords from commit subjects + changed file paths, queries\nupstream issues + PRs via `gh`, scores each commit against upstream\ncollisions (EXACT_DUP / OVERLAP / SIBLING / CLEAN), and refuses to\nproceed when EXACT_DUP found. Use when asked to \"audit my PR\",\n\"check for duplicates\", \"pr-prep\", \"is this already filed\",\n\"upstream check before PR\", or \"pre-PR audit\".\nProactively invoke this skill (do NOT skip the audit) before any\n`gh pr create` against a tracked upstream repo. Hooks into /ship\nas Step 1.5.",
       "voice_line": null
     },
     "qa": {
@@ -251,6 +286,11 @@
     "setup-gbrain": {
       "lead": "Set up gbrain for this coding agent: install the CLI, initialize a local PGLite or Supabase brain, register MCP, capture per-remote trust policy.",
       "routing": "One command from zero to \"gbrain is running, and this agent\ncan call it.\" Use when: \"setup gbrain\", \"connect gbrain\", \"start\ngbrain\", \"install gbrain\", \"configure gbrain for this machine\".",
+      "voice_line": null
+    },
+    "setup-search-mcp": {
+      "lead": "Set up free web search for agents in gstack's Search Before Building workflow.",
+      "routing": "Adds the Exa Search MCP with no account or API key by default.\nUse when: \"setup search\", \"install search mcp\", \"connect Exa MCP\",\n\"free web search\", \"agent web search\", \"make Search Before Building work\".",
       "voice_line": null
     },
     "ship": {

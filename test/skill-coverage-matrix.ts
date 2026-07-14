@@ -42,6 +42,11 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
     gate: ['test/skill-e2e-ship-idempotency.test.ts', 'test/skill-coverage-floor.test.ts'],
     periodic: ['test/skill-e2e-workflow.test.ts'],
   },
+  'pr-prep': {
+    gate: ['test/pr-prep-score.test.ts', 'test/skill-coverage-floor.test.ts'],
+    periodic: [],
+    rationale: 'Behavioral test pins the Step 4 collision-scorer bucketing; structural floor covers the rest.',
+  },
   review: {
     gate: ['test/skill-e2e-review.test.ts', 'test/skill-coverage-floor.test.ts'],
     periodic: ['test/skill-e2e-review-army.test.ts', 'test/regression-1539-review-self-verify.test.ts'],
@@ -64,6 +69,14 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
     periodic: [],
     rationale: 'Deterministic invariants pin evidence labeling, privacy gates, reproduction, and PR-draft behavior.',
   },
+  diagnose: {
+    gate: ['test/skill-e2e-diagnose.test.ts', 'test/skill-coverage-floor.test.ts'],
+    periodic: [],
+  },
+  'plan-status': {
+    gate: ['test/skill-e2e-plan-status.test.ts', 'test/skill-coverage-floor.test.ts'],
+    periodic: [],
+  },
   browse: {
     gate: ['test/skill-coverage-floor.test.ts'],
     periodic: [],
@@ -80,6 +93,11 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
       'test/skill-llm-eval-spec.test.ts',
     ],
     rationale: '37 deterministic invariants pin Phase 1/3 gating, --execute race/security hardening, quality-gate redaction, archive contract, plan-mode-aware Phase 5. Periodic adds full PTY pipeline + LLM-judge.',
+  },
+  fanout: {
+    gate: ['test/fanout.test.ts', 'test/skill-coverage-floor.test.ts'],
+    periodic: [],
+    rationale: 'v0 produces a markdown section + prompt files + bash script; deterministic given input doc structure. fanout.test.ts pins frontmatter, section invariants, and the v0.1 hardening guardrails.',
   },
 
   // ─── Plan triad ─────────────────────────────────────────────
@@ -122,6 +140,10 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
     ],
     periodic: ['test/skill-e2e-plan-devex-finding-count.test.ts'],
   },
+  'plan-pm-review': {
+    gate: ['test/skill-coverage-floor.test.ts'],
+    periodic: [],
+  },
   autoplan: {
     gate: ['test/skill-coverage-floor.test.ts'],
     periodic: ['test/skill-e2e-autoplan-chain.test.ts', 'test/skill-e2e-autoplan-dual-voice.test.ts'],
@@ -150,6 +172,7 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
   'document-generate': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
 
   // ─── Ops + integrations ─────────────────────────────────────
+  land: { gate: ['test/gstack-merge.test.ts', 'test/gstack-merge-cli.test.ts', 'test/land-and-deploy-postfail.test.ts', 'test/gen-skill-docs.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
   'land-and-deploy': { gate: ['test/skill-e2e-deploy.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
   canary: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   benchmark: { gate: ['test/skill-e2e-benchmark-providers.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
@@ -164,6 +187,11 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
   'context-restore': { gate: ['test/skill-e2e-context-skills.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
   'setup-deploy': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'setup-browser-cookies': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
+  'setup-search-mcp': {
+    gate: ['test/setup-search-mcp-structure.test.ts', 'test/skill-coverage-floor.test.ts'],
+    periodic: [],
+    rationale: 'Search MCP setup has deterministic structural coverage for no-auth defaults, supported host commands, and manual-host guidance.',
+  },
   'setup-gbrain': {
     gate: [
       'test/skill-e2e-setup-gbrain-bad-token.test.ts',
@@ -197,6 +225,7 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
   unfreeze: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   guard: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'landing-report': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
+  'community-review': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   health: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'make-pdf': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'devex-review': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },

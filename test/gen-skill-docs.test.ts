@@ -253,6 +253,28 @@ describe('gen-skill-docs', () => {
     expect(violations).toEqual([]);
   });
 
+  test('Codex generated skill catalog stays compact enough for startup context', () => {
+    const agentsDir = path.join(ROOT, '.agents', 'skills');
+    if (!fs.existsSync(agentsDir)) return;
+    const descriptions: Array<{ name: string; length: number }> = [];
+    for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const skillMd = path.join(agentsDir, entry.name, 'SKILL.md');
+      if (!fs.existsSync(skillMd)) continue;
+      const content = fs.readFileSync(skillMd, 'utf-8');
+      descriptions.push({ name: entry.name, length: extractDescription(content).length });
+    }
+
+    const total = descriptions.reduce((sum, d) => sum + d.length, 0);
+    const average = descriptions.length ? total / descriptions.length : 0;
+    const max = descriptions.reduce((m, d) => Math.max(m, d.length), 0);
+
+    expect(descriptions.length).toBeGreaterThan(0);
+    expect(total).toBeLessThanOrEqual(6000);
+    expect(average).toBeLessThanOrEqual(120);
+    expect(max).toBeLessThanOrEqual(240);
+  });
+
   test('package.json version matches VERSION file', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
     const version = fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf-8').trim();
@@ -402,6 +424,39 @@ describe('gen-skill-docs', () => {
 
     expect(Buffer.byteLength(voice, 'utf-8')).toBeLessThan(3_000);
     expect(Buffer.byteLength(writingStyle, 'utf-8')).toBeLessThan(2_000);
+  });
+
+  test('user-local generation structurally honors explain_level: terse', () => {
+    const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-user-config-'));
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-user-render-'));
+    try {
+      fs.writeFileSync(path.join(stateDir, 'config.yaml'), 'explain_level: terse\n');
+      const result = Bun.spawnSync([
+        'bun', 'run', 'scripts/gen-skill-docs.ts',
+        '--respect-detection',
+        '--host', 'claude',
+        '--out-dir', outDir,
+      ], {
+        cwd: ROOT,
+        stdout: 'pipe',
+        stderr: 'pipe',
+        env: { ...process.env, GSTACK_HOME: stateDir, GSTACK_STATE_ROOT: stateDir },
+      });
+      const stderr = result.stderr.toString();
+      const stdout = result.stdout.toString();
+
+      expect(result.exitCode, `${stdout}\n${stderr}`).toBe(0);
+
+      const content = fs.readFileSync(path.join(outDir, 'plan-eng-review', 'SKILL.md'), 'utf-8');
+      expect(content).toContain('Terse mode (build-time)');
+      expect(content).not.toContain('Curated jargon list lives');
+      expect(content).not.toContain('## Completeness Principle — Boil the Ocean');
+      expect(content).not.toContain('## Confusion Protocol');
+      expect(content).not.toContain('## Context Health (soft directive)');
+    } finally {
+      fs.rmSync(stateDir, { recursive: true, force: true });
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
   });
 
   test('slim voice section preserves the gstack voice contract', () => {
@@ -1451,6 +1506,121 @@ describe('INVOKE_SKILL resolver', () => {
   });
 });
 
+// --- /land skill: composition into /land-and-deploy + generated-doc scrub (H9) ---
+
+describe('/land skill composition', () => {
+  const landTmpl = fs.readFileSync(path.join(ROOT, 'land', 'SKILL.md.tmpl'), 'utf-8');
+  const landMd = fs.readFileSync(path.join(ROOT, 'land', 'SKILL.md'), 'utf-8');
+  const ladTmpl = fs.readFileSync(path.join(ROOT, 'land-and-deploy', 'SKILL.md.tmpl'), 'utf-8');
+  const ladMd = fs.readFileSync(path.join(ROOT, 'land-and-deploy', 'SKILL.md'), 'utf-8');
+
+  test('land-and-deploy composes /land via {{INVOKE_SKILL:land}}', () => {
+    expect(ladTmpl).toContain('{{INVOKE_SKILL:land}}');
+  });
+
+  test('land-and-deploy SKILL.md resolves the composition prose to the land skill', () => {
+    expect(ladMd).toContain('land/SKILL.md');
+    expect(ladMd).toContain('Follow its instructions from top to bottom');
+  });
+
+  test('land-and-deploy no longer carries its own merge step (merge lives in /land)', () => {
+    // The parent must compose /land, not run gh pr merge itself.
+    expect(ladMd).not.toContain('gh pr merge --auto --delete-branch');
+    expect(ladMd).not.toContain('## Step 4: Merge the PR');
+  });
+
+  test('land-and-deploy consumes the handoff via gstack-merge read-state', () => {
+    expect(ladMd).toContain('gstack-merge read-state');
+    expect(ladMd).toContain('last-land.json');
+  });
+
+  // H9 — generated-doc scrub: extracting the land half "verbatim" risks dragging
+  // deploy/canary machinery into /land. Forbid the machinery tokens (not the words
+  // "deploy"/"canary", which legitimately appear in /land-and-deploy cross-refs).
+  test('/land SKILL.md carries no deploy/canary machinery (H9)', () => {
+    const forbidden = [
+      'deploy-reports',
+      'DEPLOY_BOOTSTRAP',
+      '$B goto',
+      '$B console',
+      '$B perf',
+      '$B snapshot',
+      'Canary verification',
+      'Wait for deploy',
+      'gh run list',
+    ];
+    const offenders = forbidden.filter((s) => landMd.includes(s));
+    expect(offenders).toEqual([]);
+  });
+
+  test('/land drives the merge through the gstack-merge helper', () => {
+    expect(landMd).toContain('gstack-merge submit');
+    expect(landMd).toContain('gstack-merge wait');
+    expect(landMd).toContain('gstack-merge write-state');
+    expect(landMd).toContain('gstack-merge detect');
+  });
+
+  test('/land uses {{BASE_BRANCH_DETECT}} so composition correctly skips the duplicate', () => {
+    // The INVOKE_SKILL skip-list skips "Step 0: Detect platform and base branch",
+    // which is exactly what BASE_BRANCH_DETECT emits — so the parent's detection
+    // wins when composed, and standalone /land runs its own.
+    expect(landTmpl).toContain('{{BASE_BRANCH_DETECT}}');
+  });
+
+  test('/land documents all three merge regimes', () => {
+    expect(landMd).toContain('trunk');
+    expect(landMd).toContain('/trunk merge');
+    expect(landMd).toMatch(/gh pr merge .*--squash/);
+    expect(landMd).toContain('--auto');
+  });
+});
+
+// --- /land enqueue-and-return + onboarding (D4/D5/D6) ---
+
+describe('/land enqueue-and-return + merge-queue onboarding', () => {
+  const landMd = fs.readFileSync(path.join(ROOT, 'land', 'SKILL.md'), 'utf-8');
+  const setupMd = fs.readFileSync(path.join(ROOT, 'setup-deploy', 'SKILL.md'), 'utf-8');
+  const ladMd = fs.readFileSync(path.join(ROOT, 'land-and-deploy', 'SKILL.md'), 'utf-8');
+
+  test('D4: enqueue-and-return is the default for queue regimes, with a --watch opt-in', () => {
+    expect(landMd).toContain('confirm-enqueue');
+    expect(landMd).toContain('enqueue-and-return');
+    expect(landMd).toContain('--watch');
+    // The default must NOT block on the queue; --watch is the blocking path.
+    expect(landMd).toMatch(/Default for a merge queue is enqueue-and-return/i);
+  });
+
+  test('D4: land-and-deploy forces /land into --watch (it needs the completed merge)', () => {
+    expect(ladMd).toContain('--watch');
+    expect(ladMd).toMatch(/as if invoked with .*--watch|--watch branch/);
+  });
+
+  test('D5: the skill explains what a merge queue is and what it will do', () => {
+    expect(landMd).toMatch(/what a merge queue is|how this lands/i);
+    expect(landMd).toMatch(/walk away/i);
+    expect(landMd).toContain('optimistic');
+  });
+
+  test('D6: the shared {{MERGE_QUEUE_SETUP}} onboarding resolves in BOTH /land and /setup-deploy', () => {
+    // No literal placeholder left anywhere.
+    expect(landMd).not.toContain('{{MERGE_QUEUE_SETUP}}');
+    expect(setupMd).not.toContain('{{MERGE_QUEUE_SETUP}}');
+    // The authoritative onboarding text appears in both (single source, two includes).
+    expect(landMd).toContain('Set up a merge queue with trunk.io');
+    expect(setupMd).toContain('Set up a merge queue with trunk.io');
+    // It hand-holds the load-bearing trunk steps.
+    expect(landMd).toContain('Trunk GitHub App');
+    expect(landMd).toContain('app.trunk.io');
+    expect(landMd).toMatch(/trunk-merge\/\*/);
+  });
+
+  test('bin/gstack-merge exposes the confirm-enqueue subcommand', () => {
+    const bin = fs.readFileSync(path.join(ROOT, 'bin', 'gstack-merge'), 'utf-8');
+    expect(bin).toContain("case 'confirm-enqueue':");
+    expect(bin).toContain('last-enqueue.json');
+  });
+});
+
 // --- {{CHANGELOG_WORKFLOW}} resolver tests ---
 
 describe('CHANGELOG_WORKFLOW resolver', () => {
@@ -1893,15 +2063,14 @@ describe('Codex generation (--host codex)', () => {
     expect(codexResult.stdout.toString()).toBe(agentsResult.stdout.toString());
   });
 
-  test('multiline descriptions preserved in Codex output', () => {
-    // office-hours has a multiline description — verify it survives the frontmatter transform
+  test('Codex output trims catalog description and preserves routing in body', () => {
     const content = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-office-hours', 'SKILL.md'), 'utf-8');
     const fmEnd = content.indexOf('\n---', 4);
     const frontmatter = content.slice(4, fmEnd);
-    // Description should span multiple lines (block scalar)
-    const descLines = frontmatter.split('\n').filter(l => l.startsWith('  '));
-    expect(descLines.length).toBeGreaterThan(1);
-    // Verify key phrases survived
+    expect(frontmatter).toContain('description: YC Office Hours');
+    expect(frontmatter).not.toContain('Proactively invoke this skill');
+    expect(content).toContain('## When to invoke this skill');
+    expect(content).toContain('Proactively invoke this skill');
     expect(frontmatter).toContain('YC Office Hours');
   });
 
@@ -2049,6 +2218,28 @@ describe('Codex generation (--host codex)', () => {
   test('codex host does not include Codex design block in ship', () => {
     const codexContent = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-ship', 'SKILL.md'), 'utf-8');
     expect(codexContent).not.toContain('Codex design voice');
+  });
+});
+
+// ─── Claude hook frontmatter path resolution ─────────────────
+
+describe('Claude hook frontmatter path resolution', () => {
+  test('hook commands do not depend on CLAUDE_SKILL_DIR / CLAUDE_PLUGIN_ROOT', () => {
+    // #1871: Claude Code 2.1.162+ does not populate CLAUDE_SKILL_DIR for
+    // skill-frontmatter PreToolUse hooks. Commands using that variable expand
+    // to paths like /../freeze/bin/check-freeze.sh and fail before the safety
+    // hook can do its job. CLAUDE_PLUGIN_ROOT is only set for plugin installs,
+    // so it is just as unreliable. Hooks must anchor to $HOME/.claude/skills/gstack/.
+    const HOOK_SKILLS = ['careful', 'freeze', 'guard', 'investigate'];
+    for (const skillName of HOOK_SKILLS) {
+      const content = fs.readFileSync(path.join(ROOT, skillName, 'SKILL.md'), 'utf-8');
+      const fmEnd = content.indexOf('\n---', 4);
+      const frontmatter = content.slice(4, fmEnd);
+      expect(frontmatter).toContain('hooks:');
+      expect(frontmatter).not.toContain('CLAUDE_SKILL_DIR');
+      expect(frontmatter).not.toContain('CLAUDE_PLUGIN_ROOT');
+      expect(frontmatter).toContain('$HOME/.claude/skills/gstack/');
+    }
   });
 });
 
@@ -2456,6 +2647,33 @@ describe('setup script validation', () => {
     expect(claudeSection).toContain('link_claude_root_skill_alias "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR"');
   });
 
+  // FIX #1499: link function must also mirror supporting .md files and asset directories
+  // so SKILL.md Step 2 can read checklist.md, greptile-triage.md, specialists/, etc.
+  // via .claude/skills/<skill>/<file> without requiring gstack-prefixed paths.
+  test('link_claude_skill_dirs mirrors supporting .md files alongside SKILL.md', () => {
+    const fnStart = setupContent.indexOf('link_claude_skill_dirs()');
+    const fnEnd = setupContent.indexOf('}', setupContent.indexOf('linked[@]}', fnStart));
+    const fnBody = setupContent.slice(fnStart, fnEnd);
+    // Must iterate over sibling .md files in the skill source dir
+    expect(fnBody).toContain('for support_file in "$gstack_dir/$dir_name"/*.md');
+    // Must skip SKILL.md itself (already linked above)
+    expect(fnBody).toContain('[ "$fname" = "SKILL.md" ] && continue');
+    // Must use _link_or_copy (not raw ln -snf) for Windows compatibility
+    expect(fnBody).toContain('_link_or_copy "$support_file" "$target/$fname"');
+  });
+
+  test('link_claude_skill_dirs mirrors support asset directories (specialists/, bin/, etc.)', () => {
+    const fnStart = setupContent.indexOf('link_claude_skill_dirs()');
+    const fnEnd = setupContent.indexOf('}', setupContent.indexOf('linked[@]}', fnStart));
+    const fnBody = setupContent.slice(fnStart, fnEnd);
+    // Must iterate over subdirectories in the skill source dir
+    expect(fnBody).toContain('for support_dir in "$gstack_dir/$dir_name"/*/');
+    // Must exclude build and source dirs to avoid polluting the skill surface
+    expect(fnBody).toContain('dist|src|test|tests|scripts|node_modules');
+    // Must use _link_or_copy (not raw ln -snf) for Windows compatibility
+    expect(fnBody).toContain('_link_or_copy "$gstack_dir/$dir_name/$sname" "$target/$sname"');
+  });
+
   test('setup supports --host auto|claude|codex|kiro|opencode|cursor|slate|qoder|grok-build', () => {
     expect(setupContent).toContain('--host');
     expect(setupContent).toContain('claude|codex|kiro|factory|opencode|cursor|slate|qoder|grok-build|auto');
@@ -2632,6 +2850,20 @@ describe('setup script validation', () => {
   test('setup reads skill_prefix from config', () => {
     expect(setupContent).toContain('get skill_prefix');
     expect(setupContent).toContain('GSTACK_CONFIG');
+  });
+
+  test('setup applies user-local skill rendering for terse mode without requiring gbrain', () => {
+    const regenSectionStart = setupContent.indexOf('# ─── User-local SKILL.md regen');
+    const regenSectionEnd = setupContent.indexOf('# 11. Plan-tune cathedral hook install', regenSectionStart);
+    const regenSection = setupContent.slice(regenSectionStart, regenSectionEnd);
+    const gbrainElseStart = regenSection.indexOf('gbrain not detected');
+    const userRenderIndex = regenSection.indexOf('gen:skill-docs:user --host claude');
+
+    expect(regenSection).toContain('get explain_level');
+    expect(regenSection).toContain('explain_level=terse');
+    expect(userRenderIndex).toBeGreaterThan(-1);
+    expect(gbrainElseStart).toBeGreaterThan(-1);
+    expect(userRenderIndex).toBeGreaterThan(gbrainElseStart);
   });
 
   test('setup supports --prefix flag', () => {

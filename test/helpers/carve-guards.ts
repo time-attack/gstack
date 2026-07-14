@@ -148,6 +148,7 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     behavioral: 'external',
     externalTest: 'test/skill-e2e-plan-ceo-review-section-loading.test.ts',
     // AUQ payload+shape rules (#1241/#2045) + learnings feedback (#2030) grew the always-loaded preamble ~2.5KB; measured skeleton 91,809.
+    // Community wave (#1071): data-model-bias guardrail added to the skeleton.
     maxSkeletonBytes: 94_000,
     minUnionBytes: 80_000,
     mustContain: ['SCOPE EXPANSION', 'SELECTIVE EXPANSION', 'HOLD SCOPE', 'SCOPE REDUCTION'],
@@ -169,7 +170,8 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     behavioral: 'plan',
     // v1.2.0 activation lift (shared first-run-guidance preamble) + #2077 ask-first scope gate.
     // AUQ payload+shape rules (#1241/#2045) + learnings feedback (#2030) grew the always-loaded preamble ~2.5KB; measured skeleton 67,681, union ratio 1.094.
-    maxSkeletonBytes: 70_000,
+    // Community wave (#1071 data-model bias, #1812 platform-capability check) added ~2.4KB of skeleton prose.
+    maxSkeletonBytes: 72_000,
     minUnionBytes: 70_000,
     mustContain: ['Architecture', 'Code Quality', 'Test', 'Performance'],
     // Cross-cutting preamble growth (v1.57.2.0 AUQ-failure prose fallback + the
@@ -240,7 +242,8 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // v1.2.0 activation lift: first-run-guidance section in the shared preamble,
     // plus the P1 office-hours closing handoff (AUQ that launches the next skill).
     // AUQ payload+shape rules (#1241/#2045) + learnings feedback (#2030) grew the always-loaded preamble ~2.5KB; measured skeleton 100,156, union ratio 1.082.
-    maxSkeletonBytes: 102_500,
+    // Community wave (#1738 premise verification, #1049 design-doc artifact gate) added ~2.9KB of skeleton prose.
+    maxSkeletonBytes: 105_000,
     minUnionBytes: 70_000,
     mustContain: ['design doc', 'problem statement'],
     maxSizeRatio: 1.10,

@@ -1207,9 +1207,10 @@ describe('Step 3.4 test coverage audit', () => {
 
 describe('ship step numbering', () => {
   // Allowed sub-steps that are resolver-generated and intentionally nested:
-  // 8.1 (Plan Verification), 8.2 (Scope Drift), 9.1 (Review Army), 9.2 (Findings Merge),
+  // 1.5 (Upstream duplicate audit — pr-prep gate), 8.1 (Plan Verification),
+  // 8.2 (Scope Drift), 9.1 (Review Army), 9.2 (Findings Merge),
   // 9.3 (Cross-review dedup), 15.0 (WIP squash — continuous checkpoint), 15.1 (Bisectable commits).
-  const ALLOWED_SUBSTEPS = new Set(['8.1', '8.2', '9.1', '9.2', '9.3', '15.0', '15.1']);
+  const ALLOWED_SUBSTEPS = new Set(['1.5', '8.1', '8.2', '9.1', '9.2', '9.3', '15.0', '15.1']);
 
   test('ship/SKILL.md.tmpl contains no unexpected fractional step numbers', () => {
     const tmpl = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md.tmpl'), 'utf-8');
@@ -1256,9 +1257,9 @@ describe('ship step numbering', () => {
 describe('Retro test health tracking', () => {
   test('retro/SKILL.md has test health data gathering commands', () => {
     const content = fs.readFileSync(path.join(ROOT, 'retro', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('# 10. Test file count');
+    expect(content).toContain('# 10. Total test file count');
     expect(content).toContain('# 11. Regression test commits');
-    expect(content).toContain('# 12. Test files changed');
+    expect(content).toContain('# 12. Test files ADDED in window');
   });
 
   test('retro/SKILL.md has Test Health metrics row', () => {
@@ -1982,5 +1983,77 @@ describe('Bundled browser-skills frontmatter contract', () => {
       const content = fs.readFileSync(path.join(dir, 'script.ts'), 'utf-8');
       expect(content).toMatch(/from\s+['"]\.\/_lib\/browse-client['"]/);
     }
+  });
+});
+
+
+// Data-model bias guardrails — prevent silent deletion of the corrective bullets
+// added to counter the AI's pull toward table-count minimization and JSONField
+// polymorphism shortcuts. These are load-bearing: if they disappear in a future
+// refactor (templates regenerated, sections rewritten), the bias returns silently.
+// Static grep beats LLM judge here because the real failure mode is "bullet
+// silently deleted during an unrelated edit," which greps catch in milliseconds.
+describe('data-model bias guardrails', () => {
+  const engReview = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'SKILL.md'), 'utf-8');
+  const ceoReview = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
+  // The Architecture review body lives in the carved section file (the Claude
+  // host references sections/review-sections.md from SKILL.md instead of
+  // inlining it), so section-content assertions grep the generated section file.
+  const engReviewSections = fs.readFileSync(path.join(ROOT, 'plan-eng-review', 'sections', 'review-sections.md'), 'utf-8');
+
+  test('plan-eng-review preserves the "data model exception to minimal diff" bullet', () => {
+    expect(engReview).toContain('Data model exception to "right-sized diff"');
+    expect(engReview).toContain('Count concepts, not tables');
+  });
+
+  test('plan-eng-review preserves the JSONField polymorphism warning', () => {
+    expect(engReview).toContain('JSONField is not an escape hatch for polymorphism');
+    expect(engReview).toContain('what keys appear in this JSONField for which variant');
+  });
+
+  test('plan-eng-review preserves the Normalize-first cognitive pattern', () => {
+    expect(engReview).toContain('Normalize first, denormalize for measured reasons');
+  });
+
+  test('plan-eng-review preserves the SRP-for-data-models cognitive pattern', () => {
+    expect(engReview).toContain('Single Responsibility Principle applies to data models');
+  });
+
+  test('plan-eng-review preserves the Structure-beats-blobs cognitive pattern', () => {
+    expect(engReview).toContain('Structure beats blobs for known polymorphism');
+  });
+
+  test('plan-eng-review Architecture section preserves Data model honesty check', () => {
+    expect(engReviewSections).toContain('Data model honesty');
+    expect(engReviewSections).toContain('parent-field-shadowed-by-child');
+    expect(engReviewSections).toContain('JSONField-hiding-schema');
+  });
+
+  test('plan-eng-review preserves the Data model review checklist subsection', () => {
+    expect(engReviewSections).toContain('Data model review checklist');
+    // A few load-bearing checklist items — if any disappear, the checklist was gutted
+    expect(engReviewSections).toContain('Single Responsibility (SRP for models)');
+    expect(engReviewSections).toContain('Nullable with semantic meaning');
+    expect(engReviewSections).toContain('Parent-field-shadowed-by-child');
+    expect(engReviewSections).toContain('FK deletion strategies');
+    expect(engReviewSections).toContain('Snapshot vs render-live');
+  });
+
+  test('plan-eng-review cognitive patterns list is contiguous 1–18', () => {
+    // If someone inserts/removes a pattern without renumbering, catch it here
+    for (let i = 1; i <= 18; i++) {
+      expect(engReview).toMatch(new RegExp(`^${i}\\. \\*\\*`, 'm'));
+    }
+    // And item 19 should NOT exist (the list ends at 18)
+    expect(engReview).not.toMatch(/^19\. \*\*/m);
+  });
+
+  test('plan-ceo-review preserves the "data model exception to minimal diff" bullet', () => {
+    expect(ceoReview).toContain('Data model exception to "right-sized diff"');
+    expect(ceoReview).toContain('Count concepts, not tables');
+  });
+
+  test('plan-ceo-review preserves the JSONField polymorphism warning', () => {
+    expect(ceoReview).toContain('JSONField is not an escape hatch for polymorphism');
   });
 });

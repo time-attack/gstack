@@ -14,6 +14,7 @@ import { claude as PRIMARY_HOST } from '../hosts/index';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
+import { ALL_HOST_CONFIGS, getExternalHosts } from '../hosts/index';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const ROOT_REALPATH = fs.realpathSync(ROOT);
@@ -101,8 +102,6 @@ for (const file of SKILL_FILES) {
 
 // ─── External Host Skills (config-driven) ───────────────────
 
-import { getExternalHosts } from '../hosts/index';
-
 for (const hostConfig of getExternalHosts()) {
   const hostDir = path.join(ROOT, hostConfig.hostSubdir, 'skills');
   if (fs.existsSync(hostDir)) {
@@ -140,8 +139,6 @@ for (const hostConfig of getExternalHosts()) {
 }
 
 // ─── Freshness (config-driven) ──────────────────────────────
-
-import { ALL_HOST_CONFIGS } from '../hosts/index';
 
 for (const hostConfig of ALL_HOST_CONFIGS) {
   const hostFlag = hostConfig.name === 'claude' ? '' : ` --host ${hostConfig.name}`;

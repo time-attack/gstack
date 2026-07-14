@@ -7,7 +7,9 @@
  *   gstack-model-benchmark <skill-or-prompt-file> [options]
  *
  * Options:
- *   --models claude,gpt,gemini,grok  Comma-separated provider list (default: claude)
+ *   --models claude,gpt,gemini,grok,ollama
+ *                                Comma-separated provider list (default: claude).
+ *                                Valid: claude, gpt, gemini, grok, ollama (local).
  *   --prompt "<text>"            Inline prompt instead of a file
  *   --workdir <path>             Working dir passed to each CLI (default: cwd)
  *   --timeout-ms <n>             Per-provider timeout (default: 300000)
@@ -27,18 +29,24 @@
 import '../lib/conductor-env-shim';
 import * as fs from 'fs';
 import * as path from 'path';
-import { runBenchmark, formatTable, formatJson, formatMarkdown, type BenchmarkInput, type ProviderName } from '../test/helpers/benchmark-runner';
+import { runBenchmark, formatTable, formatJson, formatMarkdown, type BenchmarkInput } from '../test/helpers/benchmark-runner';
+import type { Family } from '../test/helpers/providers/types';
 import { ClaudeAdapter } from '../test/helpers/providers/claude';
 import { GptAdapter } from '../test/helpers/providers/gpt';
 import { GeminiAdapter } from '../test/helpers/providers/gemini';
 import { GrokAdapter } from '../test/helpers/providers/grok';
+import { OllamaAdapter } from '../test/helpers/providers/ollama';
 
-const ADAPTER_FACTORIES: Record<ProviderName, () => { name: string; available: () => Promise<{ ok: boolean; reason?: string }> }> = {
+const ADAPTER_FACTORIES: Record<Family, () => { name: string; available: () => Promise<{ ok: boolean; reason?: string }> }> = {
   claude: () => new ClaudeAdapter(),
   gpt: () => new GptAdapter(),
   gemini: () => new GeminiAdapter(),
   grok: () => new GrokAdapter(),
+  ollama: () => new OllamaAdapter(),
 };
+
+// Derived from the factory map — a new adapter is valid the moment it's wired.
+const VALID_PROVIDERS = Object.keys(ADAPTER_FACTORIES) as Family[];
 
 type OutputFormat = 'table' | 'json' | 'markdown';
 
@@ -78,13 +86,13 @@ function positionalArgs(args: string[]): string[] {
   return positional;
 }
 
-function parseProviders(s: string | undefined): ProviderName[] {
+function parseProviders(s: string | undefined): Family[] {
   if (!s) return ['claude'];
-  const seen = new Set<ProviderName>();
+  const seen = new Set<Family>();
   for (const p of s.split(',').map(x => x.trim()).filter(Boolean)) {
-    if (p === 'claude' || p === 'gpt' || p === 'gemini' || p === 'grok') seen.add(p);
+    if ((VALID_PROVIDERS as string[]).includes(p)) seen.add(p as Family);
     else {
-      console.error(`WARN: unknown provider '${p}' — skipping. Valid: claude, gpt, gemini, grok.`);
+      console.error(`WARN: unknown provider '${p}' — skipping. Valid: ${VALID_PROVIDERS.join(', ')}.`);
     }
   }
   return seen.size ? Array.from(seen) : ['claude'];
@@ -114,6 +122,10 @@ async function main(): Promise<void> {
   const skipUnavailable = flag('--skip-unavailable');
   const doJudge = flag('--judge');
   const dryRun = flag('--dry-run');
+
+  if (providers.includes('ollama')) {
+    console.error('NOTE: ollama runs prompt-only over HTTP — no file access, --workdir is ignored for it. File-dependent prompts are not comparable against the agentic CLI providers.');
+  }
 
   if (dryRun) {
     await dryRunReport({ prompt, providers, workdir, timeoutMs, output, doJudge });
@@ -156,7 +168,7 @@ async function main(): Promise<void> {
 
 async function dryRunReport(opts: {
   prompt: string;
-  providers: ProviderName[];
+  providers: Family[];
   workdir: string;
   timeoutMs: number;
   output: OutputFormat;

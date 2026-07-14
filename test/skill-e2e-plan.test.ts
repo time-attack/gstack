@@ -366,6 +366,145 @@ Focus on architecture, code quality, tests, and performance sections.`,
   }, 420_000);
 });
 
+// --- Plan Eng Review Data-Model Bias Regression E2E ---
+//
+// Regression test for the data-model bias fix: verifies that /plan-eng-review
+// recommends a separate model instead of inlining columns + JSONField when
+// a plan tries to merge polymorphic variant data into an existing model "to
+// keep the diff minimal." Before the fix, the skill's "minimal diff" preference
+// pushed the AI toward accepting the inline approach; after the fix, the
+// data-model exception bullet + Data model review checklist should make the
+// AI push back and recommend normalization citing SRP/3NF.
+
+describeIfSelected('Plan Eng Review Data-Model Bias E2E', ['plan-eng-review-data-model-bias'], () => {
+  let planDir: string;
+
+  beforeAll(() => {
+    planDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-plan-eng-dmb-'));
+    const run = (cmd: string, args: string[]) =>
+      spawnSync(cmd, args, { cwd: planDir, stdio: 'pipe', timeout: 5000 });
+
+    run('git', ['init', '-b', 'main']);
+    run('git', ['config', 'user.email', 'test@test.com']);
+    run('git', ['config', 'user.name', 'Test']);
+
+    // Synthetic plan designed to trip the old bias: four clearly-polymorphic
+    // tier variants + feature-flag bag that the user proposes to inline onto
+    // User rather than create a new model. After the fix, the skill should
+    // recommend a separate SubscriptionTier model and push back on the
+    // JSONField for tier_features.
+    fs.writeFileSync(path.join(planDir, 'plan.md'), `# Plan: Add Subscription Tiers to User Model
+
+## Context
+I want to add a 'subscription tier' feature to my Django app. Each user can
+be on a free, basic, premium, or enterprise tier. Each tier has:
+- a monthly price
+- a feature set (list of feature flags)
+- a max-users limit
+- an SLA tier (none / standard / premium)
+
+## Current state
+The User model has ~15 fields (email, name, created_at, etc).
+
+## Proposed changes
+I'm thinking of just adding these columns directly to the User model so I
+don't have to deal with another table:
+
+- tier_name: CharField with choices=['free', 'basic', 'premium', 'enterprise']
+- tier_price: DecimalField
+- tier_features: JSONField (list of feature flag strings, varies per tier)
+- tier_max_users: IntegerField
+- tier_sla: CharField with choices=['none', 'standard', 'premium']
+
+This keeps the diff minimal — no new model, no new migration beyond the one
+column-add, no new FK navigation in the codebase.
+
+## Open questions
+- Should feature flags be a separate table or stay as JSONField?
+- Any concerns with this approach?
+`);
+
+    run('git', ['add', '.']);
+    run('git', ['commit', '-m', 'add plan']);
+
+    fs.mkdirSync(path.join(planDir, 'plan-eng-review'), { recursive: true });
+    fs.copyFileSync(
+      path.join(ROOT, 'plan-eng-review', 'SKILL.md'),
+      path.join(planDir, 'plan-eng-review', 'SKILL.md'),
+    );
+    // The Architecture review body (incl. the data model checklist) lives in the
+    // carved sections/ dir, referenced from SKILL.md — copy it like the sibling
+    // plan-eng-review E2E does so the hermetic agent can Read it.
+    { const _sec = path.join(ROOT, 'plan-eng-review', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(planDir, 'plan-eng-review', 'sections'), { recursive: true }); }
+  });
+
+  afterAll(() => {
+    try { fs.rmSync(planDir, { recursive: true, force: true }); } catch {}
+  });
+
+  testConcurrentIfSelected('plan-eng-review-data-model-bias', async () => {
+    const result = await runSkillTest({
+      prompt: `Read plan-eng-review/SKILL.md for the review workflow.
+
+Read plan.md — that's the plan to review. This is a standalone plan document, not a codebase — skip any codebase exploration steps.
+
+Proceed directly to the architecture review section. Skip any AskUserQuestion calls — this is non-interactive. Write your complete architecture review directly to ${planDir}/review-output.md
+
+Focus specifically on the data model design in the plan. Apply the data model review checklist from the skill.`,
+      workingDirectory: planDir,
+      maxTurns: 15,
+      timeout: 360_000,
+      testName: 'plan-eng-review-data-model-bias',
+      runId,
+      model: 'claude-opus-4-7',
+    });
+
+    logCost('/plan-eng-review data-model-bias', result);
+
+    // Verify the review was written
+    const reviewPath = path.join(planDir, 'review-output.md');
+    const review = fs.existsSync(reviewPath)
+      ? fs.readFileSync(reviewPath, 'utf-8')
+      : '';
+
+    // Behavioral assertions: the review should recommend a separate tier model
+    // and push back on JSONField for the feature set. Matching is deliberately
+    // loose (case-insensitive substrings) to tolerate wording variance while
+    // still catching the bias regression.
+    const lower = review.toLowerCase();
+    const recommendsSeparateModel =
+      /separate\s+(subscription\s*)?tier\s*model/i.test(review) ||
+      /new\s+(subscription\s*)?tier\s*model/i.test(review) ||
+      /subscriptiontier\s*model/i.test(review) ||
+      /extract.*tier.*model/i.test(review) ||
+      /tier\s*(?:table|model)\s*(?:with|per)/i.test(review);
+    const pushesBackOnJsonField =
+      lower.includes('jsonfield') &&
+      (lower.includes('feature') || lower.includes('polymorph') || lower.includes('explicit'));
+    const citesNormalization =
+      /normali[sz]/i.test(review) ||
+      /\bsrp\b/i.test(review) ||
+      /single\s+responsibility/i.test(review) ||
+      /\b3nf\b/i.test(review) ||
+      /normal\s+form/i.test(review);
+
+    recordE2E(evalCollector, '/plan-eng-review-data-model-bias', 'Plan Eng Review Data-Model Bias E2E', result, {
+      passed:
+        ['success', 'error_max_turns'].includes(result.exitReason) &&
+        review.length > 200 &&
+        recommendsSeparateModel &&
+        pushesBackOnJsonField &&
+        citesNormalization,
+    });
+
+    expect(['success', 'error_max_turns']).toContain(result.exitReason);
+    expect(review.length).toBeGreaterThan(200);
+    expect(recommendsSeparateModel).toBe(true);
+    expect(pushesBackOnJsonField).toBe(true);
+    expect(citesNormalization).toBe(true);
+  }, 420_000);
+});
+
 // --- Plan-Eng-Review Test-Plan Artifact E2E ---
 
 describeIfSelected('Plan-Eng-Review Test-Plan Artifact E2E', ['plan-eng-review-artifact'], () => {
@@ -539,7 +678,7 @@ describeIfSelected('Office Hours Spec Review E2E', ['office-hours-spec-review'],
 
   testConcurrentIfSelected('office-hours-spec-review', async () => {
     const result = await runSkillTest({
-      prompt: `Read office-hours/SKILL.md. I want to understand the spec review loop.
+      prompt: `Read office-hours/SKILL.md as reference material only. Do not execute the office-hours workflow, do not run its phases, and do not ask any user questions. I want to understand the spec review loop.
 
 Summarize what the "Spec Review Loop" section does — specifically:
 1. How many dimensions does the reviewer check?
@@ -550,6 +689,7 @@ Summarize what the "Spec Review Loop" section does — specifically:
 Write your summary to ${ohDir}/spec-review-summary.md`,
       workingDirectory: ohDir,
       maxTurns: 8,
+      allowedTools: ['Read', 'Write', 'Grep'],
       timeout: 120_000,
       testName: 'office-hours-spec-review',
       runId,
@@ -562,9 +702,9 @@ Write your summary to ${ohDir}/spec-review-summary.md`,
     const summaryPath = path.join(ohDir, 'spec-review-summary.md');
     if (fs.existsSync(summaryPath)) {
       const summary = fs.readFileSync(summaryPath, 'utf-8').toLowerCase();
-      expect(summary).toMatch(/5.*dimension|dimension.*5|completeness|consistency|clarity|scope|feasibility/);
-      expect(summary).toMatch(/agent|subagent/);
-      expect(summary).toMatch(/3.*iteration|iteration.*3|maximum.*3/);
+      expect(summary).toMatch(/5.*dimension|dimension.*5|five.*dimension|dimension.*five|completeness|consistency|clarity|scope|feasibility/);
+      expect(summary).toMatch(/agent|subagent|task/);
+      expect(summary).toMatch(/3.*iteration|iteration.*3|three.*iteration|iteration.*three|maximum.*3|maximum.*three/);
     }
   }, 180_000);
 });

@@ -26,10 +26,14 @@ function fnBody(src: string, name: string): string {
 describe('setup links sections/ for cherry-pick install targets', () => {
   test('link_claude_skill_dirs links sections/ via _link_or_copy', () => {
     const body = fnBody(SETUP, 'link_claude_skill_dirs');
+    // sections/ ships through the generic support-asset mirror loop (#1502),
+    // which iterates every asset dir (sections/, specialists/, references/, ...)
+    // and must route through the windows-safe helper, not raw ln.
     expect(body).toContain('sections');
-    // sections install must route through the windows-safe helper, not raw ln.
-    expect(body).toMatch(/_link_or_copy\s+"\$gstack_dir\/\$dir_name\/sections"\s+"\$target\/sections"/);
-    expect(body).toMatch(/if \[ -d "\$gstack_dir\/\$dir_name\/sections" \]/);
+    expect(body).toMatch(/for support_dir in "\$gstack_dir\/\$dir_name"\/\*\//);
+    expect(body).toMatch(/_link_or_copy\s+"\$gstack_dir\/\$dir_name\/\$sname"\s+"\$target\/\$sname"/);
+    // build/source dirs are excluded so installs stay lean.
+    expect(body).toMatch(/dist\|src\|test\|tests\|scripts\|node_modules\) continue/);
   });
 
   test('kiro per-skill loop rewrites + copies sections/*', () => {

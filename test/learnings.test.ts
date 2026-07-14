@@ -43,6 +43,31 @@ function runSearch(args: string = ''): string {
   }
 }
 
+function runStats(): string {
+  const execOpts: ExecSyncOptionsWithStringEncoding = {
+    cwd: ROOT,
+    env: { ...process.env, GSTACK_HOME: tmpDir },
+    encoding: 'utf-8',
+    timeout: 15000,
+  };
+  try {
+    return execSync(`${BIN}/gstack-learnings-stats`, execOpts).trim();
+  } catch {
+    return '';
+  }
+}
+
+// Legacy-schema rows (category/summary/detail) predate gstack-learnings-log's
+// type/key/source validation and can no longer be written through it — they
+// only exist as old on-disk rows. Append directly, like the old writer did.
+function appendLegacyRaw(line: string): void {
+  const out = execSync(`${BIN}/gstack-slug`, { cwd: ROOT, encoding: 'utf-8' });
+  const slug = (out.match(/^SLUG=(.*)$/m)?.[1] || '').trim();
+  const dir = path.join(slugDir, slug);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.appendFileSync(path.join(dir, 'learnings.jsonl'), line + '\n');
+}
+
 beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-learn-'));
   slugDir = path.join(tmpDir, 'projects');
@@ -230,6 +255,22 @@ describe('gstack-learnings-search', () => {
     expect(output).toContain('valid-entry');
     expect(output).toContain('also-valid');
   });
+
+  test('normalizes legacy category/summary/detail entries', () => {
+    appendLegacyRaw(JSON.stringify({
+      ts: '2026-04-06T13:45:00Z',
+      category: 'tool-gotcha',
+      summary: 'vitest run --changed requires base ref specification',
+      detail: 'Bare vitest run --changed compares against unstaged changes only.',
+      source: 'eng-review-outside-voice',
+    }));
+
+    const output = runSearch();
+    expect(output).toContain('## Pitfalls');
+    expect(output).toContain('vitest-run-changed-requires-base-ref-specification');
+    expect(output).toContain('Bare vitest run --changed compares against unstaged changes only.');
+    expect(output).not.toContain('undefined');
+  });
 });
 
 describe('gstack-learnings-log edge cases', () => {
@@ -319,5 +360,23 @@ describe('gstack-learnings-search edge cases', () => {
 
     const output = runSearch();
     expect(output).toContain('confidence: 0/10');
+  });
+});
+
+describe('gstack-learnings-stats', () => {
+  test('counts legacy schema entries without undefined type buckets', () => {
+    appendLegacyRaw(JSON.stringify({
+      ts: '2026-04-06T13:45:00Z',
+      category: 'tool-gotcha',
+      summary: 'vitest run --changed requires base ref specification',
+      detail: 'Bare vitest run --changed compares against unstaged changes only.',
+      source: 'eng-review-outside-voice',
+    }));
+
+    const output = runStats();
+    expect(output).toContain('TOTAL: 1 entries');
+    expect(output).toContain('UNIQUE: 1 (after dedup)');
+    expect(output).toContain('BY_TYPE: {"pitfall":1}');
+    expect(output).not.toContain('undefined');
   });
 });

@@ -8,11 +8,15 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 | [`/spec`](#spec) | **Spec Author** | Turn vague intent into a precise, executable spec in five phases. Backlog-ready output that downstream skills can pick up. Optional agent spawn at the end. |
 | [`/plan-ceo-review`](#plan-ceo-review) | **CEO / Founder** | Rethink the problem. Find the 10-star product hiding inside the request. Four modes: Expansion, Selective Expansion, Hold Scope, Reduction. |
 | [`/plan-eng-review`](#plan-eng-review) | **Eng Manager** | Lock in architecture, data flow, diagrams, edge cases, and tests. Forces hidden assumptions into the open. |
+| [`/plan-pm-review`](#plan-pm-review) | **Product Manager** | Prioritize with RICE/ICE/WSJF, map user segments and JTBD, write acceptance criteria. Three modes: PRIORITIZE, SHARPEN, SEGMENT. |
 | [`/plan-design-review`](#plan-design-review) | **Senior Designer** | Interactive plan-mode design review. Rates each dimension 0-10, explains what a 10 looks like, fixes the plan. Works in plan mode. |
 | [`/design-consultation`](#design-consultation) | **Design Partner** | Build a complete design system from scratch. Knows the landscape, proposes creative risks, generates realistic product mockups. Design at the heart of all other phases. |
 | [`/review`](#review) | **Staff Engineer** | Find the bugs that pass CI but blow up in production. Auto-fixes the obvious ones. Flags completeness gaps. |
 | [`/investigate`](#investigate) | **Debugger** | Systematic root-cause debugging. Iron Law: no fixes without investigation. Traces data flow, tests hypotheses, stops after 3 failed fixes. |
 | [`/bug-report`](#bug-report) | **Incident Reporter** | Reconstruct what happened from conversation, Git, and safe diagnostic logs; reproduce when possible; draft an exact maintainer-ready issue and PR handoff without publishing it. |
+| [`/diagnose`](#diagnose) | **Root-Cause Prover** | Evidence-based diagnostic report across systems (databases, error trackers, analytics). Proves root cause with evidence chains — no code changes, just proof. |
+| [`/community-review`](#community-review) | **PR Inbox Triager** | Review and prioritize open community PRs. Scores impact, effort, compliance, and quality; outputs a ranked digest and auto-comments with specific feedback. |
+| [`/fanout`](#fanout) | **Parallel Dispatcher** | Decompose a finished design doc into N parallel agent tasks plus shared groundwork. Writes a Parallel Execution Plan and a worktree-dispatch script. |
 | [`/design-review`](#design-review) | **Designer Who Codes** | Live-site visual audit + fix loop. 80-item audit, then fixes what it finds. Atomic commits, before/after screenshots. |
 | [`/design-shotgun`](#design-shotgun) | **Design Explorer** | Generate multiple AI design variants, open a comparison board in your browser, and iterate until you approve a direction. Taste memory biases toward your preferences. |
 | [`/design-html`](#design-html) | **Design Engineer** | Generates production-quality Pretext-native HTML. Works with approved mockups, CEO plans, design reviews, or from scratch. Text reflows on resize, heights adjust to content. Smart API routing per design type. Framework detection for React/Svelte/Vue. |
@@ -20,6 +24,7 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 | [`/qa-only`](#qa) | **QA Reporter** | Same methodology as /qa but report only. Use when you want a pure bug report without code changes. |
 | [`/scrape`](#scrape) | **Browser Data Extractor** | Pull data from a web page. First call prototypes via `$B`; subsequent calls on a matching intent run a codified browser-skill in ~200ms. |
 | [`/skillify`](#skillify) | **Skill Codifier** | Walks back through your conversation, finds the last `/scrape` prototype, synthesizes script + test + fixture, runs the test, asks before committing. |
+| [`/pr-prep`](#pr-prep) | **Duplicate Auditor** | Pre-PR upstream duplicate audit. Scores each commit against upstream issues + PRs (EXACT_DUP / OVERLAP / SIBLING / CLEAN); refuses to proceed on exact duplicates. |
 | [`/ship`](#ship) | **Release Engineer** | Sync main, run tests, audit coverage, push, open PR. Bootstraps test frameworks if you don't have one. One command. |
 | [`/land-and-deploy`](#land-and-deploy) | **Release Engineer** | Merge the PR, wait for CI and deploy, verify production health. One command from "approved" to "verified in production." |
 | [`/canary`](#canary) | **SRE** | Post-deploy monitoring loop. Watches for console errors, performance regressions, and page failures using the browse daemon. |
@@ -40,11 +45,13 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 | [`/context-restore`](#context-restore) | **Restore State** | Resume from a saved context, even across Conductor workspace handoffs. |
 | [`/health`](#health) | **Code Quality Dashboard** | Wraps type checker, linter, tests, dead code detection. Computes a weighted 0-10 score; tracks trends over time. |
 | [`/landing-report`](#landing-report) | **Ship Queue Dashboard** | Read-only snapshot of the workspace-aware ship queue. Which version slots are claimed, which sibling workspaces have WIP. |
+| [`/plan-status`](#plan-status) | **Plan Progress Tracker** | Check a plan against the codebase and git log. Phase-by-phase DONE/PARTIAL/REMAINING dashboard with success-criteria checkboxes. |
 | [`/benchmark-models`](#benchmark-models) | **Model Benchmark** | Side-by-side cross-model benchmark for skills (Claude vs GPT vs Gemini). Latency, tokens, cost, optional LLM-judged quality. |
 | | | |
 | **Multi-AI** | | |
 | [`/codex`](#codex) | **Second Opinion** | Independent review from OpenAI Codex CLI. Three modes: code review (pass/fail gate), adversarial challenge, and open consultation with session continuity. Cross-model analysis when both `/review` and `/codex` have run. |
 | [`/pair-agent`](#pair-agent) | **Remote Agent Bridge** | Pair a remote AI agent (OpenClaw, Codex, Cursor, Hermes) with your browser. Scoped tunnel, locked allowlist, session token. |
+| [`/setup-search-mcp`](#setup-search-mcp) | **Search Setup** | Set up free web search for agents (Exa Search MCP, no account or API key by default) so Search Before Building works. |
 | [`/setup-gbrain`](#setup-gbrain) | **Memory Sync** | Set up gbrain for cross-machine session memory sync. One command from zero to live. |
 | [`/sync-gbrain`](#sync-gbrain) | **Keep Brain Current** | Refresh gbrain against this repo's code; teach the agent when to use `gbrain search`/`code-def` over Grep. Idempotent; safe to re-run. |
 | | | |
