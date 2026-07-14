@@ -56,6 +56,17 @@ describe("smartypants", () => {
     expect(out).toContain("\u201cdetails\u201d");
   });
 
+  test("a linked bare URL cannot swallow closing-tag placeholders", () => {
+    const result = smartypants(`<p><a href="https://example.com">https://example.com</a></p><h1>Next</h1>`);
+    expect(result).not.toContain("SMARTPANTS_PRESERVED");
+    expect(result).toContain(`</a></p><h1>Next</h1>`);
+  });
+
+  test("treats quotes after CJK punctuation as opening quotes", () => {
+    expect(smartypants(`说明："你好"`)).toBe("说明：“你好”");
+    expect(smartypants(`说明：'你好'`)).toBe("说明：‘你好’");
+  });
+
   test("does NOT touch HTML attribute values", () => {
     const out = smartypants(`<a href="it's-a-test.html">link</a>`);
     expect(out).toContain(`href="it's-a-test.html"`);
