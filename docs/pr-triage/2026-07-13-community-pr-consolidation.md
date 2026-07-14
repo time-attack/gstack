@@ -8,7 +8,7 @@ per-wave triage reports with full receipts (test commands, pristine-main
 comparisons, codex second opinions) live in the maintainers' local triage
 archive.
 
-**Totals: 66 PRs triaged → 36 applied, 30 dropped.**
+**Totals: 116 PRs triaged → 61 applied, 54 dropped, 1 held.**
 
 | Wave | PRs | Applied | Dropped |
 |------|-----|---------|---------|
@@ -16,6 +16,7 @@ archive.
 | skills | 6 | 1 | 5 |
 | test-infra | 20 | 14 | 6 |
 | security | 21 | 13 | 8 |
+| hosts | 50 | 25 | 24 (+1 held) |
 
 ---
 
@@ -168,3 +169,78 @@ Applied on the integration branch after the waves merged:
 
 All fork PRs listed above get re-targeted through the base repo when
 upstreamed, since fork PRs don't receive base-repo CI secrets.
+
+---
+
+## Wave: hosts (50 PRs — 25 applied, 24 dropped, 1 held)
+
+All applied PRs were verified against the REAL host products, installed on a
+real machine: cursor-agent, pi, agy, codex, and opencode each named their
+installed gstack skills in live LLM calls; `grok inspect` listed all 54 skills;
+gemini's benchmark parsing was validated against live captured stream-json
+(success and error paths). Full receipts: fork PR #1.
+
+### Applied
+
+| PR | Author | Change |
+|----|--------|--------|
+| #1430 | @EricXu-0805 | skill:check honors primary-host skipSkills |
+| #2165 | @dpnascimento | question-preference-hook stops emitting invalid permissionDecision "defer" |
+| #2146 | @kalpajit279 | Claude Desktop AskUserQuestion pre-empt (prose decision brief) |
+| #1816 | @ztownsend | (salvage) hook spike-doc contract correction + empty-stdout AUQ regression test; its hook fix was superseded by #2165 |
+| #2229 | @time-attack | team-mode "required" actually enforces: cross-platform .cjs hook, dual-schema deny, Copilot matcher |
+| #2221 | @time-attack | gemini benchmark parser for current stream-json + skip-trust + unit fixtures (extended on top: surface real API error messages, live-capture fixture) |
+| #2216 | @jizusun | setup copies supabase/config.sh into kiro/codex/factory/opencode runtime roots |
+| #2198 | @netkurt | setup links lib/ into opencode runtime root (extended on top: codex/factory/kiro/sidecar/cursor/slate/qoder/grok parity) |
+| #1494 | @jbetala7 | honest Hermes setup banner + static test |
+| #1054 | @dkoh12 | namespaced generated Hermes skill names |
+| #1767 | @spacegeologist | keychain-safe Claude auth preflight for the Codex host |
+| #1160 | @mamedov | Codex design binary path resolution + design/dist links (raw ln converted to _link_or_copy) |
+| #2123 | @dpattonux | Codex global install moved to ~/.agents/skills per current Codex spec (+ wave migration v1.61.0.0.sh) |
+| #1996 | @ashcharus-hue | CLAUDE.md → AGENTS.md rewrite for Codex output |
+| #1772 | @spacegeologist | Codex ship qa-only path fix |
+| #1101 | @JiayuuWang | AskUserQuestion → request_user_input tool rewrite (+ wave regression test) |
+| #1888 | @jbetala7 | co-author trailer bumped to Opus 4.8 (source hunks; docs regenerated) |
+| #1935 | @katlun-lgtm | 'Agent tool' phrasing rewrites for hermes/gbrain/openclaw/factory + golden regression tests (goldens regenerated fresh) |
+| #1526 | @mvanhorn | --host cursor wired through setup dispatch + install (+ wave slate clone — identical runtimeRoot) |
+| #1918 | @withabdul | Pi host config (+ warn-mode description limit ported from #1497; print-only setup case) |
+| #2134 | @0xshae | Antigravity (agy) host config — only candidate matching official paths (+ print-only setup case) |
+| #1640 | @nmrtn | Mistral Vibe host config (+ print-only setup case) |
+| #2116 | @andriyhuang | Qoder host (qoder commit only; --dir + Playwright hunks dropped) — corrected on top to the real product: qodercli binary, ~/.qoder/skills |
+| #1282 | @Spenquatch | autoplan outside-voice routing for Codex hosts (+ codex_reviews master-switch port, keychain-safe probe) |
+| #2248 | @AgileInnov8tor | Grok Build host: packaging, fail-closed runtime staging, env-var dist-path fix (+ rollback-safe promotion, lib/ link, mktemp fixes) |
+
+### Held (returns as a follow-up)
+
+| PR | Author | Reason |
+|----|--------|--------|
+| #2241 | @ljodea | /grok second-opinion skill — flag surface, auth path, and graceful degradation verified against grok 0.2.99 live, but the core value (one successful xAI review round-trip) blocked by 402 usage-balance on the verifying account. Ships the moment one live review is receipted. |
+
+### Dropped
+
+| PR | Reason |
+|----|--------|
+| #934 | 3-line flag whitelist that installs nothing — validates --host cursor then silently no-ops; worse than the error |
+| #1326 | 16 raw `ln -snf` calls fail the D7 Windows invariant; no tests; links files hosts/cursor.ts doesn't declare |
+| #1184 | raw `ln` + unrelated bun-install-hoisting refactor; stale base predating current setup layout |
+| #1004 | right architecture, wrong vintage: 15-months drift, `mapfile` requires bash 4+ (macOS ships 3.2), opencode claim already live on main |
+| #1179 | setup refactor entangled with unrelated CI-image scope; stale base; introduces python3 dependency into setup |
+| #2034 | redundant with #1430; prints a misleading ✅ for skipped skills |
+| #2150 | draft; stringly host lookup; same fix as #1430 |
+| #1924 | third copy of the defer fix; oldest base, CONFLICTING, no unique value |
+| #1937 | comment-only; its central "correction" is inaccurate vs the current gbrain resolver behavior |
+| #382 | already on main in better form (coAuthorTrailer HostConfig field); its tests pin a stale model string |
+| #418 | Pi via the pre-host-config architecture; every substantive hunk targets code refactored away |
+| #1497 | Pi setup half uses 16 raw `ln`; missing gitignore/README/count-test (its warn-limit idea was ported) |
+| #2187 | agy: cliCommand misses the real `agy` binary; squats the .gemini hostSubdir a future gemini host needs |
+| #1490 | agy install paths unsupported by any Antigravity documentation |
+| #2244 | agy as CLI-only "plugin" at an undocumented path; hardcoded stale version; dead-code link guard; bundles unrelated benchmark scope |
+| #413 | pre-architecture antigravity attempt (AGENTS.md/README/setup only) |
+| #1593 | Copilot globalRoot layout proven invisible to Copilot's one-level picker scan (#1443 live testing); no setup wiring |
+| #396 | Copilot via pre-architecture sed rewrites sharing .agents with codex; 27 conflict markers |
+| #1785 | Zed: breaks host-count + setup tests; localSkillRoot collides with codex's; 100KB truncation silently amputates flagship skills |
+| #855 | .gitignore line for an ainative host that doesn't exist in the registry |
+| #1695 | contradicts current architecture: ROOT/hostSubdir staging is deliberate; writing to $HOME during build would clobber live installs |
+| #423 | edits only generated files (wiped on regen); documents a fallback chain no code implements; uses a nonexistent --image flag |
+| #560 | Gemini second-opinion dispatcher, architecturally right but 70 conflict markers stale; missing main's timeout wrapper, auth probe, telemetry, and injection guardrails — good spec for a rewrite |
+| #2028 | grok host superseded by #2248, which credits it; array-shaped toolRewrites would corrupt generation; CRLF-corrupted .gitignore |
