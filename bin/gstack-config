@@ -282,10 +282,13 @@ read_config_value() {
   fi
   # Strip unquoted inline comments (space + #, YAML semantics) so hand-edited
   # lines like 'auto_upgrade: true # enable updates' keep returning 'true'.
-  # A # with no preceding whitespace stays part of the value.
+  # A # with no preceding whitespace stays part of the value. Comments are
+  # stripped BEFORE the key prefix: on an empty value ('key: # note') the
+  # prefix strip would consume the separating whitespace first and the
+  # comment would come back as the value instead of falling to the default.
   grep -E "^${key}:" "$CONFIG_FILE" 2>/dev/null \
     | tail -1 \
-    | sed -E "s/^${key}:[[:space:]]*//; s/[[:space:]]+#.*$//; s/[[:space:]]+$//"
+    | sed -E "s/[[:space:]]+#.*$//; s/^${key}:[[:space:]]*//; s/[[:space:]]+$//"
 }
 
 case "${1:-}" in

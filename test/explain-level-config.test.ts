@@ -116,4 +116,13 @@ describe('gstack-config values with spaces', () => {
     expect(run('set', 'workspace_root', '/srv/builds#nightly').status).toBe(0);
     expect(run('get', 'workspace_root').stdout).toBe('/srv/builds#nightly');
   });
+
+  test('an empty value with an inline comment falls through to the default', () => {
+    // YAML null + note: 'explain_level: # decide later' must not return the
+    // comment text as the value.
+    const cfg = path.join(tmpHome, 'config.yaml');
+    expect(run('set', 'explain_level', 'terse').status).toBe(0);
+    fs.writeFileSync(cfg, fs.readFileSync(cfg, 'utf-8').replace(/^explain_level: terse$/m, 'explain_level: # decide later'));
+    expect(run('get', 'explain_level').stdout).toBe('default');
+  });
 });
