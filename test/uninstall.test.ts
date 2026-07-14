@@ -161,5 +161,28 @@ describe('gstack-uninstall', () => {
       // Non-gstack should survive
       expect(fs.existsSync(path.join(mockHome, '.claude', 'skills', 'other-tool'))).toBe(true);
     });
+
+    test('preserves foreign real directories while removing owned host symlinks', () => {
+      const codexSkills = path.join(mockHome, '.codex', 'skills');
+      const gstackDir = path.join(mockHome, '.claude', 'skills', 'gstack');
+      fs.mkdirSync(path.join(codexSkills, 'gstack-personal'), { recursive: true });
+      fs.writeFileSync(path.join(codexSkills, 'gstack-personal', 'SENTINEL'), 'user-owned');
+      fs.symlinkSync(path.join(gstackDir, 'review'), path.join(codexSkills, 'gstack-review'));
+
+      const result = spawnSync('bash', [UNINSTALL, '--force', '--keep-state'], {
+        stdio: 'pipe',
+        env: {
+          ...process.env,
+          HOME: mockHome,
+          GSTACK_DIR: gstackDir,
+          GSTACK_STATE_DIR: path.join(mockHome, '.gstack'),
+        },
+        cwd: mockGitRoot,
+      });
+
+      expect(result.status).toBe(0);
+      expect(fs.readFileSync(path.join(codexSkills, 'gstack-personal', 'SENTINEL'), 'utf-8')).toBe('user-owned');
+      expect(fs.existsSync(path.join(codexSkills, 'gstack-review'))).toBe(false);
+    });
   });
 });

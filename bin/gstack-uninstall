@@ -91,6 +91,24 @@ fi
 
 REMOVED=()
 
+# Only remove host-side entries that are demonstrably linked into this gstack
+# checkout. A basename such as "gstack-personal" is not ownership proof.
+is_owned_skill_link() {
+  local item="$1"
+  [ -L "$item" ] || return 1
+  local target resolved
+  target="$(readlink "$item" 2>/dev/null || true)"
+  [ -n "$target" ] || return 1
+  case "$target" in
+    /*) resolved="$target" ;;
+    *) resolved="$(cd "$(dirname "$item")" 2>/dev/null && cd "$(dirname "$target")" 2>/dev/null && pwd -P)/$(basename "$target")" ;;
+  esac
+  case "$resolved" in
+    "$GSTACK_DIR"|"$GSTACK_DIR"/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # ─── Stop running browse daemons ─────────────────────────────
 # Browse servers write PID to {project}/.gstack/browse.json.
 # Stop any we can find before removing state directories.
@@ -166,8 +184,10 @@ CODEX_SKILLS="$HOME/.codex/skills"
 if [ -d "$CODEX_SKILLS" ]; then
   for _ITEM in "$CODEX_SKILLS"/gstack*; do
     [ -e "$_ITEM" ] || [ -L "$_ITEM" ] || continue
-    rm -rf "$_ITEM"
-    REMOVED+=("codex/$(basename "$_ITEM")")
+    if is_owned_skill_link "$_ITEM"; then
+      rm -f "$_ITEM"
+      REMOVED+=("codex/$(basename "$_ITEM")")
+    fi
   done
 fi
 
@@ -176,8 +196,10 @@ FACTORY_SKILLS="$HOME/.factory/skills"
 if [ -d "$FACTORY_SKILLS" ]; then
   for _ITEM in "$FACTORY_SKILLS"/gstack*; do
     [ -e "$_ITEM" ] || [ -L "$_ITEM" ] || continue
-    rm -rf "$_ITEM"
-    REMOVED+=("factory/$(basename "$_ITEM")")
+    if is_owned_skill_link "$_ITEM"; then
+      rm -f "$_ITEM"
+      REMOVED+=("factory/$(basename "$_ITEM")")
+    fi
   done
 fi
 
@@ -186,8 +208,10 @@ KIRO_SKILLS="$HOME/.kiro/skills"
 if [ -d "$KIRO_SKILLS" ]; then
   for _ITEM in "$KIRO_SKILLS"/gstack*; do
     [ -e "$_ITEM" ] || [ -L "$_ITEM" ] || continue
-    rm -rf "$_ITEM"
-    REMOVED+=("kiro/$(basename "$_ITEM")")
+    if is_owned_skill_link "$_ITEM"; then
+      rm -f "$_ITEM"
+      REMOVED+=("kiro/$(basename "$_ITEM")")
+    fi
   done
 fi
 
@@ -195,8 +219,10 @@ fi
 if [ -n "$_GIT_ROOT" ] && [ -d "$_GIT_ROOT/.agents/skills" ]; then
   for _ITEM in "$_GIT_ROOT/.agents/skills"/gstack*; do
     [ -e "$_ITEM" ] || [ -L "$_ITEM" ] || continue
-    rm -rf "$_ITEM"
-    REMOVED+=("agents/$(basename "$_ITEM")")
+    if is_owned_skill_link "$_ITEM"; then
+      rm -f "$_ITEM"
+      REMOVED+=("agents/$(basename "$_ITEM")")
+    fi
   done
 
   rmdir "$_GIT_ROOT/.agents/skills" 2>/dev/null || true
@@ -207,8 +233,10 @@ fi
 if [ -n "$_GIT_ROOT" ] && [ -d "$_GIT_ROOT/.factory/skills" ]; then
   for _ITEM in "$_GIT_ROOT/.factory/skills"/gstack*; do
     [ -e "$_ITEM" ] || [ -L "$_ITEM" ] || continue
-    rm -rf "$_ITEM"
-    REMOVED+=("factory/$(basename "$_ITEM")")
+    if is_owned_skill_link "$_ITEM"; then
+      rm -f "$_ITEM"
+      REMOVED+=("factory/$(basename "$_ITEM")")
+    fi
   done
 
   rmdir "$_GIT_ROOT/.factory/skills" 2>/dev/null || true
