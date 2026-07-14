@@ -60,9 +60,14 @@ let warnedUnscopedCredentials = false;
 /**
  * Parse HTTP basic-auth credentials from GSTACK_HTTP_CREDENTIALS ("user:pass").
  * Splits on the first colon so passwords may contain colons. Returns undefined
- * when unset, blank, or missing a colon. When GSTACK_HTTP_CREDENTIALS_ORIGIN is
- * set, the credentials are scoped to that origin; otherwise warn once that they
- * will be sent to every 401-issuing origin the session reaches.
+ * when unset, blank, or missing a colon.
+ *
+ * SECURITY: credentials are only returned when GSTACK_HTTP_CREDENTIALS_ORIGIN is
+ * ALSO set. Playwright's httpCredentials answers ANY 401 the session reaches, and
+ * browse routinely visits untrusted pages, so unscoped creds are a
+ * cross-origin exfiltration vector (an attacker page returning 401 harvests them).
+ * Without an origin we REFUSE to apply the credentials (return undefined) and warn
+ * once explaining how to scope them — warn-only is not enough.
  */
 export function parseHttpCredentials(
   env: NodeJS.ProcessEnv = process.env,
@@ -70,17 +75,18 @@ export function parseHttpCredentials(
   const raw = env.GSTACK_HTTP_CREDENTIALS || '';
   const idx = raw.indexOf(':');
   if (idx <= 0) return undefined;
-  const creds: HttpCredentials = { username: raw.slice(0, idx), password: raw.slice(idx + 1) };
   const origin = env.GSTACK_HTTP_CREDENTIALS_ORIGIN?.trim();
-  if (origin) {
-    creds.origin = origin;
-  } else if (!warnedUnscopedCredentials) {
-    warnedUnscopedCredentials = true;
-    console.warn(
-      '[browse] GSTACK_HTTP_CREDENTIALS is set without GSTACK_HTTP_CREDENTIALS_ORIGIN — ' +
-      'these credentials will be sent to ANY origin that answers with a 401. ' +
-      'Scope them: GSTACK_HTTP_CREDENTIALS_ORIGIN=https://your-dev-host.example',
-    );
+  if (!origin) {
+    if (!warnedUnscopedCredentials) {
+      warnedUnscopedCredentials = true;
+      console.warn(
+        '[browse] GSTACK_HTTP_CREDENTIALS is set but GSTACK_HTTP_CREDENTIALS_ORIGIN is not — ' +
+        'refusing to apply the credentials, because unscoped they would be sent to ANY origin ' +
+        'that answers with a 401 (credential-exfiltration risk). ' +
+        'Scope them: GSTACK_HTTP_CREDENTIALS_ORIGIN=https://your-dev-host.example',
+      );
+    }
+    return undefined;
   }
-  return creds;
+  return { username: raw.slice(0, idx), password: raw.slice(idx + 1), origin };
 }

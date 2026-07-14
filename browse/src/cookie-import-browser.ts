@@ -1062,10 +1062,12 @@ type CdpPending = {
 // resolve NEVER — cookie import never reaches `finally`, so the spawned Chrome
 // keeps the real profile locked. The replaced WebSocket transport had explicit
 // timeouts; keep the invariant. Override via GSTACK_CDP_SEND_TIMEOUT_MS.
-const CDP_SEND_TIMEOUT_MS = (() => {
+// Read at send-time (not module load) so the env override applies at runtime
+// and tests can exercise the timeout path with a small value.
+function cdpSendTimeoutMs(): number {
   const v = parseInt(process.env.GSTACK_CDP_SEND_TIMEOUT_MS || '', 10);
   return Number.isFinite(v) && v > 0 ? v : 30_000;
-})();
+}
 
 export class CdpPipeTransport {
   private nextId = 1;
@@ -1104,16 +1106,17 @@ export class CdpPipeTransport {
     const frame: Record<string, unknown> = { id, method };
     if (params !== undefined) frame.params = params;
     if (sessionId !== undefined) frame.sessionId = sessionId;
+    const timeoutMs = cdpSendTimeoutMs();
     const promise = new Promise<any>((resolve, reject) => {
       const timer = setTimeout(() => {
         if (this.pending.delete(id)) {
           reject(new CookieImportError(
-            `CDP request '${method}' timed out after ${CDP_SEND_TIMEOUT_MS}ms`,
+            `CDP request '${method}' timed out after ${timeoutMs}ms`,
             'cdp_error',
             'retry',
           ));
         }
-      }, CDP_SEND_TIMEOUT_MS);
+      }, timeoutMs);
       // Don't keep the process alive just for this timer.
       (timer as { unref?: () => void }).unref?.();
       this.pending.set(id, { resolve, reject, timer });

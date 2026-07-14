@@ -304,7 +304,13 @@ async function scanFlutterSemantics(page: Page): Promise<FlutterSemanticNode[]> 
 function flutterNodesToAriaYaml(nodes: FlutterSemanticNode[]): string {
   return nodes.map(n => {
     const indent = '  '.repeat(Math.min(n.depth, 4));
-    const name = n.name ? ` "${n.name}"` : '';
+    // Sanitize the name so every node maps to EXACTLY ONE parseable line: a raw
+    // newline would split one node across two lines, and a raw double-quote would
+    // make parseLine() return null and skip the row — either desyncs the
+    // flutterNodes[flutterNodeIndex] alignment in handleSnapshot(), pointing @refs
+    // at the wrong element. Collapse newlines to spaces and neutralize quotes.
+    const safe = n.name ? n.name.replace(/[\r\n]+/g, ' ').replace(/"/g, '″').trim() : '';
+    const name = safe ? ` "${safe}"` : '';
     return `${indent}- ${n.role}${name}`;
   }).join('\n');
 }
@@ -386,7 +392,9 @@ export async function handleSnapshot(
   // Second pass: assign refs and build locators
   for (const line of lines) {
     const node = parseLine(line);
-    if (!node) continue;
+    // A Flutter synthetic line is 1:1 with flutterNodes; if it somehow fails to
+    // parse, still advance the index so the remaining nodes stay aligned.
+    if (!node) { if (isFlutter) flutterNodeIndex++; continue; }
 
     const depth = Math.floor(node.indent / 2);
     const isInteractive = INTERACTIVE_ROLES.has(node.role);

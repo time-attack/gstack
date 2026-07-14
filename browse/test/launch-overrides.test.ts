@@ -70,19 +70,15 @@ describe('parseHttpCredentials', () => {
     ).toBeUndefined();
   });
 
-  test('user:pass → split on first colon', () => {
+  test('SECURITY: user:pass WITHOUT an origin is refused (returns undefined)', () => {
+    // Unscoped creds would be sent to any 401-issuing origin — a leak on a
+    // browser that visits untrusted pages. We refuse rather than warn-and-send.
     expect(
       parseHttpCredentials({ GSTACK_HTTP_CREDENTIALS: 'alice:s3cr3t' } as NodeJS.ProcessEnv),
-    ).toEqual({ username: 'alice', password: 's3cr3t' });
+    ).toBeUndefined();
   });
 
-  test('password may contain colons', () => {
-    expect(
-      parseHttpCredentials({ GSTACK_HTTP_CREDENTIALS: 'alice:a:b:c' } as NodeJS.ProcessEnv),
-    ).toEqual({ username: 'alice', password: 'a:b:c' });
-  });
-
-  test('GSTACK_HTTP_CREDENTIALS_ORIGIN scopes credentials to one origin', () => {
+  test('user:pass WITH an origin → scoped credentials', () => {
     expect(
       parseHttpCredentials({
         GSTACK_HTTP_CREDENTIALS: 'alice:s3cr3t',
@@ -91,12 +87,21 @@ describe('parseHttpCredentials', () => {
     ).toEqual({ username: 'alice', password: 's3cr3t', origin: 'https://dev.example.com' });
   });
 
-  test('blank origin is ignored (credentials stay unscoped)', () => {
+  test('password may contain colons (with origin set)', () => {
+    expect(
+      parseHttpCredentials({
+        GSTACK_HTTP_CREDENTIALS: 'alice:a:b:c',
+        GSTACK_HTTP_CREDENTIALS_ORIGIN: 'https://dev.example.com',
+      } as NodeJS.ProcessEnv),
+    ).toEqual({ username: 'alice', password: 'a:b:c', origin: 'https://dev.example.com' });
+  });
+
+  test('SECURITY: blank origin is also refused (not treated as scoped)', () => {
     expect(
       parseHttpCredentials({
         GSTACK_HTTP_CREDENTIALS: 'alice:s3cr3t',
         GSTACK_HTTP_CREDENTIALS_ORIGIN: '   ',
       } as NodeJS.ProcessEnv),
-    ).toEqual({ username: 'alice', password: 's3cr3t' });
+    ).toBeUndefined();
   });
 });

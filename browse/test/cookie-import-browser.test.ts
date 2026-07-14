@@ -811,6 +811,51 @@ describe('CdpPipeTransport', () => {
 
     t.close();
   });
+
+  test('send rejects when the child stays alive but never answers (timeout fires)', async () => {
+    // The real hang codex flagged: Chrome alive but silent → the pending promise
+    // must not wait forever (which would leave cookie import hung, holding the
+    // profile lock). Set a tiny per-request timeout and push NO response.
+    const prev = process.env.GSTACK_CDP_SEND_TIMEOUT_MS;
+    process.env.GSTACK_CDP_SEND_TIMEOUT_MS = '60';
+    try {
+      const pipes = makeMockPipes();
+      const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+      const started = Date.now();
+      let err: any;
+      try {
+        await t.send('Network.getAllCookies'); // no pushFromChild → never answered
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeDefined();
+      expect(String(err?.message)).toContain('timed out');
+      // Rejected promptly (well under the 30s production default), not hung.
+      expect(Date.now() - started).toBeLessThan(2000);
+      t.close();
+    } finally {
+      if (prev === undefined) delete process.env.GSTACK_CDP_SEND_TIMEOUT_MS;
+      else process.env.GSTACK_CDP_SEND_TIMEOUT_MS = prev;
+    }
+  });
+
+  test('a response clears the timeout (no late spurious rejection)', async () => {
+    const prev = process.env.GSTACK_CDP_SEND_TIMEOUT_MS;
+    process.env.GSTACK_CDP_SEND_TIMEOUT_MS = '80';
+    try {
+      const pipes = makeMockPipes();
+      const t = new CdpPipeTransport(pipes.writeToChild, pipes.readFromChild);
+      const pending = t.send('Network.enable');
+      pipes.pushFromChild('{"id":1,"result":{"ok":true}}\x00');
+      expect(await pending).toEqual({ ok: true });
+      // Wait past the timeout window; the resolved promise must not re-reject.
+      await new Promise(r => setTimeout(r, 150));
+      t.close();
+    } finally {
+      if (prev === undefined) delete process.env.GSTACK_CDP_SEND_TIMEOUT_MS;
+      else process.env.GSTACK_CDP_SEND_TIMEOUT_MS = prev;
+    }
+  });
 });
 
 // A mock transport that replays scripted responses per-method.

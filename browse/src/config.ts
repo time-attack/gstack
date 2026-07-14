@@ -36,13 +36,18 @@ export function getGitRoot(): string | null {
   try {
     if (IS_WINDOWS) {
       const proc = nodeSpawnSync('git', ['rev-parse', '--show-toplevel'], {
-        stdout: 'pipe',
-        stderr: 'pipe',
-        timeout: 2_000, // Don't hang if .git is broken
+        // NOTE: NOT CONFIRMED ON WINDOWS (no Windows box to verify). Match the
+        // POSIX branch's 8s budget so the split-brain-daemon fix below also
+        // covers Windows under load — timing out here returns null →
+        // resolveConfig falls back to process.cwd() → scattered state dirs.
+        // node's spawnSync uses `stdio`, not Bun's stdout/stderr keys; default
+        // stdio is 'pipe' so capture works either way.
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 8_000,
         windowsHide: true,
       });
       if (proc.error || proc.status !== 0) return null;
-      return proc.stdout.toString().trim() || null;
+      return (proc.stdout ? proc.stdout.toString().trim() : '') || null;
     }
     const proc = Bun.spawnSync(['git', 'rev-parse', '--show-toplevel'], {
       stdout: 'pipe',
@@ -142,14 +147,15 @@ export function ensureStateDir(config: BrowseConfig): void {
 export function getRemoteSlug(): string {
   try {
     if (IS_WINDOWS) {
+      // NOT CONFIRMED ON WINDOWS. node spawnSync uses `stdio` (default 'pipe'),
+      // not Bun's stdout/stderr keys.
       const proc = nodeSpawnSync('git', ['remote', 'get-url', 'origin'], {
-        stdout: 'pipe',
-        stderr: 'pipe',
+        stdio: ['ignore', 'pipe', 'pipe'],
         timeout: 2_000,
         windowsHide: true,
       });
       if (proc.error || proc.status !== 0) throw new Error('no remote');
-      const url = proc.stdout.toString().trim();
+      const url = (proc.stdout ? proc.stdout.toString().trim() : '');
       // SSH:   git@github.com:owner/repo.git → owner-repo
       // HTTPS: https://github.com/owner/repo.git → owner-repo
       const match = url.match(/[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
