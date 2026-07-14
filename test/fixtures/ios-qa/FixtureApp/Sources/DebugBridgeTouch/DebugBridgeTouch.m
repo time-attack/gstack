@@ -20,7 +20,7 @@
 #import "DebugBridgeTouch.h"
 #import <TargetConditionals.h>
 
-#if TARGET_OS_IOS
+#if TARGET_OS_IOS && defined(DEBUG)
 
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
@@ -286,7 +286,7 @@ static id DBT_HitTestView(UIWindow *window, CGPoint point) {
 
 @end
 
-#else // !TARGET_OS_IOS
+#else // !(TARGET_OS_IOS && DEBUG)
 
 // macOS / Catalyst / other non-iOS host build: no-op stub so the module
 // resolves cleanly without UIKit or IOKit. The Swift cross-platform tests
@@ -298,4 +298,4 @@ static id DBT_HitTestView(UIWindow *window, CGPoint point) {
 }
 @end
 
-#endif // TARGET_OS_IOS
+#endif // TARGET_OS_IOS && defined(DEBUG)

@@ -32,6 +32,9 @@ let package = Package(
             dependencies: [],
             path: "Sources/DebugBridgeTouch",
             publicHeadersPath: "include",
+            cSettings: [
+                .define("DEBUG", to: "1", .when(configuration: .debug)),
+            ],
             linkerSettings: [
                 .linkedFramework("UIKit", .when(platforms: [.iOS])),
             ]

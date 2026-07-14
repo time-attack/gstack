@@ -61,6 +61,20 @@ describe('template ↔ fixture parity', () => {
   });
 });
 
+describe('iOS Release private API guard', () => {
+  test('Objective-C touch implementation requires both iOS and DEBUG', () => {
+    const m = readFileSync(join(TEMPLATES_PATH, 'DebugBridgeTouch.m.template'), 'utf-8');
+    expect(m).toContain('#if TARGET_OS_IOS && defined(DEBUG)');
+    expect(m).not.toMatch(/#if\s+TARGET_OS_IOS\s*$/m);
+  });
+
+  test('Objective-C target receives DEBUG only in debug configuration', () => {
+    const pkg = readFileSync(join(TEMPLATES_PATH, 'Package.swift.template'), 'utf-8');
+    expect(pkg.split('\n')[0]).toMatch(/^\/\/ swift-tools-version:/);
+    expect(pkg).toMatch(/cSettings:\s*\[[\s\S]*?\.define\("DEBUG", to: "1", \.when\(configuration: \.debug\)\)/);
+  });
+});
+
 function hasSwift(): boolean {
   const r = spawnSync('swift', ['--version'], { stdio: 'pipe' });
   return r.status === 0;
