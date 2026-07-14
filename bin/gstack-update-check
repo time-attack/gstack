@@ -58,8 +58,10 @@ if [ "$APPLY" -eq 1 ] && grep -q '^UP_TO_DATE' "$CACHE_FILE" 2>/dev/null; then
 fi
 
 # ─── Step 0: Check if updates are disabled ────────────────────
+# update_check:false disables the passive check, not an explicit --apply —
+# a user who typed the flag asked for the upgrade regardless of the config.
 _UC=$("$GSTACK_DIR/bin/gstack-config" get update_check 2>/dev/null || true)
-if [ "$_UC" = "false" ]; then
+if [ "$_UC" = "false" ] && [ "$APPLY" -ne 1 ]; then
   exit 0
 fi
 
@@ -159,8 +161,12 @@ apply_upgrade() {
   git -C "$GSTACK_DIR" diff --cached --quiet --ignore-submodules -- \
     || fail_apply "$GSTACK_DIR has staged changes"
 
-  if ! GIT_TERMINAL_PROMPT=0 git -C "$GSTACK_DIR" fetch origin "$branch" >/dev/null 2>&1; then
-    GIT_TERMINAL_PROMPT=0 git -C "$GSTACK_DIR" fetch origin main >/dev/null 2>&1 \
+  # Same stall fence as the ls-remote path below: a dead network read must
+  # fail the fetch, not hang --apply.
+  if ! GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
+      git -C "$GSTACK_DIR" fetch origin "$branch" >/dev/null 2>&1; then
+    GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=30 \
+      git -C "$GSTACK_DIR" fetch origin main >/dev/null 2>&1 \
       || fail_apply "could not fetch origin/$branch or origin/main"
   fi
 
@@ -184,16 +190,40 @@ apply_upgrade() {
   # A best-effort refresh must not hang --apply forever, so the setup process
   # group is killed after GSTACK_APPLY_SETUP_TIMEOUT seconds (default 600).
   if command -v bun >/dev/null 2>&1 && [ -f "$GSTACK_DIR/setup" ]; then
-    echo "gstack-update-check: running ./setup -q to refresh the install (a first run may download browsers — this can take a few minutes)" >&2
-    set -m  # own process group for the setup tree, so the watchdog can kill all of it
-    ( cd "$GSTACK_DIR" && ./setup -q ) </dev/null >/dev/null 2>&1 &
-    _SETUP_PID=$!
-    set +m
-    ( sleep "${GSTACK_APPLY_SETUP_TIMEOUT:-600}"; kill -- -"$_SETUP_PID" 2>/dev/null ) >/dev/null 2>&1 &
-    _SETUP_WD=$!
-    wait "$_SETUP_PID" 2>/dev/null || \
-      echo "gstack-update-check: ./setup -q did not finish (timed out or failed) — source is upgraded; run ./setup manually to refresh assets" >&2
-    kill "$_SETUP_WD" 2>/dev/null || true
+    # Serialize with bin/gstack-session-update via the same mkdir lock —
+    # two concurrent ./setup -q runs interleave compiled-binary writes.
+    _SETUP_LOCK="$STATE_DIR/.setup-lock"
+    _LOCK_HELD=0
+    if mkdir "$_SETUP_LOCK" 2>/dev/null; then
+      _LOCK_HELD=1
+    else
+      _LPID="$(cat "$_SETUP_LOCK/pid" 2>/dev/null || echo 0)"
+      if [ "$_LPID" -gt 0 ] 2>/dev/null && ! kill -0 "$_LPID" 2>/dev/null; then
+        rm -rf "$_SETUP_LOCK" 2>/dev/null || true   # stale lock from a dead run
+        mkdir "$_SETUP_LOCK" 2>/dev/null && _LOCK_HELD=1
+      fi
+    fi
+    if [ "$_LOCK_HELD" -eq 1 ]; then
+      echo $$ > "$_SETUP_LOCK/pid" 2>/dev/null || true
+      echo "gstack-update-check: running ./setup -q to refresh the install (a first run may download browsers — this can take a few minutes)" >&2
+      # set -m gives BOTH background jobs their own process groups, so the
+      # teardown group-kills can reap the whole setup tree AND the watchdog's
+      # sleep child (a plain kill of the subshell orphans the sleep for the
+      # full timeout). The waits absorb bash's async 'Terminated' notices.
+      set -m
+      ( cd "$GSTACK_DIR" && ./setup -q ) </dev/null >/dev/null 2>&1 &
+      _SETUP_PID=$!
+      ( sleep "${GSTACK_APPLY_SETUP_TIMEOUT:-600}"; kill -- -"$_SETUP_PID" 2>/dev/null ) >/dev/null 2>&1 &
+      _SETUP_WD=$!
+      set +m
+      wait "$_SETUP_PID" 2>/dev/null || \
+        echo "gstack-update-check: ./setup -q did not finish (timed out or failed) — source is upgraded; run ./setup manually to refresh assets" >&2
+      kill -- -"$_SETUP_WD" 2>/dev/null || true
+      wait "$_SETUP_WD" 2>/dev/null || true
+      rm -rf "$_SETUP_LOCK" 2>/dev/null || true
+    else
+      echo "gstack-update-check: another setup is running (lock: $_SETUP_LOCK) — skipped the asset refresh; run ./setup manually if needed" >&2
+    fi
   fi
 
   after=""

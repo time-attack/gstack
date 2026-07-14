@@ -27,7 +27,7 @@ function sh(args: string[], cwd: string, env: NodeJS.ProcessEnv = process.env) {
   return result;
 }
 
-function makeInstallPair() {
+function makeInstallPair(configScript = "#!/bin/sh\nexit 0\n") {
   const tmp = mkdtempSync(join(tmpdir(), "gstack-update-check-"));
   cleanupDirs.push(tmp);
 
@@ -39,7 +39,7 @@ function makeInstallPair() {
   mkdirSync(state, { recursive: true });
 
   writeFileSync(join(origin, "VERSION"), "1.0.0\n");
-  writeFileSync(join(origin, "bin", "gstack-config"), "#!/bin/sh\nexit 0\n");
+  writeFileSync(join(origin, "bin", "gstack-config"), configScript);
   chmodSync(join(origin, "bin", "gstack-config"), 0o755);
 
   sh(["git", "init", "-q", "-b", "main"], origin);
@@ -104,6 +104,47 @@ describe("gstack-update-check --apply", () => {
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toBe("UPGRADED 1.0.0 1.0.1");
     expect(readFileSync(join(repo.install, "VERSION"), "utf-8").trim()).toBe("1.0.1");
+  });
+
+  test("update_check:false does not silently eat an explicit --apply", () => {
+    // Config disables the passive check; the user's explicit flag still wins.
+    // The stub ships in origin's initial commit so the clone stays clean.
+    const repo = makeInstallPair('#!/bin/sh\n[ "$1 $2" = "get update_check" ] && echo false\nexit 0\n');
+    const result = runUpdateCheck(repo, ["--force", "--apply"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("UPGRADED 1.0.0 1.0.1");
+    expect(readFileSync(join(repo.install, "VERSION"), "utf-8").trim()).toBe("1.0.1");
+  });
+
+  test("a fast successful setup leaves clean stderr and no lock behind", () => {
+    const repo = makeInstallPair();
+    writeFileSync(join(repo.install, "setup"), "#!/bin/sh\nexit 0\n");
+    chmodSync(join(repo.install, "setup"), 0o755);
+    const result = runUpdateCheck(repo, ["--force", "--apply"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("UPGRADED 1.0.0 1.0.1");
+    expect(result.stderr).toContain("running ./setup -q");
+    // Pre-fix, bash's async job notice for the killed watchdog leaked here.
+    expect(result.stderr).not.toContain("Terminated");
+    expect(existsSync(join(repo.state, ".setup-lock"))).toBe(false);
+  });
+
+  test("a held setup lock skips the refresh instead of racing it", () => {
+    const repo = makeInstallPair();
+    // Setup would drop a marker if it ran — it must not, while the lock is
+    // held by a live process (this test runner).
+    writeFileSync(join(repo.install, "setup"), `#!/bin/sh\ntouch "${join(repo.tmp, "setup-ran")}"\n`);
+    chmodSync(join(repo.install, "setup"), 0o755);
+    mkdirSync(join(repo.state, ".setup-lock"), { recursive: true });
+    writeFileSync(join(repo.state, ".setup-lock", "pid"), String(process.pid));
+    const result = runUpdateCheck(repo, ["--force", "--apply"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("UPGRADED 1.0.0 1.0.1");
+    expect(result.stderr).toContain("another setup is running");
+    expect(existsSync(join(repo.tmp, "setup-ran"))).toBe(false);
   });
 
   test("a hanging ./setup cannot wedge --apply (watchdog kills it)", () => {
