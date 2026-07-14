@@ -19,6 +19,13 @@ export interface VariantsOptions {
   viewports?: string; // "desktop,tablet,mobile" — generates at multiple sizes
 }
 
+export function normalizeVariantCount(count: number): number {
+  if (!Number.isInteger(count) || count < 1) {
+    throw new Error("--count must be a positive integer");
+  }
+  return Math.min(count, 7);
+}
+
 const STYLE_VARIATIONS = [
   "", // First variant uses the brief as-is
   "Use a bolder, more dramatic visual style with stronger contrast and larger typography.",
@@ -153,7 +160,7 @@ export async function variants(options: VariantsOptions): Promise<void> {
     return;
   }
 
-  const count = Math.min(options.count, 7); // Cap at 7 style variations
+  const count = normalizeVariantCount(options.count); // Cap at 7 style variations
   const size = options.size || "1536x1024";
 
   console.error(`Generating ${count} variants...`);

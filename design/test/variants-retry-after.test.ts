@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { generateVariant } from "../src/variants";
+import { generateVariant, normalizeVariantCount } from "../src/variants";
 
 // 1x1 transparent PNG, base64 — valid bytes that fs.writeFileSync can write.
 const TINY_PNG_BASE64 =
@@ -129,5 +129,20 @@ describe("generateVariant Retry-After handling", () => {
     expect(calls.length).toBe(2);
     const gap = calls[1].ts - calls[0].ts;
     expect(gap).toBeLessThan(500);
+  });
+});
+
+describe("normalizeVariantCount", () => {
+  test("rejects values that would silently generate no variants", () => {
+    expect(() => normalizeVariantCount(NaN)).toThrow("--count must be a positive integer");
+    expect(() => normalizeVariantCount(0)).toThrow("--count must be a positive integer");
+    expect(() => normalizeVariantCount(-2)).toThrow("--count must be a positive integer");
+    expect(() => normalizeVariantCount(2.5)).toThrow("--count must be a positive integer");
+  });
+
+  test("keeps valid counts and preserves the existing upper cap", () => {
+    expect(normalizeVariantCount(1)).toBe(1);
+    expect(normalizeVariantCount(3)).toBe(3);
+    expect(normalizeVariantCount(10)).toBe(7);
   });
 });
