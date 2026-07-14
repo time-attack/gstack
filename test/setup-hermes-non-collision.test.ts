@@ -25,7 +25,14 @@ describe('setup: Hermes non-collision with existing files', () => {
     expect(block).not.toContain('rm -rf "$HERMES_GSTACK"');
   });
 
-  test('behavioral: existing real files in ~/.hermes/skills/gstack survive setup', () => {
+  test('logic-mirror: existing real files in ~/.hermes/skills/gstack survive the runtime-root guard', () => {
+    // The script below MIRRORS setup's live guard (it does not execute setup).
+    // Pin the mirrored lines against the live script so this test cannot
+    // silently diverge from what setup really does.
+    const live = fs.readFileSync(SETUP_SCRIPT, 'utf-8');
+    expect(live).toContain('if [ -L "$HERMES_GSTACK" ]; then');
+    expect(live).toContain('rm -f "$HERMES_GSTACK"');
+    expect(live).toContain('mkdir -p "$HERMES_GSTACK" "$HERMES_GSTACK/browse" "$HERMES_GSTACK/review"');
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-hermes-collision-'));
     try {
       // Reconstruct the runtime-root creation logic from setup, exercising the
@@ -91,7 +98,14 @@ describe('setup: Hermes generated skill linking', () => {
     expect(block).not.toContain('_target="$HERMES_SKILLS/$skill_name"');
   });
 
-  test('behavioral: all generated gstack-* skills are linked into HERMES_SKILLS', () => {
+  test('logic-mirror: all generated gstack-* skills are linked into HERMES_SKILLS', () => {
+    // Mirrors setup's sub-skill loop (does not execute setup); pin the live
+    // loop's load-bearing lines so the mirror can't silently drift. The live
+    // guard also honors the .gstack-owned-copy marker for Windows re-runs.
+    const live = fs.readFileSync(SETUP_SCRIPT, 'utf-8');
+    expect(live).toContain('for skill_dir in "$HERMES_GEN_DIR"/gstack*/; do');
+    expect(live).toContain('_target="$HERMES_SKILLS/$_skill_name"');
+    expect(live).toContain('if [ -d "$_target" ] && [ ! -L "$_target" ] && [ ! -f "$_target/.gstack-owned-copy" ]; then');
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-hermes-linking-'));
     try {
       const hermesSkills = path.join(tmp, 'skills');

@@ -150,7 +150,11 @@ describe.skipIf(process.platform === 'win32')('setup: _link_or_copy helper — b
   });
 });
 
-describe('setup: _link_or_copy Windows symlink-fallback paths', () => {
+// Same reasoning as the matrix above: these cells drive the helper with Unix
+// `ln` semantics (and shims that delegate to /bin/ln), which Git Bash on the
+// windows-latest runner cannot honor — MSYS ln copies instead of symlinking,
+// so the symlink-success cell can never pass there.
+describe.skipIf(process.platform === 'win32')('setup: _link_or_copy Windows symlink-fallback paths', () => {
   const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-win-symlink-'));
 
   afterAll(() => fs.rmSync(TMP, { recursive: true, force: true }));

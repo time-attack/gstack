@@ -55,10 +55,12 @@ describe('setup: ensure_playwright_browser detects a missing full Chromium build
     // Without this, the verify launches headless and passes off the cached
     // headless shell, masking a missing full build that headed mode needs.
     expect(fn).toContain('executablePath()');
-    // Both the Node (Windows) and Bun (Unix) branches must fail closed when the
-    // full build is absent.
-    expect(fn).toContain('fs.existsSync(chromium.executablePath())');
-    expect(fn).toContain('existsSync(chromium.executablePath())');
+    // Both the Node (Windows) and Bun (Unix) branches must fail closed when
+    // the full build is absent. Anchor each branch distinctly: the bare
+    // '(!existsSync(' form only appears in the Bun branch — a plain
+    // 'existsSync(...)' check would be satisfied by the Node branch alone.
+    expect(fn).toContain('!fs.existsSync(chromium.executablePath())');
+    expect(fn).toContain('(!existsSync(chromium.executablePath())');
     expect(fn).toContain('process.exit(1)');
   });
 });
