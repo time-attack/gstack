@@ -60,6 +60,11 @@ describe('setup: plan-tune hooks are non-interactive-safe', () => {
     expect(setupSrc).toMatch(/tr '\[:upper:\]' '\[:lower:\]'/);
     expect(setupSrc).toMatch(/PT_DECISION=\$\(printf .* tr/);
   });
+
+  test('Conductor does not implicitly opt in to AskUserQuestion hooks', () => {
+    expect(setupSrc).not.toContain('_PT_CONDUCTOR_AUTO');
+    expect(setupSrc).not.toMatch(/CONDUCTOR_(?:WORKSPACE_PATH|PORT)[\s\S]{0,300}PT_DECISION="yes"/);
+  });
 });
 
 describe('dev-setup: never silently mutates global settings.json', () => {
