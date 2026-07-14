@@ -908,7 +908,8 @@ This keeps the skill working whether installed as a Claude Code plugin
 container where `HOME` may be unset and `/tmp` may be read-only.
 
 ```bash
-eval "$(~/.claude/skills/gstack/bin/gstack-paths)"
+PLAN_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get plan-root)
+TMP_ROOT=$(~/.claude/skills/gstack/bin/gstack-paths --get tmp-root)
 ```
 
 After this, every subsequent bash block in this skill uses `"$PLAN_ROOT"` and

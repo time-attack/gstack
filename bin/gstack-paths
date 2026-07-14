@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gstack-paths — output portable state-root paths for skill bash blocks
-# Usage: eval "$(gstack-paths)"  → sets GSTACK_STATE_ROOT, PLAN_ROOT, TMP_ROOT
-# Or:    gstack-paths            → prints GSTACK_STATE_ROOT=... etc.
+# Usage: eval "$(gstack-paths)"   → sets GSTACK_STATE_ROOT, PLAN_ROOT, TMP_ROOT
+#        gstack-paths --get <key> → prints one resolved path
 #
 # Resolves three roots with explicit fallback chains so skills work the same
 # whether installed as a Claude Code plugin (CLAUDE_PLUGIN_DATA / CLAUDE_PLANS_DIR
@@ -17,6 +17,17 @@
 # shell-special characters if env vars contain them. Skills should always quote
 # expansions ("$GSTACK_STATE_ROOT", not $GSTACK_STATE_ROOT).
 set -u
+
+_get_key=""
+case "${1:-}" in
+  --get)
+    [ -n "${2:-}" ] || { echo "gstack-paths: --get requires a key" >&2; exit 1; }
+    [ -z "${3:-}" ] || { echo "gstack-paths: unexpected argument '$3'" >&2; exit 1; }
+    _get_key="$2"
+    ;;
+  "") ;;
+  *) echo "gstack-paths: unknown argument '$1'" >&2; exit 1 ;;
+esac
 
 # State root: where gstack writes projects/, sessions/, analytics/.
 if [ -n "${GSTACK_HOME:-}" ]; then
@@ -60,6 +71,14 @@ fi
 # will discover that on their own write attempt. Don't fail the eval here.
 mkdir -p "$_tmp_root" 2>/dev/null || true
 
-echo "GSTACK_STATE_ROOT=$_state_root"
-echo "PLAN_ROOT=$_plan_root"
-echo "TMP_ROOT=$_tmp_root"
+if [ -n "$_get_key" ]; then
+  case "$_get_key" in
+    state-root) printf '%s\n' "$_state_root" ;;
+    plan-root) printf '%s\n' "$_plan_root" ;;
+    tmp-root) printf '%s\n' "$_tmp_root" ;;
+    *) echo "gstack-paths: unknown key '$_get_key'" >&2; exit 1 ;;
+  esac
+else
+  printf 'GSTACK_STATE_ROOT=%s\nPLAN_ROOT=%s\nTMP_ROOT=%s\n' \
+    "$_state_root" "$_plan_root" "$_tmp_root"
+fi

@@ -32,6 +32,21 @@ function run(env: Record<string, string | undefined>): Record<string, string> {
 }
 
 describe('gstack-paths', () => {
+  test('--get prints only the requested resolved path', () => {
+    const result = spawnSync('bash', [BIN, '--get', 'plan-root'], {
+      env: { PATH: process.env.PATH, USERPROFILE: '', HOME: '/tmp/h' } as Record<string, string>,
+      encoding: 'utf-8',
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('/tmp/h/.claude/plans\n');
+  });
+
+  test('--get rejects unknown keys', () => {
+    const result = spawnSync('bash', [BIN, '--get', 'unknown'], { encoding: 'utf-8' });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("unknown key 'unknown'");
+  });
+
   test('GSTACK_HOME wins over CLAUDE_PLUGIN_DATA and HOME', () => {
     const got = run({
       GSTACK_HOME: '/tmp/explicit-state',
