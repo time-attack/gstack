@@ -58,7 +58,7 @@ From inside your repo, paste this. Switches you to team mode, bootstraps the rep
 (cd ~/.claude/skills/gstack && ./setup --team) && ~/.claude/skills/gstack/bin/gstack-team-init required && git add .claude/ CLAUDE.md && git commit -m "require gstack for AI-assisted work"
 ```
 
-No vendored files in your repo, no version drift, no manual upgrades. Every Claude Code session starts with a fast auto-update check (throttled to once/hour, network-failure-safe, completely silent).
+Your project stays small, and everyone gets the same up-to-date version of gstack. If gstack is missing or its safety check cannot run, Claude Code and Copilot stop and explain what to do. If everything is ready, the check stays out of the way and your usual permission questions still appear. Updates happen quietly when a Claude Code session starts, at most once an hour.
 
 Swap `required` for `optional` if you'd rather nudge teammates than block them.
 
@@ -101,7 +101,7 @@ These are conversational skills. Your OpenClaw agent runs them directly via chat
 
 ### Other AI Agents
 
-gstack works on 10 AI coding agents, not just Claude. Setup auto-detects which
+gstack works on 15 AI coding agents, not just Claude. Setup auto-detects which
 agents you have installed:
 
 ```bash
@@ -113,14 +113,18 @@ Or target a specific agent with `./setup --host <name>`:
 
 | Agent | Flag | Skills install to |
 |-------|------|-------------------|
-| OpenAI Codex CLI | `--host codex` | `~/.codex/skills/gstack-*/` |
+| OpenAI Codex CLI | `--host codex` | `~/.agents/skills/gstack-*/` |
 | OpenCode | `--host opencode` | `~/.config/opencode/skills/gstack-*/` |
 | Cursor | `--host cursor` | `~/.cursor/skills/gstack-*/` |
 | Factory Droid | `--host factory` | `~/.factory/skills/gstack-*/` |
 | Slate | `--host slate` | `~/.slate/skills/gstack-*/` |
 | Kiro | `--host kiro` | `~/.kiro/skills/gstack-*/` |
-| Hermes | `--host hermes` | `~/.hermes/skills/gstack-*/` |
+| Hermes | `--host hermes` | Prints integration instructions; `bun run gen:skill-docs --host hermes` writes `.hermes/skills/` |
+| Pi | `--host pi` | Prints integration instructions; `bun run gen:skill-docs --host pi` writes `.pi/skills/` |
+| Antigravity | `--host agy` | Prints integration instructions; `bun run gen:skill-docs --host agy` writes `.agy/skills/` |
+| Mistral Vibe | `--host vibe` | Prints integration instructions; `bun run gen:skill-docs --host vibe` writes `.vibe/skills/` |
 | GBrain (mod) | `--host gbrain` | `~/.gbrain/skills/gstack-*/` |
+| Qoder | `--host qoder` | `~/.qoder/skills/gstack-*/` |
 
 **Want to add support for another agent?** See [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md).
 It's one TypeScript config file, zero code changes.
@@ -146,6 +150,25 @@ To upgrade:
 ```
 
 **Plugin install vs. git clone install:** The plugin install gives you all 50+ skills instantly as methodology prompts. The git clone install (Step 1 above) is still the full experience: it builds the `/browse` headless browser binary, registers hook-based safety skills (`/careful`, `/freeze`, `/guard`), and installs the `bin/` helper scripts (telemetry, learnings, redaction, context recovery) at `~/.claude/skills/gstack/` where the skills look for them. In a plugin-only install those helper calls no-op or degrade gracefully — the review/planning methodology still works, but features that shell out to helpers (redaction scans, learnings capture, `/browse` QA) need the git clone install alongside. If you want everything, run both: the plugin for discovery, the clone for the toolchain.
+
+### Pi
+
+[Pi](https://pi.dev) implements the [Agent Skills standard](https://agentskills.io/specification)
+end-to-end, so every gstack skill works out of the box once the skills directory
+is configured. `./setup --host pi` prints these instructions; the install itself
+is two commands:
+
+```bash
+git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/gstack
+cd ~/gstack && bun run gen:skill-docs --host pi
+mkdir -p ~/.pi/agent/skills && ln -snf "$(pwd)"/.pi/skills/gstack* ~/.pi/agent/skills/
+```
+
+Skills land at `~/.pi/agent/skills/gstack-*/`. For project-local skills (trusted
+project), pi also discovers `.pi/skills/`. Pi loads skill descriptions at startup
+and lazy-loads the full `SKILL.md` on demand, matching Claude Code's behavior.
+
+Invoke a skill with `/skill:<name>` (e.g. `/skill:review`, `/skill:ship`).
 
 ## See it work
 
@@ -379,10 +402,11 @@ rm -rf ~/.claude/skills/gstack
 rm -rf ~/.gstack
 
 # 5. Remove integrations (skip any you never installed)
-rm -rf ~/.codex/skills/gstack* 2>/dev/null
+rm -rf ~/.agents/skills/gstack* ~/.codex/skills/gstack* 2>/dev/null
 rm -rf ~/.factory/skills/gstack* 2>/dev/null
 rm -rf ~/.kiro/skills/gstack* 2>/dev/null
 rm -rf ~/.openclaw/skills/gstack* 2>/dev/null
+rm -rf ~/.qoder/skills/gstack* 2>/dev/null
 
 # 6. Remove temp files
 rm -f /tmp/gstack-* 2>/dev/null
@@ -490,7 +514,7 @@ Data is stored in [Supabase](https://supabase.com) (open source Firebase alterna
 
 **Want namespaced commands?** `cd ~/.claude/skills/gstack && ./setup --prefix` — switches from `/qa` to `/gstack-qa`. Useful if you run other skill packs alongside gstack.
 
-**Codex says "Skipped loading skill(s) due to invalid SKILL.md"?** Your Codex skill descriptions are stale. Fix: `cd ~/.codex/skills/gstack && git pull && ./setup --host codex` — or for repo-local installs: `cd "$(readlink -f .agents/skills/gstack)" && git pull && ./setup --host codex`
+**Codex says "Skipped loading skill(s) due to invalid SKILL.md"?** Your Codex skill descriptions are stale. Fix: `cd ~/.agents/skills/gstack && git pull && ./setup --host codex` — or for repo-local installs: `cd "$(readlink -f .agents/skills/gstack)" && git pull && ./setup --host codex`
 
 **Windows users:** gstack works on Windows 11 via Git Bash or WSL. Node.js is required in addition to Bun — Bun has a known bug with Playwright's pipe transport on Windows ([bun#4253](https://github.com/oven-sh/bun/issues/4253)). The browse server automatically falls back to Node.js. Make sure both `bun` and `node` are on your PATH.
 

@@ -44,10 +44,12 @@ function runHook(stdin: object): { stdout: string; stderr: string; status: numbe
   env.GSTACK_QUESTION_LOG_NO_DERIVE = '1';
   delete env.GSTACK_HOME;
   // These cases assert the defer-path memoryContext injection. Strip ambient
-  // Conductor markers so running inside Conductor (CONDUCTOR_WORKSPACE_PATH/PORT
-  // set) doesn't flip the hook into the [conductor] prose deny instead of defer.
+  // host markers so running inside Conductor (CONDUCTOR_WORKSPACE_PATH/PORT set)
+  // or the Claude Desktop app (CLAUDE_CODE_ENTRYPOINT=claude-desktop) doesn't flip
+  // the hook into the prose deny instead of defer.
   delete env.CONDUCTOR_WORKSPACE_PATH;
   delete env.CONDUCTOR_PORT;
+  delete env.CLAUDE_CODE_ENTRYPOINT;
   const res = spawnSync(HOOK, [], {
     env,
     input: JSON.stringify({ ...stdin, cwd: fixtureCwd }),
@@ -91,7 +93,7 @@ describe('memory injection', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
     expect(r.parsed?.hookSpecificOutput?.additionalContext).toContain('verbose explanations');
   });
 
@@ -115,7 +117,7 @@ describe('memory injection', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
     expect(r.parsed?.hookSpecificOutput?.additionalContext).toBeUndefined();
   });
 
@@ -219,7 +221,7 @@ describe('per-session memory cache', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined();
     expect(r.parsed?.hookSpecificOutput?.additionalContext).toBeUndefined();
   });
 });
