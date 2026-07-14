@@ -49,11 +49,11 @@ const codex: HostConfig = {
     'Use the Agent tool': 'Spawn a Codex subagent',
     'use the Agent tool': 'use a Codex subagent',
     'If the Agent tool is unavailable': 'If Codex subagents are unavailable',
-    'use the Bash tool': 'run this command',
-    'use the Write tool': 'create this file',
-    'use the Read tool': 'read the file',
-    'use the Grep tool': 'search for',
-    'use the Glob tool': 'find files matching',
+    // NOTE: deliberately NOT rewriting the Bash/Read/Write/Grep/Glob tool nouns
+    // to action phrases (e.g. 'use the Grep tool' → 'search for'): they break
+    // grammar mid-sentence ("search for to find X") and Codex agents already
+    // have analogous tools, so the untranslated noun reads fine. #1162's point
+    // was the subagent vocabulary above, not the generic tool nouns.
     'Agent tool': 'Codex subagent tool',
   },
 

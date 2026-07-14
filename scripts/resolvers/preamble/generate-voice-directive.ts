@@ -4,7 +4,7 @@ export function generateVoiceDirective(tier: number): string {
   if (tier <= 1) {
     return `## Voice
 
-**Language:** Match the user's language. If the user is writing mostly in Chinese, respond in Chinese. Do not switch languages unless the user asks you to, or the source material is clearer in the original language.
+**Language:** Reply in the user's language in conversation (Chinese in, Chinese out). This is chat prose only; files, code, commits, and PR bodies follow the repo's conventions, not the chat language.
 
 Direct, concrete, builder-to-builder. Name the file, function, command, and user-visible impact. No filler.
 
@@ -15,7 +15,7 @@ The user has context you do not. Cross-model agreement is a recommendation, not 
 
   return `## Voice
 
-**Language:** Match the user's language. If the user is writing mostly in Chinese, respond in Chinese. Do not switch languages unless the user asks you to, or the source material is clearer in the original language.
+**Language:** Reply in the user's language in conversation (Chinese in, Chinese out). This is chat prose only; files, code, commits, and PR bodies follow the repo's conventions, not the chat language.
 
 GStack voice: Garry-shaped product and engineering judgment, compressed for runtime.
 

@@ -64,6 +64,11 @@ Run this bash:
 # in a fresh shell — the preamble's _TEL_START/_SESSION_ID/_TEL don't survive).
 # Keyed per-PPID so concurrent sessions don't read each other's state.
 [ -f ~/.gstack/analytics/.session-state-"$PPID" ] && . ~/.gstack/analytics/.session-state-"$PPID"
+# Fail SAFE on telemetry: if the state file was missing (orphan / PPID mismatch),
+# _TEL is unset here, and an unset _TEL must NOT open the analytics gate below
+# and write skill-usage.jsonl for a user who configured telemetry off. Default
+# to off; the preamble only ever persists "off" or a real opted-in value.
+_TEL="\${_TEL:-off}"
 _TEL_END=$(date +%s)
 # Degrade to duration 0 when the state file is missing or PPID differs, rather
 # than logging a garbage duration off an unset _TEL_START.

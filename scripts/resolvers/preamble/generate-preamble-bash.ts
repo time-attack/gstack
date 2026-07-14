@@ -81,6 +81,10 @@ echo "QUESTION_TUNING: $_QUESTION_TUNING"
 _UPDATE_CHECK=$(${ctx.paths.binDir}/gstack-config get update_check 2>/dev/null || echo "true")
 echo "UPDATE_CHECK: $_UPDATE_CHECK"
 mkdir -p ~/.gstack/analytics
+# Reap orphaned per-PPID session-state files (>2h old) — the completion block
+# deletes its own on a clean run, but a killed/crashed skill leaves one behind,
+# so sweep like the ~/.gstack/sessions markers do. Bounds unbounded growth.
+find ~/.gstack/analytics -maxdepth 1 -name '.session-state-*' -mmin +120 -exec rm {} + 2>/dev/null || true
 # Persist telemetry start-state so the separate "Telemetry (run last)" Bash
 # call (which runs in its own shell — vars don't survive between blocks) can
 # read a real start time and session id instead of logging duration 0 /
