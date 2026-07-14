@@ -50,7 +50,7 @@ export const TOOL_COMPATIBILITY: Record<'claude' | 'gpt' | 'gemini', Record<Tool
     Glob: false,
     Grep: false,
     AskUserQuestion: false,
-    WebSearch: true,    // --enable web_search_cached
+    WebSearch: true,    // cached search is enabled by default
     WebFetch: false,
   },
   gemini: {
