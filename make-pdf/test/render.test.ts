@@ -249,6 +249,18 @@ describe("render (end-to-end)", () => {
     expect(result.printCss).toContain("Hiragino Kaku Gothic");
     expect(result.printCss).toContain("Noto Sans CJK");
   });
+
+  test("keeps a non-rendering preamble with the first chapter", () => {
+    const result = render({ markdown: `<style>h1{color:#000}</style>\n\n# Hello\n\nBody.` });
+    expect(result.html.match(/class="chapter"/g)?.length).toBe(1);
+    expect(result.html).toMatch(/<section class="chapter"><style>[\s\S]*?<\/style>[\s\S]*?<h1/);
+  });
+
+  test("preserves visible leading markdown as a preamble chapter", () => {
+    const result = render({ markdown: `---\nnot: frontmatter\n---\n\n# Hello\n\nBody.` });
+    expect(result.html).toContain("not: frontmatter");
+    expect(result.html.match(/class="chapter"/g)?.length).toBe(2);
+  });
 });
 
 // ─── print-css ──────────────────────────────────────────────

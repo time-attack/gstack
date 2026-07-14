@@ -357,15 +357,28 @@ function wrapChaptersByH1(html: string): string {
   }
   const chunks: string[] = [];
   const preamble = html.slice(0, matches[0]);
+  let carriedPreamble = "";
   if (preamble.trim().length > 0) {
-    chunks.push(`<section class="chapter">${preamble}</section>`);
+    if (stripNonRenderingMarkup(preamble).trim().length > 0) {
+      chunks.push(`<section class="chapter">${preamble}</section>`);
+    } else {
+      carriedPreamble = preamble;
+    }
   }
   for (let i = 0; i < matches.length; i++) {
     const start = matches[i];
     const end = i + 1 < matches.length ? matches[i + 1] : html.length;
-    chunks.push(`<section class="chapter">${html.slice(start, end)}</section>`);
+    const body = i === 0 ? carriedPreamble + html.slice(start, end) : html.slice(start, end);
+    chunks.push(`<section class="chapter">${body}</section>`);
   }
   return chunks.join("\n");
+}
+
+function stripNonRenderingMarkup(html: string): string {
+  return html
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "");
 }
 
 function extractFirstHeading(html: string): string | null {
