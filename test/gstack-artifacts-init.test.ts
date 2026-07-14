@@ -251,12 +251,47 @@ describe('gstack-artifacts-init canonical URL storage (codex Finding #10)', () =
     expect(stored).toBe('https://github.com/testuser/gstack-artifacts-testuser');
   });
 
-  test('configures git origin with SSH form (derived from canonical HTTPS)', () => {
+  test('provider-created remotes default to HTTPS when no CLI protocol is configured', () => {
     makeFakeGh({ webUrl: 'https://github.com/testuser/gstack-artifacts-testuser' });
     const r = run(['--host', 'github']);
     expect(r.status).toBe(0);
     const remote = spawnSync('git', ['-C', tmpHome, 'remote', 'get-url', 'origin'], { encoding: 'utf-8' });
-    expect(remote.stdout.trim()).toBe('git@github.com:testuser/gstack-artifacts-testuser.git');
+    expect(remote.stdout.trim()).toBe('https://github.com/testuser/gstack-artifacts-testuser');
+  });
+
+  test('explicit HTTPS survives a real ls-remote and push', () => {
+    const realHome = fs.mkdtempSync(path.join(os.tmpdir(), 'artifacts-real-home-'));
+    const realState = path.join(realHome, '.gstack');
+    const realRemote = fs.mkdtempSync(path.join(os.tmpdir(), 'artifacts-real-bare-'));
+    const url = 'https://example.invalid/probe/artifacts.git';
+    spawnSync('git', ['init', '--bare', '-q', '-b', 'main', realRemote]);
+    spawnSync('git', ['config', '--global', 'url.' + realRemote + '.insteadOf', url], {
+      env: { ...process.env, HOME: realHome },
+    });
+    spawnSync('git', ['config', '--global', 'user.email', 'probe@example.invalid'], {
+      env: { ...process.env, HOME: realHome },
+    });
+    spawnSync('git', ['config', '--global', 'user.name', 'Probe'], {
+      env: { ...process.env, HOME: realHome },
+    });
+
+    const r = spawnSync(INIT_BIN, ['--remote', url, '--host', 'manual'], {
+      cwd: ROOT,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        HOME: realHome,
+        GSTACK_HOME: realState,
+        USER: 'probe',
+        PATH: '/usr/bin:/bin:/opt/homebrew/bin',
+      },
+    });
+
+    expect(r.status).toBe(0);
+    expect(spawnSync('git', ['--git-dir', realRemote, 'rev-parse', 'refs/heads/main']).status).toBe(0);
+    expect(spawnSync('git', ['-C', realState, 'config', '--get', 'remote.origin.url'], { encoding: 'utf-8' }).stdout.trim()).toBe(url);
+    fs.rmSync(realHome, { recursive: true, force: true });
+    fs.rmSync(realRemote, { recursive: true, force: true });
   });
 });
 
