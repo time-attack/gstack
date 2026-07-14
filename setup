@@ -730,7 +730,17 @@ link_claude_skill_dirs() {
           SKILL.md|node_modules) continue ;;
         esac
         _aux_dst="$target/$(basename "$_aux")"
-        if [ -e "$_aux_dst" ] || [ -L "$_aux_dst" ]; then rm -rf "$_aux_dst"; fi
+        # Ownership guard: refresh entries we made (symlinks on Unix; on
+        # Windows the whole per-skill dir is a gstack-made copy), but never
+        # rm -rf a real file/dir a user placed here that happens to share an
+        # aux name — same clobber class gstack-relink guards against.
+        if [ -e "$_aux_dst" ] || [ -L "$_aux_dst" ]; then
+          if [ -L "$_aux_dst" ] || [ "$IS_WINDOWS" -eq 1 ]; then
+            rm -rf "$_aux_dst"
+          else
+            continue
+          fi
+        fi
         _link_or_copy "$_aux" "$_aux_dst"
       done
       linked+=("$link_name")
@@ -1679,6 +1689,22 @@ if [ "$NO_TEAM_MODE" -ne 1 ] \
   # explicit --plan-tune-hooks / GSTACK_PLAN_TUNE_HOOKS / plan_tune_hooks config
   # takes the non-interactive skip and keeps native AUQ working. Users who
   # genuinely want the prose backstop can still opt in explicitly.
+  #
+  # Migration for installs the OLD Conductor auto-opt-in already broke: the
+  # corrupting hooks are still registered there and the ALREADY_INSTALLED
+  # short-circuit would keep them forever. If this is a Conductor workspace
+  # and the user never explicitly opted in, remove the auto-planted hooks;
+  # explicit opt-ins (flag / env / saved config) are always kept.
+  if [ "$ALREADY_INSTALLED" -eq 1 ] && [ "$PT_DECISION" = "prompt" ] \
+     && { [ -n "${CONDUCTOR_WORKSPACE_PATH:-}" ] || [ -n "${CONDUCTOR_PORT:-}" ]; }; then
+    "$SETTINGS_HOOK" remove-source --source plan-tune-cathedral 2>/dev/null || true
+    "$SETTINGS_HOOK" remove-source --source auq-error-fallback 2>/dev/null || true
+    ALREADY_INSTALLED=0
+    log ""
+    log "Removed previously auto-installed plan-tune AUQ hooks (Conductor detected):"
+    log "  their presence broke AskUserQuestion rendering (#2207). Re-enable with"
+    log "  ./setup --plan-tune-hooks if you want the prose backstop."
+  fi
 
   _install_plan_tune_hooks() {
     "$SETTINGS_HOOK" add-event \
