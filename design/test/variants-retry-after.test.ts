@@ -146,3 +146,23 @@ describe("normalizeVariantCount", () => {
     expect(normalizeVariantCount(10)).toBe(7);
   });
 });
+
+test("AbortError reports the configured 240 second timeout", async () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  (globalThis as any).setTimeout = ((handler: any, timeout?: number, ...rest: any[]) =>
+    originalSetTimeout(handler, timeout === 240_000 ? 0 : timeout, ...rest)) as typeof setTimeout;
+  const fetchFn = ((_input: any, init?: any) => new Promise((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () => {
+      const error = new Error("aborted");
+      error.name = "AbortError";
+      reject(error);
+    });
+  })) as typeof fetch;
+
+  try {
+    const result = await generateVariant("key", "prompt", path.join(os.tmpdir(), "gstack-timeout-test.png"), "1024x1024", "high", fetchFn);
+    expect(result).toMatchObject({ success: false, error: "Timeout (240s)" });
+  } finally {
+    (globalThis as any).setTimeout = originalSetTimeout;
+  }
+});

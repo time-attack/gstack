@@ -36,6 +36,8 @@ const STYLE_VARIATIONS = [
   "Use a playful, modern style with asymmetric layout and unexpected color accents.",
 ];
 
+const VARIANT_TIMEOUT_MS = 240_000;
+
 /**
  * Generate a single variant with retry on 429.
  *
@@ -65,7 +67,7 @@ export async function generateVariant(
     skipLeadingDelay = false;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 240_000);
+    const timeout = setTimeout(() => controller.abort(), VARIANT_TIMEOUT_MS);
 
     try {
       const response = await fetchFn("https://api.openai.com/v1/responses", {
@@ -132,7 +134,7 @@ export async function generateVariant(
     } catch (err: any) {
       clearTimeout(timeout);
       if (err.name === "AbortError") {
-        return { path: outputPath, success: false, error: "Timeout (120s)" };
+        return { path: outputPath, success: false, error: `Timeout (${VARIANT_TIMEOUT_MS / 1000}s)` };
       }
       lastError = err.message;
     }
