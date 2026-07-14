@@ -2654,24 +2654,24 @@ describe('setup script validation', () => {
     const fnStart = setupContent.indexOf('link_claude_skill_dirs()');
     const fnEnd = setupContent.indexOf('}', setupContent.indexOf('linked[@]}', fnStart));
     const fnBody = setupContent.slice(fnStart, fnEnd);
-    // Must iterate over sibling .md files in the skill source dir
-    expect(fnBody).toContain('for support_file in "$gstack_dir/$dir_name"/*.md');
-    // Must skip SKILL.md itself (already linked above)
-    expect(fnBody).toContain('[ "$fname" = "SKILL.md" ] && continue');
+    // Aux entries (files AND dirs) ship through one ownership-guarded loop
+    expect(fnBody).toContain('for _aux in "$gstack_dir/$dir_name"/*');
+    // Must skip SKILL.md itself (already linked above) and build/source dirs
+    expect(fnBody).toContain('SKILL.md|node_modules|dist|src|test|tests|scripts) continue');
     // Must use _link_or_copy (not raw ln -snf) for Windows compatibility
-    expect(fnBody).toContain('_link_or_copy "$support_file" "$target/$fname"');
+    expect(fnBody).toContain('_link_or_copy "$_aux" "$_aux_dst"');
   });
 
   test('link_claude_skill_dirs mirrors support asset directories (specialists/, bin/, etc.)', () => {
     const fnStart = setupContent.indexOf('link_claude_skill_dirs()');
     const fnEnd = setupContent.indexOf('}', setupContent.indexOf('linked[@]}', fnStart));
     const fnBody = setupContent.slice(fnStart, fnEnd);
-    // Must iterate over subdirectories in the skill source dir
-    expect(fnBody).toContain('for support_dir in "$gstack_dir/$dir_name"/*/');
-    // Must exclude build and source dirs to avoid polluting the skill surface
-    expect(fnBody).toContain('dist|src|test|tests|scripts|node_modules');
+    // The unified aux loop covers directories (sections/, specialists/, bin/) too
+    expect(fnBody).toContain('for _aux in "$gstack_dir/$dir_name"/*');
+    // Ownership guard: never rm -rf a user-placed real entry
+    expect(fnBody).toContain('if [ -L "$_aux_dst" ] || [ "$IS_WINDOWS" -eq 1 ]; then');
     // Must use _link_or_copy (not raw ln -snf) for Windows compatibility
-    expect(fnBody).toContain('_link_or_copy "$gstack_dir/$dir_name/$sname" "$target/$sname"');
+    expect(fnBody).toContain('_link_or_copy "$_aux" "$_aux_dst"');
   });
 
   test('setup supports --host auto|claude|codex|kiro|opencode|cursor|slate|qoder|grok-build', () => {
@@ -2679,17 +2679,13 @@ describe('setup script validation', () => {
     expect(setupContent).toContain('claude|codex|kiro|factory|opencode|cursor|slate|qoder|grok-build|auto');
   });
 
-  test('Hermes host banner is explicit that setup is not an installer', () => {
-    const hermesStart = setupContent.indexOf('  hermes)');
-    const hermesEnd = setupContent.indexOf('  gbrain)', hermesStart);
+  test('Hermes host is a real install (setup-install wave)', () => {
+    const dispatchStart = setupContent.indexOf('case "$HOST" in');
+    const hermesStart = setupContent.indexOf('hermes)', dispatchStart);
     expect(hermesStart).toBeGreaterThan(-1);
-    expect(hermesEnd).toBeGreaterThan(hermesStart);
-
-    const hermesBlock = setupContent.slice(hermesStart, hermesEnd);
-    expect(hermesBlock).toContain('./setup --host hermes does not install files into Hermes today.');
-    expect(hermesBlock).toContain('It only prints integration instructions.');
-    expect(hermesBlock).toContain('bun run gen:skill-docs --host hermes');
-    expect(hermesBlock).toContain('This writes .hermes/skills/ in this checkout.');
+    const hermesBlock = setupContent.slice(hermesStart, hermesStart + 400);
+    expect(hermesBlock).toContain('INSTALL_HERMES=1');
+    expect(hermesBlock).not.toContain('does not install files into Hermes');
   });
 
   test('auto mode detects claude, codex, kiro, opencode, cursor, and slate binaries', () => {

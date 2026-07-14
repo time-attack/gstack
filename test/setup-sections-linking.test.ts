@@ -30,10 +30,10 @@ describe('setup links sections/ for cherry-pick install targets', () => {
     // which iterates every asset dir (sections/, specialists/, references/, ...)
     // and must route through the windows-safe helper, not raw ln.
     expect(body).toContain('sections');
-    expect(body).toMatch(/for support_dir in "\$gstack_dir\/\$dir_name"\/\*\//);
-    expect(body).toMatch(/_link_or_copy\s+"\$gstack_dir\/\$dir_name\/\$sname"\s+"\$target\/\$sname"/);
+    expect(body).toMatch(/for _aux in "\$gstack_dir\/\$dir_name"\/\*/);
+    expect(body).toMatch(/_link_or_copy\s+"\$_aux"\s+"\$_aux_dst"/);
     // build/source dirs are excluded so installs stay lean.
-    expect(body).toMatch(/dist\|src\|test\|tests\|scripts\|node_modules\) continue/);
+    expect(body).toMatch(/SKILL\.md\|node_modules\|dist\|src\|test\|tests\|scripts\) continue/);
   });
 
   test('kiro per-skill loop rewrites + copies sections/*', () => {

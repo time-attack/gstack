@@ -520,11 +520,63 @@ function* walkGstackArtifacts(ctx: WalkContext): Generator<{ path: string; type:
 }
 
 function* walkAllSources(ctx: WalkContext): Generator<{ path: string; type: MemoryType }> {
-  if (ctx.args.sources.has("transcript")) {
+  if (ctx.args.sources.has("transcript") && transcriptIngestMode() !== "off") {
     yield* walkClaudeCodeProjects(ctx);
     yield* walkCodexSessions(ctx);
   }
   yield* walkGstackArtifacts(ctx);
+}
+
+function transcriptIngestMode(): string {
+  try {
+    const raw = readFileSync(join(GSTACK_HOME, "config.yaml"), "utf-8");
+    const match = raw.match(/^transcript_ingest_mode:\s*([^#\s]+)\s*(?:#.*)?$/m);
+    return match?.[1]?.toLowerCase() || "";
+  } catch {
+    return "";
+  }
+}
+
+let cachedCurrentRepoRemote: string | undefined;
+function currentRepoRemote(): string {
+  if (cachedCurrentRepoRemote !== undefined) return cachedCurrentRepoRemote;
+  try {
+    cachedCurrentRepoRemote = canonicalizeRemote(
+      execFileSync("git", ["-C", process.cwd(), "remote", "get-url", "origin"], {
+        encoding: "utf-8",
+        timeout: 5_000,
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim(),
+    );
+  } catch {
+    cachedCurrentRepoRemote = "";
+  }
+  return cachedCurrentRepoRemote;
+}
+
+let cachedRepoPolicy: Record<string, unknown> | undefined;
+function repoTrustTier(remote: string): string {
+  if (!remote) return "unset";
+  try {
+    cachedRepoPolicy ??= JSON.parse(
+      readFileSync(join(GSTACK_HOME, "gbrain-repo-policy.json"), "utf-8"),
+    ) as Record<string, unknown>;
+    const tier = cachedRepoPolicy[remote];
+    return typeof tier === "string" ? tier : "unset";
+  } catch {
+    cachedRepoPolicy = {};
+    return "unset";
+  }
+}
+
+function transcriptSourceId(): string {
+  const remote = currentRepoRemote();
+  const readable = repoSlug(remote)
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "current-repo";
+  const hash = createHash("sha256").update(remote || process.cwd()).digest("hex").slice(0, 8);
+  return `transcripts-${readable.slice(0, 11)}-${hash}`;
 }
 
 // ── Renderers ──────────────────────────────────────────────────────────────
@@ -1173,6 +1225,7 @@ function preparePages(
   let skippedSecret = 0;
   let skippedDedup = 0;
   let skippedUnattributed = 0;
+  let skippedForeignRepo = 0;
   let parseFailed = 0;
   let partialPages = 0;
 
@@ -1220,6 +1273,31 @@ function preparePages(
           skippedUnattributed++;
           continue;
         }
+        const currentRemote = currentRepoRemote();
+        const tier = repoTrustTier(page.git_remote || "");
+        const explicitlyUnattributed = (!page.git_remote || page.git_remote === "_unattributed") && args.includeUnattributed;
+        if (
+          !explicitlyUnattributed &&
+          (!currentRemote || page.git_remote !== currentRemote || tier === "deny" || tier === "read-only")
+        ) {
+          // Record the trust-skip in state so incremental runs (the per-skill-
+          // start hook) mtime-skip this file instead of re-reading and
+          // re-parsing every foreign-repo transcript forever. A later policy
+          // grant takes effect on the next BULK ingest (bulk ignores this
+          // state) or when the transcript's content changes.
+          try {
+            state.sessions[path] = {
+              mtime_ns: Math.floor(statSync(path).mtimeMs * 1e6),
+              sha256: fileSha256(path),
+              ingested_at: new Date().toISOString(),
+              page_slug: "_skipped-trust-policy",
+              partial: false,
+            };
+          } catch { /* best-effort state record */ }
+          skippedForeignRepo++;
+          skippedUnattributed++;
+          continue;
+        }
         if (page.partial) partialPages++;
       } else {
         page = buildArtifactPage(path, type);
@@ -1239,6 +1317,16 @@ function preparePages(
     });
   }
 
+  // Trust-policy drops are silent otherwise (they fold into the unattributed
+  // counter): make them visible once per pass so a user whose other-repo
+  // transcripts vanish can see why. Quiet incremental runs stay quiet.
+  if (skippedForeignRepo > 0 && !args.quiet) {
+    console.error(
+      `[memory-ingest] ${skippedForeignRepo} transcript(s) from other repos skipped by trust policy ` +
+      `(only the current repo's remote ingests; see ~/.gstack/gbrain-repo-policy.json).`,
+    );
+  }
+
   return {
     prepared,
     skippedSecret,
@@ -1255,7 +1343,19 @@ function preparePages(
  * concurrently (the orchestrator's lock should prevent this, but
  * defense-in-depth).
  */
-function makeStagingDir(): string {
+/**
+ * Read the source-composition line (line 3) of a staging dir's ownership
+ * marker. Empty string for pre-composition markers or unreadable dirs.
+ */
+function stagingMarkerComposition(dir: string): string {
+  try {
+    return (readFileSync(join(dir, STAGING_MARKER), "utf-8").split("\n")[2] || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function makeStagingDir(composition: string): string {
   const dir = join(GSTACK_HOME, `.staging-ingest-${process.pid}-${Date.now()}`);
   mkdirSync(dir, { recursive: true });
   // Mint the ownership marker (#1802) so cleanupStagingDir() and decideResume()
@@ -1264,7 +1364,11 @@ function makeStagingDir(): string {
   // be refused by the guard forever (leaked, never cleaned). Tear down the
   // partial dir and rethrow so the caller fails loudly instead of leaking.
   try {
-    writeFileSync(join(dir, STAGING_MARKER), `${process.pid}\n${Date.now()}\n`, "utf-8");
+    // Line 3 records which source composition staged this dir, so a
+    // checkpointed dir can only be resumed by the pass that staged it
+    // (split ingest imports transcripts and artifacts under different
+    // gbrain source ids — resuming across passes mislabels pages).
+    writeFileSync(join(dir, STAGING_MARKER), `${process.pid}\n${Date.now()}\n${composition}\n`, "utf-8");
   } catch (err) {
     try { rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
     throw err;
@@ -1458,6 +1562,7 @@ export function resolveImportTimeoutMs(
 function runGbrainImport(
   stagingDir: string,
   timeoutMs: number,
+  sourceId?: string,
 ): Promise<{ status: number | null; stdout: string; stderr: string; timedOut: boolean }> {
   installSignalForwarder();
   return new Promise((resolve) => {
@@ -1465,7 +1570,9 @@ function runGbrainImport(
     // inside Next.js / Prisma / Rails projects with their own
     // .env.local (codex review #7 — defense in depth on top of the
     // parent gstack-gbrain-sync seeding the bun grandchild's env).
-    const child = spawnGbrainAsync(["import", stagingDir, "--no-embed", "--json"]);
+    const importArgs = ["import", stagingDir, "--no-embed", "--json"];
+    if (sourceId) importArgs.push("--source-id", sourceId);
+    const child = spawnGbrainAsync(importArgs);
     _activeImportChild = child;
     let stdout = "";
     let stderr = "";
@@ -1603,21 +1710,29 @@ async function ingestPass(args: CliArgs): Promise<BulkResult> {
   // trust GSTACK_INGEST_RESUME_DIR just because it exists — a stale/poisoned env
   // could make us `gbrain import` (and later clean up) an arbitrary directory.
   // Prove ownership here too, independently of the orchestrator's decideResume.
-  const resuming = !remoteHttpMode
+  const passComposition = [...args.sources].sort().join(",");
+  const ownedResume = !remoteHttpMode
     && typeof resumeDir === "string"
     && resumeDir.length > 0
     && existsSync(resumeDir)
     && checkOwnedStagingDir(resumeDir, GSTACK_HOME).ok;
+  // A checkpointed dir was staged by ONE pass (transcript-only or artifact-only
+  // under split ingest) and gets imported under that pass's gbrain source id.
+  // Resuming it in a pass with a different source composition would file pages
+  // under the wrong source, then delete the dir before the right pass ran.
+  // Pre-composition markers (older runs) refuse resume and re-stage fresh.
+  const resuming = ownedResume && stagingMarkerComposition(resumeDir!) === passComposition;
   if (!remoteHttpMode && resumeDir && resumeDir.length > 0 && !resuming) {
-    console.error(
-      `[memory-ingest] ignoring GSTACK_INGEST_RESUME_DIR="${resumeDir}" — not a proven staging dir (#1802); staging fresh.`,
+    console.error(ownedResume
+      ? `[memory-ingest] ignoring GSTACK_INGEST_RESUME_DIR="${resumeDir}" for this pass — staged for sources "${stagingMarkerComposition(resumeDir!)}", this pass ingests "${passComposition}"; leaving it for its matching pass.`
+      : `[memory-ingest] ignoring GSTACK_INGEST_RESUME_DIR="${resumeDir}" — not a proven staging dir (#1802); staging fresh.`,
     );
   }
   const stagingDir = resuming
     ? resumeDir!
     : remoteHttpMode
       ? makePersistentTranscriptDir()
-      : makeStagingDir();
+      : makeStagingDir(passComposition);
   // Register staging dir with the signal forwarder so SIGTERM/SIGINT can
   // either preserve (when gbrain checkpointed it) or synchronously clean up.
   // The async finally block below does NOT run after a signal-handler exit.
@@ -1739,7 +1854,10 @@ async function ingestPass(args: CliArgs): Promise<BulkResult> {
     // spawn, parent termination orphans the gbrain process (observed
     // during 2026-05-10 cold-run testing — gbrain kept running 15 min
     // after the orchestrator timed out).
-    const importResult = await runGbrainImport(stagingDir, resolveImportTimeoutMs());
+    const sourceId = args.sources.size === 1 && args.sources.has("transcript")
+      ? transcriptSourceId()
+      : undefined;
+    const importResult = await runGbrainImport(stagingDir, resolveImportTimeoutMs(), sourceId);
 
     const stdout = importResult.stdout || "";
     const stderr = importResult.stderr || "";
@@ -1942,6 +2060,25 @@ function printBulkResult(r: BulkResult, args: CliArgs): void {
   }
 }
 
+async function runScopedIngest(args: CliArgs): Promise<BulkResult> {
+  const hasTranscripts = args.sources.has("transcript");
+  const artifactTypes = new Set([...args.sources].filter((type) => type !== "transcript"));
+  if (!hasTranscripts || artifactTypes.size === 0) return ingestPass(args);
+
+  const transcriptResult = await ingestPass({ ...args, sources: new Set<MemoryType>(["transcript"]) });
+  const artifactResult = await ingestPass({ ...args, sources: artifactTypes });
+  return {
+    written: transcriptResult.written + artifactResult.written,
+    skipped_secret: transcriptResult.skipped_secret + artifactResult.skipped_secret,
+    skipped_dedup: transcriptResult.skipped_dedup + artifactResult.skipped_dedup,
+    skipped_unattributed: transcriptResult.skipped_unattributed + artifactResult.skipped_unattributed,
+    failed: transcriptResult.failed + artifactResult.failed,
+    duration_ms: transcriptResult.duration_ms + artifactResult.duration_ms,
+    partial_pages: transcriptResult.partial_pages + artifactResult.partial_pages,
+    system_error: transcriptResult.system_error || artifactResult.system_error,
+  };
+}
+
 // ── Entry point ────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -1962,7 +2099,7 @@ async function main(): Promise<void> {
   if (args.mode === "incremental" && args.quiet) {
     // Steady-state fast path: log nothing unless changes happen.
     const t0 = Date.now();
-    const result = await ingestPass(args);
+    const result = await runScopedIngest(args);
     const dt = Date.now() - t0;
     if (result.written > 0 || result.failed > 0) {
       console.error(`[memory-ingest] ${result.written} written, ${result.failed} failed in ${dt}ms`);
@@ -1973,7 +2110,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const result = await ingestPass(args);
+  const result = await runScopedIngest(args);
   printBulkResult(result, args);
   if (result.system_error) process.exit(1);
 }

@@ -3,6 +3,43 @@
 set -e
 umask 077  # Restrict new files to owner-only (0o600 files, 0o700 dirs)
 
+usage() {
+  cat <<'EOF'
+gstack setup — install gstack skills + build browse binary
+
+Usage: ./setup [options]
+
+Options:
+  --host <name>     Install for a specific host (claude, codex, kiro, factory,
+                    opencode, openclaw, hermes, gbrain, auto). Default: claude.
+  --prefix          Install skills with the gstack- prefix (e.g. /gstack-review).
+  --no-prefix       Install skills with short names (e.g. /review). Default is
+                    your saved config, or an interactive prompt on first run.
+  --local           Install into ./.claude/skills of the current repo (Claude only).
+  --plan-tune-hooks Install the plan-tune AskUserQuestion hooks without prompting.
+  --team            Switch to team mode (per-repo gstack with auto-update).
+  --no-team         Force solo install even if a team-mode repo is detected.
+  -q, --quiet       Suppress progress output.
+  -h, --help        Show this help and exit.
+
+Examples:
+  ./setup                          # solo install for Claude Code
+  ./setup --host codex             # install for OpenAI Codex CLI
+  ./setup --team                   # team mode for a shared repo
+  ./setup --no-prefix              # use short slash-command names
+
+Docs: https://github.com/garrytan/gstack
+EOF
+}
+
+# Short-circuit on -h/--help before any environment checks so users can
+# discover flags even without bun installed.
+for _arg in "$@"; do
+  case "$_arg" in
+    -h|--help) usage; exit 0 ;;
+  esac
+done
+
 if ! command -v bun >/dev/null 2>&1; then
   echo "Error: bun is required but not installed." >&2
   echo "Install with checksum verification:" >&2
@@ -24,6 +61,8 @@ FACTORY_SKILLS="$HOME/.factory/skills"
 FACTORY_GSTACK="$FACTORY_SKILLS/gstack"
 OPENCODE_SKILLS="$HOME/.config/opencode/skills"
 OPENCODE_GSTACK="$OPENCODE_SKILLS/gstack"
+HERMES_SKILLS="$HOME/.hermes/skills"
+HERMES_GSTACK="$HERMES_SKILLS/gstack"
 CURSOR_SKILLS="$HOME/.cursor/skills"
 CURSOR_GSTACK="$CURSOR_SKILLS/gstack"
 SLATE_SKILLS="$HOME/.slate/skills"
@@ -52,7 +91,6 @@ _link_or_copy() {
   local src="$1"
   local dst="$2"
   if [ "$IS_WINDOWS" -eq 1 ]; then
-    rm -rf "$dst"
     # Unix `ln -snf` accepts a name-only or relative-path source even when the
     # target doesn't resolve from CWD (e.g. the connect-chrome alias points at
     # the sibling-relative "gstack/open-gstack-browser"). On Windows the
@@ -61,6 +99,19 @@ _link_or_copy() {
     if [ ! -e "$src" ]; then
       return 0
     fi
+    rm -rf "$dst"
+    # Prefer symlinks when the user has SeCreateSymbolicLinkPrivilege
+    # (Developer Mode ON, or running as admin). Real symlinks auto-refresh
+    # on `git pull`, unlike file copies. Fall back to copy on EACCES so
+    # unprivileged users without Developer Mode still get a working install.
+    if ln -sn "$src" "$dst" 2>/dev/null && [ -L "$dst" ]; then
+      return 0
+    fi
+    # Symlink attempt didn't produce a real symlink — clean up any partial
+    # artifact (e.g. ln exited 0 but created a regular file under dst) and
+    # fall through to copy. Without this, cp -R would fail with "cannot
+    # overwrite non-directory ... with directory" when src is a directory.
+    rm -rf "$dst"
     if [ -d "$src" ]; then
       cp -R "$src" "$dst"
     else
@@ -121,6 +172,9 @@ while [ $# -gt 0 ]; do
     --no-statusline) STATUSLINE_MODE="no"; shift ;;
     --statusline=*)  STATUSLINE_MODE="${1#--statusline=}"; shift ;;
     -q|--quiet) QUIET=1; shift ;;
+    hermes) HOST=hermes; shift ;;
+    openclaw) HOST=openclaw; shift ;;
+    gbrain) HOST=gbrain; shift ;;
     *) shift ;;
   esac
 done
@@ -143,20 +197,10 @@ case "$HOST" in
     echo ""
     exit 0 ;;
   hermes)
-    echo ""
-    echo "Hermes integration uses the same model as OpenClaw: Hermes spawns"
-    echo "Claude Code sessions, and gstack provides methodology artifacts."
-    echo ""
-    echo "./setup --host hermes does not install files into Hermes today."
-    echo "It only prints integration instructions."
-    echo ""
-    echo "To integrate gstack with Hermes:"
-    echo "  1. Tell your Hermes agent: 'install gstack for hermes'"
-    echo "  2. Or generate reviewable artifacts locally:"
-    echo "     bun run gen:skill-docs --host hermes"
-    echo "     This writes .hermes/skills/ in this checkout."
-    echo ""
-    exit 0 ;;
+    # Real install (setup-install wave): gen dir + asset links into
+    # ~/.hermes/skills per hosts/hermes.ts, replacing the old
+    # instructions-only printout.
+    INSTALL_HERMES=1 ;;
   agy|antigravity)
     echo ""
     echo "./setup --host agy does not install files into Antigravity today."
@@ -275,6 +319,9 @@ if [ "$LOCAL_INSTALL" -eq 1 ]; then
   fi
   INSTALL_SKILLS_DIR="$(pwd)/.claude/skills"
   mkdir -p "$INSTALL_SKILLS_DIR"
+  # Per-skill symlinks point at gstack/<skill>, so create a gstack/ symlink
+  # back to the repo root so the chain resolves (e.g. qa -> gstack/qa -> repo/qa)
+  _link_or_copy "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR/gstack"
   HOST="claude"
   INSTALL_CODEX=0
 fi
@@ -285,6 +332,7 @@ INSTALL_CODEX=0
 INSTALL_KIRO=0
 INSTALL_FACTORY=0
 INSTALL_OPENCODE=0
+INSTALL_HERMES=0
 INSTALL_CURSOR=0
 INSTALL_SLATE=0
 INSTALL_QODER=0
@@ -295,12 +343,13 @@ if [ "$HOST" = "auto" ]; then
   command -v kiro-cli >/dev/null 2>&1 && INSTALL_KIRO=1
   command -v droid >/dev/null 2>&1 && INSTALL_FACTORY=1
   command -v opencode >/dev/null 2>&1 && INSTALL_OPENCODE=1
+  command -v hermes >/dev/null 2>&1 && INSTALL_HERMES=1
   command -v cursor >/dev/null 2>&1 && INSTALL_CURSOR=1
   command -v slate >/dev/null 2>&1 && INSTALL_SLATE=1
   command -v qodercli >/dev/null 2>&1 && INSTALL_QODER=1
   command -v grok >/dev/null 2>&1 && INSTALL_GROK=1
   # If none found, default to claude
-  if [ "$INSTALL_CLAUDE" -eq 0 ] && [ "$INSTALL_CODEX" -eq 0 ] && [ "$INSTALL_KIRO" -eq 0 ] && [ "$INSTALL_FACTORY" -eq 0 ] && [ "$INSTALL_OPENCODE" -eq 0 ] && [ "$INSTALL_CURSOR" -eq 0 ] && [ "$INSTALL_SLATE" -eq 0 ] && [ "$INSTALL_QODER" -eq 0 ] && [ "$INSTALL_GROK" -eq 0 ]; then
+  if [ "$INSTALL_CLAUDE" -eq 0 ] && [ "$INSTALL_CODEX" -eq 0 ] && [ "$INSTALL_KIRO" -eq 0 ] && [ "$INSTALL_FACTORY" -eq 0 ] && [ "$INSTALL_OPENCODE" -eq 0 ] && [ "$INSTALL_HERMES" -eq 0 ] && [ "$INSTALL_CURSOR" -eq 0 ] && [ "$INSTALL_SLATE" -eq 0 ] && [ "$INSTALL_QODER" -eq 0 ] && [ "$INSTALL_GROK" -eq 0 ]; then
     INSTALL_CLAUDE=1
   fi
 elif [ "$HOST" = "claude" ]; then
@@ -313,6 +362,8 @@ elif [ "$HOST" = "factory" ]; then
   INSTALL_FACTORY=1
 elif [ "$HOST" = "opencode" ]; then
   INSTALL_OPENCODE=1
+elif [ "$HOST" = "hermes" ]; then
+  INSTALL_HERMES=1
 elif [ "$HOST" = "cursor" ]; then
   INSTALL_CURSOR=1
 elif [ "$HOST" = "slate" ]; then
@@ -351,17 +402,23 @@ if [ "$INSTALL_CODEX" -eq 1 ]; then
 fi
 
 ensure_playwright_browser() {
+  # Assert the *full* Chromium build exists before launching. chromium.launch()
+  # defaults to the headless shell (chromium_headless_shell), which can be
+  # present even when the full Chrome-for-Testing build that headed
+  # `browse connect` needs is missing — so a plain launch silently passes and
+  # masks a missing full build. chromium.executablePath() resolves the full
+  # build path regardless, so we stat it first. (#1829)
   if [ "$IS_WINDOWS" -eq 1 ]; then
     # On Windows, Bun can't launch Chromium due to broken pipe handling
     # (oven-sh/bun#4253). Use Node.js to verify Chromium works instead.
     (
       cd "$SOURCE_GSTACK_DIR"
-      node -e "const { chromium } = require('playwright'); (async () => { const b = await chromium.launch(); await b.close(); })()" 2>/dev/null
+      node -e "const { chromium } = require('playwright'); const fs = require('fs'); (async () => { if (!fs.existsSync(chromium.executablePath())) process.exit(1); const b = await chromium.launch(); await b.close(); })()" 2>/dev/null
     )
   else
     (
       cd "$SOURCE_GSTACK_DIR"
-      bun --eval 'import { chromium } from "playwright"; const browser = await chromium.launch(); await browser.close();'
+      bun --eval 'import { chromium } from "playwright"; import { existsSync } from "fs"; if (!existsSync(chromium.executablePath())) process.exit(1); const browser = await chromium.launch(); await browser.close();'
     ) >/dev/null 2>&1
   fi
 }
@@ -507,14 +564,46 @@ if [ "$NEEDS_BUILD" -eq 1 ]; then
   # macOS kills with SIGKILL (exit 137). The two-step remove+re-sign is
   # required because a naive `codesign -s - -f` fails when the existing
   # signature block is corrupt. This is idempotent and costs <1s.
+  #
+  # Some binaries (observed: find-browse, gstack-global-discover) also carry
+  # trailing zero-padding AFTER the Mach-O LC_CODE_SIGNATURE region. macOS
+  # codesign requires the signature to be the last content and extend to EOF,
+  # so the padding triggers "main executable failed strict validation" on
+  # re-sign (and "internal error in Code Signing subsystem" on remove). We
+  # truncate that trailing slack to the end of LC_CODE_SIGNATURE first, which
+  # lets the identical re-sign succeed. The binary runs either way: Bun's
+  # adhoc code-page signature satisfies the kernel's exec check even when
+  # `codesign --verify` is unhappy, so a re-sign failure only warns when the
+  # binary is genuinely SIGKILL'd on exec (exit 137).
   # See: https://github.com/garrytan/gstack/issues/997
   if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
     for _bin in browse/dist/browse browse/dist/find-browse design/dist/design make-pdf/dist/pdf bin/gstack-global-discover; do
       _bin_path="$SOURCE_GSTACK_DIR/$_bin"
       [ -f "$_bin_path" ] && [ -x "$_bin_path" ] || continue
+      # Strip any trailing bytes past LC_CODE_SIGNATURE so codesign can re-sign.
+      # otool prints the signature's dataoff+datasize; if the file is larger,
+      # the extra bytes are Bun padding that breaks strict validation.
+      _sig_end=$(otool -l "$_bin_path" 2>/dev/null | awk '/LC_CODE_SIGNATURE/{f=1} f&&/dataoff/{o=$2} f&&/datasize/{print o+$2; exit}')
+      _fsize=$(stat -f%z "$_bin_path" 2>/dev/null)
+      if [ -n "$_sig_end" ] && [ -n "$_fsize" ] && [ "$_sig_end" -gt 0 ] 2>/dev/null && [ "$_sig_end" -lt "$_fsize" ] 2>/dev/null; then
+        _trunc_tmp=$(mktemp 2>/dev/null) || _trunc_tmp=""
+        if [ -n "$_trunc_tmp" ] && head -c "$_sig_end" "$_bin_path" > "$_trunc_tmp" 2>/dev/null; then
+          cat "$_trunc_tmp" > "$_bin_path" && chmod +x "$_bin_path"
+        fi
+        [ -n "$_trunc_tmp" ] && rm -f "$_trunc_tmp"
+      fi
       codesign --remove-signature "$_bin_path" 2>/dev/null || true
       if ! codesign -s - -f "$_bin_path" 2>/dev/null; then
-        log "warning: codesign failed for $_bin (binary may not run on Apple Silicon)"
+        # Re-sign failed. Only warn if the binary genuinely cannot execute
+        # (SIGKILL = exit 137). Otherwise Bun's adhoc code-page signature still
+        # runs fine and the codesign --verify miss is cosmetic. set -e safe.
+        _probe_rc=0
+        "$_bin_path" --help >/dev/null 2>&1 || _probe_rc=$?
+        if [ "$_probe_rc" -eq 137 ]; then
+          log "warning: codesign failed for $_bin and it is SIGKILL'd on exec (exit 137) — it may not run on Apple Silicon"
+        else
+          log "note: codesign could not re-sign $_bin, but it executes fine (Bun adhoc signature); continuing"
+        fi
       fi
     done
   fi
@@ -578,7 +667,17 @@ if [ "$INSTALL_OPENCODE" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
   )
 fi
 
-# 1e. Generate .cursor/ Cursor skill docs
+# 1e. Generate .hermes/ Hermes skill docs
+if [ "$INSTALL_HERMES" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
+  log "Generating .hermes/ skill docs..."
+  (
+    cd "$SOURCE_GSTACK_DIR"
+    bun_cmd install --frozen-lockfile 2>/dev/null || bun_cmd install
+    bun_cmd run gen:skill-docs --host hermes
+  )
+fi
+
+# 1f. Generate .cursor/ Cursor skill docs
 if [ "$INSTALL_CURSOR" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
   log "Generating .cursor/ skill docs..."
   (
@@ -588,7 +687,7 @@ if [ "$INSTALL_CURSOR" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
   )
 fi
 
-# 1f. Generate .slate/ Slate skill docs
+# 1g. Generate .slate/ Slate skill docs
 if [ "$INSTALL_SLATE" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
   log "Generating .slate/ skill docs..."
   (
@@ -598,7 +697,7 @@ if [ "$INSTALL_SLATE" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
   )
 fi
 
-# 1g. Generate .grok/ Grok Build skill docs
+# 1h. Generate .grok/ Grok Build skill docs
 if [ "$INSTALL_GROK" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
   log "Generating .grok/ skill docs for Grok Build..."
   (
@@ -608,48 +707,93 @@ if [ "$INSTALL_GROK" -eq 1 ] && [ "$NEEDS_BUILD" -eq 0 ]; then
   )
 fi
 
-# 2. Ensure Playwright's Chromium is available (skipped in no-browser mode)
+# 2. Ensure Playwright's Chromium is available (best-effort: warn on failure).
+#
+# When Chromium download or launch fails (network issue, missing sudo,
+# offline mirror, Bun-on-Windows pipe bug), browser-driven features
+# (/qa, /design-review, make-pdf, sidebar, /pair-agent) are unavailable
+# until the user retries. All other gstack functionality (skill
+# registration, hooks, migrations) is already installed by earlier steps.
+# Previously this step was fatal (exit 1) and would abort the whole run
+# mid-setup, leaving skills unregistered. Now it sets $_PW_FAIL_REASON,
+# prints a named warning, and returns control. Re-running ./setup retries.
+_PW_FAIL_REASON=""
+
+# Skip the whole browser toolchain when the user opted out (--no-browser).
 if [ "$NO_BROWSER" -eq 1 ]; then
   echo "Skipping browser install (--no-browser)."
 else
 
-if ! ensure_playwright_browser; then
-  echo "Installing Playwright Chromium..."
-  (
-    cd "$SOURCE_GSTACK_DIR"
-    bunx playwright install chromium
-  )
 
-  if [ "$IS_WINDOWS" -eq 1 ]; then
-    # On Windows, Node.js launches Chromium (not Bun — see oven-sh/bun#4253).
-    # Ensure playwright is importable by Node from the gstack directory.
-    if ! command -v node >/dev/null 2>&1; then
-      echo "gstack setup failed: Node.js is required on Windows (Bun cannot launch Chromium due to a pipe bug)" >&2
-      echo "  Install Node.js: https://nodejs.org/" >&2
-      exit 1
-    fi
-    echo "Windows detected — verifying Node.js can load Playwright..."
-    (
-      cd "$SOURCE_GSTACK_DIR"
-      # Bun's node_modules already has playwright; verify Node can require it
-      node -e "require('playwright')" 2>/dev/null || npm install --no-save playwright
-      # @ngrok/ngrok is externalized in server-node.mjs and resolved at runtime.
-      # Verify the platform-specific native binary is installed so /pair-agent
-      # tunnels don't fail later with a cryptic module-not-found error.
-      node -e "require('@ngrok/ngrok')" 2>/dev/null || npm install --no-save @ngrok/ngrok
-    )
+# Detect Ubuntu 26.04: Playwright does not yet ship a native chromium build for
+# ubuntu26.04. Override the platform to the ubuntu24.04 build so the installer
+# picks a binary that runs fine on 26.04 (same glibc lineage). Exported so the
+# probe and the pinned bunx install below both inherit it. See #2101.
+if [ -f /etc/os-release ]; then
+  _os_id=$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+  _os_ver=$(grep '^VERSION_ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+  if [ "$_os_id" = "ubuntu" ] && [ "$_os_ver" = "26.04" ]; then
+    case "$(uname -m)" in
+      aarch64|arm64) export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="ubuntu24.04-arm64" ;;
+      *)             export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="ubuntu24.04-x64" ;;
+    esac
+    echo "Ubuntu 26.04 detected — using PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=$PLAYWRIGHT_HOST_PLATFORM_OVERRIDE"
   fi
 fi
 
 if ! ensure_playwright_browser; then
-  if [ "$IS_WINDOWS" -eq 1 ]; then
-    echo "gstack setup failed: Playwright Chromium could not be launched via Node.js" >&2
-    echo "  This is a known issue with Bun on Windows (oven-sh/bun#4253)." >&2
-    echo "  Ensure Node.js is installed and 'node -e \"require('playwright')\"' works." >&2
-  else
-    echo "gstack setup failed: Playwright Chromium could not be launched" >&2
+  echo "Installing Playwright Chromium..."
+  if ! (
+    cd "$SOURCE_GSTACK_DIR"
+    # The browse binary is compiled above against the lockfile-pinned Playwright.
+    # `bunx playwright install` resolves the *latest* Playwright at runtime, which
+    # downloads a different Chromium revision than the compiled binary expects, so
+    # headed `browse connect` fails with a missing full build even though setup
+    # "succeeds" and headless works. Pin the browser install to the same Playwright
+    # version bundled in node_modules so install and runtime can never drift. (#1829)
+    pw_version="$(bun --eval 'console.log(require("playwright/package.json").version)' 2>/dev/null)"
+    if [ -n "$pw_version" ]; then
+      bunx "playwright@$pw_version" install chromium
+    else
+      bunx playwright install chromium
+    fi
+  ); then
+    _PW_FAIL_REASON="chromium-install"
   fi
-  exit 1
+
+  if [ -z "$_PW_FAIL_REASON" ] && [ "$IS_WINDOWS" -eq 1 ]; then
+    # On Windows, Node.js launches Chromium (not Bun — see oven-sh/bun#4253).
+    # Ensure playwright is importable by Node from the gstack directory.
+    if ! command -v node >/dev/null 2>&1; then
+      _PW_FAIL_REASON="windows-no-node"
+    else
+      echo "Windows detected — verifying Node.js can load Playwright..."
+      if ! ( cd "$SOURCE_GSTACK_DIR" && \
+             # Bun's node_modules already has playwright; verify Node can require it
+             { node -e "require('playwright')" 2>/dev/null || npm install --no-save playwright; } && \
+             # @ngrok/ngrok is externalized in server-node.mjs and resolved at runtime.
+             # Verify the platform-specific native binary is installed so /pair-agent
+             # tunnels don't fail later with a cryptic module-not-found error.
+             { node -e "require('@ngrok/ngrok')" 2>/dev/null || npm install --no-save @ngrok/ngrok; } ); then
+        _PW_FAIL_REASON="windows-node-modules"
+      fi
+    fi
+  fi
+fi
+
+if [ -z "$_PW_FAIL_REASON" ] && ! ensure_playwright_browser; then
+  _PW_FAIL_REASON="post-install-launch"
+fi
+
+if [ -n "$_PW_FAIL_REASON" ]; then
+  echo "" >&2
+  echo "  warning: Playwright Chromium is unavailable ($_PW_FAIL_REASON)." >&2
+  echo "    Browser features (/qa, /design-review, make-pdf, sidebar, /pair-agent) are unavailable." >&2
+  if [ "$IS_WINDOWS" -eq 1 ]; then
+    echo "    Known Bun-on-Windows issue (oven-sh/bun#4253). Ensure Node.js is installed," >&2
+    echo "    then verify: node -e \"require('playwright')\"" >&2
+  fi
+  echo "    Re-run ./setup to retry. Skills, hooks, and migrations are already installed." >&2
 fi
 
 fi # end NO_BROWSER guard (Playwright Chromium)
@@ -685,6 +829,10 @@ link_claude_skill_dirs() {
       dir_name="$(basename "$skill_dir")"
       # Skip node_modules
       [ "$dir_name" = "node_modules" ] && continue
+      # Skip the connect-chrome alias symlink — gstack-relink installs it as a
+      # thin skill with its own name. Linking it here would resolve its
+      # frontmatter to open-gstack-browser and collide with the canonical skill.
+      [ "$dir_name" = "connect-chrome" ] && continue
       # Use frontmatter name: if present (e.g., run-tests/ with name: test → symlink as "test")
       skill_name=$(grep -m1 '^name:' "$skill_dir/SKILL.md" 2>/dev/null | sed 's/^name:[[:space:]]*//' | tr -d '[:space:]')
       [ -z "$skill_name" ] && skill_name="$dir_name"
@@ -714,27 +862,32 @@ link_claude_skill_dirs() {
       # Validate target isn't a symlink before creating the link
       if [ -L "$target/SKILL.md" ]; then rm "$target/SKILL.md"; fi
       _link_or_copy "$gstack_dir/$dir_name/SKILL.md" "$target/SKILL.md"
-      # Mirror supporting .md files (checklist.md, greptile-triage.md, etc.)
-      # so SKILL.md can read them via .claude/skills/<skill>/<file>.
-      # Excludes SKILL.md (already linked above) and *.tmpl sources.
-      for support_file in "$gstack_dir/$dir_name"/*.md; do
-        [ -f "$support_file" ] || continue
-        fname="$(basename "$support_file")"
-        [ "$fname" = "SKILL.md" ] && continue
-        if [ -L "$target/$fname" ]; then rm "$target/$fname"; fi
-        _link_or_copy "$support_file" "$target/$fname"
-      done
-      # Mirror support asset directories (sections/, specialists/, references/, templates/, bin/, etc.)
-      # Excludes build and source dirs: dist, src, test, tests, scripts, node_modules.
-      for support_dir in "$gstack_dir/$dir_name"/*/; do
-        [ -d "$support_dir" ] || continue
-        sname="$(basename "$support_dir")"
-        case "$sname" in
-          dist|src|test|tests|scripts|node_modules) continue ;;
+      # Link EVERY sibling aux entry next to SKILL.md, not just sections/. A skill's SKILL.md reads its
+      # aux files by a path relative to its own dir (e.g. /review's "Read .claude/skills/review/
+      # checklist.md", plus specialists/, greptile-triage.md, design-checklist.md; or a carved skill's
+      # "Read sections/<name>.md"). The target dir otherwise holds only SKILL.md, so those reads 404 —
+      # on Windows especially, where _link_or_copy makes SKILL.md a real COPY whose base dir is $target,
+      # not the gstack source. Route each aux entry through _link_or_copy (symlink on Unix, fresh copy on
+      # Windows that re-syncs on every ./setup). SKILL.md itself and node_modules are skipped.
+      for _aux in "$gstack_dir/$dir_name"/*; do
+        [ -e "$_aux" ] || continue
+        case "$(basename "$_aux")" in
+          SKILL.md|node_modules|dist|src|test|tests|scripts) continue ;;
         esac
-        if [ -L "$target/$sname" ]; then rm "$target/$sname"; fi
-        if [ -e "$target/$sname" ] && [ ! -L "$target/$sname" ]; then rm -rf "$target/$sname"; fi
-        _link_or_copy "$gstack_dir/$dir_name/$sname" "$target/$sname"
+        _aux_dst="$target/$(basename "$_aux")"
+        # Ownership guard: refresh entries we made (symlinks on Unix; on
+        # Windows the whole per-skill dir is a gstack-made copy), but never
+        # rm -rf a real file/dir a user placed here that happens to share an
+        # aux name — same clobber class gstack-relink guards against.
+        if [ -e "$_aux_dst" ] || [ -L "$_aux_dst" ]; then
+          if [ -L "$_aux_dst" ] || [ "$IS_WINDOWS" -eq 1 ]; then
+            rm -rf "$_aux_dst"
+          else
+            continue
+          fi
+        fi
+        _link_or_copy "$_aux" "$_aux_dst"
+
       done
       linked+=("$link_name")
     fi
@@ -762,6 +915,50 @@ link_claude_root_skill_alias() {
   if [ -L "$target/SKILL.md" ]; then rm "$target/SKILL.md"; fi
   _link_or_copy "$gstack_dir/SKILL.md" "$target/SKILL.md"
   echo "  linked root skill alias: gstack"
+  _print_windows_copy_note_once
+}
+
+# ─── Helper: compatibility alias for installs not named "gstack" ──────────────
+# Every generated SKILL.md preamble hard-references the absolute self-path
+# ~/.claude/skills/gstack/bin/... (config, telemetry, update-check, and every
+# other bin/asset call). When gstack is installed at ~/.claude/skills/<name>
+# with <name> != gstack, the per-skill symlinks resolve but those in-file
+# references point at a non-existent ~/.claude/skills/gstack/ and fail SILENTLY
+# at skill-invocation time (the preamble swallows the 127 via `|| echo default`).
+# See issue #1882.
+#
+# Fix: plant a sibling alias <skills_dir>/gstack -> <install_dir> so the
+# hardcoded paths resolve with zero file edits. Claude Code already skips the
+# repo-shaped gstack directory when building the slash-command list (see
+# link_claude_root_skill_alias above), so this alias is a path-resolution
+# target only, not a duplicate skill. When the install is already named gstack
+# the references resolve natively and this is a no-op.
+link_gstack_compat_alias() {
+  local install_dir="$1"   # actual gstack checkout (INSTALL_GSTACK_DIR)
+  local skills_dir="$2"    # skills parent (INSTALL_SKILLS_DIR)
+
+  # Already named gstack — nothing to reconcile.
+  [ "$(basename "$install_dir")" = "gstack" ] && return 0
+
+  local alias="$skills_dir/gstack"
+
+  # Never clobber a real (non-symlink) gstack install already living here — its
+  # own bin/ already satisfies the hardcoded references, and it may be a
+  # separate global install we must not destroy. Our own Windows copy fallback
+  # also lands as a real directory; the marker file distinguishes it so reruns
+  # refresh the copy instead of mistaking it for a foreign install.
+  if [ -e "$alias" ] && [ ! -L "$alias" ] && [ ! -f "$alias/.gstack-owned-copy" ]; then
+    return 0
+  fi
+
+  # Idempotently (re)point a name-only/self alias. On Windows _link_or_copy
+  # falls back to a directory copy (no symlinks without Developer Mode), which
+  # is heavier but keeps the hardcoded paths resolvable there too.
+  _link_or_copy "$install_dir" "$alias"
+  if [ -d "$alias" ] && [ ! -L "$alias" ]; then
+    touch "$alias/.gstack-owned-copy" 2>/dev/null || true
+  fi
+  echo "  linked compatibility alias: gstack -> $(basename "$install_dir") (install dir not named 'gstack', issue #1882)"
   _print_windows_copy_note_once
 }
 
@@ -870,7 +1067,7 @@ link_codex_skill_dirs() {
 
   if [ ! -d "$agents_dir" ]; then
     echo "  Generating .agents/ skill docs..."
-    ( cd "$gstack_dir" && bun run gen:skill-docs --host codex )
+    ( cd "$gstack_dir" && bun_cmd run gen:skill-docs --host codex )
   fi
 
   if [ ! -d "$agents_dir" ]; then
@@ -1226,7 +1423,7 @@ link_factory_skill_dirs() {
 
   if [ ! -d "$factory_dir" ]; then
     echo "  Generating .factory/ skill docs..."
-    ( cd "$gstack_dir" && bun run gen:skill-docs --host factory )
+    ( cd "$gstack_dir" && bun_cmd run gen:skill-docs --host factory )
   fi
 
   if [ ! -d "$factory_dir" ]; then
@@ -1280,7 +1477,7 @@ link_opencode_skill_dirs() {
 
   if [ ! -d "$opencode_dir" ]; then
     echo "  Generating .opencode/ skill docs..."
-    ( cd "$gstack_dir" && bun run gen:skill-docs --host opencode )
+    ( cd "$gstack_dir" && bun_cmd run gen:skill-docs --host opencode )
   fi
 
   if [ ! -d "$opencode_dir" ]; then
@@ -1759,20 +1956,17 @@ if [ "$INSTALL_CLAUDE" -eq 1 ]; then
     "$SOURCE_GSTACK_DIR/bin/gstack-patch-names" "$SOURCE_GSTACK_DIR" "$SKILL_PREFIX"
     link_claude_skill_dirs "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR"
     link_claude_root_skill_alias "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR"
+    # Reconcile hardcoded ~/.claude/skills/gstack/ self-paths when the install
+    # dir isn't literally named "gstack" (issue #1882). No-op when it is.
+    link_gstack_compat_alias "$INSTALL_GSTACK_DIR" "$INSTALL_SKILLS_DIR"
     # Self-healing: re-run gstack-relink to ensure name: fields and directory
     # names are consistent with the config. This catches cases where an interrupted
     # setup, stale git state, or gen:skill-docs left name: fields out of sync.
+    # gstack-relink also installs the /connect-chrome → /open-gstack-browser
+    # backwards-compat alias as a thin skill with its own frontmatter name.
     GSTACK_RELINK="$SOURCE_GSTACK_DIR/bin/gstack-relink"
     if [ -x "$GSTACK_RELINK" ]; then
       GSTACK_SKILLS_DIR="$INSTALL_SKILLS_DIR" GSTACK_INSTALL_DIR="$SOURCE_GSTACK_DIR" "$GSTACK_RELINK" >/dev/null 2>&1 || true
-    fi
-    # Backwards-compat alias: /connect-chrome → /open-gstack-browser
-    _OGB_LINK="$INSTALL_SKILLS_DIR/connect-chrome"
-    if [ "$SKILL_PREFIX" -eq 1 ]; then
-      _OGB_LINK="$INSTALL_SKILLS_DIR/gstack-connect-chrome"
-    fi
-    if [ -L "$_OGB_LINK" ] || [ ! -e "$_OGB_LINK" ]; then
-      _link_or_copy "gstack/open-gstack-browser" "$_OGB_LINK"
     fi
     if [ "$LOCAL_INSTALL" -eq 1 ]; then
       log "gstack ready (project-local)."
@@ -1831,16 +2025,10 @@ if [ "$INSTALL_CLAUDE" -eq 1 ]; then
       "$SOURCE_GSTACK_DIR/bin/gstack-patch-names" "$SOURCE_GSTACK_DIR" "$SKILL_PREFIX"
       link_claude_skill_dirs "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR"
       link_claude_root_skill_alias "$SOURCE_GSTACK_DIR" "$INSTALL_SKILLS_DIR"
+      # As above: gstack-relink installs the /connect-chrome alias.
       GSTACK_RELINK="$SOURCE_GSTACK_DIR/bin/gstack-relink"
       if [ -x "$GSTACK_RELINK" ]; then
         GSTACK_SKILLS_DIR="$INSTALL_SKILLS_DIR" GSTACK_INSTALL_DIR="$SOURCE_GSTACK_DIR" "$GSTACK_RELINK" >/dev/null 2>&1 || true
-      fi
-      _OGB_LINK="$INSTALL_SKILLS_DIR/connect-chrome"
-      if [ "$SKILL_PREFIX" -eq 1 ]; then
-        _OGB_LINK="$INSTALL_SKILLS_DIR/gstack-connect-chrome"
-      fi
-      if [ -L "$_OGB_LINK" ] || [ ! -e "$_OGB_LINK" ]; then
-        _link_or_copy "gstack/open-gstack-browser" "$_OGB_LINK"
       fi
       log "gstack ready (claude)."
       browse_summary
@@ -1975,7 +2163,90 @@ if [ "$INSTALL_OPENCODE" -eq 1 ]; then
   echo "  opencode skills: $OPENCODE_SKILLS"
 fi
 
-# 6d. Install for Cursor
+# 6d. Install for Hermes Agent
+if [ "$INSTALL_HERMES" -eq 1 ]; then
+  HERMES_GEN_DIR="$SOURCE_GSTACK_DIR/.hermes/skills"
+  mkdir -p "$HERMES_SKILLS"
+
+  # Generate Hermes-format skill docs if not present
+  if [ ! -d "$HERMES_GEN_DIR" ]; then
+    log "Generating .hermes/ skill docs..."
+    ( cd "$SOURCE_GSTACK_DIR" && bun_cmd run gen:skill-docs --host hermes )
+  fi
+
+  if [ ! -d "$HERMES_GEN_DIR" ]; then
+    echo "  warning: .hermes/skills/ generation failed — run 'bun run gen:skill-docs --host hermes' manually" >&2
+  else
+    # Create runtime root with sidecar symlinks
+    if [ -L "$HERMES_GSTACK" ]; then
+      rm -f "$HERMES_GSTACK"
+    fi
+    mkdir -p "$HERMES_GSTACK" "$HERMES_GSTACK/browse" "$HERMES_GSTACK/review"
+
+    # Root SKILL.md from generated output
+    if [ -f "$HERMES_GEN_DIR/gstack/SKILL.md" ]; then
+      _link_or_copy "$HERMES_GEN_DIR/gstack/SKILL.md" "$HERMES_GSTACK/SKILL.md"
+    fi
+
+    # Runtime asset symlinks (per hermes host config globalSymlinks)
+    for asset in bin browse/dist browse/bin gstack-upgrade; do
+      _src="$SOURCE_GSTACK_DIR/$asset"
+      _dst="$HERMES_GSTACK/$asset"
+      if [ -e "$_src" ]; then
+        mkdir -p "$(dirname "$_dst")"
+        if [ -L "$_dst" ] || [ ! -e "$_dst" ]; then
+          _link_or_copy "$_src" "$_dst"
+        fi
+      fi
+    done
+
+    # Review runtime assets
+    for f in checklist.md design-checklist.md greptile-triage.md TODOS-format.md; do
+      if [ -f "$SOURCE_GSTACK_DIR/review/$f" ]; then
+        _link_or_copy "$SOURCE_GSTACK_DIR/review/$f" "$HERMES_GSTACK/review/$f"
+      fi
+    done
+
+    # ETHOS.md — referenced by skill preambles
+    if [ -f "$SOURCE_GSTACK_DIR/ETHOS.md" ]; then
+      _link_or_copy "$SOURCE_GSTACK_DIR/ETHOS.md" "$HERMES_GSTACK/ETHOS.md"
+    fi
+
+    # Link each generated Hermes skill into ~/.hermes/skills/
+    _linked=()
+    for skill_dir in "$HERMES_GEN_DIR"/gstack*/; do
+      if [ -f "$skill_dir/SKILL.md" ]; then
+        _skill_name="$(basename "$skill_dir")"
+        # Skip the root gstack dir — already handled above
+        [ "$_skill_name" = "gstack" ] && continue
+        _target="$HERMES_SKILLS/$_skill_name"
+        # Don't overwrite a real directory from another skill source. Our own
+        # Windows copy fallback also lands as a real directory; the marker
+        # file distinguishes it so reruns refresh the copy.
+        if [ -d "$_target" ] && [ ! -L "$_target" ] && [ ! -f "$_target/.gstack-owned-copy" ]; then
+          continue
+        fi
+        if [ -L "$_target" ]; then
+          rm -f "$_target"
+        fi
+        _link_or_copy "$skill_dir" "$_target"
+        if [ -d "$_target" ] && [ ! -L "$_target" ]; then
+          touch "$_target/.gstack-owned-copy" 2>/dev/null || true
+        fi
+        _linked+=("$_skill_name")
+      fi
+    done
+    if [ ${#_linked[@]} -gt 0 ]; then
+      log "  linked skills: ${_linked[*]}"
+    fi
+
+    log "gstack ready (hermes)."
+    log "  browse: $BROWSE_BIN"
+    log "  hermes skills: $HERMES_SKILLS"
+  fi
+fi
+
+# 6e. Install for Cursor
 if [ "$INSTALL_CURSOR" -eq 1 ]; then
   # Generate before building the runtime root — on fresh installs the gen step
   # above is skipped when NEEDS_BUILD=1, and the runtime root needs the
@@ -1991,7 +2262,7 @@ if [ "$INSTALL_CURSOR" -eq 1 ]; then
   echo "  cursor skills: $CURSOR_SKILLS"
 fi
 
-# 6e. Install for Slate
+# 6f. Install for Slate
 if [ "$INSTALL_SLATE" -eq 1 ]; then
   # Generate before building the runtime root — on fresh installs the gen step
   # above is skipped when NEEDS_BUILD=1, and the runtime root needs the
@@ -2007,7 +2278,7 @@ if [ "$INSTALL_SLATE" -eq 1 ]; then
   echo "  slate skills: $SLATE_SKILLS"
 fi
 
-# 6f. Install for Qoder
+# 6g. Install for Qoder
 if [ "$INSTALL_QODER" -eq 1 ]; then
   # Generate before building the runtime root — on fresh installs the gen step
   # above is skipped when NEEDS_BUILD=1, and the runtime root needs the
@@ -2023,7 +2294,7 @@ if [ "$INSTALL_QODER" -eq 1 ]; then
   echo "  qoder skills: $QODER_SKILLS"
 fi
 
-# 6g. Install for Grok Build (xAI)
+# 6h. Install for Grok Build (xAI)
 if [ "$INSTALL_GROK" -eq 1 ]; then
   mkdir -p "$GROK_SKILLS"
   create_grok_runtime_root "$SOURCE_GSTACK_DIR" "$GROK_GSTACK"
@@ -2086,7 +2357,16 @@ rm -f /tmp/gstack-latest-version
 
 # 10. Team mode: register/unregister SessionStart hook
 SETTINGS_HOOK="$SOURCE_GSTACK_DIR/bin/gstack-settings-hook"
-HOOK_CMD="$SOURCE_GSTACK_DIR/bin/gstack-session-update"
+# On Windows (Git Bash / MSYS2 / Cygwin), extensionless scripts can't be
+# launched directly by the OS — the file-association dialog appears instead.
+# Prefix with 'bash' so Claude Code's hook runner invokes Git Bash explicitly.
+if [ "$IS_WINDOWS" -eq 1 ]; then
+  # Quote the path: Windows usernames commonly contain spaces, and the hook
+  # command string is word-split by the shell that runs it.
+  HOOK_CMD="bash \"$SOURCE_GSTACK_DIR/bin/gstack-session-update\""
+else
+  HOOK_CMD="$SOURCE_GSTACK_DIR/bin/gstack-session-update"
+fi
 
 if [ "$TEAM_MODE" -eq 1 ]; then
   "$GSTACK_CONFIG" set auto_upgrade true 2>/dev/null || true
@@ -2153,6 +2433,7 @@ if [ -x "$DETECT_BIN" ]; then
         USER_LOCAL_RENDER_REASON="$USER_LOCAL_RENDER_REASON + brain-aware blocks"
       else
         USER_LOCAL_RENDER_REASON="brain-aware blocks"
+
       fi
     else
       log "gbrain not detected — brain-aware blocks suppressed in planning-skill SKILL.md files (zero token overhead)."
@@ -2175,7 +2456,7 @@ if [ -n "$USER_LOCAL_RENDER_REASON" ]; then
     log "regenerating Claude SKILL.md with user-local settings ($USER_LOCAL_RENDER_REASON)..."
     (
       cd "$SOURCE_GSTACK_DIR"
-      bun_cmd run gen:skill-docs:user --host claude 2>&1 | tail -3
+      bun_cmd run gen:skill-docs:user --host claude
     ) || log "  warning: gen:skill-docs:user failed — run 'bun run gen:skill-docs:user --host claude' manually to apply user-local settings"
   fi
 fi
@@ -2241,15 +2522,37 @@ if [ "$NO_TEAM_MODE" -ne 1 ] \
     *)                       PT_DECISION="prompt" ;;
   esac
 
-  # Conductor host reliability: the PreToolUse preference hook also carries the
-  # Conductor-prose enforcement (deny the flaky mcp__conductor__AskUserQuestion,
-  # redirect to a prose decision brief). A Conductor workspace setup otherwise
-  # falls through to "prompt" → the non-interactive skip below, leaving Conductor
-  # users without that backstop. Treat Conductor as an implicit opt-in — but
-  # only on the silent fall-through, never overriding an explicit --no-plan-tune-hooks.
-  if [ "$PT_DECISION" = "prompt" ] && { [ -n "${CONDUCTOR_WORKSPACE_PATH:-}" ] || [ -n "${CONDUCTOR_PORT:-}" ]; }; then
-    PT_DECISION="yes"
-    _PT_CONDUCTOR_AUTO=1
+  # Conductor host: do NOT auto-install the plan-tune AUQ hooks here.
+  #
+  # The PreToolUse preference hook participates in the Agent-SDK `canUseTool`
+  # elicitation flow that Conductor uses to render AskUserQuestion. Its mere
+  # presence corrupts that round-trip — even when it returns `defer` — so the
+  # tool comes back as `[Tool result missing due to internal error]` and no
+  # options render. In other words, native AUQ works fine in Conductor UNTIL
+  # this hook is registered; the "flaky mcp__conductor__AskUserQuestion" this
+  # backstop was meant to work around is caused by the backstop itself.
+  # (Codex sessions never read ~/.claude/settings.json, so they're unaffected —
+  # which is why AUQ works in Codex but breaks in Claude on the same workspace.)
+  #
+  # Fall through to the normal decision below: a Conductor workspace with no
+  # explicit --plan-tune-hooks / GSTACK_PLAN_TUNE_HOOKS / plan_tune_hooks config
+  # takes the non-interactive skip and keeps native AUQ working. Users who
+  # genuinely want the prose backstop can still opt in explicitly.
+  #
+  # Migration for installs the OLD Conductor auto-opt-in already broke: the
+  # corrupting hooks are still registered there and the ALREADY_INSTALLED
+  # short-circuit would keep them forever. If this is a Conductor workspace
+  # and the user never explicitly opted in, remove the auto-planted hooks;
+  # explicit opt-ins (flag / env / saved config) are always kept.
+  if [ "$ALREADY_INSTALLED" -eq 1 ] && [ "$PT_DECISION" = "prompt" ] \
+     && { [ -n "${CONDUCTOR_WORKSPACE_PATH:-}" ] || [ -n "${CONDUCTOR_PORT:-}" ]; }; then
+    "$SETTINGS_HOOK" remove-source --source plan-tune-cathedral 2>/dev/null || true
+    "$SETTINGS_HOOK" remove-source --source auq-error-fallback 2>/dev/null || true
+    ALREADY_INSTALLED=0
+    log ""
+    log "Removed previously auto-installed plan-tune AUQ hooks (Conductor detected):"
+    log "  their presence broke AskUserQuestion rendering (#2207). Re-enable with"
+    log "  ./setup --plan-tune-hooks if you want the prose backstop."
   fi
 
   _install_plan_tune_hooks() {

@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, afterAll } from 'bun:test';
 import { spawnSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -55,6 +55,15 @@ describe('setup: _link_or_copy invariant (D7)', () => {
     const fnBody = SETUP_SRC.slice(fnStart, fnEnd);
     expect(fnBody).toContain('_print_windows_copy_note_once');
   });
+
+  test('SessionStart HOOK_CMD is prefixed with bash on Windows (D7-session-hook)', () => {
+    const hookStart = SETUP_SRC.indexOf('# 10. Team mode: register/unregister SessionStart hook');
+    const hookEnd = SETUP_SRC.indexOf('\nif [ "$TEAM_MODE" -eq 1 ]', hookStart);
+    const hookSection = SETUP_SRC.slice(hookStart, hookEnd);
+    expect(hookSection).toContain('IS_WINDOWS');
+    // Quoted: Windows user paths commonly contain spaces.
+    expect(hookSection).toContain('bash \\"$SOURCE_GSTACK_DIR/bin/gstack-session-update\\"');
+  });
 });
 
 // Behavior matrix uses Unix `ln -snf` semantics in the IS_WINDOWS=0 cells.
@@ -66,9 +75,18 @@ describe('setup: _link_or_copy invariant (D7)', () => {
 describe.skipIf(process.platform === 'win32')('setup: _link_or_copy helper — behavior matrix', () => {
   // Source the helper into a temp shell with IS_WINDOWS set and exercise
   // each cell of the file/dir × Windows/Unix matrix.
+  /** ln shim that always fails, pinning the copy-fallback path on Unix hosts. */
+  function failingLnDir(): string {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-lnfail-'));
+    const shim = path.join(dir, 'ln');
+    fs.writeFileSync(shim, '#!/usr/bin/env bash\nexit 1\n', { mode: 0o755 });
+    return dir;
+  }
+
   function runHelper(
     isWindows: '0' | '1',
     srcKind: 'file' | 'dir',
+    extraPathDir?: string,
   ): { ok: boolean; targetIsSymlink: boolean; targetExists: boolean; stderr: string } {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-helper-'));
     try {
@@ -86,6 +104,9 @@ describe.skipIf(process.platform === 'win32')('setup: _link_or_copy helper — b
       const result = spawnSync('bash', ['-c', script], {
         encoding: 'utf-8',
         timeout: 5000,
+        env: extraPathDir
+          ? { ...process.env, PATH: `${extraPathDir}${path.delimiter}${process.env.PATH}` }
+          : process.env,
       });
       const lst = fs.lstatSync(dst, { throwIfNoEntry: false });
       return {
@@ -112,17 +133,131 @@ describe.skipIf(process.platform === 'win32')('setup: _link_or_copy helper — b
     expect(r.targetIsSymlink).toBe(true);
   });
 
-  test('IS_WINDOWS=1 + file → regular file copy (no symlink)', () => {
-    const r = runHelper('1', 'file');
+  // The helper now tries a real symlink first even on Windows; on a Unix test
+  // host that always succeeds, so pin the copy FALLBACK with a failing ln shim.
+  test('IS_WINDOWS=1 + file + no symlink privilege → regular file copy', () => {
+    const r = runHelper('1', 'file', failingLnDir());
     expect(r.ok).toBe(true);
     expect(r.targetExists).toBe(true);
     expect(r.targetIsSymlink).toBe(false);
   });
 
-  test('IS_WINDOWS=1 + dir → real directory copy', () => {
-    const r = runHelper('1', 'dir');
+  test('IS_WINDOWS=1 + dir + no symlink privilege → real directory copy', () => {
+    const r = runHelper('1', 'dir', failingLnDir());
     expect(r.ok).toBe(true);
     expect(r.targetExists).toBe(true);
     expect(r.targetIsSymlink).toBe(false);
+  });
+});
+
+// Same reasoning as the matrix above: these cells drive the helper with Unix
+// `ln` semantics (and shims that delegate to /bin/ln), which Git Bash on the
+// windows-latest runner cannot honor — MSYS ln copies instead of symlinking,
+// so the symlink-success cell can never pass there.
+describe.skipIf(process.platform === 'win32')('setup: _link_or_copy Windows symlink-fallback paths', () => {
+  const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-win-symlink-'));
+
+  afterAll(() => fs.rmSync(TMP, { recursive: true, force: true }));
+
+  /** Create a `ln` shim at a temp path with the given behavior. */
+  function createShim(behavior: 'always-succeed' | 'always-fail' | 'fake-file'): string {
+    const shimDir = fs.mkdtempSync(path.join(TMP, 'shim-'));
+    const shim = path.join(shimDir, 'ln');
+    let script: string;
+    switch (behavior) {
+      case 'always-succeed':
+        script = `#!/usr/bin/env bash
+src="\${@: -2:1}"
+dst="\${@: -1}"
+# Bypass PATH to avoid re-invoking this very shim (ln lives at /bin/ln on
+# macOS and /usr/bin/ln on most Linux distros).
+/bin/ln -snf "\$src" "\$dst" 2>/dev/null || /usr/bin/ln -snf "\$src" "\$dst" 2>/dev/null || true
+exit 0
+`;
+        break;
+      case 'always-fail':
+        script = `#!/usr/bin/env bash
+echo "permission denied" >&2
+exit 1
+`;
+        break;
+      case 'fake-file':
+        script = `#!/usr/bin/env bash
+touch "\${@: -1}"
+exit 0
+`;
+        break;
+    }
+    fs.writeFileSync(shim, script, { mode: 0o755 });
+    return shimDir;
+  }
+
+  /** Run the _link_or_copy helper in a subprocess with a custom PATH. */
+  function runWithShim(
+    srcKind: 'file' | 'dir',
+    shimDir: string,
+  ): { ok: boolean; dstIsSymlink: boolean; dstIsDir: boolean; content: string; stderr: string } {
+    const tmp = fs.mkdtempSync(path.join(TMP, 'run-'));
+    try {
+      const src = path.join(tmp, 'source');
+      const dst = path.join(tmp, 'dest');
+      if (srcKind === 'file') {
+        fs.writeFileSync(src, 'hello\n');
+      } else {
+        fs.mkdirSync(src);
+        fs.writeFileSync(path.join(src, 'inner.txt'), 'hello\n');
+      }
+      const helper = extractHelper();
+      const script = `IS_WINDOWS=1\n${helper}\n_link_or_copy "${src}" "${dst}"\n`;
+      const result = spawnSync('bash', ['-c', script], {
+        cwd: tmp,
+        encoding: 'utf-8',
+        timeout: 5000,
+        env: { ...process.env, PATH: `${shimDir}${path.delimiter}${process.env.PATH}` },
+      });
+      const lst = fs.lstatSync(dst, { throwIfNoEntry: false });
+      const exists = lst !== undefined;
+      let content = '';
+      if (exists) {
+        try { content = srcKind === 'dir'
+          ? fs.readdirSync(dst).sort().join(',')
+          : fs.readFileSync(dst, 'utf-8');
+        } catch { content = '<error reading>'; }
+      }
+      return {
+        ok: result.status === 0,
+        dstIsSymlink: exists && lst.isSymbolicLink(),
+        dstIsDir: exists && lst.isDirectory(),
+        content,
+        stderr: result.stderr,
+      };
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }
+
+  test('_link_or_copy prefers symlinks when supported (Windows)', () => {
+    const shimDir = createShim('always-succeed');
+    const r = runWithShim('file', shimDir);
+    expect(r.ok).toBe(true);
+    expect(r.dstIsSymlink).toBe(true);
+    expect(r.content).toBe('hello\n');
+  });
+
+  test('_link_or_copy falls back to copy when symlink denied (Windows)', () => {
+    const shimDir = createShim('always-fail');
+    const r = runWithShim('file', shimDir);
+    expect(r.ok).toBe(true);
+    expect(r.dstIsSymlink).toBe(false);
+    expect(r.content).toBe('hello\n');
+  });
+
+  test('_link_or_copy handles "success-but-not-link" postcondition (race condition guard)', () => {
+    const shimDir = createShim('fake-file');
+    const r = runWithShim('dir', shimDir);
+    expect(r.ok).toBe(true);
+    expect(r.dstIsSymlink).toBe(false);
+    expect(r.dstIsDir).toBe(true);
+    expect(r.content).toContain('inner.txt');
   });
 });

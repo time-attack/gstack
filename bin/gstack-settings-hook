@@ -33,7 +33,7 @@
 set -euo pipefail
 
 ACTION="${1:-}"
-SETTINGS_FILE="${GSTACK_SETTINGS_FILE:-$HOME/.claude/settings.json}"
+SETTINGS_FILE="${GSTACK_SETTINGS_FILE:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json}"
 
 if [ -z "$ACTION" ]; then
   cat <<EOF >&2
@@ -83,9 +83,20 @@ case "$ACTION" in
       try { settings = JSON.parse(fs.readFileSync(settingsPath, "utf8")); } catch {}
       if (!settings.hooks) settings.hooks = {};
       if (!settings.hooks.SessionStart) settings.hooks.SessionStart = [];
-      const exists = settings.hooks.SessionStart.some(entry =>
-        entry.hooks && entry.hooks.some(h => h.command && h.command.includes("gstack-session-update"))
-      );
+      // Update-in-place: dedupe by the gstack-session-update marker, but if the
+      // registered command differs from the desired one (e.g. an old install
+      // registered the unprefixed/unquoted Windows form), rewrite it — otherwise
+      // existing installs never receive a corrected hook command.
+      let exists = false;
+      for (const entry of settings.hooks.SessionStart) {
+        if (!entry.hooks) continue;
+        for (const h of entry.hooks) {
+          if (h.command && h.command.includes("gstack-session-update")) {
+            exists = true;
+            if (h.command !== hookCmd) h.command = hookCmd;
+          }
+        }
+      }
       if (!exists) {
         settings.hooks.SessionStart.push({
           hooks: [{ type: "command", command: hookCmd }]
