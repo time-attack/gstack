@@ -58,6 +58,7 @@ if (Test-Path -LiteralPath $root) { throw "refusing to reuse PR #1981 root: $roo
 [IO.Directory]::CreateDirectory($root) | Out-Null
 $artifactRoot = Join-Path $env:RUNNER_TEMP "gstack-windows-gates\pr1981\$caseId"
 [IO.Directory]::CreateDirectory($artifactRoot) | Out-Null
+[IO.File]::WriteAllText((Join-Path $artifactRoot 'harness-started.txt'), ("startedAt=$([DateTime]::UtcNow.ToString('o'))" + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
 $transferSource = Join-Path $env:GITHUB_WORKSPACE '.github\windows-gates\payloads\pr1981-transfer'
 $transfer = Join-Path $root 'transfer'
 [IO.Directory]::CreateDirectory($transfer) | Out-Null
@@ -80,7 +81,7 @@ $pythonDirectory = [IO.Path]::GetDirectoryName($python3)
 $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
 $toolHome = Join-Path $root 'tool-home'
 $toolTemp = Join-Path $root 'tool-temp'
-$toolEnvironment = New-SafeWindowsEnvironment -Home $toolHome -Temp $toolTemp -AdditionalPath @($pythonDirectory)
+$toolEnvironment = New-SafeWindowsEnvironment -IsolatedHome $toolHome -Temp $toolTemp -AdditionalPath @($pythonDirectory)
 Assert-SafeChildEnvironment -Environment $toolEnvironment -EvidencePath (Join-Path $artifactRoot 'tool-child-environment.json')
 
 function Invoke-ToolFact {
@@ -142,12 +143,12 @@ foreach ($phase in @('baseline', 'candidate')) {
     Join-Path $root $phase
   }
   $repo = Join-Path $phaseBase 'repo'
-  $home = Join-Path $phaseBase 'home'
+  $isolatedHome = Join-Path $phaseBase 'home'
   $state = Join-Path $phaseBase 'state'
   $temp = Join-Path $phaseBase 'tmp'
   $evidence = Join-Path $phaseBase 'evidence'
   $phaseArtifacts = Join-Path $artifactRoot $phase
-  [IO.Directory]::CreateDirectory($home) | Out-Null
+  [IO.Directory]::CreateDirectory($isolatedHome) | Out-Null
   [IO.Directory]::CreateDirectory($state) | Out-Null
   [IO.Directory]::CreateDirectory($temp) | Out-Null
   [IO.Directory]::CreateDirectory($evidence) | Out-Null
@@ -171,7 +172,7 @@ foreach ($phase in @('baseline', 'candidate')) {
     [IO.Directory]::CreateDirectory($gbrainBin) | Out-Null
     $gbrainInstallHome = Join-Path $phaseBase 'gbrain-install-home'
     $gbrainInstallTemp = Join-Path $phaseBase 'gbrain-install-temp'
-    $gbrainInstallEnvironment = New-SafeWindowsEnvironment -Home $gbrainInstallHome -Temp $gbrainInstallTemp -AdditionalPath @($pythonDirectory, $gbrainBin) -Additional @{
+    $gbrainInstallEnvironment = New-SafeWindowsEnvironment -IsolatedHome $gbrainInstallHome -Temp $gbrainInstallTemp -AdditionalPath @($pythonDirectory, $gbrainBin) -Additional @{
       BUN_INSTALL_CACHE_DIR = (Join-Path $gbrainInstallHome '.bun\install\cache')
     }
     Assert-SafeChildEnvironment -Environment $gbrainInstallEnvironment -EvidencePath (Join-Path $phaseArtifacts 'gbrain-install-child-environment.json')
@@ -192,13 +193,13 @@ foreach ($phase in @('baseline', 'candidate')) {
   }
 
   $pathAdditions = if ($case.gbrain) { @($pythonDirectory, $gbrainBin) } else { @($pythonDirectory) }
-  $homeMsys = Convert-NativeToMsys $home
+  $homeMsys = Convert-NativeToMsys $isolatedHome
   $stateMsys = Convert-NativeToMsys $state
   $repoMsys = Convert-NativeToMsys $repo
   $evidenceMsys = Convert-NativeToMsys $evidence
-  $probeEnvironment = New-SafeWindowsEnvironment -Home $home -Temp $temp -AdditionalPath $pathAdditions -Additional @{
+  $probeEnvironment = New-SafeWindowsEnvironment -IsolatedHome $isolatedHome -Temp $temp -AdditionalPath $pathAdditions -Additional @{
     HOME = $homeMsys
-    USERPROFILE = $home
+    USERPROFILE = $isolatedHome
     GSTACK_PR_TEST_PHASE = $phase
     GSTACK_PR_TEST_REPO = $case.repoId
     GSTACK_UNDER_TEST = $repoMsys
@@ -254,7 +255,7 @@ foreach ($phase in @('baseline', 'candidate')) {
     stderrSha256 = $probe.StderrSha256
     repo = $repo
     consumer = $consumerRoot
-    home = $home
+    home = $isolatedHome
     state = $state
     evidence = $evidence
   }

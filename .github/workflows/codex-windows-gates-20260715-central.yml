@@ -9,9 +9,26 @@ permissions:
   contents: read
 
 jobs:
+  harness-static:
+    name: Validate Windows harness
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout isolated fork branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Run harness regression checks
+        shell: pwsh
+        run: |
+          & ".github/windows-gates/tests/static-launch-policy.test.ps1"
+          & ".github/windows-gates/tests/model-overlay-failure-identity.test.ps1"
+
   pr2260:
     name: "PR2260 / ${{ matrix.case }}"
     runs-on: windows-latest
+    needs: harness-static
     timeout-minutes: 150
     strategy:
       fail-fast: false
@@ -64,6 +81,7 @@ jobs:
   pr1981:
     name: "PR1981 / ${{ matrix.case }}"
     runs-on: windows-latest
+    needs: harness-static
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -115,6 +133,7 @@ jobs:
   pr1743:
     name: "PR1743 / ${{ matrix.case }}"
     runs-on: windows-latest
+    needs: harness-static
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -159,6 +178,7 @@ jobs:
   model-overlays:
     name: "Model overlays / PR${{ matrix.pr }}"
     runs-on: windows-latest
+    needs: harness-static
     timeout-minutes: 60
     strategy:
       fail-fast: false

@@ -12,6 +12,9 @@ $ownedLaunchers = @(
 $invokeCount = 0
 foreach ($file in $ownedLaunchers) {
   $text = [IO.File]::ReadAllText($file)
+  if ($text -match '(?i)\$home\b' -or $text -match '(?i)(^|[^\w])-Home\b') {
+    throw "runner uses PowerShell's reserved HOME variable: $file"
+  }
   if ($text -match '(?m)^\s*&\s+' -or $text -match '\b(Start-Process|Invoke-Expression)\b') {
     throw "unreviewed direct child launch in $file"
   }
@@ -23,6 +26,19 @@ foreach ($file in $ownedLaunchers) {
       }
     }
   }
+}
+
+. (Join-Path $gateRoot 'common-windows.ps1')
+$smokeRoot = Join-Path ([IO.Path]::GetTempPath()) "gstack-windows-environment-smoke-$([Guid]::NewGuid().ToString('N'))"
+try {
+  $smokeHome = Join-Path $smokeRoot 'home'
+  $smokeTemp = Join-Path $smokeRoot 'tmp'
+  $smokeEnvironment = New-SafeWindowsEnvironment -IsolatedHome $smokeHome -Temp $smokeTemp
+  if ($smokeEnvironment.HOME -ne $smokeHome -or $smokeEnvironment.USERPROFILE -ne $smokeHome) {
+    throw 'safe environment smoke test did not preserve the isolated home'
+  }
+} finally {
+  if (Test-Path -LiteralPath $smokeRoot) { Remove-Item -LiteralPath $smokeRoot -Recurse -Force }
 }
 if ($invokeCount -lt 20) { throw "unexpectedly small reviewed child-launch surface: $invokeCount" }
 

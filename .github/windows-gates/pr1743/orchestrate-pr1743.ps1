@@ -52,13 +52,14 @@ if (Test-Path -LiteralPath $root) { throw "refusing to reuse PR #1743 root: $roo
 [IO.Directory]::CreateDirectory($root) | Out-Null
 $artifactRoot = Join-Path $env:RUNNER_TEMP "gstack-windows-gates\pr1743\$caseId"
 [IO.Directory]::CreateDirectory($artifactRoot) | Out-Null
+[IO.File]::WriteAllText((Join-Path $artifactRoot 'harness-started.txt'), ("startedAt=$([DateTime]::UtcNow.ToString('o'))" + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
 $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
 $bun = (Get-Command bun.exe -ErrorAction Stop).Source
 $node = (Get-Command node.exe -ErrorAction Stop).Source
 $git = (Get-Command git.exe -ErrorAction Stop).Source
 $bash = 'C:\Program Files\Git\bin\bash.exe'
 $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
-$factsEnvironment = New-SafeWindowsEnvironment -Home (Join-Path $root 'tool-facts-home') -Temp (Join-Path $root 'tool-facts-temp')
+$factsEnvironment = New-SafeWindowsEnvironment -IsolatedHome (Join-Path $root 'tool-facts-home') -Temp (Join-Path $root 'tool-facts-temp')
 Assert-SafeChildEnvironment -Environment $factsEnvironment -EvidencePath (Join-Path $artifactRoot 'tool-facts-child-environment.json')
 function Invoke-ToolFact {
   param([string]$Name, [string]$FilePath, [string[]]$Arguments)
@@ -96,11 +97,11 @@ foreach ($phase in @('baseline', 'candidate')) {
   $sha = if ($phase -eq 'baseline') { $baselineSha } else { $candidateSha }
   $phaseRoot = Join-Path $root $phase
   $repo = Join-Path $phaseRoot 'repo'
-  $home = Join-Path $phaseRoot 'home'
+  $isolatedHome = Join-Path $phaseRoot 'home'
   $state = Join-Path $phaseRoot 'state'
   $temp = Join-Path $phaseRoot 'tmp'
   $phaseArtifacts = Join-Path $artifactRoot $phase
-  [IO.Directory]::CreateDirectory($home) | Out-Null
+  [IO.Directory]::CreateDirectory($isolatedHome) | Out-Null
   [IO.Directory]::CreateDirectory($state) | Out-Null
   [IO.Directory]::CreateDirectory($temp) | Out-Null
   [IO.Directory]::CreateDirectory($phaseArtifacts) | Out-Null
@@ -108,16 +109,16 @@ foreach ($phase in @('baseline', 'candidate')) {
   $consumerEvidence = Join-Path $phaseArtifacts 'consumer-source'
   [IO.Directory]::CreateDirectory($consumer) | Out-Null
   [IO.Directory]::CreateDirectory($consumerEvidence) | Out-Null
-  $consumerEnvironment = New-SafeWindowsEnvironment -Home (Join-Path $consumerEvidence 'tool-home') -Temp (Join-Path $consumerEvidence 'tool-temp')
+  $consumerEnvironment = New-SafeWindowsEnvironment -IsolatedHome (Join-Path $consumerEvidence 'tool-home') -Temp (Join-Path $consumerEvidence 'tool-temp')
   Assert-SafeChildEnvironment -Environment $consumerEnvironment -EvidencePath (Join-Path $consumerEvidence 'child-environment.json')
   $extract = Invoke-LoggedProcess -FilePath $tar -Arguments @('-xzf', $consumerArchive, '-C', $consumer) -WorkingDirectory $phaseRoot -StdoutPath (Join-Path $consumerEvidence 'extract.stdout.log') -StderrPath (Join-Path $consumerEvidence 'extract.stderr.log') -Environment $consumerEnvironment
   if ($extract.ExitCode -ne 0) { throw "consumer extraction failed for $caseId/$phase" }
   $probeArtifactRoot = Join-Path $phaseArtifacts 'probe-output'
   [IO.Directory]::CreateDirectory($probeArtifactRoot) | Out-Null
   $sourceRecord = Materialize-ExactSource -Bundle $bundle -Sha $sha -Destination $repo -EvidenceDirectory (Join-Path $phaseArtifacts 'source')
-  $environment = New-SafeWindowsEnvironment -Home $home -Temp $temp -Additional @{
+  $environment = New-SafeWindowsEnvironment -IsolatedHome $isolatedHome -Temp $temp -Additional @{
     GSTACK_HOME = $state
-    BUN_INSTALL_CACHE_DIR = (Join-Path $home '.bun\install\cache')
+    BUN_INSTALL_CACHE_DIR = (Join-Path $isolatedHome '.bun\install\cache')
     GSTACK_SKIP_COREUTILS = '1'
     GSTACK_SKIP_FONTS = '1'
     GSTACK_SKIP_GBRAIN_REGEN = '1'
@@ -127,7 +128,7 @@ foreach ($phase in @('baseline', 'candidate')) {
   $environment['GSTACK_PR1743_PROBE_ROOT'] = $probeRoot
   $environment['GSTACK_UNDER_TEST'] = $repo
   $environment['GSTACK_PR_TEST_CONSUMER'] = $consumer
-  $environment['GSTACK_PR_TEST_HOME'] = $home
+  $environment['GSTACK_PR_TEST_HOME'] = $isolatedHome
   $environment['GSTACK_PR_TEST_STATE'] = $state
   $environment['GSTACK_PR_TEST_ARTIFACT_ROOT'] = $probeArtifactRoot
   $environment['GSTACK_PR_TEST_REPO'] = $caseId
@@ -159,7 +160,7 @@ foreach ($phase in @('baseline', 'candidate')) {
     durationMs = $run.DurationMs
     repo = $repo
     consumer = $consumer
-    home = $home
+    home = $isolatedHome
     state = $state
     consumerRevision = $case.sha
     consumerArchiveSha256 = $case.archiveSha256

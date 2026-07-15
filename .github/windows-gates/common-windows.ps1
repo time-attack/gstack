@@ -27,15 +27,15 @@ function Convert-NativeToMsys {
 
 function New-SafeWindowsEnvironment {
   param(
-    [Parameter(Mandatory = $true)][string]$Home,
+    [Parameter(Mandatory = $true)][string]$IsolatedHome,
     [Parameter(Mandatory = $true)][string]$Temp,
     [string[]]$AdditionalPath = @(),
     [hashtable]$Additional = @{}
   )
-  [IO.Directory]::CreateDirectory($Home) | Out-Null
+  [IO.Directory]::CreateDirectory($IsolatedHome) | Out-Null
   [IO.Directory]::CreateDirectory($Temp) | Out-Null
-  $appData = Join-Path $Home 'AppData\Roaming'
-  $localAppData = Join-Path $Home 'AppData\Local'
+  $appData = Join-Path $IsolatedHome 'AppData\Roaming'
+  $localAppData = Join-Path $IsolatedHome 'AppData\Local'
   [IO.Directory]::CreateDirectory($appData) | Out-Null
   [IO.Directory]::CreateDirectory($localAppData) | Out-Null
   $pathParts = [Collections.Generic.List[string]]::new()
@@ -75,8 +75,8 @@ function New-SafeWindowsEnvironment {
     ProgramFiles = [Environment]::GetEnvironmentVariable('ProgramFiles')
     'ProgramFiles(x86)' = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
     ProgramW6432 = [Environment]::GetEnvironmentVariable('ProgramW6432')
-    HOME = $Home
-    USERPROFILE = $Home
+    HOME = $IsolatedHome
+    USERPROFILE = $IsolatedHome
     APPDATA = $appData
     LOCALAPPDATA = $localAppData
     TEMP = $Temp
@@ -187,7 +187,7 @@ function Materialize-ExactSource {
   [IO.Directory]::CreateDirectory($parent) | Out-Null
   $toolHome = Join-Path $EvidenceDirectory 'tool-home'
   $toolTemp = Join-Path $EvidenceDirectory 'tool-temp'
-  $gitEnvironment = New-SafeWindowsEnvironment -Home $toolHome -Temp $toolTemp
+  $gitEnvironment = New-SafeWindowsEnvironment -IsolatedHome $toolHome -Temp $toolTemp
   Assert-SafeChildEnvironment -Environment $gitEnvironment -EvidencePath (Join-Path $EvidenceDirectory 'child-environment.json')
   $clone = Invoke-LoggedProcess -FilePath $git -Arguments @('clone', '--no-checkout', $Bundle, $Destination) -WorkingDirectory $parent -StdoutPath (Join-Path $EvidenceDirectory 'git-clone.stdout.log') -StderrPath (Join-Path $EvidenceDirectory 'git-clone.stderr.log') -Environment $gitEnvironment
   if ($clone.ExitCode -ne 0) { throw "bundle clone failed with $($clone.ExitCode)" }

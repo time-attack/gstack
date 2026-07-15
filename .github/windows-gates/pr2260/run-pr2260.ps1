@@ -57,6 +57,7 @@ if (Test-Path -LiteralPath $caseRoot) { throw "refusing to reuse PR #2260 root: 
 [IO.Directory]::CreateDirectory($caseRoot) | Out-Null
 $artifactRoot = Join-Path $env:RUNNER_TEMP "gstack-windows-gates\pr2260\$caseId"
 [IO.Directory]::CreateDirectory($artifactRoot) | Out-Null
+[IO.File]::WriteAllText((Join-Path $artifactRoot 'harness-started.txt'), ("startedAt=$([DateTime]::UtcNow.ToString('o'))" + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
 $fixtureRoot = $PSScriptRoot
 $probeScript = Join-Path $PSScriptRoot 'windows-build-runtime.sh'
 $controlScript = Join-Path $PSScriptRoot 'control-probe.sh'
@@ -64,7 +65,7 @@ $fixedWrapper = Join-Path $PSScriptRoot 'run-pr2260-fixed.sh'
 
 $factsHome = Join-Path $caseRoot 'tool-facts-home'
 $factsTemp = Join-Path $caseRoot 'tool-facts-temp'
-$factsEnvironment = New-SafeWindowsEnvironment -Home $factsHome -Temp $factsTemp
+$factsEnvironment = New-SafeWindowsEnvironment -IsolatedHome $factsHome -Temp $factsTemp
 Assert-SafeChildEnvironment -Environment $factsEnvironment -EvidencePath (Join-Path $artifactRoot 'tool-facts-child-environment.json')
 function Invoke-ToolFact {
   param([string]$Name, [string]$FilePath, [string[]]$Arguments)
@@ -103,13 +104,13 @@ foreach ($phase in @('baseline', 'candidate')) {
   $phaseRoot = Assert-IsolatedPath -Path (Join-Path $caseRoot $phase) -AllowedRoot $gateRoot
   $repo = Join-Path $phaseRoot 'repo'
   $consumer = Join-Path $phaseRoot 'consumer'
-  $home = Join-Path $phaseRoot 'home'
+  $isolatedHome = Join-Path $phaseRoot 'home'
   $state = Join-Path $phaseRoot 'state'
   $temp = Join-Path $phaseRoot 'tmp'
   $browserRoot = Join-Path $phaseRoot 'playwright'
   $evidence = Join-Path $phaseRoot 'evidence'
   $phaseArtifacts = Join-Path $artifactRoot $phase
-  [IO.Directory]::CreateDirectory($home) | Out-Null
+  [IO.Directory]::CreateDirectory($isolatedHome) | Out-Null
   [IO.Directory]::CreateDirectory($state) | Out-Null
   [IO.Directory]::CreateDirectory($temp) | Out-Null
   [IO.Directory]::CreateDirectory($browserRoot) | Out-Null
@@ -118,12 +119,12 @@ foreach ($phase in @('baseline', 'candidate')) {
 
   $sourceRecord = Materialize-ExactSource -Bundle $bundle -Sha $sha -Destination $repo -EvidenceDirectory (Join-Path $phaseArtifacts 'source')
   [IO.Directory]::CreateDirectory($consumer) | Out-Null
-  $baseEnvironment = New-SafeWindowsEnvironment -Home $home -Temp $temp
+  $baseEnvironment = New-SafeWindowsEnvironment -IsolatedHome $isolatedHome -Temp $temp
   $extract = Invoke-LoggedProcess -FilePath $tar -Arguments @('-xzf', $consumerArchive, '-C', $consumer) -WorkingDirectory $phaseRoot -StdoutPath (Join-Path $phaseArtifacts 'consumer-extract.stdout.log') -StderrPath (Join-Path $phaseArtifacts 'consumer-extract.stderr.log') -Environment $baseEnvironment
   if ($extract.ExitCode -ne 0) { throw "consumer extraction failed for $caseId/$phase" }
-  $processEnvironment = New-SafeWindowsEnvironment -Home $home -Temp $temp -Additional @{
-    HOME = (Convert-NativeToMsys $home)
-    USERPROFILE = $home
+  $processEnvironment = New-SafeWindowsEnvironment -IsolatedHome $isolatedHome -Temp $temp -Additional @{
+    HOME = (Convert-NativeToMsys $isolatedHome)
+    USERPROFILE = $isolatedHome
     GSTACK_HOME = $state
     GSTACK_UNDER_TEST = $repo
     GSTACK_PR_TEST_REPO = $caseId
@@ -131,7 +132,7 @@ foreach ($phase in @('baseline', 'candidate')) {
     GSTACK_SKIP_COREUTILS = '1'
     GSTACK_SKIP_FONTS = '1'
     GSTACK_SKIP_GBRAIN_REGEN = '1'
-    BUN_INSTALL_CACHE_DIR = (Join-Path $home '.bun\install\cache')
+    BUN_INSTALL_CACHE_DIR = (Join-Path $isolatedHome '.bun\install\cache')
     PLAYWRIGHT_BROWSERS_PATH = $browserRoot
     PR2260_PLAYWRIGHT_ROOT = $browserRoot
     PR2260_FIXTURE_ROOT = $fixtureRoot
@@ -190,7 +191,7 @@ foreach ($phase in @('baseline', 'candidate')) {
     consumer = $consumer
     consumerRevision = $cases[$caseId].revision
     consumerArchiveSha256 = $cases[$caseId].archiveSha256
-    home = $home
+    home = $isolatedHome
     state = $state
     evidence = $evidence
   }

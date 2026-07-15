@@ -29,24 +29,25 @@ if (Test-Path -LiteralPath $root) { throw "refusing to reuse model-overlay root:
 [IO.Directory]::CreateDirectory($root) | Out-Null
 $artifactRoot = Join-Path $env:RUNNER_TEMP "gstack-windows-gates\model-overlays\pr-$pr"
 [IO.Directory]::CreateDirectory($artifactRoot) | Out-Null
+[IO.File]::WriteAllText((Join-Path $artifactRoot 'harness-started.txt'), ("startedAt=$([DateTime]::UtcNow.ToString('o'))" + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
 $phaseResults = @()
 
 foreach ($phase in @('baseline', 'candidate')) {
   $sha = if ($phase -eq 'baseline') { $baselineSha } else { $heads[$pr] }
   $phaseRoot = Join-Path $root $phase
   $repo = Join-Path $phaseRoot 'repo'
-  $home = Join-Path $phaseRoot 'home'
+  $isolatedHome = Join-Path $phaseRoot 'home'
   $state = Join-Path $phaseRoot 'state'
   $temp = Join-Path $phaseRoot 'tmp'
   $phaseArtifacts = Join-Path $artifactRoot $phase
-  [IO.Directory]::CreateDirectory($home) | Out-Null
+  [IO.Directory]::CreateDirectory($isolatedHome) | Out-Null
   [IO.Directory]::CreateDirectory($state) | Out-Null
   [IO.Directory]::CreateDirectory($temp) | Out-Null
   [IO.Directory]::CreateDirectory($phaseArtifacts) | Out-Null
   $sourceRecord = Materialize-ExactSource -Bundle $bundle -Sha $sha -Destination $repo -EvidenceDirectory (Join-Path $phaseArtifacts 'source')
-  $environment = New-SafeWindowsEnvironment -Home $home -Temp $temp -Additional @{
+  $environment = New-SafeWindowsEnvironment -IsolatedHome $isolatedHome -Temp $temp -Additional @{
     GSTACK_HOME = $state
-    BUN_INSTALL_CACHE_DIR = (Join-Path $home '.bun\install\cache')
+    BUN_INSTALL_CACHE_DIR = (Join-Path $isolatedHome '.bun\install\cache')
     GSTACK_SKIP_COREUTILS = '1'
     GSTACK_SKIP_FONTS = '1'
     GSTACK_SKIP_GBRAIN_REGEN = '1'
@@ -79,7 +80,7 @@ foreach ($phase in @('baseline', 'candidate')) {
     command = $fixedCommand
     commandSha256 = $fixedCommandHash
     repo = $repo
-    home = $home
+    home = $isolatedHome
     state = $state
   }
 }
