@@ -14,7 +14,10 @@ process.env.HOME = isolatedHome;
 process.env.USERPROFILE = isolatedHome;
 
 const require = createRequire(import.meta.url);
-require(path.join(gstackRoot, 'browse', 'src', 'bun-polyfill.cjs'));
+const hasNativeBun = typeof globalThis.Bun !== 'undefined';
+if (!hasNativeBun) {
+  require(path.join(gstackRoot, 'browse', 'src', 'bun-polyfill.cjs'));
+}
 const source = path.join(gstackRoot, 'browse', 'src', 'cookie-import-browser.ts');
 const moduleUrl = `${pathToFileURL(source).href}?probe=${Date.now()}`;
 const { importCookies } = await import(moduleUrl);
@@ -29,8 +32,8 @@ const matched = actualDigest === expectedDigest;
 
 console.log(JSON.stringify({
   productionModule: 'browse/src/cookie-import-browser.ts',
-  polyfill: 'browse/src/bun-polyfill.cjs',
-  runtime: 'bun-module-loader-with-node-polyfill',
+  polyfill: hasNativeBun ? 'native-bun-global' : 'browse/src/bun-polyfill.cjs',
+  runtime: hasNativeBun ? 'bun-native-runtime' : 'node-runtime-with-bun-polyfill',
   count: result.count,
   failed: result.failed,
   cookiePresent: Boolean(cookie),

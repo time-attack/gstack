@@ -90,6 +90,26 @@ foreach ($runner in $ownedLaunchers | Where-Object { $_ -notmatch 'common-window
   }
 }
 
+$modelRunner = [IO.File]::ReadAllText((Join-Path $gateRoot 'run-model-overlays.ps1'))
+$pr2260Runner = [IO.File]::ReadAllText((Join-Path $gateRoot 'pr2260\run-pr2260.ps1'))
+foreach ($entry in @(
+  @{ Name = 'model overlays'; Text = $modelRunner },
+  @{ Name = 'PR2260'; Text = $pr2260Runner }
+)) {
+  if ($entry.Text -notmatch 'build-node-server\.sh' -or $entry.Text -notmatch 'server-node\.mjs') {
+    throw "$($entry.Name) omitted the required Windows Node server bundle setup"
+  }
+}
+
+$pr1981Runner = [IO.File]::ReadAllText((Join-Path $gateRoot 'pr1981\run-pr1981.ps1'))
+if ($pr1981Runner -notmatch 'gbrain\.cmd' -or $pr1981Runner -match "@\('build',\s*'--compile'.*gbrain") {
+  throw 'PR1981 did not use the source-backed official Windows gbrain launcher'
+}
+$dpapiProbe = [IO.File]::ReadAllText((Join-Path $gateRoot 'pr1743\windows\dpapi-core-probe.ts'))
+if ($dpapiProbe -notmatch "typeof globalThis\.Bun !== 'undefined'" -or $dpapiProbe -notmatch 'if \(!hasNativeBun\)') {
+  throw 'PR1743 DPAPI probe would overwrite native Bun with the Node polyfill'
+}
+
 $runtimeText = ($ownedLaunchers | ForEach-Object { [IO.File]::ReadAllText($_) }) -join [Environment]::NewLine
 if ($runtimeText -match 'git\s+clone\s+https?://' -or $runtimeText -match 'Invoke-WebRequest|curl\s+https?://|wget\s+https?://') {
   throw 'runtime launcher contains unapproved direct network fetch'

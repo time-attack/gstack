@@ -150,6 +150,12 @@ foreach ($phase in @('baseline', 'candidate')) {
   $install = Invoke-LoggedProcess -FilePath $bun -Arguments @('install', '--frozen-lockfile', '--ignore-scripts') -WorkingDirectory $repo -StdoutPath (Join-Path $phaseArtifacts 'bun-install.stdout.log') -StderrPath (Join-Path $phaseArtifacts 'bun-install.stderr.log') -Environment $processEnvironment
   if ($install.ExitCode -ne 0) { throw "PR #2260 dependency install failed for $caseId/$phase" }
 
+  $serverBuildScript = Convert-NativeToMsys (Join-Path $repo 'browse\scripts\build-node-server.sh')
+  $serverBuild = Invoke-LoggedProcess -FilePath $bash -Arguments @($serverBuildScript) -WorkingDirectory $repo -StdoutPath (Join-Path $phaseArtifacts 'build-node-server.stdout.log') -StderrPath (Join-Path $phaseArtifacts 'build-node-server.stderr.log') -Environment $processEnvironment
+  if ($serverBuild.ExitCode -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $repo 'browse\dist\server-node.mjs'))) {
+    throw "PR #2260 Windows server bundle setup failed for $caseId/$phase"
+  }
+
   if ($kind -eq 'affected') {
     $playwrightCli = Join-Path $repo 'node_modules\playwright\cli.js'
     if (-not (Test-Path -LiteralPath $playwrightCli)) { throw "pinned Playwright CLI missing for $caseId/$phase" }

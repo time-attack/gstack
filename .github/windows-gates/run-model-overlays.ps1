@@ -19,6 +19,7 @@ if ((Get-FileHash -LiteralPath $bundle -Algorithm SHA256).Hash.ToLowerInvariant(
   throw 'exact-ref bundle hash mismatch'
 }
 $bun = (Get-Command bun.exe -ErrorAction Stop).Source
+$bash = 'C:\Program Files\Git\bin\bash.exe'
 $fixedCommand = 'bun run test:windows'
 $fixedCommandHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($fixedCommand))).ToLowerInvariant()
 if ($fixedCommandHash -ne '516baff1792e323331c4d2bf1a5298d8ee24b20bcfeaf7bb1e77360ac77d42ef') {
@@ -55,6 +56,11 @@ foreach ($phase in @('baseline', 'candidate')) {
   Assert-SafeChildEnvironment -Environment $environment -EvidencePath (Join-Path $phaseArtifacts 'tested-child-environment.json')
   $install = Invoke-LoggedProcess -FilePath $bun -Arguments @('install', '--frozen-lockfile', '--ignore-scripts') -WorkingDirectory $repo -StdoutPath (Join-Path $phaseArtifacts 'bun-install.stdout.log') -StderrPath (Join-Path $phaseArtifacts 'bun-install.stderr.log') -Environment $environment
   if ($install.ExitCode -ne 0) { throw "frozen dependency install failed for PR #$pr/$phase" }
+  $serverBuildScript = Convert-NativeToMsys (Join-Path $repo 'browse\scripts\build-node-server.sh')
+  $serverBuild = Invoke-LoggedProcess -FilePath $bash -Arguments @($serverBuildScript) -WorkingDirectory $repo -StdoutPath (Join-Path $phaseArtifacts 'build-node-server.stdout.log') -StderrPath (Join-Path $phaseArtifacts 'build-node-server.stderr.log') -Environment $environment
+  if ($serverBuild.ExitCode -ne 0 -or -not (Test-Path -LiteralPath (Join-Path $repo 'browse\dist\server-node.mjs'))) {
+    throw "Windows server bundle setup failed for PR #$pr/$phase"
+  }
   [IO.File]::WriteAllText((Join-Path $phaseArtifacts 'command.txt'), ($fixedCommand + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
   [IO.File]::WriteAllText((Join-Path $phaseArtifacts 'command.sha256'), ($fixedCommandHash + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
   $networkEvidence = Join-Path $phaseArtifacts 'network'

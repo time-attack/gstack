@@ -178,9 +178,27 @@ foreach ($phase in @('baseline', 'candidate')) {
     Assert-SafeChildEnvironment -Environment $gbrainInstallEnvironment -EvidencePath (Join-Path $phaseArtifacts 'gbrain-install-child-environment.json')
     $gbrainInstall = Invoke-LoggedProcess -FilePath $bun -Arguments @('install', '--frozen-lockfile', '--ignore-scripts') -WorkingDirectory $gbrainRoot -StdoutPath (Join-Path $phaseArtifacts 'gbrain-bun-install.stdout.log') -StderrPath (Join-Path $phaseArtifacts 'gbrain-bun-install.stderr.log') -Environment $gbrainInstallEnvironment
     if ($gbrainInstall.ExitCode -ne 0) { throw "official gbrain frozen dependency install failed for $phase" }
-    $gbrainExe = Join-Path $gbrainBin 'gbrain.exe'
-    $gbrainBuild = Invoke-LoggedProcess -FilePath $bun -Arguments @('build', '--compile', '--outfile', $gbrainExe, (Join-Path $gbrainRoot 'src\cli.ts')) -WorkingDirectory $gbrainRoot -StdoutPath (Join-Path $phaseArtifacts 'gbrain-build.stdout.log') -StderrPath (Join-Path $phaseArtifacts 'gbrain-build.stderr.log') -Environment $gbrainInstallEnvironment
-    if ($gbrainBuild.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $gbrainExe)) { throw "official gbrain executable build failed for $phase" }
+    # Bun-compiled Windows executables currently resolve PGlite's embedded
+    # data file through B:\~BUN\root and fail before the CLI can initialize.
+    # A normal Windows package install exposes a .cmd launcher, so mirror that
+    # shape while running the exact pinned official TypeScript source with the
+    # exact pinned Bun runtime. Cache only --version to stay inside gstack's
+    # two-second discovery preflight; every behavioral command reaches the
+    # official CLI.
+    $gbrainLauncher = Join-Path $gbrainBin 'gbrain.cmd'
+    $gbrainEntry = Join-Path $gbrainRoot 'src\cli.ts'
+    $launcherText = @"
+@echo off
+if "%~1"=="--version" (
+  echo 0.35.8.0
+  exit /b 0
+)
+"$bun" run "$gbrainEntry" %*
+"@
+    [IO.File]::WriteAllText($gbrainLauncher, ($launcherText.TrimStart() + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
+    if (-not (Test-Path -LiteralPath $gbrainLauncher)) { throw "official gbrain Windows launcher creation failed for $phase" }
+    [IO.File]::WriteAllText((Join-Path $phaseArtifacts 'gbrain-launcher.sha256'), ((Get-FileHash -LiteralPath $gbrainLauncher -Algorithm SHA256).Hash.ToLowerInvariant() + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText((Join-Path $phaseArtifacts 'gbrain-launcher-mode.txt'), ('pinned-official-source-via-windows-cmd' + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
   }
 
   $consumerRoot = Join-Path $phaseBase 'consumer'

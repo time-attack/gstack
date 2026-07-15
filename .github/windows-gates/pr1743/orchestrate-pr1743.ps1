@@ -38,6 +38,18 @@ $probe = Join-Path $probeRoot 'windows\run-pr1743-windows-probe.ps1'
 if ((Get-FileHash -LiteralPath $probe -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedProbeHash) {
   throw 'reviewed PR #1743 probe hash mismatch'
 }
+$reviewedProbeFiles = @{
+  'windows\create-dpapi-cookie-fixture.ts' = '7691e0498bd0cc123bb44cb12e0640653b55cddf414c6241e8ab37d5e9435000'
+  'windows\protect-dpapi-key.ps1' = 'abf5c48a32fd23a5fa3bdac32b2a5e037c80cb53ca14cfc6d38abef86c4a57ff'
+  'windows\dpapi-core-probe.ts' = '0218988f4e06ffe2552ec64ecf727e095d3a1814de48c9bf4c32f4cfa2b21c53'
+  'probe\node-spawn-matrix.mjs' = 'c5a27d7414c9687fc819a5f2fd154fb373db90bf0293b711bb076f0e4fa0663e'
+}
+foreach ($relativePath in $reviewedProbeFiles.Keys) {
+  $reviewedPath = Join-Path $probeRoot $relativePath
+  if ((Get-FileHash -LiteralPath $reviewedPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $reviewedProbeFiles[$relativePath]) {
+    throw "reviewed PR #1743 child probe hash mismatch: $relativePath"
+  }
+}
 if ((Get-FileHash -LiteralPath $consumerArchive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $case.archiveSha256) {
   throw "pinned PR #1743 consumer archive hash mismatch for $caseId"
 }
