@@ -102,8 +102,11 @@ foreach ($entry in @(
 }
 
 $pr1981Runner = [IO.File]::ReadAllText((Join-Path $gateRoot 'pr1981\run-pr1981.ps1'))
-if ($pr1981Runner -notmatch 'gbrain\.cmd' -or $pr1981Runner -match "@\('build',\s*'--compile'.*gbrain") {
+if ($pr1981Runner -notmatch 'gbrain\.cmd' -or $pr1981Runner -notmatch 'Join-Path \$gbrainBin ''gbrain''' -or $pr1981Runner -match "@\('build',\s*'--compile'.*gbrain") {
   throw 'PR1981 did not use the source-backed official Windows gbrain launcher'
+}
+if ($pr2260Runner -notmatch "Remove\('MSYS_NO_PATHCONV'\)") {
+  throw 'PR2260 Windows server build retained probe-only MSYS path suppression'
 }
 $dpapiProbe = [IO.File]::ReadAllText((Join-Path $gateRoot 'pr1743\windows\dpapi-core-probe.ts'))
 if ($dpapiProbe -notmatch "typeof globalThis\.Bun !== 'undefined'" -or $dpapiProbe -notmatch 'if \(!hasNativeBun\)') {

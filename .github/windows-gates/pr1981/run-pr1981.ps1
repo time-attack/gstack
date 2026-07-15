@@ -186,6 +186,7 @@ foreach ($phase in @('baseline', 'candidate')) {
     # two-second discovery preflight; every behavioral command reaches the
     # official CLI.
     $gbrainLauncher = Join-Path $gbrainBin 'gbrain.cmd'
+    $gbrainBashLauncher = Join-Path $gbrainBin 'gbrain'
     $gbrainEntry = Join-Path $gbrainRoot 'src\cli.ts'
     $launcherText = @"
 @echo off
@@ -196,9 +197,25 @@ if "%~1"=="--version" (
 "$bun" run "$gbrainEntry" %*
 "@
     [IO.File]::WriteAllText($gbrainLauncher, ($launcherText.TrimStart() + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
-    if (-not (Test-Path -LiteralPath $gbrainLauncher)) { throw "official gbrain Windows launcher creation failed for $phase" }
+    $bunMsys = Convert-NativeToMsys $bun
+    $gbrainEntryMsys = Convert-NativeToMsys $gbrainEntry
+    $bashLauncherText = @'
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "${1:-}" = "--version" ]; then
+  printf '0.35.8.0\n'
+  exit 0
+fi
+exec "__BUN__" run "__ENTRY__" "$@"
+'@
+    $bashLauncherText = $bashLauncherText.Replace('__BUN__', $bunMsys).Replace('__ENTRY__', $gbrainEntryMsys)
+    [IO.File]::WriteAllText($gbrainBashLauncher, ($bashLauncherText.TrimStart() + "`n"), [Text.UTF8Encoding]::new($false))
+    $gbrainBashLauncherMsys = Convert-NativeToMsys $gbrainBashLauncher
+    $chmod = Invoke-LoggedProcess -FilePath $bash -Arguments @('-c', 'chmod +x -- "$1"', 'gstack-chmod', $gbrainBashLauncherMsys) -WorkingDirectory $gbrainRoot -StdoutPath (Join-Path $phaseArtifacts 'gbrain-launcher-chmod.stdout.log') -StderrPath (Join-Path $phaseArtifacts 'gbrain-launcher-chmod.stderr.log') -Environment $gbrainInstallEnvironment
+    if ($chmod.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $gbrainLauncher) -or -not (Test-Path -LiteralPath $gbrainBashLauncher)) { throw "official gbrain Windows launcher creation failed for $phase" }
     [IO.File]::WriteAllText((Join-Path $phaseArtifacts 'gbrain-launcher.sha256'), ((Get-FileHash -LiteralPath $gbrainLauncher -Algorithm SHA256).Hash.ToLowerInvariant() + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
-    [IO.File]::WriteAllText((Join-Path $phaseArtifacts 'gbrain-launcher-mode.txt'), ('pinned-official-source-via-windows-cmd' + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText((Join-Path $phaseArtifacts 'gbrain-bash-launcher.sha256'), ((Get-FileHash -LiteralPath $gbrainBashLauncher -Algorithm SHA256).Hash.ToLowerInvariant() + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText((Join-Path $phaseArtifacts 'gbrain-launcher-mode.txt'), ('pinned-official-source-via-windows-cmd-and-git-bash' + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
   }
 
   $consumerRoot = Join-Path $phaseBase 'consumer'
