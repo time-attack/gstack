@@ -30,6 +30,7 @@ foreach ($file in $ownedLaunchers) {
 
 . (Join-Path $gateRoot 'common-windows.ps1')
 $smokeRoot = Join-Path ([IO.Path]::GetTempPath()) "gstack-windows-environment-smoke-$([Guid]::NewGuid().ToString('N'))"
+$smokeLockdown = $null
 try {
   $smokeHome = Join-Path $smokeRoot 'home'
   $smokeTemp = Join-Path $smokeRoot 'tmp'
@@ -37,7 +38,38 @@ try {
   if ($smokeEnvironment.HOME -ne $smokeHome -or $smokeEnvironment.USERPROFILE -ne $smokeHome) {
     throw 'safe environment smoke test did not preserve the isolated home'
   }
+
+  $smokeNetworkEvidence = Join-Path $smokeRoot 'network'
+  $smokeLockdown = Enter-TestNetworkLockdown -EvidenceDirectory $smokeNetworkEvidence
+  $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+  $listener.Start()
+  try {
+    $port = ([Net.IPEndPoint]$listener.LocalEndpoint).Port
+    $acceptTask = $listener.AcceptTcpClientAsync()
+    $client = [Net.Sockets.TcpClient]::new()
+    try {
+      $connectTask = $client.ConnectAsync('127.0.0.1', $port)
+      if (-not $connectTask.Wait(5000) -or -not $acceptTask.Wait(5000)) {
+        throw 'network lockdown blocked the required IPv4 loopback transport'
+      }
+      $acceptedClient = $acceptTask.GetAwaiter().GetResult()
+      try {
+        if (-not $client.Connected -or -not $acceptedClient.Connected) {
+          throw 'IPv4 loopback smoke connection was not established'
+        }
+      } finally {
+        $acceptedClient.Dispose()
+      }
+    } finally {
+      $client.Dispose()
+    }
+  } finally {
+    $listener.Stop()
+  }
 } finally {
+  if ($null -ne $smokeLockdown) {
+    Exit-TestNetworkLockdown -RuleName $smokeLockdown -EvidenceDirectory (Join-Path $smokeRoot 'network')
+  }
   if (Test-Path -LiteralPath $smokeRoot) { Remove-Item -LiteralPath $smokeRoot -Recurse -Force }
 }
 if ($invokeCount -lt 20) { throw "unexpectedly small reviewed child-launch surface: $invokeCount" }

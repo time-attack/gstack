@@ -226,19 +226,23 @@ function Enter-TestNetworkLockdown {
   param([Parameter(Mandatory = $true)][string]$EvidenceDirectory)
   [IO.Directory]::CreateDirectory($EvidenceDirectory) | Out-Null
   $ruleName = "gstack-windows-gate-$PID-$([Guid]::NewGuid().ToString('N'))"
-  $remoteRanges = @('0.0.0.0-126.255.255.255', '128.0.0.0-255.255.255.255', '::/0')
+  $remoteAddresses = @('Any')
   try {
-    New-NetFirewallRule -Name $ruleName -DisplayName $ruleName -Direction Outbound -Action Block -Enabled True -Profile Any -RemoteAddress $remoteRanges | Out-Null
+    New-NetFirewallRule -Name $ruleName -DisplayName $ruleName -Direction Outbound -Action Block -Enabled True -Profile Any -RemoteAddress $remoteAddresses | Out-Null
     $rule = Get-NetFirewallRule -Name $ruleName -ErrorAction Stop
+    $addressFilter = $rule | Get-NetFirewallAddressFilter -ErrorAction Stop
     if ($rule.Enabled -ne 'True' -or $rule.Action -ne 'Block' -or $rule.Direction -ne 'Outbound') {
       throw 'failed to establish outbound network lockdown'
+    }
+    if (@($addressFilter.RemoteAddress) -notcontains 'Any') {
+      throw 'outbound network lockdown does not cover every remote address'
     }
     $record = [ordered]@{
       ruleName = $ruleName
       action = 'Block'
       direction = 'Outbound'
-      blockedRemoteRanges = $remoteRanges
-      allowedLoopback = '127.0.0.0/8 only'
+      blockedRemoteAddresses = $remoteAddresses
+      loopback = 'verified separately by the harness preflight'
       createdAt = [DateTime]::UtcNow.ToString('o')
     }
     [IO.File]::WriteAllText((Join-Path $EvidenceDirectory 'network-lockdown.json'), (($record | ConvertTo-Json -Depth 5) + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
