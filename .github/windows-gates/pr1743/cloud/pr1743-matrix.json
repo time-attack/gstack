@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "baselineSha": "a3259400a366593e0c909dd9ac3e59752efd2488",
+  "candidateSha": "33143ad9239b78c1b79a2bf235ac202ecfe2e61b",
+  "fixedCommand": "pwsh -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $env:GSTACK_PR1743_PROBE_ROOT\\windows\\run-pr1743-windows-probe.ps1",
+  "cases": [
+    {
+      "id": "gstack-auto",
+      "cohort": "affected",
+      "url": "https://github.com/loperanger7/gstack-auto.git",
+      "sha": "17bf2a025c175b899e7d30be1ab4e658fd4ae04f",
+      "baselineExpected": "fail",
+      "candidateExpected": "pass"
+    },
+    {
+      "id": "zotero-arxiv-daily",
+      "cohort": "affected",
+      "url": "https://github.com/TideDra/zotero-arxiv-daily.git",
+      "sha": "05b20ec5c14ef82f8634c21a0876acd40e02c2b2",
+      "baselineExpected": "fail",
+      "candidateExpected": "pass"
+    },
+    {
+      "id": "stagehand",
+      "cohort": "control",
+      "url": "https://github.com/browserbase/stagehand.git",
+      "sha": "2a6e20b068bb724bdbd3c192b6463acd6b9b817c",
+      "baselineExpected": "pass",
+      "candidateExpected": "pass"
+    }
+  ],
+  "requiredChecks": [
+    "synthetic Chrome Default/Network/Cookies SQLite profile",
+    "CurrentUser DPAPI-protected Local State key",
+    "v10 AES-256-GCM sentinel import by digest without plaintext output",
+    "proc.exited Promise",
+    "exit code 7",
+    "1,200,000-byte stdout and stderr drain",
+    "missing binary completion",
+    "1,024-byte per-pipe cap",
+    "sentinel absent from stdout and stderr"
+  ]
+}

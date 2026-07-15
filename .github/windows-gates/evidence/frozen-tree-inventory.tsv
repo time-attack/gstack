@@ -1,0 +1,51 @@
+path	type	status	size	sha256	source_path
+.gitattributes	file	M	1718	d9c1feb4bfb9cd8ecc1fb7a30c88536960566116aefd669669ef76edde189958	
+.github/windows-gates/common-windows.ps1	file	A	15537	439df951b75592014b094020679dfe1368b0e2932c8c43d037bd0342ccff07ba	
+.github/windows-gates/evidence/PREFLIGHT.md	file	A	8907	a1f200a859eed47b34c24f0418906d96bed4211c7fa36bce3d5f9b47208a3525	
+.github/windows-gates/evidence/action-pins.json	file	A	1154	b34155b7b26f99bf32f37253e85ea5e2f8d0c57c267aa66ffac06a56f7f74af7	
+.github/windows-gates/evidence/disabled-workflows.sha256	file	A	1020	3420fb1fc4de58c8a8a4c3ce82da51eadf8f6b880a8f2c33158bd88427252b5f	
+.github/windows-gates/evidence/disabled-workflows/actionlint.yml	file	R	182	3be708413edcaba724d49239a0cb1d1a4521d4979f729aca0cc90338aa9d5beb	.github/workflows/actionlint.yml
+.github/windows-gates/evidence/disabled-workflows/ci-image.yml	file	R	1063	c51af562bdc33122a4c033908c3786d42568f215784307b80d57353ae7214f58	.github/workflows/ci-image.yml
+.github/windows-gates/evidence/disabled-workflows/evals-periodic.yml	file	R	4235	5b3b4d1fe66c424ffb99f7e36a0223a1c415580ee8e80076c4d7d837cd79bebc	.github/workflows/evals-periodic.yml
+.github/windows-gates/evidence/disabled-workflows/evals.yml	file	R	15919	1771a7973e421ae05b5142c0cf7d200f712571dc6f985e51ad0470a5f214f121	.github/workflows/evals.yml
+.github/windows-gates/evidence/disabled-workflows/make-pdf-gate.yml	file	R	2944	d8400a352a41efd922460a426754c23092ed5bfe5a2810fb20e9135fffbf6349	.github/workflows/make-pdf-gate.yml
+.github/windows-gates/evidence/disabled-workflows/pr-title-sync.yml	file	R	4335	23fad49d76f729b23ca56c4d9829111bcd4011605337418415c876356c944e28	.github/workflows/pr-title-sync.yml
+.github/windows-gates/evidence/disabled-workflows/skill-docs.yml	file	R	1185	d141d69663cbe1cbeb3e861dd260490c35dcb46045b88de14b69874a03572e1c	.github/workflows/skill-docs.yml
+.github/windows-gates/evidence/disabled-workflows/version-gate.yml	file	R	2431	8668a52b40a2c51bbd2533b047fbf89c849f8867311334aa63078f1eeebc6302	.github/workflows/version-gate.yml
+.github/windows-gates/evidence/disabled-workflows/windows-free-tests.yml	file	R	5886	083b4b74b25bf233f22652f6af2d64ec17de34ef1d363fc03d21c14ba3b6f928	.github/workflows/windows-free-tests.yml
+.github/windows-gates/evidence/disabled-workflows/windows-setup-e2e.yml	file	R	3678	83be25882e0883b7e2588dae0427e2151e7286c2f4523cab39dc08ed02f65e7e	.github/workflows/windows-setup-e2e.yml
+.github/windows-gates/evidence/preflight-manifest.json	file	A	8017	e381038a39268bae576897b925e7407cb485172ea0571b51f404a13f08437c32	
+.github/windows-gates/payloads/gstack-exact-windows-refs.bundle	file	A	74205603	7b7c543417e066c8a5da6eeb8b179e1cc4bb16e7da0237441457c421531c08ef	
+.github/windows-gates/payloads/pr1743-consumers/zotero-arxiv-daily-05b20ec5.tar.gz	file	A	2888620	fcfed1a8722f1ef50765b1a3e8389ca6877119d11a368c87333dc6e9f606fa3d	
+.github/windows-gates/payloads/pr1981-transfer/gbrain-0.35.8.0-61b79e7c.tar.gz	file	A	8796891	92438a9c7d66d4db23e922fc888045e64b89eb676bb29ff6b73ba8c74ceccdf5	
+.github/windows-gates/payloads/pr1981-transfer/gbrain-0.42.59.0-5008b287-fallback.tar.gz	file	A	13477767	0750d2ddf15d25bf9234322d4f605b85b0845d96e2bd9bc31069e7c041006135	
+.github/windows-gates/payloads/pr1981-transfer/gstack-auto-17bf2a02.tar.gz	file	A	160103	59aca501ab7f7313726b72dd4ecabe10b21b999e3a29804326d838d1c00b82c7	
+.github/windows-gates/payloads/pr1981-transfer/gstack-baseline-a3259400.tar.gz	file	A	13065291	53da484be346362705cbf3de2c654a9d22c92546f4e0f255cd19a6c6e5a9cde0	
+.github/windows-gates/payloads/pr1981-transfer/gstack-test-merge-1981.tar.gz	file	A	13065811	0cf2a07f795983e1a46868bc0552a2d3ead8f262a8e83f5c004a8bb4d53f3a58	
+.github/windows-gates/payloads/pr1981-transfer/manifest.json	file	A	2164	31a75f09ed5b615eb4079c1fe92fc3a1bb5659dec0bf22508899c9dadbfaa8c8	
+.github/windows-gates/payloads/pr1981-transfer/probes/missing-version-detector.sh	file	A	332	f0829750a9aa56d87710c08fb07dce51901ed2b83ef838066dd14cb17b210931	
+.github/windows-gates/payloads/pr1981-transfer/probes/windows-git-bash-probe.sh	file	A	10029	738cee6f5f3ee7be026bf9e9cbc2e02a4ba376abc88901e5d3d4e86d8e2932f5	
+.github/windows-gates/payloads/pr1981-transfer/stagehand-2a6e20b0.tar.gz	file	A	49435038	5ade9648729f6a914f578d661d091b06098a4a0006f6cdf06bb366da5a933bdf	
+.github/windows-gates/payloads/pr1981-transfer/validate-payload.sh	file	A	2375	229e4ad28130b6d758f97aad3de40806f24bbb948ab32b29bc24a785d11fdc83	
+.github/windows-gates/payloads/pr2260-consumers/onemancompany-8f880c03.tar.gz	file	A	18749793	13e82dde4a01d81a7dfa4273278d9ba9cccd1fca5b3c77522b83b18391cda669	
+.github/windows-gates/payloads/pr2260-consumers/plane-bed58d9b.tar.gz	file	A	33874774	bfb210ccb64e94aec22c1840b358df7f4f323eafde5932d7fc5b957370774530	
+.github/windows-gates/pr1743/cloud/pr1743-matrix.json	file	A	1514	3504a2fc3ced76cf5d3ac8eccbf0fe2136ddfa548d4b6c9432258725947672f9	
+.github/windows-gates/pr1743/cloud/pr1743-workflow-fragment.yml	file	A	1484	a8505ebe8e5736d8c119128cb7572c6942e401c29d4b1bcc8d1376d5852cd3e4	
+.github/windows-gates/pr1743/orchestrate-pr1743.ps1	file	A	11278	59456b5a8ca13c8dbc8b8db77ca64491f37aa16dfdbc0d479df5722b060d440d	
+.github/windows-gates/pr1743/probe/node-spawn-matrix.mjs	file	A	10805	c5a27d7414c9687fc819a5f2fd154fb373db90bf0293b711bb076f0e4fa0663e	
+.github/windows-gates/pr1743/windows/create-dpapi-cookie-fixture.ts	file	A	2296	7691e0498bd0cc123bb44cb12e0640653b55cddf414c6241e8ab37d5e9435000	
+.github/windows-gates/pr1743/windows/dpapi-core-probe.ts	file	A	1653	d26776e9d83ca46b8d375bec7720ea7a5a204d2116d8917fa96c7e28c49c7903	
+.github/windows-gates/pr1743/windows/protect-dpapi-key.ps1	file	A	1691	abf5c48a32fd23a5fa3bdac32b2a5e037c80cb53ca14cfc6d38abef86c4a57ff	
+.github/windows-gates/pr1743/windows/run-pr1743-windows-probe.ps1	file	A	3510	5f17807b7e9a1ef3231e3101ac3c629d1d4152a54562d488e794a86cf19f94d5	
+.github/windows-gates/pr1981/init-gbrain.sh	file	A	156	5cabbfcafb1693981cff4bd91bf091cff2c1dde78ac64b1ace74639e62691ff7	
+.github/windows-gates/pr1981/run-pr1981.ps1	file	A	15585	e1dce7e83b64d62d8d481e7c5cdc608e2ec424ea331a2bd4b799de5cfaf8e856	
+.github/windows-gates/pr2260/control-probe.sh	file	A	939	3671449c1ff031088e83fccdd74029e92bccedada1458a223eb51e08125653f9	
+.github/windows-gates/pr2260/local-auth-socks.cjs	file	A	4433	c9e7c496af2c62253076d12713304fd2d4f44103acaa43a002c271f3ffd0b515	
+.github/windows-gates/pr2260/local-http.cjs	file	A	989	b368b7cb475593b72a74047bb0f699ed149cc7f42f5f4effa8a955ea33e347ac	
+.github/windows-gates/pr2260/run-pr2260-fixed.sh	file	A	1138	42b720a59dee8ed8f6cd2c6ed295dd7ebca05a34789d8ef97c02cfa41bdf39e0	
+.github/windows-gates/pr2260/run-pr2260.ps1	file	A	12181	cc842422217b8baaa6bbb5e417909ea64925bc10b5ee8ebc362983ce0e95121b	
+.github/windows-gates/pr2260/windows-build-runtime.sh	file	A	7958	65bb1d9f8c67f4db370e1447d470f4db3ced15cab8fb5f794e0559054796dd11	
+.github/windows-gates/run-model-overlays.ps1	file	A	6645	634864f66e34bdaf4f370e7ae204815e01982fb8ab0b31596af2064a12cf6d9f	
+.github/windows-gates/tests/model-overlay-failure-identity.test.ps1	file	A	1404	aa6b5643a57ba5c665976dfd3d168a055e6620e96b1d499533ccaf4d42db569a	
+.github/windows-gates/tests/static-launch-policy.test.ps1	file	A	2530	959500901d4488e55896b05b269963a9cc18978b77bcae51e194640562a2e5e3	
+.github/workflows/codex-windows-gates-20260715-central.yml	file	A	6850	042d2d36d669e51e52ea17e18146ee60f79d07dd09eda0052983c1f681d4ffa7	

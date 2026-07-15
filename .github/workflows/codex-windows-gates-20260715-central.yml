@@ -1,0 +1,207 @@
+name: Codex isolated Windows gates 20260715
+
+on:
+  push:
+    branches:
+      - codex/windows-gates-20260715-central
+
+permissions:
+  contents: read
+
+jobs:
+  pr2260:
+    name: "PR2260 / ${{ matrix.case }}"
+    runs-on: windows-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - case: onemancompany
+            kind: affected
+            path_mode: plain
+          - case: gbrain
+            kind: affected
+            path_mode: spaces
+          - case: plane
+            kind: control
+            path_mode: plain
+    steps:
+      - name: Checkout isolated fork branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Install exact Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.16.0
+          token: ""
+      - name: Install exact Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.3.14
+          no-cache: true
+          token: ""
+      - name: Run fixed PR2260 baseline/candidate pair
+        shell: pwsh
+        env:
+          PR2260_CASE: "${{ matrix.case }}"
+          PR2260_KIND: "${{ matrix.kind }}"
+          PR2260_PATH_MODE: "${{ matrix.path_mode }}"
+        run: |
+          & ".github/windows-gates/pr2260/run-pr2260.ps1"
+      - name: Upload raw PR2260 evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: "windows-pr2260-${{ matrix.case }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}\\gstack-windows-gates\\pr2260\\${{ matrix.case }}"
+          if-no-files-found: error
+          retention-days: 7
+
+  pr1981:
+    name: "PR1981 / ${{ matrix.case }}"
+    runs-on: windows-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        case:
+          - healthy-gbrain-clean
+          - healthy-gstack-auto-spaces
+          - no-cli-stagehand
+          - timeout-stagehand
+          - missing-version-secondary
+    steps:
+      - name: Checkout isolated fork branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Install exact Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.16.0
+          token: ""
+      - name: Install exact native Windows Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: 3.13.14
+          token: ""
+      - name: Install exact Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.3.14
+          no-cache: true
+          token: ""
+      - name: Run fixed PR1981 baseline/candidate pair
+        shell: pwsh
+        env:
+          PR1981_CASE: "${{ matrix.case }}"
+        run: |
+          & ".github/windows-gates/pr1981/run-pr1981.ps1"
+      - name: Upload raw PR1981 evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: "windows-pr1981-${{ matrix.case }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}\\gstack-windows-gates\\pr1981\\${{ matrix.case }}"
+          if-no-files-found: error
+          retention-days: 7
+
+  pr1743:
+    name: "PR1743 / ${{ matrix.case }}"
+    runs-on: windows-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        case:
+          - gstack-auto
+          - zotero-arxiv-daily
+          - stagehand
+    steps:
+      - name: Checkout isolated fork branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Install exact Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.16.0
+          token: ""
+      - name: Install exact Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.3.14
+          no-cache: true
+          token: ""
+      - name: Run fixed PR1743 baseline/candidate pair
+        shell: pwsh
+        env:
+          PR1743_CASE: "${{ matrix.case }}"
+        run: |
+          & ".github/windows-gates/pr1743/orchestrate-pr1743.ps1"
+      - name: Upload raw PR1743 evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: "windows-pr1743-${{ matrix.case }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}\\gstack-windows-gates\\pr1743\\${{ matrix.case }}"
+          if-no-files-found: error
+          retention-days: 7
+
+  model-overlays:
+    name: "Model overlays / PR${{ matrix.pr }}"
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - pr: "2243"
+            head: f1fc59aa98a38cc8115c0ba9b0d1cae06895c08d
+          - pr: "2245"
+            head: c506e7aa6412d5fd053875b61f22ab3bed8cc954
+          - pr: "2246"
+            head: 2f19b03b9b1df3351010883d7f2627721d251863
+          - pr: "2247"
+            head: 1ad60f617d387c80ae6084b1dde569a83f1f59ec
+    steps:
+      - name: Checkout isolated fork branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Install exact Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.16.0
+          token: ""
+      - name: Install exact Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.3.14
+          no-cache: true
+          token: ""
+      - name: Run fixed model-overlay Windows pair
+        shell: pwsh
+        env:
+          MODEL_OVERLAY_PR: "${{ matrix.pr }}"
+          MODEL_OVERLAY_HEAD: "${{ matrix.head }}"
+        run: |
+          & ".github/windows-gates/run-model-overlays.ps1"
+      - name: Upload raw model-overlay evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: "windows-model-overlay-pr${{ matrix.pr }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: "${{ runner.temp }}\\gstack-windows-gates\\model-overlays\\pr-${{ matrix.pr }}"
+          if-no-files-found: error
+          retention-days: 7

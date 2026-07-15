@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "preparedOnly": true,
+  "pushed": false,
+  "dispatched": false,
+  "fork": "time-attack/gstack",
+  "remote": "https://github.com/time-attack/gstack.git",
+  "branch": "codex/windows-gates-20260715-central",
+  "branchBaseSha": "bb57306d98c97011b0919c6132705a15b1579781",
+  "activeWorkflow": {
+    "path": ".github/workflows/codex-windows-gates-20260715-central.yml",
+    "sha256": "042d2d36d669e51e52ea17e18146ee60f79d07dd09eda0052983c1f681d4ffa7",
+    "trigger": "push to exact branch codex/windows-gates-20260715-central only",
+    "permissions": {
+      "contents": "read"
+    },
+    "activeWorkflowFileCount": 1,
+    "disabledWorkflowFileCount": 10
+  },
+  "checkoutEolPolicy": {
+    "path": ".gitattributes",
+    "sha256": "d9c1feb4bfb9cd8ecc1fb7a30c88536960566116aefd669669ef76edde189958",
+    "rule": "*.ps1      text eol=lf",
+    "proofCommand": "git check-attr text eol -- .github/windows-gates/pr1743/windows/run-pr1743-windows-probe.ps1",
+    "proof": {
+      "text": "set",
+      "eol": "lf"
+    }
+  },
+  "sourceBundle": {
+    "path": ".github/windows-gates/payloads/gstack-exact-windows-refs.bundle",
+    "bytes": 74205603,
+    "sha256": "7b7c543417e066c8a5da6eeb8b179e1cc4bb16e7da0237441457c421531c08ef",
+    "completeHistory": true,
+    "refs": {
+      "base": "a3259400a366593e0c909dd9ac3e59752efd2488",
+      "pr2260": "b9fbe4dea9b192d5d6fe6814bc558f89ef41dde7",
+      "pr1743": "33143ad9239b78c1b79a2bf235ac202ecfe2e61b",
+      "pr2243": "f1fc59aa98a38cc8115c0ba9b0d1cae06895c08d",
+      "pr2245": "c506e7aa6412d5fd053875b61f22ab3bed8cc954",
+      "pr2246": "2f19b03b9b1df3351010883d7f2627721d251863",
+      "pr2247": "1ad60f617d387c80ae6084b1dde569a83f1f59ec"
+    }
+  },
+  "pr2260": {
+    "runner": ".github/windows-gates/pr2260/run-pr2260.ps1",
+    "runnerSha256": "cc842422217b8baaa6bbb5e417909ea64925bc10b5ee8ebc362983ce0e95121b",
+    "controlProbe": ".github/windows-gates/pr2260/control-probe.sh",
+    "controlProbeSha256": "3671449c1ff031088e83fccdd74029e92bccedada1458a223eb51e08125653f9",
+    "controlPathHandling": "convert native input with cygpath -u when available, then require /c/gstack-isolated/pr-2260/*",
+    "outerCommand": "bash \"$(cygpath -u \"$PR2260_FIXED_WRAPPER\")\"",
+    "outerCommandSha256": "cc3e5749348a7c0feb70fbf83d7be8fb9ab0d26750da369be85982eb1bb0d5ce",
+    "matrix": [
+      {
+        "case": "onemancompany",
+        "cohort": "affected",
+        "revision": "8f880c03b2014e866b374c039333a1f201c971e0",
+        "archive": "pr2260-consumers/onemancompany-8f880c03.tar.gz",
+        "archiveBytes": 18749793,
+        "archiveSha256": "13e82dde4a01d81a7dfa4273278d9ba9cccd1fca5b3c77522b83b18391cda669"
+      },
+      {
+        "case": "gbrain",
+        "cohort": "affected",
+        "revision": "5008b287e47bf791132eedfebf66bdef11e9398c",
+        "archive": "pr1981-transfer/gbrain-0.42.59.0-5008b287-fallback.tar.gz",
+        "archiveSha256": "0750d2ddf15d25bf9234322d4f605b85b0845d96e2bd9bc31069e7c041006135"
+      },
+      {
+        "case": "plane",
+        "cohort": "control",
+        "revision": "bed58d9b17dbc8b221af9cde0cec9cec299d183b",
+        "archive": "pr2260-consumers/plane-bed58d9b.tar.gz",
+        "archiveBytes": 33874774,
+        "archiveSha256": "bfb210ccb64e94aec22c1840b358df7f4f323eafde5932d7fc5b957370774530"
+      }
+    ],
+    "expected": "affected baseline nonzero/candidate zero; control zero/zero"
+  },
+  "pr1981": {
+    "runner": ".github/windows-gates/pr1981/run-pr1981.ps1",
+    "runnerSha256": "e1dce7e83b64d62d8d481e7c5cdc608e2ec424ea331a2bd4b799de5cfaf8e856",
+    "transferManifestSha256": "31a75f09ed5b615eb4079c1fe92fc3a1bb5659dec0bf22508899c9dadbfaa8c8",
+    "transferValidatorSha256": "229e4ad28130b6d758f97aad3de40806f24bbb948ab32b29bc24a785d11fdc83",
+    "manifestListedBytes": 98011262,
+    "totalTransferFileBytes": 98015801,
+    "baseSha": "a3259400a366593e0c909dd9ac3e59752efd2488",
+    "headSha": "0778432976a384ce37f007c4a6e27000f61657cf",
+    "testMergeTree": "1dd2815729520058a59f52d2aad8e60c9660c02c",
+    "fixedCommand": "bash \"/c/gstack-isolated/pr-1981/probes/windows-git-bash-probe.sh\"",
+    "fixedCommandSha256": "3468b951bfb21d68751872e9f8f96b9abcdcd6d6dd3fb0f1af39c90f28d36b8e",
+    "productCommand": "gstack-config gbrain-refresh",
+    "productCommandSha256": "c7dca8c1854c743a068054b3da932185cf9fbca95cb4743bcf719b7cad176849",
+    "cases": [
+      "healthy-gbrain-clean",
+      "healthy-gstack-auto-spaces",
+      "no-cli-stagehand",
+      "timeout-stagehand",
+      "missing-version-secondary"
+    ],
+    "expected": "every case baseline 43/candidate 0"
+  },
+  "pr1743": {
+    "orchestrator": ".github/windows-gates/pr1743/orchestrate-pr1743.ps1",
+    "orchestratorSha256": "59456b5a8ca13c8dbc8b8db77ca64491f37aa16dfdbc0d479df5722b060d440d",
+    "reviewedProbeSha256": "5f17807b7e9a1ef3231e3101ac3c629d1d4152a54562d488e794a86cf19f94d5",
+    "fixedCommandSha256": "2f2be4a7afc849e231ba284fc4177ec2bfe1ffa2d85275d81775473a30abe35b",
+    "matrix": [
+      {
+        "case": "gstack-auto",
+        "cohort": "affected",
+        "revision": "17bf2a025c175b899e7d30be1ab4e658fd4ae04f",
+        "archiveSha256": "59aca501ab7f7313726b72dd4ecabe10b21b999e3a29804326d838d1c00b82c7"
+      },
+      {
+        "case": "zotero-arxiv-daily",
+        "cohort": "affected",
+        "revision": "05b20ec5c14ef82f8634c21a0876acd40e02c2b2",
+        "archiveBytes": 2888620,
+        "archiveSha256": "fcfed1a8722f1ef50765b1a3e8389ca6877119d11a368c87333dc6e9f606fa3d"
+      },
+      {
+        "case": "stagehand",
+        "cohort": "control",
+        "revision": "2a6e20b068bb724bdbd3c192b6463acd6b9b817c",
+        "archiveSha256": "5ade9648729f6a914f578d661d091b06098a4a0006f6cdf06bb366da5a933bdf"
+      }
+    ],
+    "expected": "affected baseline nonzero/candidate zero; control zero/zero"
+  },
+  "modelOverlays": {
+    "runner": ".github/windows-gates/run-model-overlays.ps1",
+    "runnerSha256": "634864f66e34bdaf4f370e7ae204815e01982fb8ab0b31596af2064a12cf6d9f",
+    "fixedCommand": "bun run test:windows",
+    "fixedCommandSha256": "516baff1792e323331c4d2bf1a5298d8ee24b20bcfeaf7bb1e77360ac77d42ef",
+    "expectations": {
+      "2243": "baseline zero/candidate zero",
+      "2245": "source-approved raw exit plus nonzero failure identity/count parity; secondary and not a green result",
+      "2246": "baseline zero/candidate zero",
+      "2247": "baseline zero/candidate zero"
+    }
+  },
+  "childProcessPolicy": {
+    "commonHelper": ".github/windows-gates/common-windows.ps1",
+    "commonHelperSha256": "439df951b75592014b094020679dfe1368b0e2932c8c43d037bd0342ccff07ba",
+    "inheritParentEnvironment": false,
+    "safePathIncludesWindowsPowerShell": true,
+    "environmentEvidence": "keys only; values never logged",
+    "forbiddenChildKeys": [
+      "GITHUB_*",
+      "ACTIONS_*",
+      "RUNNER_*",
+      "cloud credentials",
+      "tokens",
+      "secrets",
+      "passwords",
+      "proxy variables",
+      "OIDC/upload/server/API URL variables"
+    ],
+    "dependencyInstalls": "frozen lockfile plus ignore-scripts",
+    "probeNetwork": "outbound remote ranges blocked; IPv4 loopback retained; setup removes and rechecks any partially created rule on failure; successful setup is always removed in caller finally"
+  },
+  "localValidation": {
+    "actionlint": "v1.7.11 pass; active workflow content unchanged since lint",
+    "powerShellParser": "PowerShell 7.6.2, 9 files, pass",
+    "bashParser": "7 files, pass",
+    "modelOverlayFailureIdentity": "pass, sha256 86afd7c96ff5c66677047190238ab77ae529acfcca09d516bb31fb288d587d31",
+    "staticLaunchPolicy": "25 reviewed invocations, pass",
+    "staticLaunchPolicyTestSha256": "959500901d4488e55896b05b269963a9cc18978b77bcae51e194640562a2e5e3",
+    "gitCheckAttr": "run-pr1743-windows-probe.ps1 text=set eol=lf",
+    "activeWorkflowFileCount": 1,
+    "disabledWorkflowHashes": "10/10 pass",
+    "sourceBundle": "complete history and seven exact refs",
+    "pr1981Transfer": "8 manifest members pass",
+    "tarPathTraversal": "9/9 pass"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "pr": 1981,
+  "headSha": "0778432976a384ce37f007c4a6e27000f61657cf",
+  "baseSha": "a3259400a366593e0c909dd9ac3e59752efd2488",
+  "testMergeTree": "1dd2815729520058a59f52d2aad8e60c9660c02c",
+  "objectMode": "full",
+  "files": [
+    {
+      "path": "gstack-baseline-a3259400.tar.gz",
+      "bytes": 13065291,
+      "sha256": "53da484be346362705cbf3de2c654a9d22c92546f4e0f255cd19a6c6e5a9cde0"
+    },
+    {
+      "path": "gstack-test-merge-1981.tar.gz",
+      "bytes": 13065811,
+      "sha256": "0cf2a07f795983e1a46868bc0552a2d3ead8f262a8e83f5c004a8bb4d53f3a58"
+    },
+    {
+      "path": "gbrain-0.35.8.0-61b79e7c.tar.gz",
+      "bytes": 8796891,
+      "sha256": "92438a9c7d66d4db23e922fc888045e64b89eb676bb29ff6b73ba8c74ceccdf5",
+      "officialSource": "https://github.com/garrytan/gbrain",
+      "version": "0.35.8.0",
+      "revision": "61b79e7c996284574539860145904fa0c0ee835a",
+      "roles": ["affected-consumer", "official-tool-source"]
+    },
+    {
+      "path": "gstack-auto-17bf2a02.tar.gz",
+      "bytes": 160103,
+      "sha256": "59aca501ab7f7313726b72dd4ecabe10b21b999e3a29804326d838d1c00b82c7",
+      "revision": "17bf2a025c175b899e7d30be1ab4e658fd4ae04f"
+    },
+    {
+      "path": "stagehand-2a6e20b0.tar.gz",
+      "bytes": 49435038,
+      "sha256": "5ade9648729f6a914f578d661d091b06098a4a0006f6cdf06bb366da5a933bdf",
+      "revision": "2a6e20b068bb724bdbd3c192b6463acd6b9b817c"
+    },
+    {
+      "path": "gbrain-0.42.59.0-5008b287-fallback.tar.gz",
+      "bytes": 13477767,
+      "sha256": "0750d2ddf15d25bf9234322d4f605b85b0845d96e2bd9bc31069e7c041006135",
+      "officialSource": "https://github.com/garrytan/gbrain",
+      "version": "0.42.59.0",
+      "revision": "5008b287e47bf791132eedfebf66bdef11e9398c",
+      "role": "fallback-only"
+    },
+    {
+      "path": "probes/windows-git-bash-probe.sh",
+      "bytes": 10029,
+      "sha256": "738cee6f5f3ee7be026bf9e9cbc2e02a4ba376abc88901e5d3d4e86d8e2932f5"
+    },
+    {
+      "path": "probes/missing-version-detector.sh",
+      "bytes": 332,
+      "sha256": "f0829750a9aa56d87710c08fb07dce51901ed2b83ef838066dd14cb17b210931",
+      "role": "secondary-only"
+    }
+  ]
+}

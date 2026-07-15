@@ -1,0 +1,28 @@
+# Include after the central runner has materialized and fsck-verified the exact
+# baseline/candidate source roots and pinned consumer checkouts described in
+# pr1743-matrix.json. This fragment performs no generic command transport.
+#
+# For every <case,phase>, set only these reviewed non-secret environment values:
+#   GSTACK_PR1743_PROBE_ROOT=<branch checkout path containing this payload>
+#   GSTACK_UNDER_TEST=%RUNNER_TEMP%\gstack-windows-gates\pr1743\sources\<phase>
+#   GSTACK_PR_TEST_CONSUMER=%RUNNER_TEMP%\gstack-windows-gates\pr1743\consumers\<case>
+#   GSTACK_PR_TEST_HOME=%RUNNER_TEMP%\gstack-windows-gates\pr1743\homes\<case>\<phase>
+#   GSTACK_PR_TEST_STATE=%RUNNER_TEMP%\gstack-windows-gates\pr1743\state\<case>\<phase>
+#   GSTACK_PR_TEST_ARTIFACT_ROOT=%RUNNER_TEMP%\gstack-windows-gates\pr1743\artifacts
+#   GSTACK_PR_TEST_REPO=<case>
+#   GSTACK_PR_TEST_PHASE=<phase>
+#
+# Run this one byte-identical command in all six cells:
+#   pwsh -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $env:GSTACK_PR1743_PROBE_ROOT\windows\run-pr1743-windows-probe.ps1
+#
+# Expectations:
+#   gstack-auto baseline nonzero, candidate zero
+#   zotero-arxiv-daily baseline nonzero, candidate zero
+#   stagehand baseline zero, candidate zero
+#
+# Workflow/job permissions must be exactly:
+# permissions:
+#   contents: read
+#
+# No secrets, cache action, PR event, workflow_dispatch input, or writable
+# shared state. Upload the raw pr1743 artifacts directory after all six cells.
