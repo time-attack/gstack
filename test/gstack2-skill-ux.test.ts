@@ -63,9 +63,12 @@ describe('GStack 2 canonical skill UX', () => {
       const bootstrap = fs.readFileSync(path.join(ROOT, 'skills', tree, 'references', 'support', 'runtime-bootstrap.mjs'));
       const browserChoice = fs.readFileSync(path.join(ROOT, 'skills', tree, 'references', 'support', 'browser-choice.mjs'));
       const contract = JSON.parse(fs.readFileSync(path.join(ROOT, 'skills', tree, 'references', 'support', 'runtime-contract.json'), 'utf8'));
+      const resultContract = JSON.parse(fs.readFileSync(path.join(ROOT, 'skills', tree, 'references', 'support', 'execution-result-contract.json'), 'utf8'));
       expect(bootstrap, tree).toEqual(source);
       expect(browserChoice, tree).toEqual(fs.readFileSync(path.join(ROOT, 'runtime', 'browser-choice.mjs')));
       expect(contract, tree).toEqual({ schemaVersion: 1, runtimeVersion: '2.0.0', skillApi: '2.0' });
+      expect(resultContract.properties.status.enum, tree).toEqual(['success', 'degraded', 'unsupported', 'failed']);
+      expect(resultContract.allOf[0].then.properties.evidence.minItems, tree).toBe(1);
       expect(runtime, tree).toContain('preview --capability <name>');
       expect(runtime, tree).toContain('It never downloads components or mutates runtime state.');
       expect(runtime, tree).toContain('options --capability <name>');
