@@ -515,6 +515,8 @@ Some retained helpers are shell scripts. \`gstack doctor\` verifies Bash and, on
 
 The package/runtime compatibility tuple is \`schemaVersion=1\`, \`runtimeVersion=2.0.0\`, and \`skillApi=2.0\`; the machine-readable copy is \`references/support/runtime-contract.json\`. An incompatible active runtime is unavailable, not permission to upgrade it.
 
+Use \`gstack doctor --capability browser|design|diagram|pdf|ios\` (optionally \`--json\`) for a non-mutating, capability-specific readiness result. Its independent axes must remain distinct: pure judgment availability, platform support, preview consent, install consent, and runtime readiness. Readiness is exactly \`ready\`, \`degraded\`, \`unavailable\`, \`unsupported\`, or \`failed\`. Doctor never grants or persists consent, previews metadata, or installs anything. \`unavailable\` means setup may be offered; \`failed\` means selected runtime evidence failed; \`unsupported\` is a platform boundary; and \`degraded\` means the capability passed while the managed runtime has a warning.
+
 The developer-only fallback is \`node references/support/runtime-bootstrap.mjs install --source <reviewed-checkout> --capability <name> [matching browser flags] --yes\`; show its trust warning and use it only when the user explicitly selects a checkout they reviewed. If the packaged bootstrap is unavailable, stop capability setup instead of guessing a checkout-relative command. Deferring installation records no consent and must not block pure judgment.
 `;
 }
