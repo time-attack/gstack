@@ -18,6 +18,7 @@ import { resolveConfig, ensureStateDir, readVersionHash } from './config';
 import { parseProxyConfig, computeConfigHash, ProxyConfigError } from './proxy-config';
 import { redactProxyUrl } from './proxy-redact';
 import { spawnTerminalAgent } from './terminal-agent-control';
+import { capture } from './posthog-analytics';
 
 const config = resolveConfig();
 const IS_WINDOWS = process.platform === 'win32';
@@ -610,6 +611,7 @@ async function sendCommand(state: ServerState, command: string, args: string[], 
       // Truly dead (or health never recovered) → restart.
       if (retries >= 1) throw new Error('[browse] Server crashed twice in a row — aborting');
       console.error('[browse] Server connection lost. Restarting...');
+      capture('browser_server_crashed', { platform: process.platform });
       if (oldState && oldState.pid) {
         await killServer(oldState.pid);
       }
@@ -883,6 +885,13 @@ async function handlePairAgent(state: ServerState, args: string[]): Promise<void
     process.exit(1);
   }
 
+  capture('pair_agent_session_created', {
+    has_control: control,
+    has_domain_filter: !!(domains),
+    has_restrict: !!(restrict),
+    is_local: !!(localHost),
+  });
+
   const pairData = await pairResp.json() as {
     setup_key: string;
     expires_at: string;
@@ -928,6 +937,7 @@ async function handlePairAgent(state: ServerState, args: string[]): Promise<void
         const tunnelData = await tunnelResp.json() as any;
         if (tunnelResp.ok && tunnelData.url) {
           console.log(`[browse] Tunnel active: ${tunnelData.url}\n`);
+          capture('tunnel_started', { trigger: 'pair_agent', success: true });
           serverUrl = tunnelData.url;
         } else {
           console.warn(`[browse] Tunnel failed: ${tunnelData.error || 'unknown error'}`);
@@ -1128,6 +1138,10 @@ Refs:           After 'snapshot', use @e1, @e2... as selectors:
       });
       const status = await resp.text();
       console.log(`Connected to real Chrome\n${status}`);
+      capture('browser_connected', {
+        platform: process.platform,
+        has_proxy: !!(globalFlags.proxyUrl),
+      });
       // #1781: surface the window — it often opens behind/on another Space.
       raiseHeadedWindowMacOS();
       if (process.platform === 'darwin') {
@@ -1286,6 +1300,7 @@ Refs:           After 'snapshot', use @e1, @e2... as selectors:
         });
         if (resp.ok) {
           console.log('Disconnected from real browser.');
+          capture('browser_disconnected', { method: 'graceful' });
           process.exit(0);
         }
       } catch {
@@ -1323,6 +1338,7 @@ Refs:           After 'snapshot', use @e1, @e2... as selectors:
     }
     safeUnlinkQuiet(config.stateFile);
     console.log('Disconnected (server was unresponsive — force cleaned).');
+    capture('browser_disconnected', { method: 'force' });
     process.exit(0);
   }
 

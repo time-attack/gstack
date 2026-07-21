@@ -66,6 +66,7 @@ import * as fs from 'fs';
 import * as net from 'net';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { capture, captureException } from './posthog-analytics';
 
 // ─── Unicode Sanitization ───────────────────────────────────────
 // Remove unpaired UTF-16 surrogate halves (\uD800–\uDFFF). Page DOM text,
@@ -1246,6 +1247,14 @@ async function handleCommandInternalImpl(
       mode: browserManager.getConnectionMode(),
     });
 
+    if (['goto', 'screenshot', 'pdf', 'snapshot'].includes(command) && !opts?.skipActivity) {
+      capture('browser_command_executed', {
+        command,
+        duration_ms: successDuration,
+        mode: browserManager.getConnectionMode(),
+      });
+    }
+
     browserManager.resetFailures();
     // Restore original active tab if we pinned to a specific one
     if (savedTabId !== null) {
@@ -1291,6 +1300,16 @@ async function handleCommandInternalImpl(
       hasCookies: browserManager.hasCookieImports(),
       mode: browserManager.getConnectionMode(),
     });
+
+    if (!opts?.skipActivity) {
+      capture('browser_command_failed', {
+        command,
+        duration_ms: errorDuration,
+        error_type: err?.constructor?.name || 'Error',
+        mode: browserManager.getConnectionMode(),
+      });
+      captureException(err, { command, mode: browserManager.getConnectionMode() });
+    }
 
     browserManager.incrementFailures();
     let errorMsg = wrapError(err);
@@ -3038,6 +3057,13 @@ export async function start() {
   fs.renameSync(tmpFile, config.stateFile);
 
   browserManager.serverPort = port;
+
+  capture('browser_server_started', {
+    mode: browserManager.getConnectionMode(),
+    headed: process.env.BROWSE_HEADED === '1',
+    has_proxy: !!(process.env.BROWSE_PROXY_URL),
+    platform: process.platform,
+  });
 
   // Navigate to welcome page if in headed mode and still on about:blank
   if (browserManager.getConnectionMode() === 'headed') {

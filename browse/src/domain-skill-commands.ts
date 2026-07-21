@@ -42,6 +42,7 @@ import {
 import { runContentFilters } from './content-security';
 import { getCurrentProjectSlug } from './project-slug';
 import { logTelemetry } from './telemetry';
+import { capture } from './posthog-analytics';
 
 // ─── Body input resolution ──────────────────────────────────────
 
@@ -140,6 +141,7 @@ async function handleSave(args: string[], bm: BrowserManager): Promise<string> {
     classifierScore: 0, // L4 deferred to load-time
   });
   logTelemetry({ event: 'domain_skill_saved', host, scope: row.scope, state: row.state, bytes: body.length });
+  capture('domain_skill_saved', { scope: row.scope, state: row.state, bytes: body.length });
   return formatSavedOk(row, slug);
 }
 
@@ -220,6 +222,7 @@ async function handlePromoteToGlobal(args: string[]): Promise<string> {
   }
   const slug = getCurrentProjectSlug();
   const row = await promoteToGlobal(host, slug);
+  capture('domain_skill_promoted', { version: row.version });
   return [
     `Promoted ${row.host} to global scope (v${row.version}).`,
     `Stored at: ~/.gstack/global-domain-skills.jsonl`,

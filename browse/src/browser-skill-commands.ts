@@ -20,6 +20,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { capture } from './posthog-analytics';
 import {
   listBrowserSkills,
   readBrowserSkill,
@@ -164,10 +165,22 @@ async function handleRun(args: string[], ctx: SkillCommandContext): Promise<stri
       : result.timedOut
         ? `timed out after ${timeoutSeconds}s`
         : `exit ${result.exitCode}`;
+    capture('browser_skill_run_failed', {
+      skill_name: name,
+      tier: skill.tier,
+      reason: result.timedOut ? 'timeout' : result.truncated ? 'truncated' : 'nonzero_exit',
+      exit_code: result.exitCode,
+    });
     const err = new Error(`Skill "${name}" failed: ${summary}\n--- stderr ---\n${result.stderr.slice(0, 4096)}`);
     (err as any).exitCode = result.exitCode || 1;
     throw err;
   }
+  capture('browser_skill_run', {
+    skill_name: name,
+    tier: skill.tier,
+    trusted: skill.frontmatter.trusted,
+    timeout_seconds: timeoutSeconds,
+  });
   return result.stdout;
 }
 
