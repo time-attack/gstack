@@ -770,3 +770,15 @@ The design doc file is the artifact of this session. Before the telemetry block 
 
 At the Phase 5 approval gate, print the full design-doc body as direct assistant text before the Approve/Revise/Start-over AskUserQuestion. Do not point the user at the file path and do not rely on a `Bash cat` or `Read` tool call to display it: tool outputs are frequently collapsed in the Claude Code UI, which leaves the user approving a document they cannot see. The assistant message is the one surface guaranteed to render, so emit a short preamble naming the saved path followed by the verbatim document body, then ask for approval.
 <!-- GSTACK2_BUG_FIX_END pr=1116 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=2000 anchor=GSTACK2_FIX_2000_DESIGN_DOC_PLACEMENT_AND_LENGTH -->
+## Upstream judgment port: PR #2000
+
+[Design docs live in the repo, fit one page, and record decisions only](https://github.com/garrytan/gstack/issues/2000)
+
+### Design-doc placement and length
+
+The design doc is a decision record for the user, not a transcript of the session. When the working directory is a git repository, write the canonical doc inside it at `docs/designs/` (or the design-doc directory the project's CLAUDE.md names), where it is visible, reviewable, and versioned with the code; fall back to the state directory only outside a repository. Keep the `{user}-{branch}-design-{datetime}` state-directory copy solely so downstream skills discover it. Whenever the doc is mentioned, give its absolute repo path — never refer to "the design doc" without saying where it is.
+
+Default to one page. Record each decision and its why. An approach the user ruled out during the session gets at most one line — name plus rejection reason — never its own section, comparison matrix, or re-argued case. Omit template sections that are empty or that restate what the conversation already settled. Length beyond a page must be earned by genuinely open questions, not by template completeness.
+<!-- GSTACK2_BUG_FIX_END pr=2000 -->
