@@ -39,6 +39,7 @@ Small ideas stop costing big-idea tokens and big-idea patience. You can throw a 
 
 - **Build-scale classification in /plan.** The dispatcher's execution header gains a `Scale:` line (session, hobby, project, product, venture) classified from fifteen scale vectors before any questioning begins. Highest vector wins; unknown vectors default low; explicit statements dominate inference.
 - **Proportional-planning judgment port (#886)** across all six planning specialists (office-hours, plan-ceo-review, plan-eng-review, plan-devex-review, spec, autoplan): question batching, research and outside-voice gating, review-iteration caps, artifact size, and step units keyed to the printed Scale. product and venture scale change nothing; STOP and approval gates are unchanged everywhere.
+- **Design docs land in your repo (#703).** When you plan inside a repository, the design doc is written to `docs/designs/<topic>.md` and approval questions name that path, not a hashed directory under `~/.gstack`. The cross-session copy in `~/.gstack/projects/` is still written so downstream skills and prior-design discovery keep working, and plan reviews now prefer the repo-local doc when both exist.
 
 #### For contributors
 
