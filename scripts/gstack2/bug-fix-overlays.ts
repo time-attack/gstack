@@ -356,6 +356,28 @@ Before scope-drift detection, read a \`## Review\` section from the project CLAU
       expected: { apply_repo_rules: true, silent_skip_if_absent: true },
     },
   },
+  {
+    pr: 2000,
+    url: 'https://github.com/garrytan/gstack/issues/2000',
+    title: 'Design docs live in the repo, fit one page, and record decisions only',
+    targets: ['office-hours'],
+    anchor: 'GSTACK2_FIX_2000_DESIGN_DOC_PLACEMENT_AND_LENGTH',
+    body: `### Design-doc placement and length
+
+The design doc is a decision record for the user, not a transcript of the session. When the working directory is a git repository, write the canonical doc inside it at \`docs/designs/\` (or the design-doc directory the project's CLAUDE.md names), where it is visible, reviewable, and versioned with the code; fall back to the state directory only outside a repository. Keep the \`{user}-{branch}-design-{datetime}\` state-directory copy solely so downstream skills discover it. Whenever the doc is mentioned, give its absolute repo path — never refer to "the design doc" without saying where it is.
+
+Default to one page. Record each decision and its why. An approach the user ruled out during the session gets at most one line — name plus rejection reason — never its own section, comparison matrix, or re-argued case. Omit template sections that are empty or that restate what the conversation already settled. Length beyond a page must be earned by genuinely open questions, not by template completeness.`,
+    regression: {
+      input: { in_git_repo: true, ruled_out_approaches: 3 },
+      expected: {
+        canonical_location: 'repo-docs-designs',
+        state_dir_copy_for_discovery: true,
+        absolute_path_announced: true,
+        ruled_out_max_lines_each: 1,
+        one_page_default: true,
+      },
+    },
+  },
 ];
 
 export function overlaysForSource(source: string): BugFixOverlay[] {
@@ -531,6 +553,14 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
     }
     case 452:
       return { apply_repo_rules: input.claude_md_has_review_section === true, silent_skip_if_absent: true };
+    case 2000:
+      return {
+        canonical_location: input.in_git_repo === true ? 'repo-docs-designs' : 'state-dir',
+        state_dir_copy_for_discovery: true,
+        absolute_path_announced: true,
+        ruled_out_max_lines_each: 1,
+        one_page_default: true,
+      };
     default:
       throw new Error(`No executable GStack 2 regression evaluator for PR #${pr}`);
   }
