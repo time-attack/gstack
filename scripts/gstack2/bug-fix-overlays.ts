@@ -364,6 +364,20 @@ For office-hours specifically: at session or hobby scale, batch the Phase 2B que
     },
   },
   {
+    pr: 703,
+    url: 'https://github.com/garrytan/gstack/issues/703',
+    title: 'Write design docs repo-local and read them from the repo first',
+    targets: ['office-hours', 'plan-ceo-review', 'plan-eng-review', 'plan-devex-review', 'autoplan'],
+    anchor: 'GSTACK2_FIX_703_REPO_LOCAL_DESIGN_DOCS',
+    body: `### Repo-local design artifacts
+
+When the session produces a design or plan document and the working directory is inside a repository, write it to \`docs/designs/<topic>.md\` in that repository (create \`docs/designs/\` if needed) and name that path every time the document is presented or approval is requested. A hashed home-directory path is never the thing the user is asked to open. Keep writing the cross-session copy under \`"\${GSTACK_HOME:-\$HOME/.gstack}"/projects/<id>/\` with the existing filename convention — downstream skills, prior-design lookup, and cross-team discovery depend on that store — but the repo-local file is the canonical one the user owns and edits. Outside a repository, the \`\$GSTACK_HOME\` path remains the only copy; print it in full when asking for approval. When reviewing, prefer a repo-local design doc (\`docs/designs/\`, \`docs/plans/\`, or an explicitly provided path) over the \`\$GSTACK_HOME\` store whenever both exist.`,
+    regression: {
+      input: { in_repository: true, artifact: 'design-doc' },
+      expected: { canonical_path: 'docs/designs/', gstack_home_copy: true, approval_names_visible_path: true, reviewer_prefers: 'repo-local' },
+    },
+  },
+  {
     pr: 452,
     url: 'https://github.com/garrytan/gstack/pull/452',
     title: 'Read a repo-specific ## Review section from CLAUDE.md',
@@ -552,6 +566,15 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
     }
     case 452:
       return { apply_repo_rules: input.claude_md_has_review_section === true, silent_skip_if_absent: true };
+    case 703: {
+      const inRepo = input.in_repository === true;
+      return {
+        canonical_path: inRepo ? 'docs/designs/' : 'gstack-home-projects-store',
+        gstack_home_copy: true,
+        approval_names_visible_path: true,
+        reviewer_prefers: 'repo-local',
+      };
+    }
     case 886: {
       const ranks: Record<string, Record<string, number>> = {
         audience: { self: 0, friends: 1, team: 2, public: 3 },
