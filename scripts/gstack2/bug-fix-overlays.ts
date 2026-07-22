@@ -391,6 +391,24 @@ Before scope-drift detection, read a \`## Review\` section from the project CLAU
       expected: { apply_repo_rules: true, silent_skip_if_absent: true },
     },
   },
+  {
+    pr: 2000,
+    url: 'https://github.com/garrytan/gstack/issues/2000',
+    title: 'Design docs record decisions concisely',
+    targets: ['office-hours'],
+    anchor: 'GSTACK2_FIX_2000_DESIGN_DOC_CONCISION',
+    body: `### Design-doc concision
+
+The design doc is a decision record, not a transcript of the session. There is no fixed page limit, but every word must earn its place: prefer bullet points over paragraphs, one bullet per decision with its why. An approach the user ruled out during the session gets at most one line — name plus rejection reason — never its own section, comparison matrix, or re-argued case. Omit template sections that are empty or that restate what the conversation already settled. Cut preamble, hedging, and restated context; extra length must be earned by genuinely open questions, not by template completeness. (Placement is governed by the repo-local design-artifact rule from issue #703.)`,
+    regression: {
+      input: { ruled_out_approaches: 3 },
+      expected: {
+        ruled_out_lines_each: 1,
+        bullets_over_paragraphs: true,
+        settled_sections_omitted: true,
+      },
+    },
+  },
 ];
 
 export function overlaysForSource(source: string): BugFixOverlay[] {
@@ -566,6 +584,14 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
     }
     case 452:
       return { apply_repo_rules: input.claude_md_has_review_section === true, silent_skip_if_absent: true };
+    case 2000: {
+      const ruledOut = Number(input.ruled_out_approaches ?? 0);
+      return {
+        ruled_out_lines_each: ruledOut > 0 ? 1 : 0,
+        bullets_over_paragraphs: true,
+        settled_sections_omitted: true,
+      };
+    }
     case 703: {
       const inRepo = input.in_repository === true;
       return {

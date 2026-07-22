@@ -7,6 +7,37 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.61.1.0] - 2026-07-22
+
+## **Design docs now read like decision records.**
+## **The transcript padding is gone.**
+
+v1.61.0.0 put design docs in your repo at `docs/designs/`. This release fixes what is inside them. The `/plan` Discovery specialist now writes bullets over paragraphs, one bullet per decision with its why. An approach you killed during the conversation gets one line, name plus rejection reason, instead of a resurrected "Approach B" section that re-argues the case. Template sections that are empty or that restate what you already settled are omitted. There is no page cap, just a rule that every word earns its place: extra length has to come from genuinely open questions, not template completeness.
+
+### The numbers that matter
+
+Source: `bun run scripts/gstack2/run-parity.ts`, the executable parity inventory, plus the field report that triggered this (a support-system design doc where most of the content was approaches the user had already ruled out in chat).
+
+| Metric | Before | After |
+|---|---|---|
+| Judgment overlays | 27 | 28 |
+| Parity checks | 4,909 | 4,914 |
+| Lines per ruled-out approach | a full section | 1 |
+
+No before/after length benchmark for generated docs exists yet; the rule ships with an executable regression fixture (`evals/parity/regressions/pr-2000.json`) instead of a measured corpus.
+
+### What this means for builders
+
+When office hours hands you a design doc, you can read it in one sitting and see what was decided and why. Nothing you rejected in the session comes back as prose. If a doc runs long, it is because real questions are still open. Run `/plan` as usual; nothing to configure.
+
+### Itemized changes
+
+#### Changed
+- The `/plan` Discovery (office-hours) design doc is now a concise decision record (issue #2000): bullet points over paragraphs, ruled-out approaches collapsed to one line each with the rejection reason, settled or empty template sections omitted, no fixed page cap.
+
+#### For contributors
+- New judgment overlay `GSTACK2_FIX_2000_DESIGN_DOC_CONCISION` (targets office-hours) with executable regression `pr-2000.json`; parity inventory is now 4,914 checks across 28 regression ports.
+
 ## [1.61.0.0] - 2026-07-22
 
 ## **/plan now sizes its machinery to your ask.**

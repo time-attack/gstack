@@ -17,7 +17,7 @@
     "packaged_section_copies": 17,
     "internal_execution_adapters": 1,
     "scenarios": 25,
-    "bug_fix_ports": 25,
+    "bug_fix_ports": 28,
     "assets": 78,
     "dependency_copies": 4,
     "runtime_helpers": 41
@@ -92,7 +92,8 @@
         1049,
         1116,
         886,
-        703
+        703,
+        2000
       ],
       "original_source_file": "office-hours/SKILL.md.tmpl",
       "original_line_range": "1-526",
@@ -7459,6 +7460,15 @@
         "review"
       ],
       "anchor": "GSTACK2_FIX_452_CLAUDEMD_REVIEW_SECTION"
+    },
+    {
+      "pr": 2000,
+      "url": "https://github.com/garrytan/gstack/issues/2000",
+      "title": "Design docs record decisions concisely",
+      "targets": [
+        "office-hours"
+      ],
+      "anchor": "GSTACK2_FIX_2000_DESIGN_DOC_CONCISION"
     }
   ]
 }

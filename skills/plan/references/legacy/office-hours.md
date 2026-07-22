@@ -797,3 +797,13 @@ For office-hours specifically: at session or hobby scale, batch the Phase 2B que
 
 When the session produces a design or plan document and the working directory is inside a repository, write it to `docs/designs/<topic>.md` in that repository (create `docs/designs/` if needed) and name that path every time the document is presented or approval is requested. A hashed home-directory path is never the thing the user is asked to open. Keep writing the cross-session copy under `"${GSTACK_HOME:-$HOME/.gstack}"/projects/<id>/` with the existing filename convention — downstream skills, prior-design lookup, and cross-team discovery depend on that store — but the repo-local file is the canonical one the user owns and edits. Outside a repository, the `$GSTACK_HOME` path remains the only copy; print it in full when asking for approval. When reviewing, prefer a repo-local design doc (`docs/designs/`, `docs/plans/`, or an explicitly provided path) over the `$GSTACK_HOME` store whenever both exist.
 <!-- GSTACK2_BUG_FIX_END pr=703 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=2000 anchor=GSTACK2_FIX_2000_DESIGN_DOC_CONCISION -->
+## Upstream judgment port: issue #2000
+
+[Design docs record decisions concisely](https://github.com/garrytan/gstack/issues/2000)
+
+### Design-doc concision
+
+The design doc is a decision record, not a transcript of the session. There is no fixed page limit, but every word must earn its place: prefer bullet points over paragraphs, one bullet per decision with its why. An approach the user ruled out during the session gets at most one line — name plus rejection reason — never its own section, comparison matrix, or re-argued case. Omit template sections that are empty or that restate what the conversation already settled. Cut preamble, hedging, and restated context; extra length must be earned by genuinely open questions, not by template completeness. (Placement is governed by the repo-local design-artifact rule from issue #703.)
+<!-- GSTACK2_BUG_FIX_END pr=2000 -->

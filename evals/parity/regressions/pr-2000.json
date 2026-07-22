@@ -1,0 +1,20 @@
+{
+  "pr": 2000,
+  "url": "https://github.com/garrytan/gstack/issues/2000",
+  "title": "Design docs record decisions concisely",
+  "targets": [
+    "office-hours"
+  ],
+  "anchor": "GSTACK2_FIX_2000_DESIGN_DOC_CONCISION",
+  "body": "### Design-doc concision\n\nThe design doc is a decision record, not a transcript of the session. There is no fixed page limit, but every word must earn its place: prefer bullet points over paragraphs, one bullet per decision with its why. An approach the user ruled out during the session gets at most one line — name plus rejection reason — never its own section, comparison matrix, or re-argued case. Omit template sections that are empty or that restate what the conversation already settled. Cut preamble, hedging, and restated context; extra length must be earned by genuinely open questions, not by template completeness. (Placement is governed by the repo-local design-artifact rule from issue #703.)",
+  "regression": {
+    "input": {
+      "ruled_out_approaches": 3
+    },
+    "expected": {
+      "ruled_out_lines_each": 1,
+      "bullets_over_paragraphs": true,
+      "settled_sections_omitted": true
+    }
+  }
+}
