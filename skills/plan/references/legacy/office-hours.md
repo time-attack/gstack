@@ -771,14 +771,39 @@ The design doc file is the artifact of this session. Before the telemetry block 
 At the Phase 5 approval gate, print the full design-doc body as direct assistant text before the Approve/Revise/Start-over AskUserQuestion. Do not point the user at the file path and do not rely on a `Bash cat` or `Read` tool call to display it: tool outputs are frequently collapsed in the Claude Code UI, which leaves the user approving a document they cannot see. The assistant message is the one surface guaranteed to render, so emit a short preamble naming the saved path followed by the verbatim document body, then ask for approval.
 <!-- GSTACK2_BUG_FIX_END pr=1116 -->
 
-<!-- GSTACK2_BUG_FIX_START pr=2000 anchor=GSTACK2_FIX_2000_DESIGN_DOC_PLACEMENT_AND_LENGTH -->
-## Upstream judgment port: PR #2000
+<!-- GSTACK2_BUG_FIX_START pr=886 anchor=GSTACK2_FIX_886_PROPORTIONAL_PLANNING -->
+## Upstream judgment port: issue #886
 
-[Design docs live in the repo, stay concise, and record decisions only](https://github.com/garrytan/gstack/issues/2000)
+[Scale planning machinery to the printed build scale](https://github.com/garrytan/gstack/issues/886)
 
-### Design-doc placement and length
+### Proportional planning for the printed build scale
 
-The design doc is a decision record for the user, not a transcript of the session. When the working directory is a git repository, write the canonical doc inside it at `docs/designs/` (or the design-doc directory the project's CLAUDE.md names), where it is visible, reviewable, and versioned with the code; fall back to the state directory only outside a repository. Keep the `{user}-{branch}-design-{datetime}` state-directory copy solely so downstream skills discover it. Whenever the doc is mentioned, give its absolute repo path — never refer to "the design doc" without saying where it is.
+The /plan dispatcher prints a `Scale:` header line classified from fifteen build-scale vectors (its Build scale section). This rule authorizes every planning specialist to size its machinery to that scale while keeping every STOP gate and approval boundary; a polite user answering every question is not evidence the full machinery is wanted, and the user can always ask for the complete treatment.
 
-There is no fixed page limit, but every word must earn its place. Prefer bullet points over paragraphs: one bullet per decision with its why. An approach the user ruled out during the session gets at most one line — name plus rejection reason — never its own section, comparison matrix, or re-argued case. Omit template sections that are empty or that restate what the conversation already settled. Cut preamble, hedging, and restated context; extra length must be earned by genuinely open questions, not by template completeness.
+- `session` and `hobby`: batch every question the initial prompt left unanswered into one AskUserQuestion round (two rounds for hobby); skip web or landscape research, outside voices, second opinions, and visual sketches unless the user asks (privacy gates are unchanged whenever they run); cap any adversarial or spec review loop at one iteration; keep the decision artifact near one page with next steps sized in hours (session) or days (hobby), never a phased multi-week roadmap or a distribution plan the user did not ask for.
+- `project`: run the specialist's default workflow, batching question rounds where its source authorizes smart skips; size the roadmap in weeks.
+- `product` and `venture`: the full specialist workflow and its complete question pressure apply; this rule removes nothing.
+- Never run a questioning round merely to classify scale. Classify from the prompt and cheap repository evidence, defaulting unknown vectors low; a specialist's own later questions may raise the scale mid-session, and an upgrade restores the full workflow from that point.
+
+For office-hours specifically: at session or hobby scale, batch the Phase 2B questions (this refines the one-at-a-time rule, whose pressure exists for startup diagnostics), default-skip the Phase 2.75 landscape search, gate the visual sketch and outside design voices on an explicit ask, and cap the Spec Review Loop at one iteration.
+<!-- GSTACK2_BUG_FIX_END pr=886 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=703 anchor=GSTACK2_FIX_703_REPO_LOCAL_DESIGN_DOCS -->
+## Upstream judgment port: issue #703
+
+[Write design docs repo-local and read them from the repo first](https://github.com/garrytan/gstack/issues/703)
+
+### Repo-local design artifacts
+
+When the session produces a design or plan document and the working directory is inside a repository, write it to `docs/designs/<topic>.md` in that repository (create `docs/designs/` if needed) and name that path every time the document is presented or approval is requested. A hashed home-directory path is never the thing the user is asked to open. Keep writing the cross-session copy under `"${GSTACK_HOME:-$HOME/.gstack}"/projects/<id>/` with the existing filename convention — downstream skills, prior-design lookup, and cross-team discovery depend on that store — but the repo-local file is the canonical one the user owns and edits. Outside a repository, the `$GSTACK_HOME` path remains the only copy; print it in full when asking for approval. When reviewing, prefer a repo-local design doc (`docs/designs/`, `docs/plans/`, or an explicitly provided path) over the `$GSTACK_HOME` store whenever both exist.
+<!-- GSTACK2_BUG_FIX_END pr=703 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=2000 anchor=GSTACK2_FIX_2000_DESIGN_DOC_CONCISION -->
+## Upstream judgment port: issue #2000
+
+[Design docs record decisions concisely](https://github.com/garrytan/gstack/issues/2000)
+
+### Design-doc concision
+
+The design doc is a decision record, not a transcript of the session. There is no fixed page limit, but every word must earn its place: prefer bullet points over paragraphs, one bullet per decision with its why. An approach the user ruled out during the session gets at most one line — name plus rejection reason — never its own section, comparison matrix, or re-argued case. Omit template sections that are empty or that restate what the conversation already settled. Cut preamble, hedging, and restated context; extra length must be earned by genuinely open questions, not by template completeness. (Placement is governed by the repo-local design-artifact rule from issue #703.)
 <!-- GSTACK2_BUG_FIX_END pr=2000 -->
