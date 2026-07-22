@@ -82,7 +82,7 @@ function assertInventory(): void {
   }
   if (legacySections().length !== 16) throw new Error(`Expected 16 section templates, found ${legacySections().length}`);
   if (SCENARIOS.length !== 25) throw new Error(`Expected 25 parity scenarios, found ${SCENARIOS.length}`);
-  if (BUG_FIX_OVERLAYS.length !== 25) throw new Error(`Expected 25 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
+  if (BUG_FIX_OVERLAYS.length !== 27) throw new Error(`Expected 27 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
 }
 
 function toc(body: string): string {
@@ -159,7 +159,7 @@ function renderModule(assignment: SourceAssignment): { content: string; renderSh
     : overlays.length ? 'BUG_FIX' : 'JUDGMENT_PRESERVING_CARVE';
   const overlayText = overlays.map((overlay) => [
     `<!-- GSTACK2_BUG_FIX_START pr=${overlay.pr} anchor=${overlay.anchor} -->`,
-    `## Upstream judgment port: PR #${overlay.pr}`,
+    `## Upstream judgment port: ${overlay.url.includes('/issues/') ? 'issue' : 'PR'} #${overlay.pr}`,
     '',
     `[${overlay.title}](${overlay.url})`,
     '',
@@ -203,7 +203,23 @@ function rootSkill(dispatcher: DispatcherDefinition): string {
     ? '\n9. When `system-functional` is active, read `references/SYSTEM-FUNCTIONAL.md` completely and execute it alongside the selected preserved specialists.\n'
     : dispatcher.name === 'ship'
       ? '\n9. Before push, PR creation/update, merge, deploy, rollback, release publication, or external notification, read `references/EXTERNAL-EFFECTS.md` and execute the action through its durable state wrapper.\n'
-      : '';
+      : dispatcher.name === 'plan'
+        ? '\n9. Classify the Scale header line from the Build scale section before any questioning begins. Every planning specialist applies its proportional-planning judgment port to that scale.\n'
+        : '';
+  const scaleLine = dispatcher.name === 'plan'
+    ? 'Scale: <session, hobby, project, product, or venture — name the deciding vectors>\n'
+    : '';
+  const buildScale = dispatcher.name === 'plan'
+    ? `
+## Build scale
+
+Classify the request on fifteen scale vectors before any questioning begins, from the prompt and cheap repository evidence only. Never run a questioning round merely to classify scale. Default unknown vectors to the low end; the specialist's own workflow raises the scale naturally when answers reveal more (builder talk turning into startup talk upgrades mid-session).
+
+Vectors: audience (self → friends/team → public), expected users (none → handful → many), commercial intent (none → maybe → core), deployment target (none/local → hosted → production), time horizon (one sitting → days → weeks → months+), maintenance expectation (throwaway → kept → maintained), integration surface (standalone → consumes APIs → exposes APIs/multi-service), extensibility ask (fixed → configurable → customizable platform), data sensitivity (none → personal → regulated), failure stakes (lost fun → annoyance → money/trust/safety), team (solo → few → org), codebase (greenfield → existing repo → legacy production), reversibility (discardable → migrations/breaking changes), distribution (private → shared → published), compliance (none → some → audited).
+
+The highest tier any vector demands wins: \`session\` (all vectors low — one sitting, for fun, self only), \`hobby\` (kept personal tool, days), \`project\` (shared or in a real repo, weeks), \`product\` (external users, hosted, revenue intent), \`venture\` (startup ambition, platform/API surface, team, months+). "A cool space animation in my terminal" is session-scale. "A startup with customizable APIs" is venture-scale. Print the result on the header's Scale line with the two or three vectors that decided it.
+`
+    : '';
 
   return `---
 name: ${dispatcher.name}
@@ -223,7 +239,7 @@ Before any substantive output, print these exact labels in this exact order. Res
 Target: <concrete repository, product, URL, device, PR, or artifact>
 Mode: <selected top-level mode>
 Depth: <readiness, standard, or deep>
-Mutation: <report-only or exact authorized mutation boundary>
+${scaleLine}Mutation: <report-only or exact authorized mutation boundary>
 Active modules: <comma-separated internal specialist modules>
 Skipped modules: <comma-separated non-active mandatory modules with compact reasons>
 Web context: <none, optional, local-browser, or production>
@@ -239,7 +255,7 @@ Web context: <none, optional, local-browser, or production>
 6. Preserve report-only versus mutation boundaries. Missing mutation authorization fails closed: do not edit merely because a specialist can fix. Commits, pushes, PRs, merges, deploys, messages, and other external mutations still require affirmative authority from the user.
 7. Match the user's language. Keep code identifiers, commands, and source quotations original when translation would reduce accuracy.
 8. At exit, report completed artifacts, evidence, unresolved decisions, skipped modules with reasons, and any blocked gate.
-${supplemental}
+${supplemental}${buildScale}
 
 ## Top-level modes
 
@@ -742,7 +758,7 @@ ${rows}
 ## Mechanical versus judgment changes
 
 - \`JUDGMENT_PRESERVING_CARVE\`: pinned specialist workflow with the retired shared onboarding wrapper excluded, retired invocations resolved to six public routes, host/runtime paths normalized, and large carved phases loaded lazily from package-local pinned references.
-- \`BUG_FIX\`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 25 upstream PRs and its regression fixture.
+- \`BUG_FIX\`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 27 upstream PRs and issues and its regression fixture.
 - Asset relocation is byte-for-byte from the pinned Git blob and is indexed per tree.
 `;
 }
@@ -763,7 +779,7 @@ function parityDoc(assetCount: number): string {
 
 Parity is executable, not a prose claim. Run \`bun run scripts/gstack2/run-parity.ts\` or the dedicated Bun tests.
 
-The pinned release inventory passes **${EXPECTED_PARITY_CHECKS.toLocaleString('en-US')} checks** across 55 specialist sources, 16 carved sections, 25 routing scenarios, 25 regression ports, and **${assetCount} assets**.
+The pinned release inventory passes **${EXPECTED_PARITY_CHECKS.toLocaleString('en-US')} checks** across 55 specialist sources, 16 carved sections, 25 routing scenarios, 27 regression ports, and **${assetCount} assets**.
 
 The suite verifies:
 
@@ -997,12 +1013,12 @@ function runCheck(): void {
     } catch {
       disk = null;
     }
-    if (!disk) drift.push(`missing  ${path.relative(ROOT, abs)}`);
-    else if (!disk.equals(bytes)) drift.push(`stale    ${path.relative(ROOT, abs)}`);
+    if (!disk) drift.push(`missing  ${normalizeRepositoryPath(path.relative(ROOT, abs))}`);
+    else if (!disk.equals(bytes)) drift.push(`stale    ${normalizeRepositoryPath(path.relative(ROOT, abs))}`);
   }
   for (const root of cleaned) {
     for (const abs of diskFiles(root)) {
-      if (!files.has(abs)) drift.push(`orphaned ${path.relative(ROOT, abs)}`);
+      if (!files.has(abs)) drift.push(`orphaned ${normalizeRepositoryPath(path.relative(ROOT, abs))}`);
     }
   }
   drift.sort();

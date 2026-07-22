@@ -90,7 +90,9 @@
         679,
         2030,
         1049,
-        1116
+        1116,
+        886,
+        703
       ],
       "original_source_file": "office-hours/SKILL.md.tmpl",
       "original_line_range": "1-526",
@@ -204,7 +206,9 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        2030
+        2030,
+        886,
+        703
       ],
       "original_source_file": "plan-ceo-review/SKILL.md.tmpl",
       "original_line_range": "1-427",
@@ -346,7 +350,9 @@
         679,
         1071,
         2030,
-        592
+        592,
+        886,
+        703
       ],
       "original_source_file": "plan-eng-review/SKILL.md.tmpl",
       "original_line_range": "1-158",
@@ -465,7 +471,9 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        2030
+        2030,
+        886,
+        703
       ],
       "original_source_file": "plan-devex-review/SKILL.md.tmpl",
       "original_line_range": "1-462",
@@ -599,7 +607,9 @@
       "overlays": [
         679,
         2014,
-        2023
+        2023,
+        886,
+        703
       ],
       "original_source_file": "autoplan/SKILL.md.tmpl",
       "original_line_range": "1-916",
@@ -688,7 +698,8 @@
       "target": "skills/plan/references/legacy/spec.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        886
       ],
       "original_source_file": "spec/SKILL.md.tmpl",
       "original_line_range": "1-769",
@@ -7412,6 +7423,33 @@
         "office-hours"
       ],
       "anchor": "GSTACK2_FIX_1116_INLINE_APPROVAL_DOC"
+    },
+    {
+      "pr": 886,
+      "url": "https://github.com/garrytan/gstack/issues/886",
+      "title": "Scale planning machinery to the printed build scale",
+      "targets": [
+        "office-hours",
+        "plan-ceo-review",
+        "plan-eng-review",
+        "plan-devex-review",
+        "spec",
+        "autoplan"
+      ],
+      "anchor": "GSTACK2_FIX_886_PROPORTIONAL_PLANNING"
+    },
+    {
+      "pr": 703,
+      "url": "https://github.com/garrytan/gstack/issues/703",
+      "title": "Write design docs repo-local and read them from the repo first",
+      "targets": [
+        "office-hours",
+        "plan-ceo-review",
+        "plan-eng-review",
+        "plan-devex-review",
+        "autoplan"
+      ],
+      "anchor": "GSTACK2_FIX_703_REPO_LOCAL_DESIGN_DOCS"
     },
     {
       "pr": 452,
