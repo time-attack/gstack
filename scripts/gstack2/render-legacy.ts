@@ -32,13 +32,29 @@ export function legacyRelativePath(source: string): string {
   return repositoryRelativePath(legacyTemplatePath(source));
 }
 
+let pinnedBaseFetchAttempted = false;
+
 function pinnedText(relativePath: string): string {
-  const result = Bun.spawnSync({
+  const show = () => Bun.spawnSync({
     cmd: ['git', 'show', pinnedRevisionPath(relativePath)],
     cwd: ROOT,
     stdout: 'pipe',
     stderr: 'pipe',
   });
+  let result = show();
+  if (result.exitCode !== 0 && !pinnedBaseFetchAttempted) {
+    // CI and shallow checkouts only fetch the PR refs; GSTACK2_BASE_SHA is
+    // reachable from codex/* branches only, so its objects may be absent.
+    // A depth-1 fetch of the pinned sha restores git show for every caller.
+    pinnedBaseFetchAttempted = true;
+    Bun.spawnSync({
+      cmd: ['git', 'fetch', '--no-tags', '--depth=1', 'origin', GSTACK2_BASE_SHA],
+      cwd: ROOT,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    result = show();
+  }
   if (result.exitCode !== 0) throw new Error(`Unable to read ${relativePath} at ${GSTACK2_BASE_SHA}: ${result.stderr.toString()}`);
   return result.stdout.toString();
 }
