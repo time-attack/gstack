@@ -91,7 +91,8 @@
         2030,
         1049,
         1116,
-        886
+        886,
+        703
       ],
       "original_source_file": "office-hours/SKILL.md.tmpl",
       "original_line_range": "1-526",
@@ -206,7 +207,8 @@
       "overlays": [
         679,
         2030,
-        886
+        886,
+        703
       ],
       "original_source_file": "plan-ceo-review/SKILL.md.tmpl",
       "original_line_range": "1-427",
@@ -349,7 +351,8 @@
         1071,
         2030,
         592,
-        886
+        886,
+        703
       ],
       "original_source_file": "plan-eng-review/SKILL.md.tmpl",
       "original_line_range": "1-158",
@@ -469,7 +472,8 @@
       "overlays": [
         679,
         2030,
-        886
+        886,
+        703
       ],
       "original_source_file": "plan-devex-review/SKILL.md.tmpl",
       "original_line_range": "1-462",
@@ -604,7 +608,8 @@
         679,
         2014,
         2023,
-        886
+        886,
+        703
       ],
       "original_source_file": "autoplan/SKILL.md.tmpl",
       "original_line_range": "1-916",
@@ -7432,6 +7437,19 @@
         "autoplan"
       ],
       "anchor": "GSTACK2_FIX_886_PROPORTIONAL_PLANNING"
+    },
+    {
+      "pr": 703,
+      "url": "https://github.com/garrytan/gstack/issues/703",
+      "title": "Write design docs repo-local and read them from the repo first",
+      "targets": [
+        "office-hours",
+        "plan-ceo-review",
+        "plan-eng-review",
+        "plan-devex-review",
+        "autoplan"
+      ],
+      "anchor": "GSTACK2_FIX_703_REPO_LOCAL_DESIGN_DOCS"
     },
     {
       "pr": 452,
