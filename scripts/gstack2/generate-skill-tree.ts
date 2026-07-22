@@ -1013,12 +1013,12 @@ function runCheck(): void {
     } catch {
       disk = null;
     }
-    if (!disk) drift.push(`missing  ${path.relative(ROOT, abs)}`);
-    else if (!disk.equals(bytes)) drift.push(`stale    ${path.relative(ROOT, abs)}`);
+    if (!disk) drift.push(`missing  ${normalizeRepositoryPath(path.relative(ROOT, abs))}`);
+    else if (!disk.equals(bytes)) drift.push(`stale    ${normalizeRepositoryPath(path.relative(ROOT, abs))}`);
   }
   for (const root of cleaned) {
     for (const abs of diskFiles(root)) {
-      if (!files.has(abs)) drift.push(`orphaned ${path.relative(ROOT, abs)}`);
+      if (!files.has(abs)) drift.push(`orphaned ${normalizeRepositoryPath(path.relative(ROOT, abs))}`);
     }
   }
   drift.sort();
