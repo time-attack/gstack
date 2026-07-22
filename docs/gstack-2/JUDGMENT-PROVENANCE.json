@@ -7426,7 +7426,7 @@
     {
       "pr": 2000,
       "url": "https://github.com/garrytan/gstack/issues/2000",
-      "title": "Design docs live in the repo, fit one page, and record decisions only",
+      "title": "Design docs live in the repo, stay concise, and record decisions only",
       "targets": [
         "office-hours"
       ],
