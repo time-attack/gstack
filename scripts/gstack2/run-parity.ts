@@ -25,8 +25,9 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // (27 -> 28, office-hours only) added 5 more. The self-contained-questions
 // overlay for issue #879 (28 -> 29, targets '*', all 55 modules) added 113
 // more (2 per module + 3 regression checks). The founder-resources opt-out
-// overlay for issue #538 (29 -> 30, office-hours only) added 5 more.
-export const EXPECTED_PARITY_CHECKS = 5032;
+// overlay for issue #538 (29 -> 30, office-hours only) added 5 more. The
+// per-tree code-intelligence offer contract added 18 (3 per dispatcher).
+export const EXPECTED_PARITY_CHECKS = 5050;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -169,6 +170,18 @@ export function runParity(): ParityResult {
     const authority = path.join(ROOT, 'skills', tree, 'references', 'AUTHORITY-POLICY.md');
     check(fs.existsSync(authority), `${tree} lacks the executable authority/evidence policy`);
     check(dispatcher.includes('references/AUTHORITY-POLICY.md'), `${tree} dispatcher does not load the authority/evidence policy`);
+    const codeIntel = path.join(ROOT, 'skills', tree, 'references', 'CODE-INTELLIGENCE.md');
+    check(fs.existsSync(codeIntel), `${tree} lacks the optional code-intelligence offer contract`);
+    check(dispatcher.includes('references/CODE-INTELLIGENCE.md'), `${tree} dispatcher does not load the code-intelligence offer`);
+    if (fs.existsSync(codeIntel)) {
+      const offer = fs.readFileSync(codeIntel, 'utf8');
+      check(
+        offer.includes('offer: false`, continue silently')
+          && offer.includes('No indexing')
+          && offer.includes('never auto-install a provider'),
+        `${tree} code-intelligence offer lost its silent-degrade, decline, or no-auto-install behavior`,
+      );
+    }
   }
   const effectsPath = path.join(ROOT, 'skills', 'ship', 'references', 'EXTERNAL-EFFECTS.md');
   check(fs.existsSync(effectsPath), 'Ship lacks the durable external-effect protocol');
