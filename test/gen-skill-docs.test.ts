@@ -704,7 +704,7 @@ describe('REVIEW_DASHBOARD resolver', () => {
 
   test('dashboard treats review as a valid Eng Review source', () => {
     const content = readShipUnion();
-    expect(content).toContain('plan-eng-review, review, plan-design-review');
+    expect(content).toContain('plan-eng-review, review, adversarial-review');
     expect(content).toContain('`review` (diff-scoped pre-landing review)');
     expect(content).toContain('`plan-eng-review` (plan-stage architecture review)');
     expect(content).toContain('from either \\`review\\` or \\`plan-eng-review\\`');
@@ -712,7 +712,7 @@ describe('REVIEW_DASHBOARD resolver', () => {
 
   test('shared dashboard propagates review source to plan-eng-review', () => {
     const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
-    expect(content).toContain('plan-eng-review, review, plan-design-review');
+    expect(content).toContain('plan-eng-review, review, adversarial-review');
     expect(content).toContain('`review` (diff-scoped pre-landing review)');
   });
 
@@ -722,7 +722,6 @@ describe('REVIEW_DASHBOARD resolver', () => {
     expect(content).toContain('CLEARED');
     expect(content).toContain('Eng Review');
     expect(content).toContain('7 days');
-    expect(content).toContain('Design Review');
     expect(content).toContain('skip_eng_review');
   });
 
@@ -1554,23 +1553,6 @@ describe('DESIGN_SKETCH extended with outside voices', () => {
     expect(content).toContain('wireframe');
     expect(content).toContain('$B goto');
   });
-});
-
-// --- Extended DESIGN_REVIEW_LITE resolver tests ---
-
-describe('DESIGN_REVIEW_LITE extended with Codex', () => {
-  const content = readShipUnion();
-
-  test('contains Codex design voice block', () => {
-    expect(content).toContain('Codex design voice');
-    expect(content).toContain('CODEX (design)');
-  });
-
-  test('still contains original checklist steps', () => {
-    expect(content).toContain('design-checklist.md');
-    expect(content).toContain('SCOPE_FRONTEND');
-  });
-
 });
 
 // ─── Codex Generation Tests ─────────────────────────────────

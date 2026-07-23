@@ -4,10 +4,10 @@ Thanks for wanting to make gstack better. Whether you're fixing a typo in a skil
 
 ## GStack 2 contribution contract
 
-GStack 2 deliberately has six public nouns: `plan`, `design`, `qa`, `debug`,
+GStack 2 deliberately has five public nouns: `plan`, `qa`, `debug`,
 `review`, and `ship`. Preserve that small surface. A proposal for PM,
 accessibility, language, backend, dashboards, sales, or orchestration normally
-belongs as a mode, an internal utility, or a community extension—not a seventh
+belongs as a mode, an internal utility, or a community extension—not a sixth
 first-party command.
 
 A contribution must do at least one of the following:

@@ -178,21 +178,21 @@ describe("GStack 2 managed runtime installer", () => {
     });
   });
 
-  test("design-only launchers do not require an unrelated browser selection", async () => {
+  test("non-browser launchers do not require an unrelated browser selection", async () => {
     await withFixture(async ({ source, home }) => {
-      const design = path.join(source, "design", "dist", "design");
-      await fs.mkdir(path.dirname(design), { recursive: true });
-      await fs.writeFile(design, "#!/bin/sh\nprintf 'design ready\\n'\n", { mode: 0o755 });
+      const tool = path.join(source, "fixture", "tool");
+      await fs.mkdir(path.dirname(tool), { recursive: true });
+      await fs.writeFile(tool, "#!/bin/sh\nprintf 'tool ready\\n'\n", { mode: 0o755 });
       await installManagedRuntime({
         sourceDir: source,
         home,
-        version: "design-without-browser",
-        entries: [...ENTRIES, { path: "design/dist/design", build: "fixture", executable: true }],
-        capabilities: { ...CAPABILITIES, "gstack-design": "design/dist/design" },
+        version: "tool-without-browser",
+        entries: [...ENTRIES, { path: "fixture/tool", build: "fixture", executable: true }],
+        capabilities: { ...CAPABILITIES, "gstack-fixture-tool": "fixture/tool" },
       });
       await configSetBrowserChoice(home, null);
-      expect((await runInstalledLauncher(home, "gstack-design", [], { capture: true })).stdout)
-        .toContain("design ready");
+      expect((await runInstalledLauncher(home, "gstack-fixture-tool", [], { capture: true })).stdout)
+        .toContain("tool ready");
     });
   });
 
@@ -622,8 +622,6 @@ process.stdout.write(process.env.GSTACK_CHROMIUM_PATH || "unset");
     );
     expect(compiledHelpers).toEqual({
       browse: { posix: "browse/dist/browse", win32: "browse/dist/browse.exe" },
-      "gstack-design": { posix: "design/dist/design", win32: "design/dist/design.exe" },
-      "make-pdf": { posix: "make-pdf/dist/pdf", win32: "make-pdf/dist/pdf.exe" },
     });
     const bundlePaths = new Set(DEFAULT_RUNTIME_BUNDLE.map((item) => item.path));
     for (const dependency of [

@@ -92,8 +92,7 @@ describe('GStack 2 canonical skill UX', () => {
       expect(runtime, tree).toContain('Deferring installation records no consent');
       expect(runtime, tree).toContain('With managed Chromium, logical `browser` expands to `browser-code + browser-headless`');
       expect(runtime, tree).toContain('Internal `browser-visible` expands to `browser-code + browser-visible` and is managed-only');
-      expect(runtime, tree).toContain('`pdf` depends on `diagram`');
-      expect(runtime, tree).toContain('`all` means those five and intentionally excludes visible Chromium');
+      expect(runtime, tree).toContain('`all` means those two and intentionally excludes visible Chromium');
       expect(runtime, tree).toContain('summed compressed bytes');
       expect(runtime, tree).toContain('B=$GSTACK_BIN/browse');
       expect(runtime, tree).toContain('BUN_CMD=$GSTACK_BIN/bun');

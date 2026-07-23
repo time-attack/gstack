@@ -199,7 +199,6 @@ describe('registry breadth', () => {
       'office-hours',
       'plan-ceo-review',
       'plan-eng-review',
-      'plan-design-review',
       'plan-devex-review',
       'qa',
       'investigate',

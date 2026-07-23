@@ -24,8 +24,8 @@ describe("capability readiness", () => {
   test("keeps pure judgment, preview consent, and install consent separate when unavailable", () => {
     const result = capabilityReadiness(report([
       { id: "managed-runtime", status: "fail", message: "No active managed runtime" },
-      { id: "capability:pdf", status: "warn", message: "not installed" },
-    ]), "pdf");
+      { id: "capability:browser", status: "warn", message: "not installed" },
+    ]), "browser");
 
     expect(result).toMatchObject({
       ok: false,
@@ -42,16 +42,16 @@ describe("capability readiness", () => {
   test("distinguishes ready, degraded, and failed runtime states", () => {
     const ready = capabilityReadiness(report([
       { id: "managed-runtime", status: "pass", message: "active" },
-      { id: "capability:design", status: "pass", message: "runnable" },
-    ]), "design");
+      { id: "capability:browser", status: "pass", message: "runnable" },
+    ]), "browser");
     const degraded = capabilityReadiness(report([
       { id: "managed-runtime", status: "warn", message: "recovered" },
-      { id: "capability:design", status: "pass", message: "runnable" },
-    ]), "design");
+      { id: "capability:browser", status: "pass", message: "runnable" },
+    ]), "browser");
     const failed = capabilityReadiness(report([
       { id: "managed-runtime", status: "pass", message: "active" },
-      { id: "capability:diagram", status: "fail", message: "launcher metadata missing" },
-    ]), "diagram");
+      { id: "capability:browser", status: "fail", message: "launcher metadata missing" },
+    ]), "browser");
     // A hard runtime failure under a launchable capability is not a warning:
     // it must not report ok:true, matching plain `gstack doctor`'s exit code.
     const runtimeFailed = capabilityReadiness(report([
@@ -98,7 +98,7 @@ describe("capability readiness", () => {
     const stderr = capture();
     try {
       await setupRuntime({ home, cwd: root });
-      const exit = await main(["doctor", "--capability", "pdf", "--json"], {
+      const exit = await main(["doctor", "--capability", "browser", "--json"], {
         cwd: root,
         env: { ...process.env, GSTACK_HOME: home },
         stdout: stdout.stream,
@@ -113,7 +113,7 @@ describe("capability readiness", () => {
         code: "CAPABILITY_UNAVAILABLE",
         data: {
           ok: false,
-          capability: "pdf",
+          capability: "browser",
           judgment: { status: "available" },
           readiness: { status: "unavailable" },
         },

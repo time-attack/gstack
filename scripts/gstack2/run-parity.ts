@@ -34,7 +34,7 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // design source modules, routing scenarios, carved sections, and design-only
 // overlays (#696, #1777, #1920, #2189) while keeping #538, which recomputes
 // the inventory to the value below.
-export const EXPECTED_PARITY_CHECKS = 4378;
+export const EXPECTED_PARITY_CHECKS = 4374;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -415,9 +415,9 @@ export function runParity(): ParityResult {
     check(packagedBootstrap.equals(fs.readFileSync(path.join(ROOT, 'runtime', 'runtime-bootstrap.mjs'))), `${tree} packaged runtime bootstrap drifted from its source`);
     check(runtimeContract.includes('preview --capability <name>') && runtimeContract.includes('It never downloads components or mutates runtime state.'), `${tree} runtime contract lacks non-mutating exact-byte preview`);
     check(runtimeContract.includes('matching `install` command with the same capabilities and browser flags plus `--yes`'), `${tree} runtime contract lacks explicit approved install invocation`);
-    check(runtimeContract.includes('With managed Chromium, logical `browser` expands to `browser-code + browser-headless`') && runtimeContract.includes('Internal `browser-visible` expands to `browser-code + browser-visible` and is managed-only') && runtimeContract.includes('`pdf` depends on `diagram`'), `${tree} runtime contract omits provider-aware component dependency closure`);
-    check(runtimeContract.includes('`all` means those five and intentionally excludes visible Chromium'), `${tree} runtime contract lets eager setup install visible Chromium`);
-    check(runtimeContract.includes('B=$GSTACK_BIN/browse') && runtimeContract.includes('P=$GSTACK_BIN/make-pdf'), `${tree} runtime contract omits stable launcher bindings`);
+    check(runtimeContract.includes('With managed Chromium, logical `browser` expands to `browser-code + browser-headless`') && runtimeContract.includes('Internal `browser-visible` expands to `browser-code + browser-visible` and is managed-only'), `${tree} runtime contract omits provider-aware component dependency closure`);
+    check(runtimeContract.includes('`all` means those two and intentionally excludes visible Chromium'), `${tree} runtime contract lets eager setup install visible Chromium`);
+    check(runtimeContract.includes('B=$GSTACK_BIN/browse'), `${tree} runtime contract omits stable launcher bindings`);
     check(runtimeContract.includes('BUN_CMD=$GSTACK_BIN/bun'), `${tree} runtime contract omits the managed Bun binding`);
     check(runtimeContract.includes('discovers Git for Windows Bash') && runtimeContract.includes('Python is not a global GStack prerequisite'), `${tree} runtime contract omits retained shell/Python prerequisite disclosure`);
   }

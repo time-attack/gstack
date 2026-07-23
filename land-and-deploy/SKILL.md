@@ -1267,7 +1267,7 @@ Collect evidence for each check below. Track warnings (yellow) and blockers (red
 ```
 
 Parse the output. For each review skill (plan-eng-review, plan-ceo-review,
-plan-design-review, design-review-lite, codex-review, review, adversarial-review,
+plan-design-review, codex-review, review, adversarial-review,
 codex-plan-review):
 
 1. Find the most recent entry within the last 7 days.

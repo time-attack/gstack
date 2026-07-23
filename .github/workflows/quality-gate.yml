@@ -49,7 +49,6 @@ jobs:
             ':(exclude)test/**' \
             ':(exclude)evals/**' \
             ':(exclude)outputs/**' \
-            ':(exclude)lib/diagram-render/dist/**' \
             ':(exclude)skills/*/references/support/**' \
             ':(exclude)docs/gstack-2/BACKLOG-MAP.json' \
             | node .github/scripts/gate-secret-scan.mjs

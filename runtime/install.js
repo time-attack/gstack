@@ -43,9 +43,6 @@ export function managedBunRelativePath(platform = process.platform) {
 
 export const OPTIONAL_RUNTIME_CAPABILITIES = Object.freeze([
   "browser",
-  "design",
-  "pdf",
-  "diagram",
   ...(process.platform === "darwin" ? ["ios"] : []),
 ]);
 // Internal capability used only when a workflow reaches a headed browser,
@@ -59,9 +56,6 @@ export const RUNTIME_CAPABILITIES = Object.freeze([
 export const RUNTIME_CAPABILITY_DEPENDENCIES = Object.freeze({
   browser: Object.freeze([]),
   "browser-visible": Object.freeze([]),
-  design: Object.freeze([]),
-  pdf: Object.freeze(["browser", "diagram"]),
-  diagram: Object.freeze(["browser"]),
   ...(process.platform === "darwin" ? { ios: Object.freeze([]) } : {}),
 });
 
@@ -70,18 +64,12 @@ export const RUNTIME_COMPONENT_DEPENDENCIES = Object.freeze({
   "browser-code": Object.freeze(["core"]),
   "browser-headless": Object.freeze(["browser-code"]),
   "browser-visible": Object.freeze(["browser-code"]),
-  design: Object.freeze(["core"]),
-  diagram: Object.freeze(["browser-headless"]),
-  pdf: Object.freeze(["diagram"]),
   ...(process.platform === "darwin" ? { ios: Object.freeze(["core"]) } : {}),
 });
 
 export const RUNTIME_CAPABILITY_COMPONENTS = Object.freeze({
   browser: Object.freeze(["browser-code", "browser-headless"]),
   "browser-visible": Object.freeze(["browser-code", "browser-visible"]),
-  design: Object.freeze(["design"]),
-  diagram: Object.freeze(["diagram"]),
-  pdf: Object.freeze(["pdf"]),
   ...(process.platform === "darwin" ? { ios: Object.freeze(["ios"]) } : {}),
 });
 
@@ -291,12 +279,6 @@ export const DEFAULT_RUNTIME_BUNDLE = Object.freeze([
   entry("node_modules/standardwebhooks"),
   entry("node_modules/@stablelib/base64"),
   entry("node_modules/fast-sha256"),
-  entry(platformBinary("design/dist/design"), "core", true),
-  entry("design/dist/.version", "core"),
-  entry(platformBinary("make-pdf/dist/pdf"), "core", true),
-  entry("make-pdf/dist/.version", "core"),
-  entry("lib/diagram-render/dist/diagram-render.html", "diagram"),
-  entry("lib/diagram-render/dist/BUILD_INFO.json", "diagram"),
   ...(process.platform === "darwin" ? [
     entry("ios-qa/dist/gstack-ios-qa-daemon", "ios", true),
     entry("ios-qa/dist/gstack-ios-qa-mint", "ios", true),
@@ -309,8 +291,6 @@ export const DEFAULT_RUNTIME_BUNDLE = Object.freeze([
 export const DEFAULT_CAPABILITY_LAUNCHERS = Object.freeze({
   bun: managedBunRelativePath(),
   browse: platformBinary("browse/dist/browse"),
-  "gstack-design": platformBinary("design/dist/design"),
-  "make-pdf": platformBinary("make-pdf/dist/pdf"),
   ...DEFAULT_HELPER_CAPABILITIES,
   ...(process.platform === "darwin" ? {
     "gstack-ios-qa-daemon": "ios-qa/dist/gstack-ios-qa-daemon",
@@ -324,9 +304,6 @@ const CAPABILITY_PATH_PREFIXES = Object.freeze({
     "node_modules/smart-buffer", "node_modules/ip-address", "node_modules/sharp", "node_modules/@img/",
     "node_modules/@ngrok/", "node_modules/detect-libc", "node_modules/semver",
   ]),
-  design: Object.freeze(["design/"]),
-  pdf: Object.freeze(["make-pdf/"]),
-  diagram: Object.freeze(["lib/diagram-render/"]),
   ios: Object.freeze(["ios-qa/"]),
 });
 
@@ -762,7 +739,6 @@ export async function defaultBunBuilder({ sourceDir, missing, bunCommand = "bun"
   }
 
   if (groups.has("core")) await run(bunCommand, ["run", "build:runtime"], { cwd: sourceDir });
-  if (groups.has("diagram")) await run(bunCommand, ["run", "build:diagram-render"], { cwd: sourceDir });
   if (groups.has("ios")) {
     await fs.mkdir(path.join(sourceDir, "ios-qa", "dist"), { recursive: true });
     await run(bunCommand, [
@@ -1147,14 +1123,12 @@ export function runtimeReleaseComponentForPath(value) {
   }
   const owner = capabilityForPath(component);
   if (owner === "browser") return "browser-code";
-  if (["design", "diagram", "pdf", "ios"].includes(owner)) return owner;
+  if (owner === "ios") return owner;
   return "core";
 }
 
 function capabilityForLauncher(name) {
   if (["browse", "remote-slug"].includes(name)) return "browser";
-  if (name === "gstack-design") return "design";
-  if (name === "make-pdf") return "pdf";
   if (name.startsWith("gstack-ios-qa-")) return "ios";
   return null;
 }
@@ -1641,7 +1615,7 @@ const config = await fs.readFile(path.join(home, "config.json"), "utf8")
   .then(value => JSON.parse(value), () => null);
 const bundle = await fs.readFile(path.join(root, ".gstack-bundle.json"), "utf8")
   .then(value => JSON.parse(value), () => null);
-const browserBacked = relative.startsWith("browse/") || relative.startsWith("make-pdf/");
+const browserBacked = relative.startsWith("browse/");
 const selectedCapabilities = Array.isArray(bundle?.selectedCapabilities) ? bundle.selectedCapabilities : [];
 const runtimeComponents = Array.isArray(bundle?.runtimeComponents) ? bundle.runtimeComponents : [];
 const visibleRequested = relative.startsWith("browse/") && (
