@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const PUBLIC_SKILLS = ['plan', 'design', 'qa', 'debug', 'review', 'ship'] as const;
+export const PUBLIC_SKILLS = ['plan', 'qa', 'debug', 'review', 'ship'] as const;
 export type PublicSkill = (typeof PUBLIC_SKILLS)[number];
 
 export const LIVE_OPT_IN = 'GSTACK_RUN_CODEX_HOST_ADVERSARIAL';
@@ -431,7 +431,7 @@ export function copyCanonicalSkills(canonicalRoot: string, destinationRoot: stri
   }
   const entries = fs.readdirSync(destinationRoot).sort();
   if (stableJson(entries) !== stableJson([...PUBLIC_SKILLS].sort())) {
-    throw new Error(`Installed skill tree must contain exactly six skills, got: ${entries.join(', ')}`);
+    throw new Error(`Installed skill tree must contain exactly five skills, got: ${entries.join(', ')}`);
   }
   return snapshotTree(destinationRoot);
 }

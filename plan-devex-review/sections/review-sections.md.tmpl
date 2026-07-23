@@ -365,9 +365,6 @@ After displaying the Review Readiness Dashboard, recommend next reviews:
 have architectural implications. If this DX review found API design problems, error
 handling gaps, or CLI ergonomics issues, eng review should validate the fixes.
 
-**Suggest /plan-design-review if user-facing UI exists** — DX review focuses on
-developer-facing surfaces; design review covers end-user-facing UI.
-
 **Recommend /devex-review after implementation** — the boomerang. Plan said TTHW would
 be [target from 0C]. Did reality match? Run /devex-review on the live product to find
 out. This is where the competitive benchmark pays off: you have a concrete target to
@@ -375,9 +372,8 @@ measure against.
 
 Use AskUserQuestion with applicable options:
 - **A)** Run /plan-eng-review next (required gate)
-- **B)** Run /plan-design-review (only if UI scope detected)
-- **C)** Ready to implement, run /devex-review after shipping
-- **D)** Skip, I'll handle next steps manually
+- **B)** Ready to implement, run /devex-review after shipping
+- **C)** Skip, I'll handle next steps manually
 
 ## Mode Quick Reference
 ```

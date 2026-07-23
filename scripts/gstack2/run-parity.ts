@@ -29,9 +29,12 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // per-tree code-intelligence offer contract added 18 (3 per dispatcher). The
 // third-party web-action contract added 24 more (4 per tree: exists, marker
 // format, dispatcher load, consent/secret content). Extending the #886
-// overlay to the review specialists (review, plan-design-review,
-// design-review) added 6 more (2 per newly targeted module).
-export const EXPECTED_PARITY_CHECKS = 5080;
+// overlay to the review specialists added more (2 per newly targeted module).
+// Removing the /design skill and its design-review offerings then dropped
+// design source modules, routing scenarios, carved sections, and design-only
+// overlays (#696, #1777, #1920, #2189) while keeping #538, which recomputes
+// the inventory to the value below.
+export const EXPECTED_PARITY_CHECKS = 4378;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -82,11 +85,10 @@ export function runParity(): ParityResult {
     .map((entry) => entry.name)
     .sort();
   check(JSON.stringify(publicSkills) === JSON.stringify([...TREE_NAMES].sort()), `Public skills differ: ${publicSkills.join(', ')}`);
-  check(SOURCE_ASSIGNMENTS.length === 55, `Expected 55 source assignments; got ${SOURCE_ASSIGNMENTS.length}`);
-  check(SOURCE_ASSIGNMENTS.filter((entry) => entry.mandatory).length === 31, 'Mandatory specialist count is not 31');
+  check(SOURCE_ASSIGNMENTS.length === 47, `Expected 47 source assignments; got ${SOURCE_ASSIGNMENTS.length}`);
+  check(SOURCE_ASSIGNMENTS.filter((entry) => entry.mandatory).length === 25, 'Mandatory specialist count is not 25');
   const exactModes: Record<string, string[]> = {
     plan: ['Discovery', 'Product', 'Engineering', 'DX', 'Specification', 'Full chain'],
-    design: ['Explore', 'Generate', 'Critique', 'Implement'],
     qa: ['Report', 'Fix'],
     debug: ['Diagnose-only', 'Fix'],
     review: ['Normal', 'Security', 'Performance', 'Deep'],
@@ -207,7 +209,7 @@ export function runParity(): ParityResult {
   }
   check(fs.readFileSync(path.join(ROOT, 'skills', 'ship', 'SKILL.md'), 'utf8').includes('references/EXTERNAL-EFFECTS.md'), 'Ship dispatcher does not bind external actions to durable state');
 
-  check(files(path.join(ROOT, 'evals', 'parity', 'contracts'), '.json').length === 55, 'Contract fixture count is not 55');
+  check(files(path.join(ROOT, 'evals', 'parity', 'contracts'), '.json').length === 47, 'Contract fixture count is not 47');
   const baselineRenders = json(path.join(ROOT, 'evals', 'parity', 'baseline-render-hashes.json'));
   check(baselineRenders.base_sha === GSTACK2_BASE_SHA, 'Immutable rendered-baseline SHA mismatch');
   for (const assignment of SOURCE_ASSIGNMENTS) {
@@ -231,7 +233,7 @@ export function runParity(): ParityResult {
     check(!generatedBody.includes('## Preamble (run first)'), `${assignment.source} still executes the retired shared onboarding preamble`);
     check(!/MODEL_OVERLAY: claude|CLAUDE_PLAN_FILE|Add routing rules to CLAUDE\.md|Boil the Ocean principle|TEL_PROMPTED|PROACTIVE_PROMPTED/.test(generatedBody), `${assignment.source} retains host-specific onboarding, engagement, or telemetry machinery`);
     check(!/cd <SKILL_DIR> && \.\/setup/.test(generatedBody), `${assignment.source} tells a standard-installed skill to run a nonexistent local setup script`);
-    check(!retiredInvocation.test(generatedBody), `${assignment.source} recommends a retired public invocation instead of a six-skill route`);
+    check(!retiredInvocation.test(generatedBody), `${assignment.source} recommends a retired public invocation instead of a five-skill route`);
     const usesRuntimeBinding = /\$(?:GSTACK_BIN|GSTACK_ROOT|GSTACK_STATE_ROOT)\b|\$(?:B|D|P)\b/.test(generatedBody);
     check(!usesRuntimeBinding || generatedBody.includes('## Host-neutral runtime bindings'), `${assignment.source} uses an unbound retained runtime helper variable`);
     check(!/bun\.sh\/install|bun run \$GSTACK_BIN|command -v bun/.test(generatedBody), `${assignment.source} retains GStack-owned host Bun onboarding or invocation`);
@@ -258,7 +260,7 @@ export function runParity(): ParityResult {
   check(canonicalPromptBytes < baselinePromptBytes * 0.5, `Canonical specialist corpus did not cut prompt bytes by at least 50% (${canonicalPromptBytes}/${baselinePromptBytes})`);
 
   const sections = legacySections();
-  check(sections.length === 16, `Expected 16 section templates; got ${sections.length}`);
+  check(sections.length === 14, `Expected 14 section templates; got ${sections.length}`);
   for (const section of sections) {
     check(blobShaForPath(section.relativePath) === json(path.join(ROOT, 'docs', 'gstack-2', 'JUDGMENT-PROVENANCE.json')).sections.find((item: any) => item.source_path === section.relativePath)?.blob_sha, `${section.relativePath} blob provenance mismatch`);
     const assignment = SOURCE_ASSIGNMENTS.find((entry) => entry.source === section.source)!;
@@ -272,8 +274,8 @@ export function runParity(): ParityResult {
     if (fs.existsSync(packaged)) check(normalizeGolden(fs.readFileSync(packaged, 'utf8')) === normalizeGolden(portedSection), `${section.relativePath} packaged content drifted`);
   }
 
-  check(SCENARIOS.length === 25, `Expected 25 scenarios; got ${SCENARIOS.length}`);
-  check(files(path.join(ROOT, 'evals', 'parity', 'scenarios'), '.json').length === 25, 'Generated scenario fixture count is not 25');
+  check(SCENARIOS.length === 19, `Expected 19 scenarios; got ${SCENARIOS.length}`);
+  check(files(path.join(ROOT, 'evals', 'parity', 'scenarios'), '.json').length === 19, 'Generated scenario fixture count is not 19');
   for (const scenario of SCENARIOS) {
     const routed = routeStructured(scenario.signals);
     const expectedRoute = {
@@ -290,8 +292,8 @@ export function runParity(): ParityResult {
     check(JSON.stringify(json(path.join(ROOT, 'evals', 'parity', 'scenarios', `${scenario.id}.json`))) === JSON.stringify(scenario), `${scenario.id} generated fixture drift`);
   }
 
-  check(BUG_FIX_OVERLAYS.length === 30, `Expected 30 regression definitions; got ${BUG_FIX_OVERLAYS.length}`);
-  check(files(path.join(ROOT, 'evals', 'parity', 'regressions'), '.json').length === 30, 'Generated regression fixture count is not 30');
+  check(BUG_FIX_OVERLAYS.length === 26, `Expected 26 regression definitions; got ${BUG_FIX_OVERLAYS.length}`);
+  check(files(path.join(ROOT, 'evals', 'parity', 'regressions'), '.json').length === 26, 'Generated regression fixture count is not 26');
   for (const overlay of BUG_FIX_OVERLAYS) {
     const fixture = json(path.join(ROOT, 'evals', 'parity', 'regressions', `pr-${overlay.pr}.json`));
     check(JSON.stringify(fixture) === JSON.stringify(overlay), `PR #${overlay.pr} regression fixture drift`);
@@ -371,10 +373,10 @@ export function runParity(): ParityResult {
     if (fs.existsSync(target)) check(sha256(fs.readFileSync(target)) === dependency.sha256, `Transitive module copy drift: ${dependency.target}`);
   }
 
-  check(files(path.join(ROOT, 'compat'), '.md').length === 56, 'Compatibility alias file count is not 55 + README');
+  check(files(path.join(ROOT, 'compat'), '.md').length === 48, 'Compatibility alias file count is not 47 + README');
   const migrationMap = json(path.join(ROOT, 'compat', 'migration-map.json'));
   check(migrationMap.schema_version === 1, 'Compatibility migration map schema mismatch');
-  check(migrationMap.aliases.length === 55, 'Compatibility migration map must contain 55 aliases');
+  check(migrationMap.aliases.length === 47, 'Compatibility migration map must contain 47 aliases');
   check(migrationMap.policy.default_discoverable === false, 'Compatibility aliases must be opt-in');
   check(
     migrationMap.policy.context_choice_migrated_implicitly === false &&

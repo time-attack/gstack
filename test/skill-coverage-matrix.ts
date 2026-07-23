@@ -100,15 +100,6 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
       'test/skill-e2e-plan-eng-multi-finding-batching.test.ts',
     ],
   },
-  'plan-design-review': {
-    gate: [
-      'test/skill-e2e-plan-design-finding-floor.test.ts',
-      'test/skill-e2e-plan-design-plan-mode.test.ts',
-      'test/skill-e2e-plan-design-with-ui.test.ts',
-      'test/skill-coverage-floor.test.ts',
-    ],
-    periodic: ['test/skill-e2e-plan-design-finding-count.test.ts'],
-  },
   'plan-devex-review': {
     gate: [
       'test/skill-e2e-plan-devex-finding-floor.test.ts',
@@ -126,16 +117,6 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
     periodic: ['test/skill-e2e-office-hours-auto-mode.test.ts', 'test/skill-e2e-office-hours-phase4.test.ts'],
   },
 
-  // ─── Polish + design ────────────────────────────────────────
-  'design-review': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'design-consultation': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'design-shotgun': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'design-html': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  diagram: {
-    gate: ['test/skill-e2e-diagram.test.ts', 'test/skill-coverage-floor.test.ts'],
-    periodic: ['test/skill-e2e-diagram.test.ts'],
-    rationale: 'Triplet contract is gate-tier deterministic; authoring-quality judge is periodic (E2E_TIERS: diagram-triplet/diagram-authoring-quality).',
-  },
   cso: {
     gate: ['test/skill-e2e-cso.test.ts', 'test/cso-preserved.test.ts', 'test/skill-coverage-floor.test.ts'],
     periodic: [],
@@ -184,7 +165,6 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
   'ios-fix': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'ios-clean': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'ios-sync': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'ios-design-review': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
 
   // ─── Safety / housekeeping ──────────────────────────────────
   careful: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
@@ -193,6 +173,5 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
   guard: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'landing-report': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   health: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'make-pdf': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
   'devex-review': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
 };

@@ -44,33 +44,33 @@
       "baseline": {
         "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
         "source_path": "ship/SKILL.md.tmpl",
-        "rendered_sha256": "604d742ea769fc7e0e46ddc2dc9130331c8137e470718290afe9f3c015ab2702",
+        "rendered_sha256": "11157e9a8fe84aa4e8baffbc075a01f64fb19b97c968fde544df687d15d43713",
         "semantic_signature": {
-          "normalized_sha256": "604d742ea769fc7e0e46ddc2dc9130331c8137e470718290afe9f3c015ab2702",
+          "normalized_sha256": "11157e9a8fe84aa4e8baffbc075a01f64fb19b97c968fde544df687d15d43713",
           "headings_sha256": "f7b15eeabb67c2dc83600bf0d6b9e1554292db8676e18cc6e59580eab5bda5fc",
           "questions_sha256": "60ed392fcb9487d43d89d5efb968d1444df3859b90b57bcd45d4bae904d3c7f6",
-          "obligations_sha256": "e844df9480612f3e6e0ac47ba3cad7dfdb786e2b2e59532e67012b80fa4a8343",
+          "obligations_sha256": "fffabf851cee64bd69a6c74f2c8949771082a6420d2c12a4cf9b166ffa57c910",
           "heading_count": 92,
           "question_count": 15,
-          "obligation_count": 201
+          "obligation_count": 200
         }
       },
       "mechanical_port": {
-        "rendered_sha256": "ca55c56483c524c732cf4cd1a7b7ef36f379666577549ef989823b98bce8c5b5",
+        "rendered_sha256": "792b2980469d456c9617d22cbd246f2771a7e7c3a8c2e28aa79202eb6c511c8e",
         "differs_from_baseline": true,
-        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to six public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
+        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to five public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
       },
       "candidate": {
         "target_path": "skills/ship/references/legacy/ship.md",
-        "rendered_legacy_body_sha256": "ca55c56483c524c732cf4cd1a7b7ef36f379666577549ef989823b98bce8c5b5",
+        "rendered_legacy_body_sha256": "792b2980469d456c9617d22cbd246f2771a7e7c3a8c2e28aa79202eb6c511c8e",
         "semantic_signature": {
-          "normalized_sha256": "ca55c56483c524c732cf4cd1a7b7ef36f379666577549ef989823b98bce8c5b5",
+          "normalized_sha256": "792b2980469d456c9617d22cbd246f2771a7e7c3a8c2e28aa79202eb6c511c8e",
           "headings_sha256": "42c12606506cfd2cfd31dc678c91d63b0212aa4e424730f5b9e257ab033c4958",
           "questions_sha256": "943ac3bc0b28becb558873810d1884e4311865a10cbd44a2b8c8ae0184fece84",
-          "obligations_sha256": "134233894787ff09edb0506fdede185d24a756fc3278fe2e81790296bd48ca8c",
+          "obligations_sha256": "3c7fb24f91b84676a954b3059549a4aae0b50e8aebb00900e345c18f9db2ea5a",
           "heading_count": 26,
           "question_count": 1,
-          "obligation_count": 70
+          "obligation_count": 69
         }
       },
       "deterministic_comparison": {

@@ -213,7 +213,7 @@ describe('GStack 2 raw-prompt Codex host adversarial harness', () => {
     expect(isPureReadOnlyGitInspection("/bin/zsh -lc 'git status && frobnicate --now'")).toBe(false);
   });
 
-  test('copies complete canonical directories and only the six public skills', () => {
+  test('copies complete canonical directories and only the five public skills', () => {
     const root = temporaryRoot('gstack-host-copy-');
     const canonicalRoot = path.join(REPOSITORY_ROOT, 'skills');
     const destination = path.join(root, '.agents', 'skills');

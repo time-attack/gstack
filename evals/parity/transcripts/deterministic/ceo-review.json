@@ -46,21 +46,21 @@
       "baseline": {
         "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
         "source_path": "plan-ceo-review/SKILL.md.tmpl",
-        "rendered_sha256": "f64e6c814fc528ebed69a2b59bf66cf4b6ef5f276d009eb27bea4f1c63a40d6c",
+        "rendered_sha256": "3494662a21831dc0416358596d967d26c67ba2e1490eeeb1758c56f946670ed9",
         "semantic_signature": {
-          "normalized_sha256": "f64e6c814fc528ebed69a2b59bf66cf4b6ef5f276d009eb27bea4f1c63a40d6c",
-          "headings_sha256": "f676b247c2612dac933cdb2bf3fcb33bf0d0b494341b73306200ffa482da3f1c",
+          "normalized_sha256": "3494662a21831dc0416358596d967d26c67ba2e1490eeeb1758c56f946670ed9",
+          "headings_sha256": "207403ba10421a274bb3b7ab2d7c2075620f0153b951354742b4adbb1868cd60",
           "questions_sha256": "52f612856f4b1e27711fb2df517e598495890b0e056a00a96f295a243f72bd9c",
-          "obligations_sha256": "ed3b72a4bb568704846738d649138fd2dd1953d4fef02b4ec266991140ca193f",
-          "heading_count": 99,
+          "obligations_sha256": "c2f0cad6568cae72a981701e95f5ba4fa3917c3a462199a7488506c007a67702",
+          "heading_count": 98,
           "question_count": 82,
-          "obligation_count": 177
+          "obligation_count": 173
         }
       },
       "mechanical_port": {
         "rendered_sha256": "811b50b2cf2e20768138c50ef67471402ad1e361bd07958c63107c5081cf21b7",
         "differs_from_baseline": true,
-        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to six public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
+        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to five public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
       },
       "candidate": {
         "target_path": "skills/plan/references/legacy/plan-ceo-review.md",

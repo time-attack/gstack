@@ -19,14 +19,6 @@ This package is self-contained. Route every retired invocation to the exact repl
 | `/retro` | `$plan --mode Discovery --module retro` | install `plan` |
 | `/setup-gbrain` | `$plan --mode Discovery --module setup-gbrain` | install `plan` |
 | `/sync-gbrain` | `$plan --mode Discovery --module sync-gbrain` | install `plan` |
-| `/design-consultation` | `$design --mode Generate --module design-consultation` | install `design` |
-| `/design-shotgun` | `$design --mode Explore --module design-shotgun` | install `design` |
-| `/design-html` | `$design --mode Implement --module design-html` | install `design` |
-| `/plan-design-review` | `$design --mode Critique --module plan-design-review` | install `design` |
-| `/design-review` | `$design --mode Implement --module design-review` | install `design` |
-| `/ios-design-review` | `$design --mode Critique --module ios-design-review` | install `design` |
-| `/diagram` | `$design --mode Generate --module diagram` | install `design` |
-| `/make-pdf` | `$design --mode Generate --module make-pdf` | install `design` |
 | `/qa` | `$qa --mode Fix --module qa` | install `qa` |
 | `/qa-only` | `$qa --mode Report --module qa-only` | install `qa` |
 | `/ios-qa` | `$qa --mode Report --module ios-qa` | install `qa` |

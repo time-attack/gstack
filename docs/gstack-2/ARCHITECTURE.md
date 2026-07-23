@@ -6,10 +6,10 @@ The authoritative gate state is [STATUS.md](./STATUS.md).
 
 ## Product boundary
 
-GStack 2 is an engineering judgment layer with exactly six public skills:
+GStack 2 is an engineering judgment layer with exactly five public skills:
 
 ```text
-plan -> design -> qa -> debug -> review -> ship
+plan -> qa -> debug -> review -> ship
 ```
 
 This is a navigation surface, not a linear workflow and not a compression of
@@ -23,7 +23,7 @@ The canonical tree is:
 
 ```text
 skills/
-  plan|design|qa|debug|review|ship/
+  plan|qa|debug|review|ship/
     SKILL.md                    thin dispatcher
     agents/openai.yaml          optional host presentation metadata
     references/
@@ -35,8 +35,8 @@ compat/*.md                     internal aliases, never default skills
 evals/parity/                   contracts, scenarios, regressions, manifest
 ```
 
-`scripts/gstack2/generate-skill-tree.ts` mechanically renders 55 pinned legacy
-modules, inlines 16 carved sections, and carries 78 assets. The generator
+`scripts/gstack2/generate-skill-tree.ts` mechanically renders 47 pinned legacy
+modules, inlines 14 carved sections, and carries 72 assets. The generator
 records source Git blob IDs and normalized render hashes. It adds only reviewed
 upstream bug-fix overlays, each with a PR link, stable anchor, and regression fixture. The parity
 runner checks nine behavioral dimensions: question order, pressure, smart
@@ -70,7 +70,6 @@ migration map.
 | Skill | Public top-level modes and preserved refinements |
 |---|---|
 | `/plan` | exactly **Discovery, Product, Engineering, DX, Specification, Full chain**, refined to office-hours, CEO, engineering, DX, spec, or autoplan judgment |
-| `/design` | **Explore, Generate, Critique, Implement**, refined to consultation, alternatives, HTML/CSS, plan/live review, physical-iOS HIG, diagram, or PDF |
 | `/qa` | **Report** or **Fix**, refined by web, physical-iOS, DX, performance, or canary surface |
 | `/debug` | **Diagnose-only** or **Fix**, refined to general investigation or the physical-iOS fix loop |
 | `/review` | **Normal, Security, Performance, Deep**, with health and genuinely independent outside voices selected only when applicable |
@@ -106,7 +105,7 @@ not prove a passing live installed-host judgment run.
 
 Pure judgment is Markdown and works when the optional runtime is absent. A
 capability-dependent module performs one runtime check and must degrade with an
-actionable setup choice rather than make the six skills undiscoverable.
+actionable setup choice rather than make the five skills undiscoverable.
 
 ## Optional host-neutral runtime
 
@@ -239,7 +238,7 @@ means the replacement still lacks its required release evidence.
 | 4 | External `--dry-run` mutates files | **Contained:** external host generation/dry-run is not used for 2.0 distribution. | Canonical regeneration/parity check exists; a non-mutating canonical check mode (`bun run check:gstack2-nonmutating` / `generate-skill-tree.ts --check`) verifies freshness in-memory without writing any file. `test/gstack2-generation-check-nonmutating.test.ts` proves it touches zero files and flags drift. |
 | 5 | Single-host generation failures only warn | **Contained:** no per-host generation in the canonical path; canonical generation throws on failure. | Generator/parity suite and final build rerun are green. |
 | 6 | Setup continues after failed generation | **Implemented/contained:** standard installer handles skills; runtime setup fails before activation and preserves last known good. | Failure tests plus the real two-version default lifecycle and rollback pass. |
-| 7 | Removed/renamed generated skills are not pruned | **Implemented for canonical references:** regeneration removes each reference/asset tree and parity corpus before writing the fixed six. | Parity inventory test; `test/gstack2-stale-skill-pruning.test.ts` plants stale reference/nested-dir/asset/compat/parity artifacts and proves regeneration prunes every one (fails if any prune is removed). |
+| 7 | Removed/renamed generated skills are not pruned | **Implemented for canonical references:** regeneration removes each reference/asset tree and parity corpus before writing the fixed five. | Parity inventory test; `test/gstack2-stale-skill-pruning.test.ts` plants stale reference/nested-dir/asset/compat/parity artifacts and proves regeneration prunes every one (fails if any prune is removed). |
 | 8 | Freshness misses generator/design/PDF changes | **Implemented:** build invokes canonical generation; parity hashes source, sections, assets, and fixtures. | Design is green at 101/0/381, PDF at 189/0/398, and the uninterrupted broad singleton run is green at 6,255 pass / 226 expected skips / 0 fail across all 384 files. |
 | 9 | State paths bypass canonical resolver | **Implemented:** `runtime/paths.js` is authoritative for 2.0 runtime state. | `gstack2-runtime-core.test.ts`. |
 | 10 | Shell-evaluated path assignments are unsafe | **Implemented:** runtime paths are JavaScript values; shell-looking input remains literal. | Core test covers spaces, `$()`, semicolon, and `$HOME` text. |
@@ -257,7 +256,7 @@ means the replacement still lacks its required release evidence.
 | 22 | Setup failures become product failures | **Implemented for the tested paths:** iOS discovery/setup categories and runtime doctor return actionable setup state. | Earlier setup failures stayed typed and unpromoted; the separately authorized live lane later passed signing through five iterations and cleanup. |
 | 23 | Runtime network activity is not obvious | **Implemented for Context runtime:** selection, mode, and consent are explicit; status/doctor report them; zero lookup/fetch before Context selection+consent. | Context contract: 22 pass / 0 fail / 139 assertions, including persisted non-export fallbacks; verified-key official-endpoint live smoke passed. |
 | 24 | Context restore selects another worktree | **Implemented for canonical state resume:** current repo+worktree project ID scopes inspection/resume. | Linked-worktree identity test passes; `test/gstack2-context-restore-e2e.test.ts` creates two real linked worktrees (same repo, different worktree id), saves distinct state in each, restores through the real CLI (cwd is the only selector), and proves each restores only its own scoped state with cross-selection rejected both directions. |
-| 25 | Preambles repeat large sections in every skill | **Implemented structurally:** six thin lazy dispatchers share infrastructure and load one preserved module on demand. | Current generated six-name/description catalog is 982 characters, about 246 token-equivalents versus the correctly parsed baseline of about 1,100 (77.6% lower). Re-measure if frontmatter changes. |
+| 25 | Preambles repeat large sections in every skill | **Implemented structurally:** five thin lazy dispatchers share infrastructure and load one preserved module on demand. | The generated five-name/description catalog re-measures below the correctly parsed 1.x baseline of about 1,100 token-equivalents (`test/gstack2-skills.test.ts` enforces the 75%-below ceiling). Re-measure if frontmatter changes. |
 
 No defect in this table should be closed from prose alone. The final claim must
 link its reproduction and passing test in [TEST-EVIDENCE.md](./TEST-EVIDENCE.md).

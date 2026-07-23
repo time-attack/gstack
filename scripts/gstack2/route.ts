@@ -84,22 +84,8 @@ export function routeStructured(signals: Record<string, unknown>): StructuredRou
     } else {
       mode = 'Report'; source = 'devex-review'; activeModules = ['devex-review', 'qa-only', 'investigate', 'system-functional'];
     }
-  } else if (signals.surface === 'ios' && signals.real_device === true) {
-    if (signals.interaction_required === true) {
-      tree = 'qa'; mode = 'Report'; source = 'ios-qa';
-    } else {
-      tree = 'design'; mode = 'Critique'; source = 'ios-design-review';
-    }
-  } else if (signals.surface === 'design-system') {
-    tree = 'design'; mode = 'Generate'; source = 'design-consultation';
-  } else if (signals.alternatives_requested === true) {
-    tree = 'design'; mode = 'Explore'; source = 'design-shotgun';
-  } else if (signals.output === 'html-css') {
-    tree = 'design'; mode = 'Implement'; source = 'design-html';
-  } else if (signals.surface === 'web' && signals.implementation_exists === false) {
-    tree = 'design'; mode = 'Critique'; source = 'plan-design-review';
-  } else if (signals.surface === 'web' && signals.evidence === 'before-after') {
-    tree = 'design'; mode = 'Implement'; source = 'design-review';
+  } else if (signals.surface === 'ios' && signals.real_device === true && signals.interaction_required === true) {
+    tree = 'qa'; mode = 'Report'; source = 'ios-qa';
   } else if (signals.surface === 'web' && signals.implementation_exists === true) {
     tree = 'qa';
     if (signals.mutation_authorized === true) {

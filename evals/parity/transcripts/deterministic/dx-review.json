@@ -47,27 +47,27 @@
       "baseline": {
         "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
         "source_path": "plan-devex-review/SKILL.md.tmpl",
-        "rendered_sha256": "4f77b2fb446e9a79ac5027ab14d097b48d62435d162900d2471e5fa19a0a4605",
+        "rendered_sha256": "e28af06b7d20b686475bbede907d88b977ec1b75c540377673f9f150ed5957bf",
         "semantic_signature": {
-          "normalized_sha256": "4f77b2fb446e9a79ac5027ab14d097b48d62435d162900d2471e5fa19a0a4605",
+          "normalized_sha256": "e28af06b7d20b686475bbede907d88b977ec1b75c540377673f9f150ed5957bf",
           "headings_sha256": "38b32c459904a94ecac2f1a106e7f4f82afa05bf5a81b004b7169cf7ef477a99",
           "questions_sha256": "4109be06ba67be4b83dcd8e17b9ce6391f9d48d86eb9e11b7ef794d77f1e0e84",
-          "obligations_sha256": "8fe3b92882cc03206e5832ebd0d6cefd53afa547a52af9e5027f60f2fcd25d32",
+          "obligations_sha256": "06dc10c0927e678ca27185b87af92d6baa31210df1214f53fea3380b5eb9234d",
           "heading_count": 92,
           "question_count": 74,
-          "obligation_count": 163
+          "obligation_count": 162
         }
       },
       "mechanical_port": {
-        "rendered_sha256": "2d39acb36fdc7f4f4b3492ff7dd21081fad98b256fa40d00aeee67bd41343f15",
+        "rendered_sha256": "f5ccee657013032a8b741acacd34ae23bdc7ee48ac1656b5b42803b4c5a41957",
         "differs_from_baseline": true,
-        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to six public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
+        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to five public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
       },
       "candidate": {
         "target_path": "skills/plan/references/legacy/plan-devex-review.md",
-        "rendered_legacy_body_sha256": "2d39acb36fdc7f4f4b3492ff7dd21081fad98b256fa40d00aeee67bd41343f15",
+        "rendered_legacy_body_sha256": "f5ccee657013032a8b741acacd34ae23bdc7ee48ac1656b5b42803b4c5a41957",
         "semantic_signature": {
-          "normalized_sha256": "2d39acb36fdc7f4f4b3492ff7dd21081fad98b256fa40d00aeee67bd41343f15",
+          "normalized_sha256": "f5ccee657013032a8b741acacd34ae23bdc7ee48ac1656b5b42803b4c5a41957",
           "headings_sha256": "7aebb4be8ec2a9ba9034b835bb07a244053a62156eabec252e0d78b3523f248a",
           "questions_sha256": "5d2d6b27d20c553887edf16ec79a25c0ecab599418052d8e5fc52a172ceb8afe",
           "obligations_sha256": "44fe82d36ea1aca78b396ef65052cff618b4f444fcb6f9ace283c116d0add332",

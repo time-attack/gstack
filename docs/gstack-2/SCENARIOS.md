@@ -1,6 +1,6 @@
 # GStack 2 routing scenarios
 
-The 25 executable fixtures route from structured stage/surface/authorization/evidence signals. Their prompts intentionally avoid public skill and mode names.
+The 19 executable fixtures route from structured stage/surface/authorization/evidence signals. Their prompts intentionally avoid public skill and mode names.
 
 | ID | Expected decision | Active | Mutation | Evidence basis | Gap |
 |---|---|---|---|---|---|
@@ -10,12 +10,6 @@ The 25 executable fixtures route from structured stage/surface/authorization/evi
 | `developer-first-onboarding` | `plan:DX` | `plan-devex-review` | `plan-only` | audience=developers; journey=onboarding | — |
 | `cross-functional-decision` | `plan:Full chain` | `autoplan` | `plan-only` | review_axes_count=4; automatic_decisions=true | — |
 | `backlog-ready-handoff` | `plan:Specification` | `spec` | `spec-and-issue` | output=executable-backlog-item; phase=handoff | — |
-| `new-visual-system` | `design:Generate` | `design-consultation` | `design-artifacts` | surface=design-system; implementation_exists=false | — |
-| `compare-directions` | `design:Explore` | `design-shotgun` | `design-artifacts` | alternatives_requested=true; output=comparison | — |
-| `coded-marketing-surface` | `design:Implement` | `design-html` | `design-artifacts` | output=html-css; runtime_verification=true | — |
-| `prebuild-interface-critique` | `design:Critique` | `plan-design-review` | `plan-only` | implementation_exists=false; artifact_exists=true | — |
-| `implemented-interface-audit` | `design:Implement` | `design-review` | `fix-safe` | implementation_exists=true; mutation_authorized=true | — |
-| `real-device-hig-audit` | `design:Critique` | `ios-design-review` | `report-only` | surface=ios; real_device=true | — |
 | `browser-findings-only` | `qa:Report` | `qa-only` | `report-only` | surface=web; mutation_authorized=false | — |
 | `browser-fix-and-verify` | `qa:Fix` | `qa` | `fix-safe` | surface=web; mutation_authorized=true | — |
 | `device-state-journey` | `qa:Report` | `ios-qa` | `report-only` | surface=ios; real_device=true | — |
