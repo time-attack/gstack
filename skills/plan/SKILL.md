@@ -36,6 +36,10 @@ Web context: <none, optional, local-browser, or production>
 
 9. Classify the Scale header line from the Build scale section before any questioning begins. Every planning specialist applies its proportional-planning judgment port to that scale.
 
+## Empty-target fast path
+
+Probe the target directory with one cheap listing (`ls -A`) before reading any reference file or specialist module. If the working tree is empty or holds only VCS/tooling metadata (`.git`, `.gitignore`, editor or CI config), do not spend further reading discovering that: print the required header immediately with `Target: <path> (empty repository — greenfield)`, state in the first sentence after the header that the repository is empty, and plan from the prompt alone. Skip decision-store recall, repository scanning, and every specialist phase whose input is existing code — there is none. If the prompt carries no idea to plan, ask the single question of what the user wants to build before reading any module. An empty tree fixes the codebase vector at greenfield; scale comes from the prompt alone.
+
 ## Build scale
 
 Classify the request on fifteen scale vectors before any questioning begins, from the prompt and cheap repository evidence only. Never run a questioning round merely to classify scale. Default unknown vectors to the low end; the specialist's own workflow raises the scale naturally when answers reveal more (builder talk turning into startup talk upgrades mid-session).
