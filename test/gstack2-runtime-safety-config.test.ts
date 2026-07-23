@@ -306,17 +306,11 @@ describe("one config authority", () => {
   test("runtime remediation never assumes a host-specific skill path or legacy setup script", async () => {
     const sources = [
       "runtime/install.js",
-      "make-pdf/src/setup.ts",
-      "make-pdf/src/browseClient.ts",
-      "make-pdf/src/diagram-prepass.ts",
     ];
     for (const relative of sources) {
       const source = await fs.readFile(path.resolve(import.meta.dir, "..", relative), "utf8");
       expect(source, relative).not.toMatch(/(?:re-?run|run)\s+`?\.\/setup/i);
       expect(source, relative).not.toMatch(/(?:to fix|missing|unsafe|invalid)[\s\S]{0,240}(?:~\/)?\.claude\/skills/i);
     }
-    const pdfSetup = await fs.readFile(path.resolve(import.meta.dir, "../make-pdf/src/setup.ts"), "utf8");
-    expect(pdfSetup).toContain("gstack doctor --skill-api 2.0");
-    expect(pdfSetup).toContain("--capability pdf");
   });
 });

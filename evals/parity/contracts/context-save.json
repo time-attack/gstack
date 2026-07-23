@@ -9,7 +9,7 @@
   "source_path": "context-save/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "a3702bc95439cddd87841aba836708bf511ef55d",
-  "normalized_render_sha256": "f457da8b2cc1f9a4ed8ba82f4ea570a69460ce0147e171b5023d66324b6dc899",
+  "normalized_render_sha256": "9202f9bf88569b19240967ba8e3ab3608e205f8b1b40dca2fff182ff125c5958",
   "target": "skills/plan/references/legacy/context-save.md",
   "overlays": [
     679,

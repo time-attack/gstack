@@ -622,8 +622,6 @@ process.stdout.write(process.env.GSTACK_CHROMIUM_PATH || "unset");
     );
     expect(compiledHelpers).toEqual({
       browse: { posix: "browse/dist/browse", win32: "browse/dist/browse.exe" },
-      "gstack-design": { posix: "design/dist/design", win32: "design/dist/design.exe" },
-      "make-pdf": { posix: "make-pdf/dist/pdf", win32: "make-pdf/dist/pdf.exe" },
     });
     const bundlePaths = new Set(DEFAULT_RUNTIME_BUNDLE.map((item) => item.path));
     for (const dependency of [

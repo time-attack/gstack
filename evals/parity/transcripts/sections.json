@@ -126,11 +126,11 @@
       "source_path": "ship/sections/review-army.md.tmpl",
       "parent_source": "ship",
       "target_path": "skills/ship/references/legacy/ship.md",
-      "baseline_render_sha256": "21cbb6b729ac4069fb1c9626979ad821e5227463d783b16b70f67526208d697b",
-      "ported_render_sha256": "cbfee41463032434762b1c6abcbb6372b841832f733f102f4e8c6c49f1407bb2",
+      "baseline_render_sha256": "ef845e178f004fc226fafb29b9215e39f710fab5907bf0299a1e9cf8303c18ca",
+      "ported_render_sha256": "8e200b27f56f929ae5eded9d14956bb7b8011a9f60f41655573d199fafab471d",
       "candidate_inline_occurrences": 0,
       "candidate_lazy_reference_occurrences": 1,
-      "packaged_sha256": "cbfee41463032434762b1c6abcbb6372b841832f733f102f4e8c6c49f1407bb2",
+      "packaged_sha256": "8e200b27f56f929ae5eded9d14956bb7b8011a9f60f41655573d199fafab471d",
       "classification": "EQUIVALENT"
     },
     {

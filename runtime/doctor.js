@@ -20,9 +20,6 @@ import {
 
 export const CAPABILITY_READINESS_CAPABILITIES = Object.freeze([
   "browser",
-  "design",
-  "diagram",
-  "pdf",
   "ios",
 ]);
 
@@ -412,9 +409,6 @@ async function inspectXcrun() {
 
 function capabilityLaunchersReady(capability, launchers) {
   if (capability === "browser" || capability === "browser-visible") return typeof launchers.browse === "string";
-  if (capability === "design") return typeof launchers["gstack-design"] === "string";
-  if (capability === "pdf") return typeof launchers["make-pdf"] === "string";
-  if (capability === "diagram") return true;
   if (capability === "ios") {
     return typeof launchers["gstack-ios-qa-daemon"] === "string" &&
       typeof launchers["gstack-ios-qa-mint"] === "string";

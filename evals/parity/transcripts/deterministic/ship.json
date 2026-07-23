@@ -44,27 +44,27 @@
       "baseline": {
         "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
         "source_path": "ship/SKILL.md.tmpl",
-        "rendered_sha256": "11157e9a8fe84aa4e8baffbc075a01f64fb19b97c968fde544df687d15d43713",
+        "rendered_sha256": "9af827a90f953b6a527b82a16ffd4dce19f498717c6993a01824f86a7cec68ec",
         "semantic_signature": {
-          "normalized_sha256": "11157e9a8fe84aa4e8baffbc075a01f64fb19b97c968fde544df687d15d43713",
-          "headings_sha256": "f7b15eeabb67c2dc83600bf0d6b9e1554292db8676e18cc6e59580eab5bda5fc",
+          "normalized_sha256": "9af827a90f953b6a527b82a16ffd4dce19f498717c6993a01824f86a7cec68ec",
+          "headings_sha256": "461d9c01c10b07c3b06abdb0f43b02201564eeea0ccdcdf704c043ecb27789e3",
           "questions_sha256": "60ed392fcb9487d43d89d5efb968d1444df3859b90b57bcd45d4bae904d3c7f6",
-          "obligations_sha256": "fffabf851cee64bd69a6c74f2c8949771082a6420d2c12a4cf9b166ffa57c910",
-          "heading_count": 92,
+          "obligations_sha256": "45a9fa0ebf09ba893a91be53b58604af4192a46f468cd64729b87884188af880",
+          "heading_count": 91,
           "question_count": 15,
-          "obligation_count": 200
+          "obligation_count": 199
         }
       },
       "mechanical_port": {
-        "rendered_sha256": "792b2980469d456c9617d22cbd246f2771a7e7c3a8c2e28aa79202eb6c511c8e",
+        "rendered_sha256": "4450b250c82157fcf5e11e196dd968667689c4cc98209c54c70280f2e3592a14",
         "differs_from_baseline": true,
         "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to five public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
       },
       "candidate": {
         "target_path": "skills/ship/references/legacy/ship.md",
-        "rendered_legacy_body_sha256": "792b2980469d456c9617d22cbd246f2771a7e7c3a8c2e28aa79202eb6c511c8e",
+        "rendered_legacy_body_sha256": "4450b250c82157fcf5e11e196dd968667689c4cc98209c54c70280f2e3592a14",
         "semantic_signature": {
-          "normalized_sha256": "792b2980469d456c9617d22cbd246f2771a7e7c3a8c2e28aa79202eb6c511c8e",
+          "normalized_sha256": "4450b250c82157fcf5e11e196dd968667689c4cc98209c54c70280f2e3592a14",
           "headings_sha256": "42c12606506cfd2cfd31dc678c91d63b0212aa4e424730f5b9e257ab033c4958",
           "questions_sha256": "943ac3bc0b28becb558873810d1884e4311865a10cbd44a2b8c8ae0184fece84",
           "obligations_sha256": "3c7fb24f91b84676a954b3059549a4aae0b50e8aebb00900e345c18f9db2ea5a",

@@ -160,7 +160,7 @@ export function replaceRetiredInvocations(value: string): string {
 function renderCanonicalSpecialistBody(source: string): string {
   const templatePath = legacyTemplatePath(source);
   const relativePath = repositoryRelativePath(templatePath);
-  const template = pinnedText(relativePath);
+  const template = stripRetiredDesignPlaceholders(pinnedText(relativePath));
   const context = buildContext(template, templatePath);
   const overrides = Object.fromEntries(CANONICAL_EXCLUDED_RESOLVERS.map((name) => [name, '']));
   // Hook advisories are part of the host-specific 1.x wrapper. Canonical
@@ -186,7 +186,7 @@ function applyCodexRewrites(content: string): string {
 export function renderLegacyBody(source: string): string {
   const templatePath = legacyTemplatePath(source);
   const relativePath = repositoryRelativePath(templatePath);
-  const template = pinnedText(relativePath);
+  const template = stripRetiredDesignPlaceholders(pinnedText(relativePath));
   const context = buildContext(template, templatePath);
   let body = stripFrontmatter(resolvePlaceholders(template, context, relativePath));
   const safety = extractHookSafetyProse(template);
@@ -231,7 +231,25 @@ const DESIGN_REVIEW_OFFER_REWRITES: Array<[string, string]> = [
   // gstack meta-skill routing table (root SKILL.md.tmpl): drop the design-REVIEW routes
   ['\n- User asks to review design of a plan → invoke `/plan-design-review`', ''],
   ['\n- User asks about visual polish, design audit of a live site, "this looks off" → invoke `/design-review`', ''],
+  // ship/SKILL.md.tmpl parent body: drop the retired diff-scoped design-review-lite mention
+  ['\n\nFor Design Review: run `source <(~/.claude/skills/gstack/bin/gstack-diff-scope <base> 2>/dev/null)`. If `SCOPE_FRONTEND=true` and no design review (plan-design-review or design-review-lite) exists in the dashboard, mention: "Design Review not run — this PR changes frontend code. The lite design check will run automatically in Step 9, but consider running /design-review for a full visual audit post-implementation." Still never block.', ''],
 ];
+
+// The retired design-review-lite specialist is gone, so its `{{DESIGN_REVIEW_LITE}}`
+// placeholder and the "include design findings" prose must be stripped from the
+// pinned section template BEFORE placeholder resolution (an unregistered resolver
+// throws). This converges the ported pinned section with the working-tree section.
+export function stripRetiredDesignPlaceholders(template: string): string {
+  return template
+    .replace(
+      '{{DESIGN_REVIEW_LITE}}\n\n   Include any design findings alongside the code review findings. They follow the same Fix-First flow below.\n\n',
+      '',
+    )
+    // office-hours: drop the design-binary visual-mockup path; the binary-free
+    // {{DESIGN_SKETCH}} wireframe fallback below it is retained as the only
+    // visual-exploration surface.
+    .replace('{{DESIGN_MOCKUP}}\n\n', '');
+}
 
 function stripDesignReviewOfferings(value: string, source: string): string {
   let out = value;
@@ -548,7 +566,7 @@ export function renderPortedLegacyBody(source: string): string {
       body,
     ].join('\n');
   }
-  if (/\$(?:GSTACK_BIN|GSTACK_ROOT|GSTACK_STATE_ROOT)\b|\$(?:B|D|P)\b/.test(body)) {
+  if (/\$(?:GSTACK_BIN|GSTACK_ROOT|GSTACK_STATE_ROOT)\b|\$B\b/.test(body)) {
     const bindings = [
       '## Host-neutral runtime bindings',
       '',
@@ -561,8 +579,6 @@ export function renderPortedLegacyBody(source: string): string {
       'GSTACK_BIN="$GSTACK_HOME/bin"',
       'BUN_CMD="$GSTACK_BIN/bun"',
       'B="$GSTACK_BIN/browse"',
-      'D="$GSTACK_BIN/gstack-design"',
-      'P="$GSTACK_BIN/make-pdf"',
       '```',
       '',
     ].join('\n');
@@ -638,7 +654,7 @@ export function legacySections(): LegacySection[] {
     for (const file of fs.readdirSync(sectionDir).filter((name) => name.endsWith('.md.tmpl')).sort()) {
       const absolutePath = path.join(sectionDir, file);
       const relativePath = repositoryRelativePath(absolutePath);
-      const template = pinnedText(relativePath);
+      const template = stripRetiredDesignPlaceholders(pinnedText(relativePath));
       const rendered = `${applyCodexRewrites(resolvePlaceholders(template, context, relativePath)).trim()}\n`;
       sections.push({ source: sourceDir.name, absolutePath, relativePath, rendered });
     }
