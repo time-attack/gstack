@@ -25,7 +25,7 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // (27 -> 28, office-hours only) added 5 more. The self-contained-questions
 // overlay for issue #879 (28 -> 29, targets '*', all 55 modules) added 113
 // more (2 per module + 3 regression checks).
-export const EXPECTED_PARITY_CHECKS = 5027;
+export const EXPECTED_PARITY_CHECKS = 5051;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -168,6 +168,18 @@ export function runParity(): ParityResult {
     const authority = path.join(ROOT, 'skills', tree, 'references', 'AUTHORITY-POLICY.md');
     check(fs.existsSync(authority), `${tree} lacks the executable authority/evidence policy`);
     check(dispatcher.includes('references/AUTHORITY-POLICY.md'), `${tree} dispatcher does not load the authority/evidence policy`);
+    check(dispatcher.includes('references/THIRD-PARTY-ACTIONS.md'), `${tree} dispatcher does not load the third-party web-action contract`);
+    const thirdPartyPath = path.join(ROOT, 'skills', tree, 'references', 'THIRD-PARTY-ACTIONS.md');
+    if (fs.existsSync(thirdPartyPath)) {
+      const thirdParty = fs.readFileSync(thirdPartyPath, 'utf8');
+      check(
+        thirdParty.includes('STOP and ask one explicit question before any browsing')
+          && thirdParty.includes('per-task consent')
+          && thirdParty.includes('never appears in chat output, logs, or shell history')
+          && thirdParty.includes('verify the captured credential with one non-mutating API call'),
+        `${tree} third-party web-action contract lost its consent gate or secret-handling rules`,
+      );
+    }
   }
   const effectsPath = path.join(ROOT, 'skills', 'ship', 'references', 'EXTERNAL-EFFECTS.md');
   check(fs.existsSync(effectsPath), 'Ship lacks the durable external-effect protocol');
@@ -368,7 +380,7 @@ export function runParity(): ParityResult {
   for (const tree of TREE_NAMES) {
     const compatibility = fs.readFileSync(path.join(ROOT, 'skills', tree, 'references', 'COMPATIBILITY.md'), 'utf8');
     check(!compatibility.includes('../../../') && !compatibility.includes('compat/README.md'), `${tree} compatibility map escapes the selected package`);
-    for (const reference of ['SHARED-JUDGMENT.md', 'WEB-CONTEXT.md', 'RUNTIME.md']) {
+    for (const reference of ['SHARED-JUDGMENT.md', 'WEB-CONTEXT.md', 'RUNTIME.md', 'THIRD-PARTY-ACTIONS.md']) {
       const referencePath = path.join(ROOT, 'skills', tree, 'references', reference);
       check(fs.existsSync(referencePath), `${tree} lacks ${reference}`);
       if (fs.existsSync(referencePath)) {
