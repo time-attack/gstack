@@ -1,6 +1,6 @@
 export const GSTACK2_BASE_SHA = 'bb57306d98c97011b0919c6132705a15b1579781';
 
-export const TREE_NAMES = ['plan', 'design', 'qa', 'debug', 'review', 'ship'] as const;
+export const TREE_NAMES = ['plan', 'qa', 'debug', 'review', 'ship'] as const;
 export type TreeName = (typeof TREE_NAMES)[number];
 export type ExecutionProfile = 'readiness' | 'standard' | 'deep';
 

@@ -657,7 +657,7 @@ After displaying the Review Readiness Dashboard, recommend next reviews:
 have architectural implications. If this DX review found API design problems, error
 handling gaps, or CLI ergonomics issues, eng review should validate the fixes.
 
-**Suggest $design --mode Critique --module plan-design-review if user-facing UI exists** — DX review focuses on
+**Suggest /plan-design-review if user-facing UI exists** — DX review focuses on
 developer-facing surfaces; design review covers end-user-facing UI.
 
 **Recommend $qa --mode Report --module devex-review after implementation** — the boomerang. Plan said TTHW would
@@ -667,7 +667,7 @@ measure against.
 
 Use AskUserQuestion with applicable options:
 - **A)** Run $plan --mode Engineering --module plan-eng-review next (required gate)
-- **B)** Run $design --mode Critique --module plan-design-review (only if UI scope detected)
+- **B)** Run /plan-design-review (only if UI scope detected)
 - **C)** Ready to implement, run $qa --mode Report --module devex-review after shipping
 - **D)** Skip, I'll handle next steps manually
 

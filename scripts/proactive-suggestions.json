@@ -53,35 +53,10 @@
       "routing": "Infrastructure-first security audit: secrets archaeology,\ndependency supply chain, CI/CD pipeline security, LLM/AI security, skill supply chain\nscanning, plus OWASP Top 10, STRIDE threat modeling, and active verification.\nTwo modes: daily (zero-noise, 8/10 confidence gate) and comprehensive (monthly deep\nscan, 2/10 bar). Trend tracking across audit runs.\nUse when: \"security audit\", \"threat model\", \"pentest review\", \"OWASP\", \"CSO review\".",
       "voice_line": "Voice triggers (speech-to-text aliases): \"see-so\", \"see so\", \"security review\", \"security check\", \"vulnerability scan\", \"run security\"."
     },
-    "design-consultation": {
-      "lead": "Design consultation: understands your product, researches the landscape, proposes a complete design system (aesthetic, typography, color, layout, spacing, motion), and generates font+color preview...",
-      "routing": "Creates DESIGN.md as your project's design source\nof truth. For existing sites, use /plan-design-review to infer the system instead.\nUse when asked to \"design system\", \"brand guidelines\", or \"create DESIGN.md\".\nProactively suggest when starting a new project's UI with no existing\ndesign system or DESIGN.md.",
-      "voice_line": null
-    },
-    "design-html": {
-      "lead": "Design finalization: generates production-quality Pretext-native HTML/CSS.",
-      "routing": "Works with approved mockups from /design-shotgun, CEO plans from /plan-ceo-review,\ndesign review context from /plan-design-review, or from scratch with a user\ndescription. Text actually reflows, heights are computed, layouts are dynamic.\n30KB overhead, zero deps. Smart API routing: picks the right Pretext patterns\nfor each design type. Use when: \"finalize this design\", \"turn this into HTML\",\n\"build me a page\", \"implement this design\", or after any planning skill.\nProactively suggest when user has approved a design or has a plan ready.",
-      "voice_line": "Voice triggers (speech-to-text aliases): \"build the design\", \"code the mockup\", \"make it real\"."
-    },
-    "design-review": {
-      "lead": "Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems, AI slop patterns, and slow interactions — then fixes them.",
-      "routing": "Iteratively fixes issues\nin source code, committing each fix atomically and re-verifying with before/after\nscreenshots. For plan-mode design review (before implementation), use /plan-design-review.\nUse when asked to \"audit the design\", \"visual QA\", \"check if it looks good\", or \"design polish\".\nProactively suggest when the user mentions visual inconsistencies or\nwants to polish the look of a live site.",
-      "voice_line": null
-    },
-    "design-shotgun": {
-      "lead": "Design shotgun: generate multiple AI design variants, open a comparison board, collect structured feedback, and iterate.",
-      "routing": "Standalone design exploration you can\nrun anytime. Use when: \"explore designs\", \"show me options\", \"design variants\",\n\"visual brainstorm\", or \"I don't like how this looks\".\nProactively suggest when the user describes a UI feature but hasn't seen\nwhat it could look like.",
-      "voice_line": null
-    },
     "devex-review": {
       "lead": "Live developer experience audit.",
       "routing": "Uses the browse tool to actually TEST the\ndeveloper experience: navigates docs, tries the getting started flow, times\nTTHW, screenshots error messages, evaluates CLI help text. Produces a DX\nscorecard with evidence. Compares against /plan-devex-review scores if they\nexist (the boomerang: plan said 3 minutes, reality says 8). Use when asked to\n\"test the DX\", \"DX audit\", \"developer experience test\", or \"try the\nonboarding\". Proactively suggest after shipping a developer-facing feature.",
       "voice_line": "Voice triggers (speech-to-text aliases): \"dx audit\", \"test the developer experience\", \"try the onboarding\", \"developer experience test\"."
-    },
-    "diagram": {
-      "lead": "Turn an English description (or mermaid source) into a diagram triplet: the source, an editable .excalidraw file you can open",
-      "routing": "on excalidraw.com,\nand rendered SVG + PNG (clean mermaid style; the .excalidraw carries the\nhand-drawn aesthetic). Fully offline.\nUse when asked to \"make a diagram\", \"draw the architecture\", \"create a\nflowchart\", \"diagram this\", or \"visualize this flow\".",
-      "voice_line": null
     },
     "document-generate": {
       "lead": "Generate missing documentation from scratch for a feature, module, or entire project.",
@@ -123,11 +98,6 @@
       "routing": "Cleans up StateServer, DebugOverlay, accessor codegen output, and\napp-side hooks installed by /ios-qa. This is a convenience wrapper —\nthe structural Release-build guard (Package.swift conditional + CI\nswift build -c release check) is the safety-critical path.\nUse when asked to \"clean the iOS debug bridge\", \"remove DebugBridge\",\nor \"strip the gstack iOS instrumentation\".",
       "voice_line": "Voice triggers (speech-to-text aliases): \"clean the iOS debug bridge\", \"remove DebugBridge\", \"strip the gstack iOS instrumentation\"."
     },
-    "ios-design-review": {
-      "lead": "Visual design audit for iOS apps on real hardware.",
-      "routing": "Connects to a real\niPhone via the same StateServer as /ios-qa, screenshots every screen,\nevaluates against Apple HIG, DESIGN.md, and design best practices. Scores\neach dimension 0-10 with \"what would make it a 10\" framing — mirrors\n/plan-design-review for browser. For plan-stage design review (before\nimplementation), use /plan-design-review. For live web visual audits, use\n/design-review.\nUse when asked to \"review the iOS design\", \"audit the iPhone app's\nvisuals\", or \"design QA the iOS app\".",
-      "voice_line": "Voice triggers (speech-to-text aliases): \"review the iOS design\", \"audit the iPhone app's visuals\", \"design QA the iPhone app\"."
-    },
     "ios-fix": {
       "lead": "Autonomous iOS bug fixer.",
       "routing": "Takes a bug found by /ios-qa, reads the source,\nwrites the fix, rebuilds, redeploys, and verifies the fix on the real\ndevice. Closes the loop: find bug → fix bug → confirm fix — zero human\nintervention. Captures the pre-bug state snapshot as a regression test\nfixture, so the bug can never recur silently.\nUse when /ios-qa reports a bug and you want it fixed automatically, or\nwhen asked to \"fix this iOS bug\", \"patch the iPhone app\", or \"auto-fix\nthe iOS issue\".",
@@ -158,11 +128,6 @@
       "routing": "Review, search, prune, and export what gstack\nhas learned across sessions. Use when asked to \"what have we learned\",\n\"show learnings\", \"prune stale learnings\", or \"export learnings\".\nProactively suggest when the user asks about past patterns or wonders\n\"didn't we fix this before?\"",
       "voice_line": null
     },
-    "make-pdf": {
-      "lead": "Turn any markdown file into a publication-quality PDF.",
-      "routing": "Proper 1in margins,\nintelligent page breaks, page numbers, cover pages, running headers, curly\nquotes and em dashes, clickable TOC, diagonal DRAFT watermark. Not a draft\nartifact — a finished artifact. Use when asked to \"make a PDF\", \"export to\nPDF\", \"turn this markdown into a PDF\", or \"generate a document\".",
-      "voice_line": "Voice triggers (speech-to-text aliases): \"make this a pdf\", \"make it a pdf\", \"export to pdf\", \"turn this into a pdf\", \"turn this markdown into a pdf\", \"generate a pdf\", \"make a pdf from\", \"pdf this markdown\"."
-    },
     "office-hours": {
       "lead": "YC Office Hours — two modes.",
       "routing": "Startup mode: six forcing questions that expose\ndemand reality, status quo, desperate specificity, narrowest wedge, observation,\nand future-fit. Builder mode: design thinking brainstorming for side projects,\nhackathons, learning, and open source. Saves a design doc.\nUse when asked to \"brainstorm this\", \"I have an idea\", \"help me think through\nthis\", \"office hours\", or \"is this worth building\".\nProactively invoke this skill (do NOT answer directly) when the user describes\na new product idea, asks whether something is worth building, wants to think\nthrough design decisions for something that doesn't exist yet, or is exploring\na concept before any code is written.\nUse before /plan-ceo-review or /plan-eng-review.",
@@ -181,11 +146,6 @@
     "plan-ceo-review": {
       "lead": "CEO/founder-mode plan review.",
       "routing": "Rethink the problem, find the 10-star product,\nchallenge premises, expand scope when it creates a better product. Four modes:\nSCOPE EXPANSION (dream big), SELECTIVE EXPANSION (hold scope + cherry-pick\nexpansions), HOLD SCOPE (maximum rigor), SCOPE REDUCTION (strip to essentials).\nUse when asked to \"think bigger\", \"expand scope\", \"strategy review\", \"rethink this\",\nor \"is this ambitious enough\".\nProactively suggest when the user is questioning scope or ambition of a plan,\nor when the plan feels like it could be thinking bigger.",
-      "voice_line": null
-    },
-    "plan-design-review": {
-      "lead": "Designer's eye plan review — interactive, like CEO and Eng review.",
-      "routing": "Rates each design dimension 0-10, explains what would make it a 10,\nthen fixes the plan to get there. Works in plan mode. For live site\nvisual audits, use /design-review. Use when asked to \"review the design plan\"\nor \"design critique\".\nProactively suggest when the user has a plan with UI/UX components that\nshould be reviewed before implementation.",
       "voice_line": null
     },
     "plan-devex-review": {

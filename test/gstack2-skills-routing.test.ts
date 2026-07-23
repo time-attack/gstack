@@ -3,8 +3,8 @@ import { SCENARIOS } from '../scripts/gstack2/scenarios';
 import { routeStructured } from '../scripts/gstack2/route';
 
 describe('GStack 2 structured dispatch', () => {
-  test('routes all 25 fixtures without reading prompt keywords', () => {
-    expect(SCENARIOS).toHaveLength(25);
+  test('routes all 19 fixtures without reading prompt keywords', () => {
+    expect(SCENARIOS).toHaveLength(19);
     for (const scenario of SCENARIOS) {
       const decision = routeStructured(scenario.signals);
       expect(`${decision.tree}:${decision.mode}`, scenario.id).toBe(`${scenario.expected.tree}:${scenario.expected.mode}`);
@@ -19,7 +19,7 @@ describe('GStack 2 structured dispatch', () => {
   test('prompt changes cannot alter a structured decision', () => {
     const scenario = SCENARIOS[0];
     const original = routeStructured(scenario.signals);
-    const adversarialPrompt = 'ship qa debug review design plan';
+    const adversarialPrompt = 'ship qa debug review plan';
     expect(adversarialPrompt).not.toBe(scenario.prompt);
     expect(routeStructured({ ...scenario.signals })).toEqual(original);
   });

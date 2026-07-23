@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-const PUBLIC_SKILLS = ['debug', 'design', 'plan', 'qa', 'review', 'ship'] as const;
+const PUBLIC_SKILLS = ['debug', 'plan', 'qa', 'review', 'ship'] as const;
 
 function publicSkillPath(skill: string): string {
   return path.join(ROOT, 'skills', skill, 'SKILL.md');
@@ -31,7 +31,7 @@ function readShipUnion(): string {
 }
 
 describe('SKILL.md command validation', () => {
-  test('root SKILL.md is absent and the public surface is exactly six dispatchers', () => {
+  test('root SKILL.md is absent and the public surface is exactly five dispatchers', () => {
     expect(fs.existsSync(path.join(ROOT, 'SKILL.md'))).toBe(false);
 
     const discovered = fs.readdirSync(path.join(ROOT, 'skills'), { withFileTypes: true })
@@ -85,48 +85,6 @@ describe('SKILL.md command validation', () => {
     const qaOnlySkill = path.join(ROOT, 'qa-only', 'SKILL.md');
     if (!fs.existsSync(qaOnlySkill)) return;
     const result = validateSkill(qaOnlySkill);
-    expect(result.snapshotFlagErrors).toHaveLength(0);
-  });
-
-  test('all $B commands in plan-design-review/SKILL.md are valid browse commands', () => {
-    const skill = path.join(ROOT, 'plan-design-review', 'SKILL.md');
-    if (!fs.existsSync(skill)) return;
-    const result = validateSkill(skill);
-    expect(result.invalid).toHaveLength(0);
-  });
-
-  test('all snapshot flags in plan-design-review/SKILL.md are valid', () => {
-    const skill = path.join(ROOT, 'plan-design-review', 'SKILL.md');
-    if (!fs.existsSync(skill)) return;
-    const result = validateSkill(skill);
-    expect(result.snapshotFlagErrors).toHaveLength(0);
-  });
-
-  test('all $B commands in design-review/SKILL.md are valid browse commands', () => {
-    const skill = path.join(ROOT, 'design-review', 'SKILL.md');
-    if (!fs.existsSync(skill)) return;
-    const result = validateSkill(skill);
-    expect(result.invalid).toHaveLength(0);
-  });
-
-  test('all snapshot flags in design-review/SKILL.md are valid', () => {
-    const skill = path.join(ROOT, 'design-review', 'SKILL.md');
-    if (!fs.existsSync(skill)) return;
-    const result = validateSkill(skill);
-    expect(result.snapshotFlagErrors).toHaveLength(0);
-  });
-
-  test('all $B commands in design-consultation/SKILL.md are valid browse commands', () => {
-    const skill = path.join(ROOT, 'design-consultation', 'SKILL.md');
-    if (!fs.existsSync(skill)) return;
-    const result = validateSkill(skill);
-    expect(result.invalid).toHaveLength(0);
-  });
-
-  test('all snapshot flags in design-consultation/SKILL.md are valid', () => {
-    const skill = path.join(ROOT, 'design-consultation', 'SKILL.md');
-    if (!fs.existsSync(skill)) return;
-    const result = validateSkill(skill);
     expect(result.snapshotFlagErrors).toHaveLength(0);
   });
 
@@ -270,9 +228,6 @@ describe('Update check preamble', () => {
     'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
     'retro/SKILL.md',
     'office-hours/SKILL.md', 'investigate/SKILL.md',
-    'plan-design-review/SKILL.md',
-    'design-review/SKILL.md',
-    'design-consultation/SKILL.md',
     'document-release/SKILL.md',
     'canary/SKILL.md',
     'benchmark/SKILL.md',
@@ -503,7 +458,6 @@ describe('No hardcoded branch names in SKILL templates', () => {
     'retro/SKILL.md.tmpl',
     'document-release/SKILL.md.tmpl',
     'plan-eng-review/SKILL.md.tmpl',
-    'plan-design-review/SKILL.md.tmpl',
     'codex/SKILL.md.tmpl',
   ];
 
@@ -590,9 +544,6 @@ describe('v0.4.1 preamble features', () => {
     'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
     'retro/SKILL.md',
     'office-hours/SKILL.md', 'investigate/SKILL.md',
-    'plan-design-review/SKILL.md',
-    'design-review/SKILL.md',
-    'design-consultation/SKILL.md',
     'document-release/SKILL.md',
     'canary/SKILL.md',
     'land-and-deploy/SKILL.md',
@@ -845,9 +796,6 @@ describe('Completeness Principle in generated SKILL.md files', () => {
     'ship/SKILL.md', 'review/SKILL.md',
     'plan-ceo-review/SKILL.md', 'plan-eng-review/SKILL.md',
     'retro/SKILL.md',
-    'plan-design-review/SKILL.md',
-    'design-review/SKILL.md',
-    'design-consultation/SKILL.md',
     'document-release/SKILL.md',
     'cso/SKILL.md',  ];
 
@@ -1067,11 +1015,6 @@ describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
     expect(content).toContain('Step 4');
   });
 
-  test('TEST_BOOTSTRAP appears in design-review/SKILL.md', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Test Framework Bootstrap');
-  });
-
   test('TEST_BOOTSTRAP does NOT appear in qa-only/SKILL.md', () => {
     const content = fs.readFileSync(path.join(ROOT, 'qa-only', 'SKILL.md'), 'utf-8');
     expect(content).not.toContain('Test Framework Bootstrap');
@@ -1109,13 +1052,11 @@ describe('Test Bootstrap ({{TEST_BOOTSTRAP}}) integration', () => {
     expect(content).toContain('100% test coverage');
   });
 
-  test('WebSearch is in allowed-tools for qa, ship, design-review', () => {
+  test('WebSearch is in allowed-tools for qa, ship', () => {
     const qa = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
     const ship = readShipUnion();
-    const qaDesign = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
     expect(qa).toContain('WebSearch');
     expect(ship).toContain('WebSearch');
-    expect(qaDesign).toContain('WebSearch');
   });
 });
 
@@ -1133,13 +1074,6 @@ describe('Phase 8e.5 regression test generation', () => {
     const content = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
     expect(content).toContain('Only modify tests when generating regression tests in Phase 8e.5');
     expect(content).not.toContain('Never modify tests or CI configuration');
-  });
-
-  test('design-review has CSS-aware Phase 8e.5 variant', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('8e.5. Regression Test (design-review variant)');
-    expect(content).toContain('CSS-only');
-    expect(content).toContain('test(design): regression test');
   });
 
   test('regression test includes full attribution comment format', () => {
@@ -1559,8 +1493,7 @@ describe('Skill trigger phrases', () => {
   // humanizer (text tool)
   const SKILLS_REQUIRING_TRIGGERS = [
     'qa', 'qa-only', 'ship', 'review', 'investigate', 'office-hours',
-    'plan-ceo-review', 'plan-eng-review', 'plan-design-review',
-    'design-review', 'design-consultation', 'retro', 'document-release',
+    'plan-ceo-review', 'plan-eng-review', 'retro', 'document-release',
     'codex', 'browse', 'setup-browser-cookies',
   ];
 
@@ -1580,8 +1513,7 @@ describe('Skill trigger phrases', () => {
   // Skills with proactive triggers should have "Proactively suggest" somewhere in the skill.
   const SKILLS_REQUIRING_PROACTIVE = [
     'qa', 'qa-only', 'ship', 'review', 'investigate', 'office-hours',
-    'plan-ceo-review', 'plan-eng-review', 'plan-design-review',
-    'design-review', 'design-consultation', 'retro', 'document-release',
+    'plan-ceo-review', 'plan-eng-review', 'retro', 'document-release',
   ];
 
   for (const skill of SKILLS_REQUIRING_PROACTIVE) {

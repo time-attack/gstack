@@ -58,7 +58,7 @@
       "mechanical_port": {
         "rendered_sha256": "d79cf702cef33e878da8569c63936e3bdf811b194d8abbce925b6bb759f05cf7",
         "differs_from_baseline": true,
-        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to six public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
+        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to five public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
       },
       "candidate": {
         "target_path": "skills/review/references/legacy/cso.md",

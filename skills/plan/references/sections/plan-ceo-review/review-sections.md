@@ -229,7 +229,7 @@ Evaluate:
 **Reminder: Do NOT make any code changes. Review only.**
 
 ### Section 11: Design & UX Review (skip if no UI scope detected)
-The CEO calling in the designer. Not a pixel-level audit — that's $design --mode Critique --module plan-design-review and $design --mode Implement --module design-review. This is ensuring the plan has design intentionality.
+The CEO calling in the designer. Not a pixel-level audit — that's /plan-design-review and /design-review. This is ensuring the plan has design intentionality.
 
 Evaluate:
 * Information architecture — what does the user see first, second, third?
@@ -247,7 +247,7 @@ Evaluate:
 
 Required ASCII diagram: user flow showing screens/states and transitions.
 
-If this plan has significant UI scope, recommend: "Consider running $design --mode Critique --module plan-design-review for a deep design review of this plan before implementation."
+If this plan has significant UI scope, recommend: "Consider running /plan-design-review for a deep design review of this plan before implementation."
 **STOP.** AskUserQuestion once per issue. Do NOT batch. Recommend + WHY. If this section turned up zero findings, state "No issues, moving on" and proceed. If the section has findings, you MUST call AskUserQuestion as a tool_use — a finding with an "obvious fix" is still a finding and still needs user approval before any change lands in the plan. Do NOT proceed until the user responds.
 **Reminder: Do NOT make any code changes. Review only.**
 
@@ -262,7 +262,7 @@ agree with the outside voice. Cross-model consensus is a strong signal — prese
 such — but the user makes the decision.
 
 ## Post-Implementation Design Audit (if UI scope detected)
-After implementation, run `$design --mode Implement --module design-review` on the live site to catch visual issues that can only be evaluated with rendered output.
+After implementation, run `/design-review` on the live site to catch visual issues that can only be evaluated with rendered output.
 
 ## CRITICAL RULE — How to ask questions
 Follow the AskUserQuestion format from the Preamble above. Additional rules for plan reviews:
@@ -630,13 +630,13 @@ After displaying the Review Readiness Dashboard, recommend the next review(s) ba
 
 **Recommend $plan --mode Engineering --module plan-eng-review if eng review is not skipped globally** — check the dashboard output for `skip_eng_review`. If it is `true`, eng review is opted out — do not recommend it. Otherwise, eng review is the required shipping gate. If this CEO review expanded scope, changed architectural direction, or accepted scope expansions, emphasize that a fresh eng review is needed. If an eng review already exists in the dashboard but the commit hash shows it predates this CEO review, note that it may be stale and should be re-run.
 
-**Recommend $design --mode Critique --module plan-design-review if UI scope was detected** — specifically if Section 11 (Design & UX Review) was NOT skipped, or if accepted scope expansions included UI-facing features. If an existing design review is stale (commit hash drift), note that. In SCOPE REDUCTION mode, skip this recommendation — design review is unlikely relevant for scope cuts.
+**Recommend /plan-design-review if UI scope was detected** — specifically if Section 11 (Design & UX Review) was NOT skipped, or if accepted scope expansions included UI-facing features. If an existing design review is stale (commit hash drift), note that. In SCOPE REDUCTION mode, skip this recommendation — design review is unlikely relevant for scope cuts.
 
 **If both are needed, recommend eng review first** (required gate), then design review.
 
 Use AskUserQuestion to present the next step. Include only applicable options:
 - **A)** Run $plan --mode Engineering --module plan-eng-review next (required gate)
-- **B)** Run $design --mode Critique --module plan-design-review next (only if UI scope detected)
+- **B)** Run /plan-design-review next (only if UI scope detected)
 - **C)** Skip — I'll handle reviews manually
 
 ## docs/designs Promotion (EXPANSION and SELECTIVE EXPANSION only)

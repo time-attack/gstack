@@ -76,13 +76,13 @@ function assertInventory(): void {
   if (JSON.stringify(discovered) !== JSON.stringify(assigned)) {
     throw new Error(`Legacy assignment drift.\nDiscovered: ${discovered.join(', ')}\nAssigned: ${assigned.join(', ')}`);
   }
-  if (assigned.length !== 55) throw new Error(`Expected 55 legacy templates, found ${assigned.length}`);
-  if (SOURCE_ASSIGNMENTS.filter((entry) => entry.mandatory).length !== 31) {
-    throw new Error('Expected exactly 31 mandatory specialist inputs');
+  if (assigned.length !== 47) throw new Error(`Expected 47 legacy templates, found ${assigned.length}`);
+  if (SOURCE_ASSIGNMENTS.filter((entry) => entry.mandatory).length !== 25) {
+    throw new Error('Expected exactly 25 mandatory specialist inputs');
   }
-  if (legacySections().length !== 16) throw new Error(`Expected 16 section templates, found ${legacySections().length}`);
-  if (SCENARIOS.length !== 25) throw new Error(`Expected 25 parity scenarios, found ${SCENARIOS.length}`);
-  if (BUG_FIX_OVERLAYS.length !== 30) throw new Error(`Expected 30 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
+  if (legacySections().length !== 14) throw new Error(`Expected 14 section templates, found ${legacySections().length}`);
+  if (SCENARIOS.length !== 19) throw new Error(`Expected 19 parity scenarios, found ${SCENARIOS.length}`);
+  if (BUG_FIX_OVERLAYS.length !== 26) throw new Error(`Expected 26 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
 }
 
 function toc(body: string): string {
@@ -258,7 +258,7 @@ Web context: <none, optional, local-browser, or production>
 2. Refine the public mode to the smallest applicable internal specialist set, then print the required execution header before any substantive output.
 3. Read each active module in full from the path shown in the mode/alias tables. Its specialist body, behavioral contract, STOP gates, and appended upstream judgment ports are binding. Read a lazy specialist phase in full only when the workflow reaches its package-local reference.
 4. Read \`references/EXECUTION-PROFILES.md\`, \`references/SHARED-JUDGMENT.md\`, and \`references/AUTHORITY-POLICY.md\` for every invocation. Infer Depth from structured operating conditions, then obey its mandatory modules, legal skips, artifacts, and claim limits. Read \`references/RUNTIME.md\` before capability-dependent work and \`references/WEB-CONTEXT.md\` before public-web work.
-5. If an old asset path is unavailable, use \`references/ASSETS.md\`. If legacy prose invokes another retired skill, resolve it through \`references/COMPATIBILITY.md\` and stay inside these six dispatchers.
+5. If an old asset path is unavailable, use \`references/ASSETS.md\`. If legacy prose invokes another retired skill, resolve it through \`references/COMPATIBILITY.md\` and stay inside these five dispatchers.
 6. Preserve report-only versus mutation boundaries. Missing mutation authorization fails closed: do not edit merely because a specialist can fix. Commits, pushes, PRs, merges, deploys, messages, and other external mutations still require affirmative authority from the user.
 7. Match the user's language. Keep code identifiers, commands, and source quotations original when translation would reduce accuracy.
 8. At exit, report completed artifacts, evidence, unresolved decisions, skipped modules with reasons, and any blocked gate.
@@ -320,7 +320,6 @@ function assetInputs(): Array<{ trees: TreeName[]; source: string; target?: stri
     { trees: ['plan', 'review'], source: 'lib/redact-patterns.ts', target: 'references/support/lib/redact-patterns.ts' },
     { trees: ['plan', 'qa'], source: 'plan-devex-review/dx-hall-of-fame.md' },
     { trees: ['plan', 'ship'], source: 'review/TODOS-format.md' },
-    { trees: ['design'], source: 'design-html/vendor/pretext.js' },
     { trees: ['qa'], source: 'qa/references/issue-taxonomy.md' },
     { trees: ['qa'], source: 'qa/templates/qa-report-template.md' },
     ...ios.map((source) => ({ trees: ['qa', 'ship'] as TreeName[], source })),
@@ -428,7 +427,7 @@ Do not reproduce or summarize the retired specialist here. The canonical dispatc
   write(path.join(ROOT, 'compat', 'README.md'), `${GENERATED}
 # GStack 2 compatibility aliases
 
-These files preserve all 55 legacy invocation names as internal routing details. They intentionally are not named \`SKILL.md\`, so only the six dispatcher skills are discoverable.
+These files preserve all 47 legacy invocation names as internal routing details. They intentionally are not named \`SKILL.md\`, so only the five dispatcher skills are discoverable.
 
 | Legacy invocation | Replacement | Preserved module |
 |---|---|---|
@@ -517,7 +516,7 @@ function runtimeContract(): string {
   return `${GENERATED}
 # Optional runtime capabilities
 
-The six Agent Skills are useful without a GStack runtime. Never install, download, build, select, update, or remove runtime capabilities merely because a skill was invoked.
+The five Agent Skills are useful without a GStack runtime. Never install, download, build, select, update, or remove runtime capabilities merely because a skill was invoked.
 
 Before interactive browser work, read \`references/BROWSER-PROVIDERS.md\` in full. It owns host-provider detection, consented host setup, and the common readiness journey. The GStack fallback uses the local Playwright adapter with one explicit engine choice; skill installation never proves browser readiness.
 
@@ -746,9 +745,9 @@ function migrationDoc(): string {
 
 Pinned baseline: \`${GSTACK2_BASE_SHA}\`.
 
-GStack 2 exposes exactly six public skills: \`plan\`, \`design\`, \`qa\`, \`debug\`, \`review\`, and \`ship\`. The specialist bodies from 55 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 16 carved specialist sections are package-local lazy references loaded only at their original workflow point. Thirty-one primary modules are mandatory specialist inputs, and 24 supporting modules remain reachable through compatibility routing.
+GStack 2 exposes exactly five public skills: \`plan\`, \`qa\`, \`debug\`, \`review\`, and \`ship\`. The specialist bodies from 47 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 14 carved specialist sections are package-local lazy references loaded only at their original workflow point. Twenty-five primary modules are mandatory specialist inputs, and 22 supporting modules remain reachable through compatibility routing.
 
-The fixed public modes are: Design = \`Explore | Generate | Critique | Implement\`; QA = \`Report | Fix\`; Debug = \`Diagnose-only | Fix\`; Review = \`Normal | Security | Performance | Deep\`; Ship = \`Prepare | Land | Deploy | Monitor | Resume\`. Richer legacy modes are internal aliases only.
+The fixed public modes are: QA = \`Report | Fix\`; Debug = \`Diagnose-only | Fix\`; Review = \`Normal | Security | Performance | Deep\`; Ship = \`Prepare | Land | Deploy | Monitor | Resume\`. Richer legacy modes are internal aliases only.
 
 ## Migration map
 
@@ -764,8 +763,8 @@ ${rows}
 
 ## Mechanical versus judgment changes
 
-- \`JUDGMENT_PRESERVING_CARVE\`: pinned specialist workflow with the retired shared onboarding wrapper excluded, retired invocations resolved to six public routes, host/runtime paths normalized, and large carved phases loaded lazily from package-local pinned references.
-- \`BUG_FIX\`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 28 upstream PRs and issues and its regression fixture.
+- \`JUDGMENT_PRESERVING_CARVE\`: pinned specialist workflow with the retired shared onboarding wrapper excluded, retired invocations resolved to five public routes, host/runtime paths normalized, and large carved phases loaded lazily from package-local pinned references.
+- \`BUG_FIX\`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 24 upstream PRs and issues and its regression fixture.
 - Asset relocation is byte-for-byte from the pinned Git blob and is indexed per tree.
 `;
 }
@@ -773,7 +772,7 @@ ${rows}
 function scenarioDoc(): string {
   return `# GStack 2 routing scenarios
 
-The 25 executable fixtures route from structured stage/surface/authorization/evidence signals. Their prompts intentionally avoid public skill and mode names.
+The 19 executable fixtures route from structured stage/surface/authorization/evidence signals. Their prompts intentionally avoid public skill and mode names.
 
 | ID | Expected decision | Active | Mutation | Evidence basis | Gap |
 |---|---|---|---|---|---|
@@ -786,16 +785,16 @@ function parityDoc(assetCount: number): string {
 
 Parity is executable, not a prose claim. Run \`bun run scripts/gstack2/run-parity.ts\` or the dedicated Bun tests.
 
-The pinned release inventory passes **${EXPECTED_PARITY_CHECKS.toLocaleString('en-US')} checks** across 55 specialist sources, 16 carved sections, 25 routing scenarios, 28 regression ports, and **${assetCount} assets**.
+The pinned release inventory passes **${EXPECTED_PARITY_CHECKS.toLocaleString('en-US')} checks** across 47 specialist sources, 14 carved sections, 19 routing scenarios, 24 regression ports, and **${assetCount} assets**.
 
 The suite verifies:
 
-- exactly six discoverable public skills and 55 internal legacy modules;
-- 55 canonical templates plus 16 carved section templates at base \`${GSTACK2_BASE_SHA}\`;
+- exactly five discoverable public skills and 47 internal legacy modules;
+- 47 canonical templates plus 14 carved section templates at base \`${GSTACK2_BASE_SHA}\`;
 - immutable full 1.x render hashes plus canonical specialist-render equality, with the excluded onboarding wrapper and lazy section references asserted explicitly;
 - preservation of nine behavioral contract dimensions per module;
-- 25 structured non-keyword routing fixtures with active/skipped modules, depth, mutation, and web context;
-- 28 upstream judgment-port regression fixtures and anchors;
+- 19 structured non-keyword routing fixtures with active/skipped modules, depth, mutation, and web context;
+- 24 upstream judgment-port regression fixtures and anchors;
 - all linked asset copies against their pinned Git blobs;
 - frontmatter and \`agents/openai.yaml\` schema for each public skill.
 
@@ -945,7 +944,7 @@ function main(): void {
     schema_version: 1,
     base_sha: GSTACK2_BASE_SHA,
     public_skills: [...TREE_NAMES],
-    counts: { public_skills: 6, mandatory_inputs: 31, templates: 55, section_templates: 16, packaged_section_copies: sectionCopies.length, internal_execution_adapters: 1, scenarios: 25, bug_fix_ports: 28, assets: assets.length, dependency_copies: dependencyCopies.length, runtime_helpers: runtimeHelpers.length },
+    counts: { public_skills: 5, mandatory_inputs: 25, templates: 47, section_templates: 14, packaged_section_copies: sectionCopies.length, internal_execution_adapters: 1, scenarios: 19, bug_fix_ports: 24, assets: assets.length, dependency_copies: dependencyCopies.length, runtime_helpers: runtimeHelpers.length },
     sources: sourceRecords,
     sections: sectionRecords,
     section_copies: sectionCopies,
@@ -967,7 +966,7 @@ function main(): void {
   write(path.join(DOCS, 'JUDGMENT-PARITY.md'), parityDoc(assets.length));
   write(path.join(DOCS, 'SCENARIOS.md'), scenarioDoc());
   const semantic = runDeterministicSemanticParity(true);
-  process.stdout.write(`Generated 6 dispatchers, ${sourceRecords.length} modules, ${sectionRecords.length} lazy specialist sections, ${SCENARIOS.length} scenarios, ${BUG_FIX_OVERLAYS.length} bug-fix ports, and ${assets.length} asset copies.\n`);
+  process.stdout.write(`Generated 5 dispatchers, ${sourceRecords.length} modules, ${sectionRecords.length} lazy specialist sections, ${SCENARIOS.length} scenarios, ${BUG_FIX_OVERLAYS.length} bug-fix ports, and ${assets.length} asset copies.\n`);
   process.stdout.write(`Generated semantic evidence: ${semantic.checks} checks across ${semantic.suites} suites and ${semantic.policyUnits} authority-policy unit cases.\n`);
 }
 

@@ -181,7 +181,7 @@ function applyCodexRewrites(content: string): string {
  * Render a legacy template exactly as the canonical Codex host would render
  * its body: resolver expansion, non-Claude section inlining, safety prose, and
  * host rewrites. The legacy frontmatter and generated header are intentionally
- * excluded because GStack 2 owns the six public skill manifests.
+ * excluded because GStack 2 owns the five public skill manifests.
  */
 export function renderLegacyBody(source: string): string {
   const templatePath = legacyTemplatePath(source);
@@ -209,9 +209,26 @@ function portLegacyText(value: string, source: string): string {
   let body = value;
 
   // Retired names remain valid only as opt-in compatibility aliases. Normal
-  // canonical execution must recommend one of the six public routes, with the
+  // canonical execution must recommend one of the five public routes, with the
   // exact internal refinement retained for deterministic dispatch.
   body = replaceRetiredInvocations(body);
+
+  // The /design public skill and its plan-design-review specialist are retired
+  // in the five-skill surface. Autoplan orchestrates CEO -> engineering -> DX
+  // only. De-reference the removed design-review module so the canonical carve
+  // never packages or instructs a module that no longer exists; the surrounding
+  // preserved design-scope prose is left as historical context. This runs
+  // before the generic host-path -> references/legacy rewrite below so the
+  // dangling module pointer is neutralized rather than repackaged.
+  body = body
+    .replaceAll(
+      '$GSTACK_ROOT/plan-design-review/SKILL.md',
+      'the retired design-review phase (removed from the five public skills; skip it)',
+    )
+    .replaceAll(
+      'Follow plan-design-review/SKILL.md — all 7 dimensions, full depth.',
+      'Design review is retired from the five public skills; skip this phase and continue with the CEO, engineering, and DX reviews.',
+    );
   // Every state read/write follows the canonical override. Quote the root so
   // custom homes containing spaces remain valid. Compatibility pointer files
   // such as ~/.gstack-artifacts-remote.txt are outside this state root and are

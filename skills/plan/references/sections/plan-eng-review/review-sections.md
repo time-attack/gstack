@@ -734,7 +734,7 @@ eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)" 2>/dev/null || true
 
 After displaying the Review Readiness Dashboard, check if additional reviews would be valuable. Read the dashboard output to see which reviews have already been run and whether they are stale.
 
-**Suggest $design --mode Critique --module plan-design-review if UI changes exist and no design review has been run** — detect from the test diagram, architecture review, or any section that touched frontend components, CSS, views, or user-facing interaction flows. If an existing design review's commit hash shows it predates significant changes found in this eng review, note that it may be stale.
+**Suggest /plan-design-review if UI changes exist and no design review has been run** — detect from the test diagram, architecture review, or any section that touched frontend components, CSS, views, or user-facing interaction flows. If an existing design review's commit hash shows it predates significant changes found in this eng review, note that it may be stale.
 
 **Mention $plan --mode Product --module plan-ceo-review if this is a significant product change and no CEO review exists** — this is a soft suggestion, not a push. CEO review is optional. Only mention it if the plan introduces new user-facing features, changes product direction, or expands scope substantially.
 
@@ -743,7 +743,7 @@ After displaying the Review Readiness Dashboard, check if additional reviews wou
 **If no additional reviews are needed** (or `skip_eng_review` is `true` in the dashboard config, meaning this eng review was optional): state "All relevant reviews complete. Run /ship when ready."
 
 Use AskUserQuestion with only the applicable options:
-- **A)** Run $design --mode Critique --module plan-design-review (only if UI scope detected and no design review exists)
+- **A)** Run /plan-design-review (only if UI scope detected and no design review exists)
 - **B)** Run $plan --mode Product --module plan-ceo-review (only if significant product change and no CEO review exists)
 - **C)** Ready to implement — run /ship when done
 

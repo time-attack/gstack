@@ -60,7 +60,7 @@
       "mechanical_port": {
         "rendered_sha256": "0ed7d4a6ec9dadf363ef5d9311392067a3d90bddac9c1ec781d0f25db55e13ae",
         "differs_from_baseline": true,
-        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to six public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
+        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to five public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
       },
       "candidate": {
         "target_path": "skills/plan/references/legacy/plan-eng-review.md",

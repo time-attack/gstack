@@ -56,18 +56,18 @@
         }
       },
       "mechanical_port": {
-        "rendered_sha256": "ca55c56483c524c732cf4cd1a7b7ef36f379666577549ef989823b98bce8c5b5",
+        "rendered_sha256": "023feb0b31453af88095761b42ca6ee96fa85d52487fee2360af10e9b61a20a6",
         "differs_from_baseline": true,
-        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to six public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
+        "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to five public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
       },
       "candidate": {
         "target_path": "skills/ship/references/legacy/ship.md",
-        "rendered_legacy_body_sha256": "ca55c56483c524c732cf4cd1a7b7ef36f379666577549ef989823b98bce8c5b5",
+        "rendered_legacy_body_sha256": "023feb0b31453af88095761b42ca6ee96fa85d52487fee2360af10e9b61a20a6",
         "semantic_signature": {
-          "normalized_sha256": "ca55c56483c524c732cf4cd1a7b7ef36f379666577549ef989823b98bce8c5b5",
+          "normalized_sha256": "023feb0b31453af88095761b42ca6ee96fa85d52487fee2360af10e9b61a20a6",
           "headings_sha256": "42c12606506cfd2cfd31dc678c91d63b0212aa4e424730f5b9e257ab033c4958",
           "questions_sha256": "943ac3bc0b28becb558873810d1884e4311865a10cbd44a2b8c8ae0184fece84",
-          "obligations_sha256": "134233894787ff09edb0506fdede185d24a756fc3278fe2e81790296bd48ca8c",
+          "obligations_sha256": "bd03738c355811d4a3eb5ba4054f3960c2223e271baf4b0c7c7fcb985fb67d82",
           "heading_count": 26,
           "question_count": 1,
           "obligation_count": 70

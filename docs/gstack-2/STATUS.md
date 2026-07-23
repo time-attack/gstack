@@ -23,8 +23,9 @@ PR, or PR-ready claim is authorized by this status.
   them candidate regressions.
 - [x] 755 unique open issue/PR records reconciled and deterministically mapped;
   all 16 required upstream PR snapshots traced.
-- [x] Exactly six canonical skill directories: `plan`, `design`, `qa`,
-  `debug`, `review`, and `ship`.
+- [x] Exactly five canonical skill directories: `plan`, `qa`, `debug`,
+  `review`, and `ship`. (The `/design` skill was retired; its runtime image /
+  diagram / PDF capabilities remain available to the surviving skills.)
 - [x] The six `/plan` top-level modes are exactly **Discovery, Product,
   Engineering, DX, Specification, and Full chain**.
 - [x] Standard installer matrix is green: 510/510 checks, 18 installs and two
@@ -34,7 +35,7 @@ PR, or PR-ready claim is authorized by this status.
   copies, and canonical hashes passed. The committed artifact is
   [`evals/installation/install-matrix.json`](../../evals/installation/install-matrix.json).
 - [x] A standards-based Codex runtime-absent run passed. The canonical root
-  `--list` returned exactly six skills; the selected install used
+  `--list` returned exactly five skills; the selected install used
   `time-attack/gstack/skills --skill qa` and installed only byte-identical
   `qa`. `skills` 1.5.19 can count hidden aliases in its pre-filter display, so
   that display is not the installed subset count. Codex then preserved pure
@@ -42,19 +43,19 @@ PR, or PR-ready claim is authorized by this status.
   no file changes, started no browser, created no runtime, and contacted no
   GStack external service. Artifact:
   [`evals/installation/standard-codex-runtime-absent-2026-07-17.json`](../../evals/installation/standard-codex-runtime-absent-2026-07-17.json).
-- [x] Current six names/descriptions measure 982 characters (about 246
-  four-character token-equivalents), roughly 77.6% below the correctly parsed
-  baseline of about 1,100 in the regenerated tree.
-- [x] Generated inventory contains 55 preserved modules, 16 carved sections,
-  25 scenarios, 25 regression definitions, and 78 assets.
-- [x] Compatibility aliases remain opt-in and outside default six-skill
+- [x] The current five names/descriptions stay well below the correctly parsed
+  1.x baseline of about 1,100 token-equivalents; `test/gstack2-skills.test.ts`
+  enforces the 75%-below ceiling on every run.
+- [x] Generated inventory contains 47 preserved modules, 14 carved sections,
+  19 scenarios, 25 regression definitions, and 72 assets.
+- [x] Compatibility aliases remain opt-in and outside default five-skill
   discovery; each prints its replacement and contains no copied judgment.
-- [x] Judgment provenance, behavioral contracts, 25 structured scenarios, and
+- [x] Judgment provenance, behavioral contracts, 19 structured scenarios, and
   25 upstream bug-fix regression definitions implemented.
-- [x] The regenerated parity rerun is green: 4,881 checks covering
-  55 modules, 16 sections, 25 scenarios, 25 regressions, and 78 assets.
-- [x] Deterministic semantic parity is green: 295 checks across 14 suites, 15
-  executions, 15 comparison dimensions, 16 carved sections, and nine
+- [x] The regenerated parity rerun is green: 4,336 checks covering
+  47 modules, 14 sections, 19 scenarios, 25 regressions, and 72 assets.
+- [x] Deterministic semantic parity is green: 238 checks across 11 suites, 12
+  executions, 15 comparison dimensions, 14 carved sections, and eight
   authority-policy unit cases, including unsupported numeric claims. Exact
   preserved source bodies are the primary
   oracle. These are deterministic policy checks, not behavioral-adversarial
@@ -164,7 +165,7 @@ PR, or PR-ready claim is authorized by this status.
   [`29615621805`](https://github.com/time-attack/gstack/actions/runs/29615621805)
   passed at commit `a8a5fa1a`: macOS 150/0/1,189, Ubuntu 150/0/1,189,
   Windows 150/0/1,145, Dev Container 150/0/1,188, and the standard installer
-  470/470. Each native installer discovery found exactly six skills. Sanitized
+  470/470. Each native installer discovery found exactly five skills. Sanitized
   artifact:
   [`evals/ci/native-2026-07-17.json`](../../evals/ci/native-2026-07-17.json).
 - [x] Architecture, privacy, Context.dev, host compatibility, upgrade/rollback,
@@ -199,7 +200,7 @@ PR, or PR-ready claim is authorized by this status.
 | Measured baseline | [BASELINE.md](./BASELINE.md) | Recorded |
 | Candidate and baseline command ledger | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md) | Runtime-absent, SIGINT, and native matrix pass; live v3 failed |
 | Native CI matrix | [native-2026-07-17.json](../../evals/ci/native-2026-07-17.json) | macOS, Ubuntu, Windows, installer, and Dev Container green |
-| Complete skill migration | [SKILL-MIGRATION.md](./SKILL-MIGRATION.md) | Generated; 55/55 assignments |
+| Complete skill migration | [SKILL-MIGRATION.md](./SKILL-MIGRATION.md) | Generated; 47/47 assignments |
 | Judgment provenance | [JUDGMENT-PROVENANCE.json](./JUDGMENT-PROVENANCE.json) | Generated; 4,881-check parity rerun green |
 | Parity contract | [JUDGMENT-PARITY.md](./JUDGMENT-PARITY.md) | Green for source/render/contract/asset fixtures |
 | Semantic parity | [SEMANTIC-PARITY.md](./SEMANTIC-PARITY.md) | Deterministic 295-check corpus green; retained live samples are regressions |

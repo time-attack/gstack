@@ -23,7 +23,7 @@ const STALE_DIR = join(ROOT, 'skills', 'plan', 'references', `${STALE}-dir`);
 const PLANTED = [
   join(ROOT, 'skills', 'plan', 'references', 'legacy', `${STALE}.md`), // stale reference module
   join(STALE_DIR, 'nested.md'), // stale nested public directory (recursive prune)
-  join(ROOT, 'skills', 'design', 'assets', `${STALE}.js`), // stale relocated asset
+  join(ROOT, 'skills', 'qa', 'assets', `${STALE}.js`), // stale relocated asset
   join(ROOT, 'compat', `${STALE}.md`), // stale compatibility alias
   join(ROOT, 'evals', 'parity', 'contracts', `${STALE}.json`), // stale parity-corpus entry
 ];
