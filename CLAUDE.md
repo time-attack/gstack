@@ -2,8 +2,8 @@
 
 ## GStack 2 canonical contract
 
-The public surface is exactly `/plan`, `/design`, `/qa`, `/debug`, `/review`,
-and `/ship`. They are lazy dispatchers over the preserved modules under
+The public surface is exactly `/plan`, `/qa`, `/debug`, `/review`, and `/ship`.
+They are lazy dispatchers over the preserved modules under
 `skills/*/references/legacy/`; do not rewrite or summarize away the original
 question pressure, rubrics, pushback, approval gates, evidence, artifacts,
 mutation boundaries, recommendations, or voice. Compatibility files under
@@ -916,7 +916,6 @@ When the user's request matches an available skill, invoke it via the Skill tool
 
 Key routing rules:
 - Product framing, strategy, scope, architecture, DX, specs, or a full planning pipeline → invoke `/plan` with the preserved specialist mode.
-- Design systems, alternatives, coded visual output, plan review, web audit, or HIG audit → invoke `/design`.
 - Web/device QA, report-only versus fixes, DX journeys, performance, or canaries → invoke `/qa`.
 - Bugs and unknown failures → invoke `/debug`; prove root cause before mutation.
 - Diff, security, compatibility, or repository-health review → invoke `/review`.

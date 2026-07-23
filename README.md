@@ -7,13 +7,12 @@
 > `./setup` instructions and the many-command catalog describe the 1.x
 > compatibility surface.
 
-GStack 2 presents one engineering judgment layer through exactly six public
+GStack 2 presents one engineering judgment layer through exactly five public
 skills:
 
 | Skill | Start here when… |
 |---|---|
 | `/plan` | The product, scope, architecture, DX, or specification is unsettled. |
-| `/design` | You need a visual direction, alternatives, implementation, or design audit. |
 | `/qa` | You need report-only or fix-and-verify evidence from the local browser or a physical iPhone. |
 | `/debug` | A failure needs root-cause proof before a fix. |
 | `/review` | A diff or repository needs correctness, security, compatibility, or health review. |
@@ -23,7 +22,7 @@ skills:
 DX, Specification, and Full chain**. The other dispatchers refine their small
 public mode set into the preserved specialist modules only after selection.
 
-The specialist judgment was not flattened into six generic prompts. Each
+The specialist judgment was not flattened into five generic prompts. Each
 dispatcher states its mode, depth, mutation boundary, active and skipped
 modules, and web-context choice, then lazily reads the preserved specialist
 module. See the complete [old-command mapping](docs/gstack-2/SKILL-MIGRATION.md)
@@ -38,7 +37,7 @@ scope, destination paths, updates, removal, and selected-skill installation:
 npx skills add time-attack/gstack/skills
 ```
 
-That installs the six judgment skills. Install a subset with the installer's
+That installs the five judgment skills. Install a subset with the installer's
 `--skill` option, or use `-g` for its global scope. GStack does not silently
 enroll detected hosts.
 
@@ -94,7 +93,7 @@ tree contains legacy GStack 1 entry points and is not the GStack 2 install
 surface.
 
 The npm package is deliberately not the skill installer and does not contain
-the six skill tree or compiled browser/design/PDF payloads. It is the small
+the five skill tree or compiled browser/design/PDF payloads. It is the small
 host-neutral runtime control/bootstrap surface used by release tooling. New
 users should install skills with `npx skills add time-attack/gstack/skills`; optional
 capabilities are downloaded by a skill after consent.
@@ -132,7 +131,7 @@ I'm [Garry Tan](https://x.com/garrytan), President & CEO of [Y Combinator](https
 
 Same person. Different era. The difference is the tooling.
 
-**gstack is how I do it.** It turns an AI coding host into a virtual engineering team — a CEO who rethinks the product, an eng manager who locks architecture, a designer who catches AI slop, a reviewer who finds production bugs, a QA lead who opens a real browser, a security officer who runs OWASP + STRIDE audits, and a release engineer who ships the PR. In GStack 2 those preserved specialists sit behind six lazy dispatchers rather than dozens of default commands. It remains MIT licensed.
+**gstack is how I do it.** It turns an AI coding host into a virtual engineering team — a CEO who rethinks the product, an eng manager who locks architecture, a designer who catches AI slop, a reviewer who finds production bugs, a QA lead who opens a real browser, a security officer who runs OWASP + STRIDE audits, and a release engineer who ships the PR. In GStack 2 those preserved specialists sit behind five lazy dispatchers rather than dozens of default commands. It remains MIT licensed.
 
 This is my open source software factory. I use it every day. I'm sharing it because these tools should be available to everyone.
 
