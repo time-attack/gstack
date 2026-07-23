@@ -16,7 +16,7 @@ import { execSync } from 'child_process';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const ROOT_REALPATH = fs.realpathSync(ROOT);
-const GSTACK2_PUBLIC_SKILLS = ['debug', 'design', 'plan', 'qa', 'review', 'ship'];
+const GSTACK2_PUBLIC_SKILLS = ['debug', 'plan', 'qa', 'review', 'ship'];
 const RETIRED_GSTACK2_MONOLITH_OUTPUTS = new Set(['SKILL.md', 'claude/SKILL.md']);
 
 function hasGStack2Package(): boolean {
@@ -76,7 +76,7 @@ if (GSTACK2_PACKAGE) {
     .map((entry) => entry.name)
     .sort();
   if (JSON.stringify(publicSkills) === JSON.stringify(GSTACK2_PUBLIC_SKILLS)) {
-    console.log(`  \u2705 skills/ public package          — exactly six dispatchers (${publicSkills.join(', ')})`);
+    console.log(`  \u2705 skills/ public package          — exactly five dispatchers (${publicSkills.join(', ')})`);
   } else {
     hasErrors = true;
     console.log(`  \u274c skills/ public package          — expected ${GSTACK2_PUBLIC_SKILLS.join(', ')}, found ${publicSkills.join(', ') || 'none'}`);

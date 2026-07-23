@@ -7,21 +7,21 @@ import { routeAndAuthorize } from '../scripts/gstack2/route';
 
 describe('GStack 2 semantic parity', () => {
   test('covers every constitution suite and comparison dimension', () => {
-    expect(new Set(SEMANTIC_EXECUTIONS.map((entry) => entry.suite)).size).toBe(14);
-    expect(SEMANTIC_EXECUTIONS).toHaveLength(15);
+    expect(new Set(SEMANTIC_EXECUTIONS.map((entry) => entry.suite)).size).toBe(11);
+    expect(SEMANTIC_EXECUTIONS).toHaveLength(12);
     expect(SEMANTIC_DIMENSIONS).toHaveLength(15);
   });
 
   test('preserves specialist semantics and all carved sections', () => {
     const result = runDeterministicSemanticParity(false);
-    expect(result.suites).toBe(14);
-    expect(result.sections).toBe(16);
+    expect(result.suites).toBe(11);
+    expect(result.sections).toBe(14);
     expect(result.policyUnits).toBe(AUTHORITY_POLICY_CASES.length);
     expect(result.checks).toBeGreaterThan(250);
   }, 15_000);
 
   test('authority-policy units cover evidence, trust, and routing controls', () => {
-    expect(AUTHORITY_POLICY_CASES.length).toBeGreaterThanOrEqual(9);
+    expect(AUTHORITY_POLICY_CASES.length).toBeGreaterThanOrEqual(8);
     expect(AUTHORITY_POLICY_CASES.map((entry) => entry.expectedMutation)).toContain('investigate-only');
     expect(AUTHORITY_POLICY_CASES.map((entry) => entry.expectedMutation)).toContain('commit-push-pr');
     expect(AUTHORITY_POLICY_CASES.map((entry) => entry.expectedControl)).toContain('unsupported-numeric-claim');
