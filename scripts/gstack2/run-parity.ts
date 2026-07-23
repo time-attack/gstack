@@ -33,8 +33,12 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // Removing the /design skill and its design-review offerings then dropped
 // design source modules, routing scenarios, carved sections, and design-only
 // overlays (#696, #1777, #1920, #2189) while keeping #538, which recomputes
-// the inventory to the value below.
-export const EXPECTED_PARITY_CHECKS = 4356;
+// the inventory to the value below. The ship-tree Apple App Store release
+// adapter added 3 more (adapter exists, preserved gate content, dispatcher
+// load). Removing the remaining design-review footprint then dropped the
+// review/design-checklist.md asset from the review and ship trees (18 fewer
+// asset checks), recomputing the inventory to the value below.
+export const EXPECTED_PARITY_CHECKS = 4359;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -208,6 +212,18 @@ export function runParity(): ParityResult {
     check(effects.includes('gstack state effect') && effects.includes('Never retry automatically'), 'Ship external-effect protocol lost durable claim or no-repeat behavior');
   }
   check(fs.readFileSync(path.join(ROOT, 'skills', 'ship', 'SKILL.md'), 'utf8').includes('references/EXTERNAL-EFFECTS.md'), 'Ship dispatcher does not bind external actions to durable state');
+  const appleReleasePath = path.join(ROOT, 'skills', 'ship', 'references', 'APPLE-RELEASE.md');
+  check(fs.existsSync(appleReleasePath), 'Ship lacks the Apple App Store release adapter');
+  if (fs.existsSync(appleReleasePath)) {
+    const apple = fs.readFileSync(appleReleasePath, 'utf8');
+    check(
+      apple.includes('paid Apple Developer Program membership')
+        && apple.includes('The upload is an external effect')
+        && apple.includes('the release itself adds no new dependency'),
+      'Apple release adapter lost its membership gate, durable-upload binding, or no-new-dependency rule',
+    );
+  }
+  check(fs.readFileSync(path.join(ROOT, 'skills', 'ship', 'SKILL.md'), 'utf8').includes('references/APPLE-RELEASE.md'), 'Ship dispatcher does not load the Apple release adapter for Apple targets');
 
   check(files(path.join(ROOT, 'evals', 'parity', 'contracts'), '.json').length === 47, 'Contract fixture count is not 47');
   const baselineRenders = json(path.join(ROOT, 'evals', 'parity', 'baseline-render-hashes.json'));
