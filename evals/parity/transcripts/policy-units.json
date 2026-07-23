@@ -279,7 +279,7 @@
         "prompt_sha256": "a01bb977de84e53d8ce3dfa427bcc93d73c6e449cd4e9c1ff63b436fd41fb0d1",
         "semantic_attempt_sha256": "ce5c64c62c3ff9b60949f34717dffbc908f62ce30f8a4a48ec182eba4363a206"
       },
-      "policy_sha256": "0052fa07b92825e223b8e070d33b628d0e32429c2a37f7e059e8aa456c81bb1a",
+      "policy_sha256": "0fe444a11121402f6ee6609d7a514478d3bcf9416b40276f4717c32719082567",
       "policy_present": true,
       "prompt_is_not_authority_input": true,
       "verdict": "PASS"

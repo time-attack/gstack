@@ -2,7 +2,7 @@
 
 Parity is executable, not a prose claim. Run `bun run scripts/gstack2/run-parity.ts` or the dedicated Bun tests.
 
-The pinned release inventory passes **5,080 checks** across 55 specialist sources, 16 carved sections, 25 routing scenarios, 28 regression ports, and **78 assets**.
+The pinned release inventory passes **5,083 checks** across 55 specialist sources, 16 carved sections, 25 routing scenarios, 28 regression ports, and **78 assets**.
 
 The suite verifies:
 
