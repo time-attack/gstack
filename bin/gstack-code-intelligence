@@ -5,6 +5,7 @@
  * fine and callers use grep / the file-only decision store.
  *
  * Usage:
+ *   gstack-code-intelligence suggest [repo] [--json] # should the one-time indexing offer be made here?
  *   gstack-code-intelligence options                 # list providers (GBrain first) + availability
  *   gstack-code-intelligence status                  # current selection + availability
  *   gstack-code-intelligence select <gbrain|sourcebot|graphify|none>
@@ -30,6 +31,7 @@ import {
   setConsent,
   setProvider,
   setRoot,
+  shouldOfferIndexing,
   type CodeProviderId,
 } from "../lib/code-intelligence";
 
@@ -69,10 +71,48 @@ async function cmdStatus(): Promise<void> {
   for (const a of avail) out(`  ${LABEL[a.id]}: ${a.available ? "available" : "unavailable"} (${a.detail})`);
 }
 
+/**
+ * The one-time session-start offer gate. Prints (or emits as JSON) whether an
+ * agent should ask the user about indexing this repo, and when it should, the
+ * provider options with their reasons so the question is self-contained.
+ */
+async function cmdSuggest(rest: string[]): Promise<void> {
+  const json = rest.includes("--json");
+  const pathArg = rest.find((a) => !a.startsWith("--"));
+  const repoPath = resolve(pathArg ?? process.cwd());
+  const suggestion = shouldOfferIndexing(repoPath);
+  if (!suggestion.offer) {
+    if (json) {
+      out(JSON.stringify({ ...suggestion, repoPath }));
+    } else {
+      out(`no offer (${suggestion.reason}${suggestion.fileCount != null ? `, ${suggestion.fileCount} tracked files` : ""})`);
+    }
+    return;
+  }
+  const avail = await detectAvailable();
+  if (json) {
+    out(JSON.stringify({
+      ...suggestion,
+      repoPath,
+      options: avail.map((a) => ({
+        id: a.id,
+        label: LABEL[a.id],
+        reason: NOTE[a.id],
+        local: providerById(a.id).local,
+        available: a.available,
+        detail: a.detail,
+      })),
+    }));
+    return;
+  }
+  out(`offer indexing: ${suggestion.fileCount} tracked files (threshold ${suggestion.threshold}) and no prior decision`);
+  await cmdOptions();
+}
+
 function cmdSelect(arg: string | undefined): void {
   if (arg === "none") {
     setProvider(null);
-    out("code-intelligence provider cleared; gstack uses grep / file-only fallback");
+    out("code-intelligence declined; gstack uses grep / file-only fallback and will not ask again");
     return;
   }
   if (!arg || !PROVIDER_IDS.has(arg as CodeProviderId)) {
@@ -144,6 +184,8 @@ function handleProviderError(err: unknown, label: string): never {
 async function main(): Promise<void> {
   const [action, ...rest] = process.argv.slice(2);
   switch (action) {
+    case "suggest":
+      return cmdSuggest(rest);
     case "options":
       return cmdOptions();
     case "status":
@@ -157,7 +199,7 @@ async function main(): Promise<void> {
     case "search":
       return cmdSearch(rest);
     default:
-      fail("Usage: options | status | select <provider> | consent [path] | index [path] | search <query...>");
+      fail("Usage: suggest [path] [--json] | options | status | select <provider> | consent [path] | index [path] | search <query...>");
   }
 }
 

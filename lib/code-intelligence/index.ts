@@ -17,6 +17,13 @@ export {
   type Selection,
 } from "./selection";
 export {
+  LARGE_REPO_FILE_THRESHOLD,
+  shouldOfferIndexing,
+  trackedFileCount,
+  type Suggestion,
+  type SuggestReason,
+} from "./suggest";
+export {
   RECOMMENDED_ORDER,
   providerById,
   resolveSelectedProvider,
