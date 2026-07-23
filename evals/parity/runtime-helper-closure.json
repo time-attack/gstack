@@ -171,6 +171,7 @@
       "consumer_modules": [
         "autoplan",
         "document-generate",
+        "office-hours",
         "plan-tune",
         "setup-gbrain",
         "ship",

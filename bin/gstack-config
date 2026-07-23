@@ -51,6 +51,9 @@ const defaults = Object.freeze({
   plan_tune_hooks: "prompt",
   redact_repo_visibility: "",
   redact_prepush_hook: false,
+  // Founder resources (PG essays, YC videos) in /office-hours. "Never show
+  // me these again" sets this to false.
+  founder_resources: true,
   salience_allowlist: "",
   // Remote pair-agent (ngrok tunnel) is opt-in: OFF exposes nothing to the
   // internet. Set "on" to allow the tunnel to start.
@@ -135,6 +138,7 @@ function validateClosedValue(key, value) {
     [/^artifacts_sync_mode$/, ["off", "artifacts-only", "full"], "off"],
     [/^redact_repo_visibility$/, ["public", "private", "unknown"], "unknown"],
     [/^redact_prepush_hook$/, ["true", "false"], "false"],
+    [/^founder_resources$/, ["true", "false"], "true"],
     [/^plan_tune_hooks$/, ["prompt", "yes", "no"], "prompt"],
     [/^pair_agent$/, ["off", "on"], "off"],
   ];

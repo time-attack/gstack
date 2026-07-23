@@ -11,7 +11,7 @@ The fixed public modes are: Design = `Explore | Generate | Critique | Implement`
 | Legacy invocation | Replacement | Visibility | Mandatory | Judgment overlays |
 |---|---|---|---|---|
 | `/gstack` | `$plan --mode Discovery --module gstack` | internal (internal) | no | #679, #879 |
-| `/office-hours` | `$plan --mode Discovery --module office-hours` | internal (primary) | yes | #679, #2030, #1049, #1116, #886, #703, #2000, #879 |
+| `/office-hours` | `$plan --mode Discovery --module office-hours` | internal (primary) | yes | #679, #2030, #1049, #1116, #886, #703, #2000, #879, #538 |
 | `/plan-ceo-review` | `$plan --mode Product --module plan-ceo-review` | internal (primary) | yes | #679, #2030, #886, #703, #879 |
 | `/plan-eng-review` | `$plan --mode Engineering --module plan-eng-review` | internal (primary) | yes | #679, #1071, #2030, #592, #886, #703, #879 |
 | `/plan-devex-review` | `$plan --mode DX --module plan-devex-review` | internal (primary) | yes | #679, #2030, #886, #703, #879 |
