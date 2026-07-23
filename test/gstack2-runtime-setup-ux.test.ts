@@ -393,6 +393,10 @@ describe("GStack runtime setup UX", () => {
   });
 
   test("official previews retain an active installed-browser choice across same- and cross-release additions", async () => {
+    // Adding a second capability on top of an installed-browser choice requires
+    // a non-browser capability. After the design/pdf/diagram removal, ios is the
+    // only such capability and it is Darwin-only.
+    if (process.platform !== "darwin") return;
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "gstack-bootstrap-retain-browser-"));
     const executable = await fs.realpath(process.execPath);
     const target = `${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`;
@@ -410,17 +414,16 @@ describe("GStack runtime setup UX", () => {
         });
         const output = capture();
         expect(await bootstrapMain([
-          "preview", "--capability", "design", "--home", home, "--json",
+          "preview", "--capability", "ios", "--home", home, "--json",
         ], {
           stdout: output.stream,
           stderr: output.stream,
-          libc: process.platform === "linux" ? "glibc" : undefined,
           fetch: async (url: string) => ({ ok: true, url, json: async () => officialManifestFixture(target) }),
         })).toBe(0);
         const result = JSON.parse(output.value());
-        expect(result.capabilities).toEqual(["browser", "design"]);
+        expect(result.capabilities).toEqual(["browser", "ios"]);
         expect(result.browser).toEqual({ provider: "installed", executablePath: executable });
-        expect(result.components).toEqual(["browser-code", "core", "design"]);
+        expect(result.components).toContain("ios");
         expect(result.components).not.toContain("browser-headless");
         expect(result.reusedComponents.length > 0).toBe(expectsReuse);
       }

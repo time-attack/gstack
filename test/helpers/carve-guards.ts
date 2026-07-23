@@ -174,26 +174,6 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // v1.53.0.0 baseline. Headroom for those intentional additions.
     maxSizeRatio: 1.08,
   },
-  'plan-design-review': {
-    skill: 'plan-design-review',
-    expectedSections: ['review-sections.md'],
-    requiredReads: ['review-sections.md'],
-    scenario:
-      'Review the plan in PLAN.md for design and UX. Accept the current scope. Run the full design review passes and produce the review report.',
-    staticInvariants: {
-      mustStayInSkeleton: [],
-      mustMoveToSection: ['### Pass 1: Information Architecture'],
-      gateAfterStop: 'EXIT PLAN MODE GATE',
-    },
-    behavioral: 'plan',
-    // +Conductor AUQ-default-prose rule + one-way/continuation safety in the
-    // always-loaded AskUserQuestion Format section.
-    // v1.2.0 activation lift (shared first-run-guidance preamble) + #2077 ask-first scope gate.
-    maxSkeletonBytes: 88_000,
-    minUnionBytes: 70_000,
-    mustContain: ['design', 'visual'],
-    maxSizeRatio: 1.07,
-  },
   'plan-devex-review': {
     skill: 'plan-devex-review',
     expectedSections: ['review-sections.md'],
@@ -265,29 +245,6 @@ export const CARVE_GUARDS: Record<string, CarveGuard> = {
     // to match while the skeleton budget (50_000) still holds the always-loaded
     // cost flat.
     maxSizeRatio: 1.20,
-  },
-  'design-consultation': {
-    skill: 'design-consultation',
-    expectedSections: ['proposal-and-preview.md'],
-    requiredReads: ['proposal-and-preview.md'],
-    scenario:
-      'The user gave product context (a B2B analytics dashboard for ops teams) and declined the research phase. Skip browser/design tool setup. Proceed to build the complete design-system proposal, then write DESIGN.md. Produce the proposal and the DESIGN.md content.',
-    staticInvariants: {
-      mustStayInSkeleton: ['## Phase 0: Pre-checks', '## Phase 1: Product Context', '## Phase 2: Research'],
-      mustMoveToSection: ['## Phase 3: The Complete Proposal', '## Phase 6: Write DESIGN.md'],
-      gateAfterStop: undefined,
-    },
-    behavioral: 'prompt',
-    // +Conductor AUQ-default-prose rule + one-way/continuation safety in the
-    // always-loaded AskUserQuestion Format section.
-    // v1.2.0 activation lift: first-run-guidance section in the shared preamble.
-    maxSkeletonBytes: 69_000,
-    minUnionBytes: 72_000,
-    mustContain: ['Typography', 'Color', 'Aesthetic Direction'],
-    // Cross-cutting preamble growth (v1.57.2.0 AUQ-failure prose fallback ~2KB +
-    // the cross-session decision-memory nudge) lands this carved skeleton just over
-    // the strict 1.05; headroom for the shared preamble additions.
-    maxSizeRatio: 1.07,
   },
   cso: {
     skill: 'cso',

@@ -3311,7 +3311,7 @@
       "source_path": "ship/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "068ac4fe54bcb46572295d48263b11bd38fcde18",
-      "normalized_render_sha256": "4450b250c82157fcf5e11e196dd968667689c4cc98209c54c70280f2e3592a14",
+      "normalized_render_sha256": "a0893ea65f869b7a08a27851f7b4ce1573583ce4f48c0dbe563bd3ac99b6eb82",
       "target": "skills/ship/references/legacy/ship.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3447,7 +3447,7 @@
       "source_path": "land-and-deploy/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "98976ad020d541d251cc7e34802a13458ddc88e2",
-      "normalized_render_sha256": "353c653116e1b1580213b1594c7b489e2581c175b249d4eda1b16d4938c11d8e",
+      "normalized_render_sha256": "2699a74614cf2c24bec81e96199e4162cb48cdeb39a87a0315763dcb78cdcfe5",
       "target": "skills/ship/references/legacy/land-and-deploy.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -5789,8 +5789,7 @@
       "delivery": "repository-payload",
       "source_path": "bin/gstack-diff-scope",
       "consumer_modules": [
-        "land-and-deploy",
-        "ship"
+        "land-and-deploy"
       ],
       "stable_path": "${GSTACK_HOME:-$HOME/.gstack}/bin/gstack-diff-scope"
     },

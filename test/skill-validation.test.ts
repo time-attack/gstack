@@ -1608,9 +1608,9 @@ describe('Doc inventory cross-check', () => {
     return dirs.sort();
   }
 
-  test('AGENTS.md documents the exact six-skill public surface', () => {
+  test('AGENTS.md documents the exact five-skill public surface', () => {
     const agents = fs.readFileSync(path.join(ROOT, 'AGENTS.md'), 'utf-8');
-    expect(agents).toContain('GStack 2 exposes exactly six default public skills');
+    expect(agents).toContain('GStack 2 exposes exactly five default public skills');
     for (const skill of PUBLIC_SKILLS) {
       expect(agents).toContain(`| \`/${skill}\` |`);
     }

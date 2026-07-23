@@ -231,8 +231,12 @@ const DESIGN_REVIEW_OFFER_REWRITES: Array<[string, string]> = [
   // gstack meta-skill routing table (root SKILL.md.tmpl): drop the design-REVIEW routes
   ['\n- User asks to review design of a plan → invoke `/plan-design-review`', ''],
   ['\n- User asks about visual polish, design audit of a live site, "this looks off" → invoke `/design-review`', ''],
-  // ship/SKILL.md.tmpl parent body: drop the retired diff-scoped design-review-lite mention
-  ['\n\nFor Design Review: run `source <(~/.claude/skills/gstack/bin/gstack-diff-scope <base> 2>/dev/null)`. If `SCOPE_FRONTEND=true` and no design review (plan-design-review or design-review-lite) exists in the dashboard, mention: "Design Review not run — this PR changes frontend code. The lite design check will run automatically in Step 9, but consider running /design-review for a full visual audit post-implementation." Still never block.', ''],
+  // ship/SKILL.md.tmpl parent body: drop the retired diff-scoped design-review-lite
+  // mention. stripDesignReviewOfferings runs before portLegacyText rewrites
+  // $GSTACK_ROOT/bin -> $GSTACK_BIN, so the search text carries the $GSTACK_ROOT form.
+  ['\n\nFor Design Review: run `source <($GSTACK_ROOT/bin/gstack-diff-scope <base> 2>/dev/null)`. If `SCOPE_FRONTEND=true` and no design review (plan-design-review or design-review-lite) exists in the dashboard, mention: "Design Review not run — this PR changes frontend code. The lite design check will run automatically in Step 9, but consider running /design-review for a full visual audit post-implementation." Still never block.', ''],
+  // land-and-deploy review-log parse list: drop the retired design-review-lite source
+  ['plan-design-review, design-review-lite, codex-review, review, adversarial-review,', 'plan-design-review, codex-review, review, adversarial-review,'],
 ];
 
 // The retired design-review-lite specialist is gone, so its `{{DESIGN_REVIEW_LITE}}`
@@ -383,7 +387,6 @@ function portLegacyText(value: string, source: string): string {
   // selected package. Executable runtime helpers remain under GSTACK_HOME.
   body = body
     .replaceAll('$GSTACK_ROOT/plan-devex-review/dx-hall-of-fame.md', 'references/artifacts/plan-devex-review/dx-hall-of-fame.md')
-    .replaceAll('$GSTACK_ROOT/design-html/vendor/pretext.js', 'assets/design-html/vendor/pretext.js')
     .replaceAll('$GSTACK_ROOT/review/checklist.md', 'references/artifacts/review/checklist.md')
     .replaceAll('$GSTACK_ROOT/ios-qa/templates/', 'references/artifacts/ios-qa/templates/')
     .replaceAll('ios-qa/docs/tailscale-acl-example.md', 'references/artifacts/ios-qa/docs/tailscale-acl-example.md');
@@ -405,8 +408,6 @@ function portLegacyText(value: string, source: string): string {
     .replaceAll('$GSTACK_ROOT/browse/bin/remote-slug', '$GSTACK_BIN/remote-slug')
     .replaceAll('$GSTACK_ROOT/browse/dist/browse', '$GSTACK_BIN/browse')
     .replaceAll('$GSTACK_ROOT/browse/dist', '$GSTACK_BIN')
-    .replaceAll('$GSTACK_ROOT/design/dist/design', '$GSTACK_BIN/gstack-design')
-    .replaceAll('$GSTACK_ROOT/design/dist', '$GSTACK_BIN')
     .replaceAll('$GSTACK_ROOT/lib/redact-audit-log.ts', '$GSTACK_BIN/gstack-redact-audit-log')
     .replaceAll('bun $GSTACK_BIN/gstack-redact-audit-log', '$GSTACK_BIN/gstack-redact-audit-log')
     .replaceAll('Disk paths stay `$GSTACK_ROOT/[skill-name]/SKILL.md`.', 'Resolve retired names through `references/COMPATIBILITY.md`; skill placement is installer-owned.')
@@ -417,9 +418,6 @@ function portLegacyText(value: string, source: string): string {
     .replace(/If `VENDORED_GSTACK` is `yes`, warn once[\s\S]*?If marker exists, skip\./g, 'GStack 2 delegates skill placement, updates, and removal to the standard Agent Skills installer. Never inspect, delete, commit, or migrate a host-specific skill directory from a judgment workflow.')
     .replaceAll('"$_ROOT/.agents/skills/gstack/browse/dist/browse"', '"$GSTACK_BIN/browse"')
     .replaceAll('"$HOME/.agents/skills/gstack/browse/dist/browse"', '"$GSTACK_BIN/browse"')
-    .replaceAll('"$_ROOT/.agents/skills/gstack/design/dist/design"', '"$GSTACK_BIN/gstack-design"')
-    .replaceAll('"$HOME/.agents/skills/gstack/design/dist/design"', '"$GSTACK_BIN/gstack-design"')
-    .replaceAll('[ -z "$P" ] && [ -n "$_ROOT" ] && [ -x "$_ROOT/.agents/skills/gstack/make-pdf/dist/pdf" ] && P="$_ROOT/.agents/skills/gstack/make-pdf/dist/pdf"', '[ -z "$P" ] && P="$GSTACK_BIN/make-pdf"')
     .replaceAll('`$_ROOT/.agents/skills/gstack/browse/dist/browse` or `$GSTACK_BIN/browse`', '`$GSTACK_BIN/browse`')
     .replaceAll('BIN="$HOME/.agents/skills/gstack/bin/gstack-model-benchmark"', 'BIN="$GSTACK_BIN/gstack-model-benchmark"')
     .replaceAll('[ -x "$BIN" ] || BIN=".agents/skills/gstack/bin/gstack-model-benchmark"', ': "model benchmark helper resolves from the managed runtime"')
@@ -479,14 +477,9 @@ function portLegacyText(value: string, source: string): string {
     .replaceAll('DISCOVER_BIN="bun run $GSTACK_BIN/gstack-global-discover"', 'DISCOVER_BIN="$GSTACK_BIN/gstack-global-discover"');
 
   body = body.replace(
-    /BUNDLE=""\nfor c in "\$HOME\/\.agents\/skills\/gstack\/lib\/diagram-render\/dist\/diagram-render\.html" \\\n\s+"\$\(git rev-parse --show-toplevel 2>\/dev\/null\)\/lib\/diagram-render\/dist\/diagram-render\.html"; do\n\s+\[ -f "\$c" \] && BUNDLE="\$c" && break\ndone/,
-    'BUNDLE=$($GSTACK_BIN/gstack runtime path lib/diagram-render/dist/diagram-render.html 2>/dev/null || true)',
-  );
-  body = body.replace(
     /_EXT_PATH=""\n_ROOT=\$\(git rev-parse --show-toplevel 2>\/dev\/null\)\n\[ -n "\$_ROOT" \][\s\S]*?echo "EXTENSION_PATH: \$\{_EXT_PATH:-NOT FOUND\}"/,
     '_EXT_PATH=$($GSTACK_BIN/gstack runtime path extension 2>/dev/null || true)\necho "EXTENSION_PATH: ${_EXT_PATH:-NOT FOUND}"',
   );
-  body = body.replaceAll('[ -n "$_ROOT" ] && [ -f "$_ROOT/.agents/skills/gstack/design-html/vendor/pretext.js" ] && _PRETEXT_VENDOR="$_ROOT/.agents/skills/gstack/design-html/vendor/pretext.js"', ': "Pretext is packaged with the selected design skill"');
   body = body
     .replaceAll('--package-path "$GSTACK_HOME/ios-qa/scripts/gen-accessors-tool"', '--package-path "$($GSTACK_BIN/gstack runtime path ios-qa/scripts/gen-accessors-tool)"')
     .replaceAll('--package-path $GSTACK_HOME/ios-qa/scripts/gen-accessors-tool', '--package-path "$($GSTACK_BIN/gstack runtime path ios-qa/scripts/gen-accessors-tool)"')
@@ -505,9 +498,7 @@ function portLegacyText(value: string, source: string): string {
 
   // The managed runtime installs stable launchers in one canonical user bin.
   body = body
-    .replaceAll('$HOME$GSTACK_BROWSE/browse', '${GSTACK_HOME:-$HOME/.gstack}/bin/browse')
-    .replaceAll('$HOME$GSTACK_DESIGN/design', '${GSTACK_HOME:-$HOME/.gstack}/bin/gstack-design')
-    .replaceAll('$HOME$GSTACK_MAKE_PDF/pdf', '${GSTACK_HOME:-$HOME/.gstack}/bin/make-pdf');
+    .replaceAll('$HOME$GSTACK_BROWSE/browse', '${GSTACK_HOME:-$HOME/.gstack}/bin/browse');
 
   if (source === 'careful') {
     body = body.replace(

@@ -4,8 +4,8 @@ This document explains **why** gstack is built the way it is. For setup and comm
 
 ## GStack 2 judgment-layer architecture
 
-GStack 2 has one canonical Agent Skills tree under `skills/` and exactly six
-default-discoverable entry points: `plan`, `design`, `qa`, `debug`, `review`,
+GStack 2 has one canonical Agent Skills tree under `skills/` and exactly five
+default-discoverable entry points: `plan`, `qa`, `debug`, `review`,
 and `ship`. The entries are thin dispatchers, not rewritten specialist
 prompts. A dispatcher chooses from structured product-stage, surface,
 authorization, and evidence signals, prints its execution header, and lazily
@@ -13,7 +13,7 @@ loads the full preserved module from `skills/<skill>/references/legacy/`.
 
 ```text
 request
-  -> one of six public dispatchers
+  -> one of five public dispatchers
   -> explicit mode / depth / mutation / web-context decision
   -> preserved specialist module (loaded only when selected)
   -> local capability or optional host-neutral runtime, when needed

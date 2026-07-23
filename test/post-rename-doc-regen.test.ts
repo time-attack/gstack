@@ -73,12 +73,12 @@ describe('post-rename doc-regen regression (codex Finding #12)', () => {
     expect(offenders).toEqual([]);
   });
 
-  test('top-level SKILL.md stays absent and exactly six public dispatchers exist', () => {
+  test('top-level SKILL.md stays absent and exactly five public dispatchers exist', () => {
     expect(fs.existsSync(path.join(ROOT, 'SKILL.md'))).toBe(false);
     const publicSkills = fs.readdirSync(path.join(ROOT, 'skills'), { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, 'skills', entry.name, 'SKILL.md')))
       .map((entry) => entry.name)
       .sort();
-    expect(publicSkills).toEqual(['debug', 'design', 'plan', 'qa', 'review', 'ship']);
+    expect(publicSkills).toEqual(['debug', 'plan', 'qa', 'review', 'ship']);
   });
 });

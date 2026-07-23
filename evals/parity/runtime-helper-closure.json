@@ -189,8 +189,7 @@
       "delivery": "repository-payload",
       "source_path": "bin/gstack-diff-scope",
       "consumer_modules": [
-        "land-and-deploy",
-        "ship"
+        "land-and-deploy"
       ],
       "stable_path": "${GSTACK_HOME:-$HOME/.gstack}/bin/gstack-diff-scope"
     },

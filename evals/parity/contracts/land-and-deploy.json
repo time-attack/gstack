@@ -9,7 +9,7 @@
   "source_path": "land-and-deploy/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "98976ad020d541d251cc7e34802a13458ddc88e2",
-  "normalized_render_sha256": "353c653116e1b1580213b1594c7b489e2581c175b249d4eda1b16d4938c11d8e",
+  "normalized_render_sha256": "2699a74614cf2c24bec81e96199e4162cb48cdeb39a87a0315763dcb78cdcfe5",
   "target": "skills/ship/references/legacy/land-and-deploy.md",
   "overlays": [
     679,
