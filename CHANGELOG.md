@@ -7,6 +7,42 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.0.0] - 2026-07-23
+
+## **/ship now takes an Apple app from working tree**
+## **to App Store submission, start to finish.**
+
+Point /ship at a repo with an `.xcodeproj`, `.xcworkspace`, or app-product Swift package and it runs the whole Apple release journey instead of stopping at "archive it yourself." First question, before any archive work: do you have a paid Apple Developer Program membership ($99/year)? Without one there is no App Store and no TestFlight, so the skill says that plainly and offers to walk enrollment in your browser rather than letting you discover it after an hour of signing errors. With one, it preflights everything App Store validation actually rejects: signing team, marketing version and build number, resolved package dependencies, the 1024pt icon, privacy usage strings, export compliance. Then it archives and uploads with the native Xcode toolchain, nothing else. No fastlane, no new dependency in your project.
+
+The finish line lives in App Store Connect, so the skill offers to drive it there too: app record, screenshots, privacy labels, pricing, attaching the build, TestFlight, Submit for Review. Same consent-gated browser flow as API-key registration, or a complete manual checklist if you'd rather click yourself. Uploads run through the durable external-effects wrapper, so a crashed session inspects App Store Connect instead of double-submitting your build.
+
+### The numbers that matter
+
+Source: `bun run scripts/gstack2/run-parity.ts` on this release.
+
+| Metric | Before | After |
+|---|---|---|
+| /ship coverage of the Apple release journey | archive advice | membership gate through Submit for Review |
+| New project dependencies required to release | n/a | 0 |
+| Pinned parity checks | 5,080 | 5,083 |
+
+The +3 checks pin the membership gate, the durable-upload binding, and the no-new-dependency rule, so none of them can quietly regress.
+
+### What this means for iOS builders
+
+The distance between "my app works in the simulator" and "my app is in review" used to be a weekend of Apple documentation. Now /ship walks it with you, asks the one question that actually gates everything, and stops exactly where App Review takes over.
+
+### Itemized changes
+
+### Added
+
+- `references/APPLE-RELEASE.md` generated into the ship tree: paid Apple Developer Program membership gate with honest free-account ceilings, native-toolchain release preflight, archive/validate/upload via `xcodebuild` with App Store Connect API key auth, uploads bound to the durable external-effects wrapper, and App Store Connect completion (app record, screenshots, privacy labels, TestFlight, Submit for Review) offered through the consent-gated third-party web-action flow.
+- Ship dispatch protocol step 10: Apple platform targets load the adapter before release preparation.
+
+### For contributors
+
+- New `appleReleaseContract()` in `scripts/gstack2/generate-skill-tree.ts`; 3 pinned checks in `run-parity.ts` (5,080 to 5,083).
+
 ## [1.63.0.0] - 2026-07-23
 
 ## **"Go register an API key" is no longer your homework.**
