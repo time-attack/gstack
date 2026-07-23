@@ -24,8 +24,10 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // targets) added 13 more. The design-doc concision overlay for issue #2000
 // (27 -> 28, office-hours only) added 5 more. The self-contained-questions
 // overlay for issue #879 (28 -> 29, targets '*', all 55 modules) added 113
-// more (2 per module + 3 regression checks).
-export const EXPECTED_PARITY_CHECKS = 5027;
+// more (2 per module + 3 regression checks). Extending the #886 overlay to
+// the review specialists (review, plan-design-review, design-review) added
+// 6 more (2 per newly targeted module).
+export const EXPECTED_PARITY_CHECKS = 5033;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');

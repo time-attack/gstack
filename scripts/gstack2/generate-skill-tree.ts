@@ -225,6 +225,10 @@ Classify the request on fifteen scale vectors before any questioning begins, fro
 Vectors: audience (self → friends/team → public), expected users (none → handful → many), commercial intent (none → maybe → core), deployment target (none/local → hosted → production), time horizon (one sitting → days → weeks → months+), maintenance expectation (throwaway → kept → maintained), integration surface (standalone → consumes APIs → exposes APIs/multi-service), extensibility ask (fixed → configurable → customizable platform), data sensitivity (none → personal → regulated), failure stakes (lost fun → annoyance → money/trust/safety), team (solo → few → org), codebase (greenfield → existing repo → legacy production), reversibility (discardable → migrations/breaking changes), distribution (private → shared → published), compliance (none → some → audited).
 
 The highest tier any vector demands wins: \`session\` (all vectors low — one sitting, for fun, self only), \`hobby\` (kept personal tool, days), \`project\` (shared or in a real repo, weeks), \`product\` (external users, hosted, revenue intent), \`venture\` (startup ambition, platform/API surface, team, months+). "A cool space animation in my terminal" is session-scale. "A startup with customizable APIs" is venture-scale. Print the result on the header's Scale line with the two or three vectors that decided it.
+
+An explicit user time constraint is a ceiling, not one vector among fifteen: work that must fit one sitting (a hackathon demo, a stated hour count, "before my flight") caps the scale at \`session\`, and a day-or-two deadline caps it at \`hobby\`, no matter how public the audience or how ambitious the idea. The user's clock outranks every ambition vector. Print the constraint with the scale: \`Scale: session (hackathon, one sitting)\`.
+
+The scale binds the whole chain, not just this invocation. Every handoff to a chained review or specialist names the scale and any time box, and the receiving workflow applies its proportional-planning port to the inherited scale without re-asking or re-classifying upward.
 `
     : '';
 
@@ -476,7 +480,9 @@ function sharedJudgmentContract(): string {
     '7. Preview artifacts and diffs before approval. Approval remains mandatory before merge, deploy, destructive mutation, or spending.',
     '8. Match the user language. Empty or contradictory evidence blocks confident success.',
     '9. Recommendations remain traceable downstream, including what evidence would change them.',
-    '10. The user makes the final decision.',
+    '10. Ask only what cannot be inferred. Question rounds are for decisions that are consequential and still open after the prompt, the repository, and platform convention are consulted; infer the rest, state each inferred default in one line, and batch what remains. Never spend a round confirming what a handoff already names or offering optional extras.',
+    '11. A user-stated time constraint binds every phase and every chained skill. Skip or compress optional phases that do not fit it, noting each skip in one line.',
+    '12. The user makes the final decision.',
     '',
   ].join('\n');
 }
