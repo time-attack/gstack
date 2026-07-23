@@ -12,7 +12,8 @@
   "normalized_render_sha256": "cc38b71471c1fefc015419e768c5b40f060f03b232cbad850cd7d9c985a6cc90",
   "target": "skills/debug/references/legacy/ios-fix.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

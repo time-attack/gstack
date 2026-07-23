@@ -409,6 +409,24 @@ The design doc is a decision record, not a transcript of the session. There is n
       },
     },
   },
+  {
+    pr: 879,
+    url: 'https://github.com/garrytan/gstack/issues/879',
+    title: 'Show the content a question refers to before asking it',
+    targets: ['*'],
+    anchor: 'GSTACK2_FIX_879_SELF_CONTAINED_QUESTIONS',
+    body: `### Self-contained questions
+
+A question is only answerable if the user can see what it refers to. Before any AskUserQuestion or prose decision brief that asks the user to confirm, approve, rank, or choose among content this session produced — premises, findings, plans, approaches, scores, summaries — render that content in full as direct assistant text immediately before the question, or restate it inside the question and option descriptions. Internal reasoning is invisible to the user, and collapsed tool output (Bash cat, Read) does not count as shown. Never ask "do you agree with the N premises?" when the premises exist only in your reasoning: print them, then ask. This generalizes the inline design-doc approval rule from PR #1116 to every question in every workflow.`,
+    regression: {
+      input: { question_refers_to: 'session-produced-premises', content_rendered_as_assistant_text: false },
+      expected: {
+        render_content_before_question: true,
+        ask_about_unshown_content: false,
+        collapsed_tool_output_counts_as_shown: false,
+      },
+    },
+  },
 ];
 
 export function overlaysForSource(source: string): BugFixOverlay[] {
@@ -599,6 +617,15 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
         gstack_home_copy: true,
         approval_names_visible_path: true,
         reviewer_prefers: 'repo-local',
+      };
+    }
+    case 879: {
+      const sessionProduced = /session-produced|agent-produced|premise|finding|plan|approach|summar/i.test(String(input.question_refers_to ?? ''));
+      const shown = input.content_rendered_as_assistant_text === true;
+      return {
+        render_content_before_question: sessionProduced && !shown,
+        ask_about_unshown_content: false,
+        collapsed_tool_output_counts_as_shown: false,
       };
     }
     case 886: {

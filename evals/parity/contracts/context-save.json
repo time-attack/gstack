@@ -12,7 +12,8 @@
   "normalized_render_sha256": "f457da8b2cc1f9a4ed8ba82f4ea570a69460ce0147e171b5023d66324b6dc899",
   "target": "skills/plan/references/legacy/context-save.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

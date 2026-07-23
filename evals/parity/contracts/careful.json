@@ -12,7 +12,8 @@
   "normalized_render_sha256": "f5fe3aa0755e04ad328ed67a4e42c21d9f9b5509167a69d91158a59cce8111ea",
   "target": "skills/debug/references/legacy/careful.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

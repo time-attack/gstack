@@ -12,7 +12,8 @@
   "normalized_render_sha256": "94ebbe955a1063f88712c51723023765519eab8986b029bf1222d0ec19b79e12",
   "target": "skills/review/references/legacy/codex.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

@@ -94,6 +94,13 @@
           "reproduced_defect": "Retain rejection confidence in design exploration",
           "regression_fixture": "evals/parity/regressions/pr-1777.json",
           "explanation": "### Rejection-strength memory\n\nWhen recording design feedback, preserve how explicit and confident a rejection was. A hard rejection becomes a strong negative constraint; tentative dislike remains a weak signal that can be revisited. Never flatten rejected directions into evidence equivalent to approved directions."
+        },
+        {
+          "classification": "INTENTIONAL_IMPROVEMENT",
+          "issue_or_pr": "https://github.com/garrytan/gstack/issues/879",
+          "reproduced_defect": "Show the content a question refers to before asking it",
+          "regression_fixture": "evals/parity/regressions/pr-879.json",
+          "explanation": "### Self-contained questions\n\nA question is only answerable if the user can see what it refers to. Before any AskUserQuestion or prose decision brief that asks the user to confirm, approve, rank, or choose among content this session produced — premises, findings, plans, approaches, scores, summaries — render that content in full as direct assistant text immediately before the question, or restate it inside the question and option descriptions. Internal reasoning is invisible to the user, and collapsed tool output (Bash cat, Read) does not count as shown. Never ask \"do you agree with the N premises?\" when the premises exist only in your reasoning: print them, then ask. This generalizes the inline design-doc approval rule from PR #1116 to every question in every workflow."
         }
       ]
     }

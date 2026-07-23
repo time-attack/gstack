@@ -12,7 +12,8 @@
   "normalized_render_sha256": "53741f7f044faa413f1725bada27514d2528d834f327e83f040de67668d24dae",
   "target": "skills/design/references/legacy/ios-design-review.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

@@ -12,7 +12,8 @@
   "normalized_render_sha256": "ece1cfa64bb3cbb3979ce06890e09bbc2ccab4e1d49310c57dc28e70e1236ee9",
   "target": "skills/design/references/legacy/make-pdf.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

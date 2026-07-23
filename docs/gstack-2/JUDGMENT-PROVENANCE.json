@@ -35,7 +35,8 @@
       "target": "skills/plan/references/legacy/gstack.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "SKILL.md.tmpl",
       "original_line_range": "1-92",
@@ -93,7 +94,8 @@
         1116,
         886,
         703,
-        2000
+        2000,
+        879
       ],
       "original_source_file": "office-hours/SKILL.md.tmpl",
       "original_line_range": "1-526",
@@ -209,7 +211,8 @@
         679,
         2030,
         886,
-        703
+        703,
+        879
       ],
       "original_source_file": "plan-ceo-review/SKILL.md.tmpl",
       "original_line_range": "1-427",
@@ -353,7 +356,8 @@
         2030,
         592,
         886,
-        703
+        703,
+        879
       ],
       "original_source_file": "plan-eng-review/SKILL.md.tmpl",
       "original_line_range": "1-158",
@@ -474,7 +478,8 @@
         679,
         2030,
         886,
-        703
+        703,
+        879
       ],
       "original_source_file": "plan-devex-review/SKILL.md.tmpl",
       "original_line_range": "1-462",
@@ -610,7 +615,8 @@
         2014,
         2023,
         886,
-        703
+        703,
+        879
       ],
       "original_source_file": "autoplan/SKILL.md.tmpl",
       "original_line_range": "1-916",
@@ -700,7 +706,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        886
+        886,
+        879
       ],
       "original_source_file": "spec/SKILL.md.tmpl",
       "original_line_range": "1-769",
@@ -833,7 +840,8 @@
       "target": "skills/plan/references/legacy/plan-tune.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "plan-tune/SKILL.md.tmpl",
       "original_line_range": "1-659",
@@ -912,7 +920,8 @@
       "target": "skills/plan/references/legacy/context-save.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "context-save/SKILL.md.tmpl",
       "original_line_range": "1-274",
@@ -987,7 +996,8 @@
       "target": "skills/plan/references/legacy/context-restore.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "context-restore/SKILL.md.tmpl",
       "original_line_range": "1-155",
@@ -1060,7 +1070,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        2030
+        2030,
+        879
       ],
       "original_source_file": "learn/SKILL.md.tmpl",
       "original_line_range": "1-198",
@@ -1134,7 +1145,8 @@
       "overlays": [
         679,
         1636,
-        2037
+        2037,
+        879
       ],
       "original_source_file": "retro/SKILL.md.tmpl",
       "original_line_range": "1-961",
@@ -1259,7 +1271,8 @@
       "target": "skills/plan/references/legacy/setup-gbrain.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "setup-gbrain/SKILL.md.tmpl",
       "original_line_range": "1-1084",
@@ -1359,7 +1372,8 @@
       "target": "skills/plan/references/legacy/sync-gbrain.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "sync-gbrain/SKILL.md.tmpl",
       "original_line_range": "1-484",
@@ -1437,7 +1451,8 @@
       "overlays": [
         679,
         2030,
-        2189
+        2189,
+        879
       ],
       "original_source_file": "design-consultation/SKILL.md.tmpl",
       "original_line_range": "1-215",
@@ -1524,7 +1539,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        1777
+        1777,
+        879
       ],
       "original_source_file": "design-shotgun/SKILL.md.tmpl",
       "original_line_range": "1-345",
@@ -1610,7 +1626,8 @@
       "target": "skills/design/references/legacy/design-html.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "design-html/SKILL.md.tmpl",
       "original_line_range": "1-601",
@@ -1708,7 +1725,8 @@
       "overlays": [
         679,
         2030,
-        2189
+        2189,
+        879
       ],
       "original_source_file": "plan-design-review/SKILL.md.tmpl",
       "original_line_range": "1-295",
@@ -1843,7 +1861,8 @@
         1920,
         2030,
         2189,
-        696
+        696,
+        879
       ],
       "original_source_file": "design-review/SKILL.md.tmpl",
       "original_line_range": "1-313",
@@ -1970,7 +1989,8 @@
       "target": "skills/design/references/legacy/ios-design-review.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "ios-design-review/SKILL.md.tmpl",
       "original_line_range": "1-106",
@@ -2042,7 +2062,8 @@
       "target": "skills/design/references/legacy/diagram.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "diagram/SKILL.md.tmpl",
       "original_line_range": "1-151",
@@ -2115,7 +2136,8 @@
       "target": "skills/design/references/legacy/make-pdf.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "make-pdf/SKILL.md.tmpl",
       "original_line_range": "1-248",
@@ -2185,7 +2207,8 @@
         679,
         1484,
         2030,
-        2186
+        2186,
+        879
       ],
       "original_source_file": "qa/SKILL.md.tmpl",
       "original_line_range": "1-355",
@@ -2310,7 +2333,8 @@
       "overlays": [
         679,
         1484,
-        2030
+        2030,
+        879
       ],
       "original_source_file": "qa-only/SKILL.md.tmpl",
       "original_line_range": "1-115",
@@ -2409,7 +2433,8 @@
       "target": "skills/qa/references/legacy/ios-qa.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "ios-qa/SKILL.md.tmpl",
       "original_line_range": "1-222",
@@ -2487,7 +2512,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        2030
+        2030,
+        879
       ],
       "original_source_file": "devex-review/SKILL.md.tmpl",
       "original_line_range": "1-230",
@@ -2585,7 +2611,8 @@
       "target": "skills/qa/references/legacy/benchmark.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "benchmark/SKILL.md.tmpl",
       "original_line_range": "1-242",
@@ -2652,7 +2679,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        2186
+        2186,
+        879
       ],
       "original_source_file": "canary/SKILL.md.tmpl",
       "original_line_range": "1-226",
@@ -2731,7 +2759,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        2186
+        2186,
+        879
       ],
       "original_source_file": "browse/SKILL.md.tmpl",
       "original_line_range": "1-312",
@@ -2818,7 +2847,8 @@
       "target": "skills/qa/references/legacy/open-gstack-browser.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "open-gstack-browser/SKILL.md.tmpl",
       "original_line_range": "1-210",
@@ -2893,7 +2923,8 @@
       "target": "skills/qa/references/legacy/setup-browser-cookies.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "setup-browser-cookies/SKILL.md.tmpl",
       "original_line_range": "1-89",
@@ -2954,7 +2985,8 @@
       "target": "skills/qa/references/legacy/pair-agent.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "pair-agent/SKILL.md.tmpl",
       "original_line_range": "1-268",
@@ -3038,7 +3070,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        2030
+        2030,
+        879
       ],
       "original_source_file": "scrape/SKILL.md.tmpl",
       "original_line_range": "1-153",
@@ -3115,7 +3148,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        2030
+        2030,
+        879
       ],
       "original_source_file": "skillify/SKILL.md.tmpl",
       "original_line_range": "1-435",
@@ -3197,7 +3231,8 @@
       "target": "skills/qa/references/legacy/benchmark-models.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "benchmark-models/SKILL.md.tmpl",
       "original_line_range": "1-152",
@@ -3259,7 +3294,8 @@
       "overlays": [
         679,
         2030,
-        2186
+        2186,
+        879
       ],
       "original_source_file": "investigate/SKILL.md.tmpl",
       "original_line_range": "1-260",
@@ -3335,7 +3371,8 @@
       "target": "skills/debug/references/legacy/ios-fix.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "ios-fix/SKILL.md.tmpl",
       "original_line_range": "1-102",
@@ -3409,7 +3446,8 @@
       "target": "skills/debug/references/legacy/careful.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "careful/SKILL.md.tmpl",
       "original_line_range": "1-63",
@@ -3453,7 +3491,8 @@
       "target": "skills/debug/references/legacy/freeze.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "freeze/SKILL.md.tmpl",
       "original_line_range": "1-87",
@@ -3497,7 +3536,8 @@
       "target": "skills/debug/references/legacy/guard.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "guard/SKILL.md.tmpl",
       "original_line_range": "1-87",
@@ -3540,7 +3580,8 @@
       "target": "skills/debug/references/legacy/unfreeze.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "unfreeze/SKILL.md.tmpl",
       "original_line_range": "1-45",
@@ -3588,7 +3629,8 @@
         2030,
         2141,
         579,
-        452
+        452,
+        879
       ],
       "original_source_file": "review/SKILL.md.tmpl",
       "original_line_range": "1-304",
@@ -3692,7 +3734,8 @@
         679,
         2030,
         1523,
-        1053
+        1053,
+        879
       ],
       "original_source_file": "cso/SKILL.md.tmpl",
       "original_line_range": "1-408",
@@ -3793,7 +3836,8 @@
       "target": "skills/review/references/legacy/health.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "health/SKILL.md.tmpl",
       "original_line_range": "1-321",
@@ -3866,7 +3910,8 @@
       "target": "skills/review/references/legacy/codex.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "codex/SKILL.md.tmpl",
       "original_line_range": "1-666",
@@ -3948,7 +3993,8 @@
       "target": "skills/review/references/legacy/claude.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "claude/SKILL.md.tmpl",
       "original_line_range": "1-342",
@@ -4029,7 +4075,8 @@
         884,
         2030,
         2186,
-        1102
+        1102,
+        879
       ],
       "original_source_file": "ship/SKILL.md.tmpl",
       "original_line_range": "1-538",
@@ -4162,7 +4209,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        884
+        884,
+        879
       ],
       "original_source_file": "land-and-deploy/SKILL.md.tmpl",
       "original_line_range": "1-1009",
@@ -4269,7 +4317,8 @@
       "target": "skills/ship/references/legacy/landing-report.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "landing-report/SKILL.md.tmpl",
       "original_line_range": "1-164",
@@ -4343,7 +4392,8 @@
       "target": "skills/ship/references/legacy/document-release.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "document-release/SKILL.md.tmpl",
       "original_line_range": "1-161",
@@ -4420,7 +4470,8 @@
       "target": "skills/ship/references/legacy/setup-deploy.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "setup-deploy/SKILL.md.tmpl",
       "original_line_range": "1-226",
@@ -4500,7 +4551,8 @@
       "target": "skills/ship/references/legacy/document-generate.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "document-generate/SKILL.md.tmpl",
       "original_line_range": "1-461",
@@ -4577,7 +4629,8 @@
       "target": "skills/ship/references/legacy/gstack-upgrade.md",
       "disposition": "DUPLICATE_INFRASTRUCTURE",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "gstack-upgrade/SKILL.md.tmpl",
       "original_line_range": "1-282",
@@ -4629,7 +4682,8 @@
       "target": "skills/ship/references/legacy/ios-clean.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "ios-clean/SKILL.md.tmpl",
       "original_line_range": "1-105",
@@ -4702,7 +4756,8 @@
       "target": "skills/ship/references/legacy/ios-sync.md",
       "disposition": "BUG_FIX",
       "overlays": [
-        679
+        679,
+        879
       ],
       "original_source_file": "ios-sync/SKILL.md.tmpl",
       "original_line_range": "1-96",
@@ -5780,7 +5835,7 @@
       "owner_tree": "design",
       "consumer_tree": "plan",
       "target": "skills/plan/references/legacy/plan-design-review.md",
-      "sha256": "5ff3595a7a6e9136d68678e2810001033beb0b92c3f139b1c749e73398ed4b9a",
+      "sha256": "7ae61a9b6a642ce58bde446116347c320c5414ce1f8fc6396762cd6a7974f532",
       "disposition": "SHARED_MODULE"
     },
     {
@@ -5788,7 +5843,7 @@
       "owner_tree": "debug",
       "consumer_tree": "qa",
       "target": "skills/qa/references/legacy/investigate.md",
-      "sha256": "ebd663fead64cc7d92969742d06bbb18be6f21be7010bba82fc82a27f84efc5e",
+      "sha256": "16d411941d1f8b8cf8cf295999aad50160d50bffbb89d36cfd341f73c9c744f7",
       "disposition": "SHARED_MODULE"
     },
     {
@@ -5796,7 +5851,7 @@
       "owner_tree": "qa",
       "consumer_tree": "ship",
       "target": "skills/ship/references/legacy/canary.md",
-      "sha256": "155174e829ef7895707ff1fad1f130fc1c7150bad9fb3598428a2efc939c5ad6",
+      "sha256": "52edd7f49f9d0b00958b8d95ac3a5ada25102159e8f64194542fce674b6d26f1",
       "disposition": "SHARED_MODULE"
     },
     {
@@ -5804,7 +5859,7 @@
       "owner_tree": "plan",
       "consumer_tree": "ship",
       "target": "skills/ship/references/legacy/context-restore.md",
-      "sha256": "1b1bd416815b759ea2f60565f0959c129d62e88991118680aab45669e54da82f",
+      "sha256": "3873a8af4f6a66e6f4f2431d7bf816e67e65342b2350646381832fa6ac048bf5",
       "disposition": "SHARED_MODULE"
     }
   ],
@@ -7469,6 +7524,15 @@
         "office-hours"
       ],
       "anchor": "GSTACK2_FIX_2000_DESIGN_DOC_CONCISION"
+    },
+    {
+      "pr": 879,
+      "url": "https://github.com/garrytan/gstack/issues/879",
+      "title": "Show the content a question refers to before asking it",
+      "targets": [
+        "*"
+      ],
+      "anchor": "GSTACK2_FIX_879_SELF_CONTAINED_QUESTIONS"
     }
   ]
 }

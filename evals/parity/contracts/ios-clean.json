@@ -12,7 +12,8 @@
   "normalized_render_sha256": "6a0080b7678f9e1df7ae2da27c4a7e3e85e7bfb83525a2c5651c24c0ab024b4b",
   "target": "skills/ship/references/legacy/ios-clean.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

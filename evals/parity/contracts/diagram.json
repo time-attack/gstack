@@ -12,7 +12,8 @@
   "normalized_render_sha256": "18b1db5eb50d85a6da26b60ac72a19c144e95bb4a2d92b2d23a87086c49c01b7",
   "target": "skills/design/references/legacy/diagram.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

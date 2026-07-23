@@ -12,7 +12,8 @@
   "normalized_render_sha256": "e0257ec3df4432da9b0fb10e6af66da8ed15548a3fae987778fc14a6747f4b30",
   "target": "skills/review/references/legacy/claude.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

@@ -13,7 +13,8 @@
   "target": "skills/qa/references/legacy/canary.md",
   "overlays": [
     679,
-    2186
+    2186,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

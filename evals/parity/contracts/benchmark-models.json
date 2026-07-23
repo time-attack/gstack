@@ -12,7 +12,8 @@
   "normalized_render_sha256": "3ea3c6cd3542350d4130ee0d5e170c905d0c5c3da096b1fc0e805e095af9321c",
   "target": "skills/qa/references/legacy/benchmark-models.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",
