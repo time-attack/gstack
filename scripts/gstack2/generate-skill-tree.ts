@@ -209,6 +209,13 @@ function rootSkill(dispatcher: DispatcherDefinition): string {
   const scaleLine = dispatcher.name === 'plan'
     ? 'Scale: <session, hobby, project, product, or venture — name the deciding vectors>\n'
     : '';
+  const emptyFastPath = dispatcher.name === 'plan'
+    ? `
+## Empty-target fast path
+
+Probe the target directory with one cheap listing (\`ls -A\`) before reading any reference file or specialist module. If the working tree is empty or holds only VCS/tooling metadata (\`.git\`, \`.gitignore\`, editor or CI config), do not spend further reading discovering that: print the required header immediately with \`Target: <path> (empty repository — greenfield)\`, state in the first sentence after the header that the repository is empty, and plan from the prompt alone. Skip decision-store recall, repository scanning, and every specialist phase whose input is existing code — there is none. If the prompt carries no idea to plan, ask the single question of what the user wants to build before reading any module. An empty tree fixes the codebase vector at greenfield; scale comes from the prompt alone.
+`
+    : '';
   const buildScale = dispatcher.name === 'plan'
     ? `
 ## Build scale
@@ -255,7 +262,7 @@ Web context: <none, optional, local-browser, or production>
 6. Preserve report-only versus mutation boundaries. Missing mutation authorization fails closed: do not edit merely because a specialist can fix. Commits, pushes, PRs, merges, deploys, messages, and other external mutations still require affirmative authority from the user.
 7. Match the user's language. Keep code identifiers, commands, and source quotations original when translation would reduce accuracy.
 8. At exit, report completed artifacts, evidence, unresolved decisions, skipped modules with reasons, and any blocked gate.
-${supplemental}${buildScale}
+${supplemental}${emptyFastPath}${buildScale}
 
 ## Top-level modes
 
