@@ -14,7 +14,7 @@
 
 Point /ship at a repo with an `.xcodeproj`, `.xcworkspace`, or app-product Swift package and it runs the whole Apple release journey instead of stopping at "archive it yourself." First question, before any archive work: do you have a paid Apple Developer Program membership ($99/year)? Without one there is no App Store and no TestFlight, so the skill says that plainly and offers to walk enrollment in your browser rather than letting you discover it after an hour of signing errors. With one, it preflights everything App Store validation actually rejects: signing team, marketing version and build number, resolved package dependencies, the 1024pt icon, privacy usage strings, export compliance. Then it archives and uploads with the native Xcode toolchain, nothing else. No fastlane, no new dependency in your project.
 
-The finish line lives in App Store Connect, so the skill offers to drive it there too: app record, screenshots, privacy labels, pricing, attaching the build, TestFlight, Submit for Review. Same consent-gated browser flow as API-key registration, or a complete manual checklist if you'd rather click yourself. Uploads run through the durable external-effects wrapper, so a crashed session inspects App Store Connect instead of double-submitting your build.
+The finish line runs through the App Store Connect API, not your browser. The skill offers to install `asc` (rorkai's App Store Connect CLI, one brew command, your own API key, telemetry off) and drives metadata, localizations, screenshots, TestFlight, build attachment, Submit for Review, and status monitoring from the terminal. The browser only appears for the three things Apple's API genuinely refuses: creating the initial app record, agreements, and banking/tax. Uploads and submissions run through the durable external-effects wrapper, so a crashed session inspects App Store Connect instead of double-submitting your build.
 
 ### The numbers that matter
 
@@ -36,7 +36,7 @@ The distance between "my app works in the simulator" and "my app is in review" u
 
 ### Added
 
-- `references/APPLE-RELEASE.md` generated into the ship tree: paid Apple Developer Program membership gate with honest free-account ceilings, native-toolchain release preflight, archive/validate/upload via `xcodebuild` with App Store Connect API key auth, uploads bound to the durable external-effects wrapper, and App Store Connect completion (app record, screenshots, privacy labels, TestFlight, Submit for Review) offered through the consent-gated third-party web-action flow.
+- `references/APPLE-RELEASE.md` generated into the ship tree: paid Apple Developer Program membership gate with honest free-account ceilings, native-toolchain release preflight, archive/validate/upload via `xcodebuild` with App Store Connect API key auth, uploads and submissions bound to the durable external-effects wrapper, and App Store Connect completion (metadata, screenshots, TestFlight, Submit for Review, status monitoring) driven by a consent-gated App Store Connect API CLI (`asc` by default, ittybittyapps and Codemagic equivalents named). Browser/manual fallback only for what the API cannot do: initial app record, agreements, banking/tax.
 - Ship dispatch protocol step 10: Apple platform targets load the adapter before release preparation.
 
 ### For contributors
