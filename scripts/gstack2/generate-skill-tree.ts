@@ -202,7 +202,7 @@ function rootSkill(dispatcher: DispatcherDefinition): string {
   const supplemental = dispatcher.name === 'qa'
     ? '\n9. When `system-functional` is active, read `references/SYSTEM-FUNCTIONAL.md` completely and execute it alongside the selected preserved specialists.\n'
     : dispatcher.name === 'ship'
-      ? '\n9. Before push, PR creation/update, merge, deploy, rollback, release publication, or external notification, read `references/EXTERNAL-EFFECTS.md` and execute the action through its durable state wrapper.\n'
+      ? '\n9. Before push, PR creation/update, merge, deploy, rollback, release publication, or external notification, read `references/EXTERNAL-EFFECTS.md` and execute the action through its durable state wrapper.\n10. When the release target is an Apple platform app (an `.xcodeproj`, `.xcworkspace`, or app-product Swift package is present), read `references/APPLE-RELEASE.md` before release preparation and follow its App Store journey end to end.\n'
       : dispatcher.name === 'plan'
         ? '\n9. Classify the Scale header line from the Build scale section before any questioning begins. Every planning specialist applies its proportional-planning judgment port to that scale.\n'
         : '';
@@ -635,6 +635,57 @@ Do not put secrets in run IDs, effect keys, or command arguments. Existing appro
 `;
 }
 
+function appleReleaseContract(): string {
+  return `${GENERATED}
+# Apple App Store release
+
+Applies when the ship target is an Apple platform app: the repository contains an \`.xcodeproj\` or \`.xcworkspace\`, or a Swift package with an app product. This adapter extends the preserved ship judgment to the App Store journey end to end; it replaces no gate, and every upload or submission remains an external effect executed through \`references/EXTERNAL-EFFECTS.md\`.
+
+Build and upload with the native Apple toolchain (\`xcodebuild\`, \`xcrun\`, \`agvtool\`); finish the storefront work with a consent-gated App Store Connect API CLI as described below. Never add fastlane or another release manager as a project dependency to ship; the release itself adds no new dependency to the user's project — the App Store Connect CLI is a machine tool, installed only with explicit consent.
+
+## Membership gate
+
+Before any archive work, ask one explicit question: does the user have a paid Apple Developer Program membership (US$99/year)? App Store distribution and TestFlight both require it.
+
+- Yes: continue.
+- No: STOP the App Store path. Offer to walk enrollment at developer.apple.com through \`references/THIRD-PARTY-ACTIONS.md\` (enrollment is a purchase the user completes themselves and can take a day or two to activate), or name the free-account ceiling honestly: personal-team signing installs only on the user's own devices and expires after 7 days, with no TestFlight and no App Store.
+
+## Release preflight
+
+Resolve and verify before archiving. Fix what the printed mutation boundary authorizes; report everything else as a blocking finding.
+
+- Signing: development team set on the app target, automatic signing enabled (or a valid distribution certificate and provisioning profile), bundle identifier decided.
+- Versioning: a marketing version users should see and a build number strictly greater than any build already uploaded for that version.
+- Dependencies: \`xcodebuild -resolvePackageDependencies\` succeeds; if a \`Podfile\` or \`Cartfile\` exists, its install step has been run and lockfiles are current.
+- App Store validation blockers: complete app icon set including the 1024pt marketing icon, launch screen, a usage-description string for every privacy-gated API the app touches, required privacy manifests, an export-compliance answer (\`ITSAppUsesNonExemptEncryption\`), and a sane deployment target.
+
+## Archive, validate, upload
+
+1. Archive the Release configuration: \`xcodebuild archive -scheme <scheme> -destination 'generic/platform=iOS' -archivePath <name>.xcarchive\` (substitute the actual platform).
+2. Author an export-options plist with method \`app-store-connect\`. Prefer \`destination: upload\`, which validates and uploads in one supported step; \`destination: export\` plus the Transporter app is the fallback.
+3. Authenticate with an App Store Connect API key (\`-authenticationKeyPath\`, \`-authenticationKeyID\`, \`-authenticationKeyIssuerID\`). The \`.p8\` key is a secret under the \`THIRD-PARTY-ACTIONS.md\` rules: stored outside the repository, referenced by path, never echoed.
+4. The upload is an external effect: run it through the durable state wrapper with a key like \`appstore.upload.<bundle-id>.<build>\`. Never re-upload on ambiguity; inspect App Store Connect for the build first.
+
+## Store assets
+
+When preflight finds a missing icon, or the storefront step needs screenshots, ask the user first — one question, then act on their choice. Never generate marketing assets or spend the user's image-API budget unprompted. Offer:
+
+- **App icon**: SnapAI (\`npx snapai\`, the app-icon agent skill) generates a 1024×1024 icon-styled square with the user's own OpenAI key (roughly $0.05–0.19 per icon); Xcode 15+ derives every size from that single image, so no resizer tool is needed.
+- **Marketing screenshots**: the aso-appstore-screenshots agent skill (benefit-headline discovery, deterministic scaffold, Nano Banana Pro enhancement with the user's Gemini key, exact App Store dimensions). If installed, follow its workflow rather than reimplementing it.
+- **Plain device framing**: \`asc screenshots capture\` and \`asc screenshots frame\` — free, local, upload-normalized output (requires the axe CLI and pinned Koubou).
+- **Designed screenshot decks, free and local**: the app-store-screenshots agent skill (parthjadhav editor) — scaffold its editor, prefill \`app-store-screenshots.json\` with captures and copy, and export one bundle covering every required iPhone size per locale; the user can refine slides interactively before export.
+- **User-supplied assets**: always a valid answer; validate dimensions and move on.
+
+## App Store Connect completion
+
+The App Store Connect API covers nearly all remaining work; drive it from a CLI, not a browser. Offer to install a dedicated App Store Connect CLI with one explicit consent question: \`asc\` (rorkai/App-Store-Connect-CLI, \`brew install asc\`) is the default offer; ittybittyapps/appstoreconnect-cli and codemagic-ci-cd cli-tools are equivalents if the user prefers them. It is a machine-level tool authenticated with the same App Store Connect API key, never a project dependency, and its telemetry is disabled unless the user opts in. If the user already has dedicated App Store Connect agent skills installed (for example rorkai/app-store-connect-cli-skills via the standard skills installer), defer to those flows instead of duplicating them.
+
+Through the CLI: description, keywords, and localizations; screenshot upload per required device size; TestFlight groups and testers as an intermediate distribution before review; attaching the uploaded build to the version; Submit for Review; and review-status monitoring afterward. Submission is an external effect like the upload: run it through the durable state wrapper with a key like \`appstore.submit.<bundle-id>.<version>\`.
+
+The API cannot create the initial app record (name, bundle ID, SKU, primary language), accept agreements, or configure banking and tax; those stay on the App Store Connect website, offered through \`references/THIRD-PARTY-ACTIONS.md\` or as a short manual checklist. The same fallback applies to any individual field the chosen CLI cannot set. After submission, report that App Review typically answers within a day or two and close the run; review outcome is not a gate this workflow can hold open.
+`;
+}
+
 function writeSharedContracts(): void {
   const bootstrap = fs.readFileSync(path.join(ROOT, 'runtime', 'runtime-bootstrap.mjs'));
   const browserChoice = fs.readFileSync(path.join(ROOT, 'runtime', 'browser-choice.mjs'));
@@ -656,6 +707,7 @@ function writeSharedContracts(): void {
   }
   write(path.join(ROOT, 'skills', 'qa', 'references', 'SYSTEM-FUNCTIONAL.md'), systemFunctionalContract());
   write(path.join(ROOT, 'skills', 'ship', 'references', 'EXTERNAL-EFFECTS.md'), externalEffectsContract());
+  write(path.join(ROOT, 'skills', 'ship', 'references', 'APPLE-RELEASE.md'), appleReleaseContract());
 }
 
 interface RenderedModuleRecord {
