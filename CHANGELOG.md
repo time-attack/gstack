@@ -7,6 +7,43 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.62.0.0] - 2026-07-23
+
+## **Open a large repo and gstack offers to index it.**
+## **Once, with real choices, then never again.**
+
+Every gstack skill now checks the size of the repository it lands in before starting real work. Small repo, nothing happens, grep is already fast. Large repo (1,000+ tracked files) and you have never answered the question, the skill pauses once and asks whether you want code-intelligence indexing, with the actual trade-offs spelled out: GBrain gives semantic "where is X handled?" search but sends repo content to your GBrain database and asks consent per repo. Sourcebot gives fast whole-repo search, self-hosted, local when it runs on localhost. Graphify builds a local tree-sitter code graph and nothing ever leaves your machine, but you install it yourself. Or say no indexing, and gstack remembers that too. Decline once and no skill asks again, on any repo, until you change your mind with `gstack-code-intelligence select`.
+
+### The numbers that matter
+
+Source: `bun run scripts/gstack2/run-parity.ts` and `bun test test/code-intelligence.test.ts` on this release.
+
+| Metric | Before | After |
+|---|---|---|
+| Skills that surface the indexing option | 0 | all 6 dispatchers |
+| Times the question is asked per machine | n/a | at most 1 |
+| Large-repo threshold | n/a | 1,000 tracked files |
+| Parity checks pinning the behavior | 5,027 | 5,045 |
+| code-intelligence tests | 25 | 31 |
+
+The "at most 1" row is the one that matters. The offer gate (`gstack-code-intelligence suggest`) refuses to fire when a provider is already selected, when you declined before, when the repo is small, or when the directory is not a git repo. A missing helper is a silent skip, not an error.
+
+### What this means for builders
+
+On a 10-file toy, nothing changes. On your 5,000-file production monolith, the first `/plan` or `/review` run offers you semantic search over the whole codebase, you pick a provider (or none) in one question, and every later session benefits without ever being asked again. Grep and the file-only decision store remain the always-working default; indexing is an upgrade, never a dependency.
+
+### Itemized changes
+
+#### Added
+- Session-start indexing offer: every dispatcher reads the new generated `references/CODE-INTELLIGENCE.md` once per repository invocation and runs `gstack-code-intelligence suggest` to decide whether to ask. The question presents GBrain (recommended, consent-gated), Sourcebot, Graphify (local, never auto-installed), and No indexing, each with its reason and live availability.
+- `gstack-code-intelligence suggest [path] [--json]`: the offer gate as a command. Emits offer/no-offer with the reason (`provider-selected`, `declined`, `not-a-repo`, `small-repo`, `large-repo`) and, when offering, the provider options.
+- `gstack-code-intelligence select none` now persists the decline so the question is never repeated.
+- The `gstack-code-intelligence` helper ships in the managed runtime, so standard installs can run the offer from `$GSTACK_HOME/bin`.
+
+#### For contributors
+- New `lib/code-intelligence/suggest.ts` (`shouldOfferIndexing`, `trackedFileCount`, threshold injectable for tests) and a `declined` flag in the selection store; 6 new tests in `test/code-intelligence.test.ts`.
+- Parity pins the per-tree contract (existence, dispatcher wiring, silent-degrade, decline, no-auto-install): 5,027 to 5,045 checks. Runtime helper surface: `DEFAULT_RUNTIME_HELPERS` + `RUNTIME_HELPER_DEPENDENCIES` in `runtime/install.js`.
+
 ## [1.61.1.0] - 2026-07-22
 
 ## **Design docs now read like decision records.**
