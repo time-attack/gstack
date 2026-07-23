@@ -667,6 +667,15 @@ Resolve and verify before archiving. Fix what the printed mutation boundary auth
 3. Authenticate with an App Store Connect API key (\`-authenticationKeyPath\`, \`-authenticationKeyID\`, \`-authenticationKeyIssuerID\`). The \`.p8\` key is a secret under the \`THIRD-PARTY-ACTIONS.md\` rules: stored outside the repository, referenced by path, never echoed.
 4. The upload is an external effect: run it through the durable state wrapper with a key like \`appstore.upload.<bundle-id>.<build>\`. Never re-upload on ambiguity; inspect App Store Connect for the build first.
 
+## Store assets
+
+When preflight finds a missing icon, or the storefront step needs screenshots, ask the user first — one question, then act on their choice. Never generate marketing assets or spend the user's image-API budget unprompted. Offer:
+
+- **App icon**: SnapAI (\`npx snapai\`, the app-icon agent skill) generates a 1024×1024 icon-styled square with the user's own OpenAI key (roughly $0.05–0.19 per icon); Xcode 15+ derives every size from that single image, so no resizer tool is needed.
+- **Marketing screenshots**: the aso-appstore-screenshots agent skill (benefit-headline discovery, deterministic scaffold, Nano Banana Pro enhancement with the user's Gemini key, exact App Store dimensions). If installed, follow its workflow rather than reimplementing it.
+- **Plain device framing**: \`asc screenshots capture\` and \`asc screenshots frame\` — free, local, upload-normalized output (requires the axe CLI and pinned Koubou).
+- **User-supplied assets**: always a valid answer; validate dimensions and move on.
+
 ## App Store Connect completion
 
 The App Store Connect API covers nearly all remaining work; drive it from a CLI, not a browser. Offer to install a dedicated App Store Connect CLI with one explicit consent question: \`asc\` (rorkai/App-Store-Connect-CLI, \`brew install asc\`) is the default offer; ittybittyapps/appstoreconnect-cli and codemagic-ci-cd cli-tools are equivalents if the user prefers them. It is a machine-level tool authenticated with the same App Store Connect API key, never a project dependency, and its telemetry is disabled unless the user opts in. If the user already has dedicated App Store Connect agent skills installed (for example rorkai/app-store-connect-cli-skills via the standard skills installer), defer to those flows instead of duplicating them.
