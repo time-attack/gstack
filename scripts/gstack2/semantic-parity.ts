@@ -115,7 +115,7 @@ function deterministicTranscript(execution: SemanticExecution) {
       mechanical_port: {
         rendered_sha256: sha256(expectedPort),
         differs_from_baseline: baseline !== expectedPort,
-        allowed_difference: 'Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to six public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references.',
+        allowed_difference: 'Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to five public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references.',
       },
       candidate: {
         target_path: repositoryRelativePath(candidateFile),

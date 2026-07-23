@@ -22,12 +22,12 @@
     "voice"
   ],
   "result": {
-    "suites": 14,
-    "executions": 15,
+    "suites": 11,
+    "executions": 12,
     "dimensions": 15,
-    "sections": 16,
-    "policyUnits": 9,
-    "checks": 295
+    "sections": 14,
+    "policyUnits": 8,
+    "checks": 238
   },
   "classifications": {
     "allowed": [

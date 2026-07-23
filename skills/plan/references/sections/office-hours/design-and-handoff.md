@@ -532,7 +532,7 @@ strongest retention).
 in one line and stop, letting the user invoke:
 - EXPANSION / ambitious → "Next: `$plan --mode Product --module plan-ceo-review` to pressure-test scope and find the 10-star product."
 - well-scoped → "Next: `$plan --mode Engineering --module plan-eng-review` to lock architecture, tests, and edge cases."
-- visual/UX-heavy → "Next: `$design --mode Critique --module plan-design-review` for a visual/UX pass."
+- visual/UX-heavy → "Next: `/plan-design-review` for a visual/UX pass."
 
 **Otherwise**, offer via AskUserQuestion (D<N> format from the preamble):
 
@@ -552,7 +552,7 @@ A) Run $plan --mode Engineering --module plan-eng-review now (recommended)
 B) Run $plan --mode Product --module plan-ceo-review now
   ✅ Pressure-tests ambition and scope — finds the 10-star version of the product
   ❌ Lower value when the scope is already tight and well understood
-C) Run $design --mode Critique --module plan-design-review now
+C) Run /plan-design-review now
   ✅ Catches visual/UX problems while they are still cheap plan-stage changes
   ❌ Little value for backend-only or non-visual features
 D) Not now — I'll run a review later

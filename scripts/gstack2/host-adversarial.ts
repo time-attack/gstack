@@ -431,7 +431,7 @@ export function copyCanonicalSkills(canonicalRoot: string, destinationRoot: stri
   }
   const entries = fs.readdirSync(destinationRoot).sort();
   if (stableJson(entries) !== stableJson([...PUBLIC_SKILLS].sort())) {
-    throw new Error(`Installed skill tree must contain exactly six skills, got: ${entries.join(', ')}`);
+    throw new Error(`Installed skill tree must contain exactly five skills, got: ${entries.join(', ')}`);
   }
   return snapshotTree(destinationRoot);
 }

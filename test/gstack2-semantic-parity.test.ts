@@ -17,7 +17,7 @@ describe('GStack 2 semantic parity', () => {
     expect(result.suites).toBe(11);
     expect(result.sections).toBe(14);
     expect(result.policyUnits).toBe(AUTHORITY_POLICY_CASES.length);
-    expect(result.checks).toBeGreaterThan(250);
+    expect(result.checks).toBeGreaterThan(200);
   }, 15_000);
 
   test('authority-policy units cover evidence, trust, and routing controls', () => {
