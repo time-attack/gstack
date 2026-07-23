@@ -7,6 +7,42 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.63.0.0] - 2026-07-23
+
+## **"Go register an API key" is no longer your homework.**
+## **gstack asks once, drives the browser, and proves the key works.**
+
+Every gstack skill now recognizes the moment a plan or workflow needs something done on a third-party website: registering an API key, creating a vendor account, configuring a dashboard or OAuth app. Instead of dumping a manual step list, the skill checks for an agentic browser that can work across your logged-in accounts (Aside today), names the exact site and exact actions, and asks one question: drive it now, give me the steps, or defer. Say yes and the agent does the browsing while the parts that should stay human stay human. Passwords, payment, identity checks, and CAPTCHAs are handed to you, never faked. Captured keys go straight to an owner-only file or your secret store, never into chat output or logs. And before the skill claims success, it proves the credential works with one read-only API call.
+
+That last rule exists because dashboards lie. The token field on a real vendor dashboard held a masked placeholder, the real value only existed behind the Copy button, and the verify call caught it with a 401 before it could land in a .env file as garbage.
+
+### The numbers that matter
+
+Source: `bun run scripts/gstack2/run-parity.ts` on this release, plus two live vendor flows (Duffel, OpenSky Network) run end to end through the contract before shipping.
+
+| Metric | Before | After |
+|---|---|---|
+| Dispatchers that offer agentic-browser help for third-party web actions | 0 | 6 of 6 |
+| Consent asked per task, never persisted or inferred | n/a | always |
+| Pinned parity checks | 5,050 | 5,074 |
+
+The +24 checks mean nobody can quietly strip the consent gate or the secret-handling rules; the suite fails if the contract loses either.
+
+### What this means for builders
+
+The gap between "the plan says you need an OpenSky key" and "the key is in your .env and verified" used to be your browser tab, your copy-paste, and your typo. Now it is one question. Answer it and keep building.
+
+### Itemized changes
+
+### Added
+
+- `references/THIRD-PARTY-ACTIONS.md` generated into all six skill trees: agentic-browser detection (Aside via the existing browser-provider registry), a mandatory per-task consent question naming the exact site and actions, user-performed credential steps, no-echo secret capture, and a non-mutating verification call before any success claim.
+- Dispatch protocol step directing every dispatcher to read the contract before telling the user to act on a third-party website.
+
+### For contributors
+
+- New `thirdPartyActionsContract()` in `scripts/gstack2/generate-skill-tree.ts`; 4 pinned checks per tree in `run-parity.ts` (5,050 to 5,074).
+
 ## [1.62.0.0] - 2026-07-23
 
 ## **Open a large repo and gstack offers to index it.**

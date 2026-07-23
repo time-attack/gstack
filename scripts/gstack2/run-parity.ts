@@ -26,8 +26,10 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // overlay for issue #879 (28 -> 29, targets '*', all 55 modules) added 113
 // more (2 per module + 3 regression checks). The founder-resources opt-out
 // overlay for issue #538 (29 -> 30, office-hours only) added 5 more. The
-// per-tree code-intelligence offer contract added 18 (3 per dispatcher).
-export const EXPECTED_PARITY_CHECKS = 5050;
+// per-tree code-intelligence offer contract added 18 (3 per dispatcher). The
+// third-party web-action contract added 24 more (4 per tree: exists, marker
+// format, dispatcher load, consent/secret content).
+export const EXPECTED_PARITY_CHECKS = 5074;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -180,6 +182,18 @@ export function runParity(): ParityResult {
           && offer.includes('No indexing')
           && offer.includes('never auto-install a provider'),
         `${tree} code-intelligence offer lost its silent-degrade, decline, or no-auto-install behavior`,
+      );
+    }
+    check(dispatcher.includes('references/THIRD-PARTY-ACTIONS.md'), `${tree} dispatcher does not load the third-party web-action contract`);
+    const thirdPartyPath = path.join(ROOT, 'skills', tree, 'references', 'THIRD-PARTY-ACTIONS.md');
+    if (fs.existsSync(thirdPartyPath)) {
+      const thirdParty = fs.readFileSync(thirdPartyPath, 'utf8');
+      check(
+        thirdParty.includes('STOP and ask one explicit question before any browsing')
+          && thirdParty.includes('per-task consent')
+          && thirdParty.includes('never appears in chat output, logs, or shell history')
+          && thirdParty.includes('verify the captured credential with one non-mutating API call'),
+        `${tree} third-party web-action contract lost its consent gate or secret-handling rules`,
       );
     }
   }
@@ -382,7 +396,7 @@ export function runParity(): ParityResult {
   for (const tree of TREE_NAMES) {
     const compatibility = fs.readFileSync(path.join(ROOT, 'skills', tree, 'references', 'COMPATIBILITY.md'), 'utf8');
     check(!compatibility.includes('../../../') && !compatibility.includes('compat/README.md'), `${tree} compatibility map escapes the selected package`);
-    for (const reference of ['SHARED-JUDGMENT.md', 'WEB-CONTEXT.md', 'RUNTIME.md']) {
+    for (const reference of ['SHARED-JUDGMENT.md', 'WEB-CONTEXT.md', 'RUNTIME.md', 'THIRD-PARTY-ACTIONS.md']) {
       const referencePath = path.join(ROOT, 'skills', tree, 'references', reference);
       check(fs.existsSync(referencePath), `${tree} lacks ${reference}`);
       if (fs.existsSync(referencePath)) {
