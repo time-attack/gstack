@@ -1726,6 +1726,7 @@
         679,
         2030,
         2189,
+        886,
         879
       ],
       "original_source_file": "plan-design-review/SKILL.md.tmpl",
@@ -1862,6 +1863,7 @@
         2030,
         2189,
         696,
+        886,
         879
       ],
       "original_source_file": "design-review/SKILL.md.tmpl",
@@ -3629,6 +3631,7 @@
         2030,
         2141,
         579,
+        886,
         452,
         879
       ],
@@ -5835,7 +5838,7 @@
       "owner_tree": "design",
       "consumer_tree": "plan",
       "target": "skills/plan/references/legacy/plan-design-review.md",
-      "sha256": "7ae61a9b6a642ce58bde446116347c320c5414ce1f8fc6396762cd6a7974f532",
+      "sha256": "998496daab27f77d5613ddb838566c14cb1ed6071cef1c1a0ce30bd6eb6b4706",
       "disposition": "SHARED_MODULE"
     },
     {
@@ -7490,7 +7493,10 @@
         "plan-eng-review",
         "plan-devex-review",
         "spec",
-        "autoplan"
+        "autoplan",
+        "review",
+        "plan-design-review",
+        "design-review"
       ],
       "anchor": "GSTACK2_FIX_886_PROPORTIONAL_PLANNING"
     },

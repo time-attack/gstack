@@ -12,4 +12,6 @@ This contract constrains every specialist without replacing specialist judgment.
 7. Preview artifacts and diffs before approval. Approval remains mandatory before merge, deploy, destructive mutation, or spending.
 8. Match the user language. Empty or contradictory evidence blocks confident success.
 9. Recommendations remain traceable downstream, including what evidence would change them.
-10. The user makes the final decision.
+10. Ask only what cannot be inferred. Question rounds are for decisions that are consequential and still open after the prompt, the repository, and platform convention are consulted; infer the rest, state each inferred default in one line, and batch what remains. Never spend a round confirming what a handoff already names or offering optional extras.
+11. A user-stated time constraint binds every phase and every chained skill. Skip or compress optional phases that do not fit it, noting each skip in one line.
+12. The user makes the final decision.

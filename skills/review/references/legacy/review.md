@@ -748,6 +748,31 @@ When a patch widens an accepted input, loosens validation, changes a default, or
 When the diff adds or modifies an MCP server package (`glama.json`, an `mcpServers` block in `package.json`, or a server entry point), add informational packaging checks. Flag `package.json` `exports`/`main`/`bin` that resolve into `src/` or a `.ts` file rather than the compiled `dist/` output, because registry Docker builds run the compiled artifact. Flag relative ESM imports missing `.js` extensions under `moduleResolution: "NodeNext"`/`"Node16"`, since bundler resolution hides it locally but Node ESM fails at runtime. Flag `moduleResolution: "bundler"` on a standalone Node MCP server (correct for frontend, wrong for an npm/Docker-distributed server). Flag a missing or malformed `glama.json` (needs `$schema` and a `maintainers` array). Do not flag frontend packages using `bundler`, or MCP packages consumed as libraries rather than standalone servers.
 <!-- GSTACK2_BUG_FIX_END pr=579 -->
 
+<!-- GSTACK2_BUG_FIX_START pr=886 anchor=GSTACK2_FIX_886_PROPORTIONAL_PLANNING -->
+## Upstream judgment port: issue #886
+
+[Scale planning machinery to the printed build scale](https://github.com/garrytan/gstack/issues/886)
+
+### Proportional planning for the printed build scale
+
+The /plan dispatcher prints a `Scale:` header line classified from fifteen build-scale vectors (its Build scale section). This rule authorizes every planning and review specialist to size its machinery to that scale while keeping every STOP gate and approval boundary; a polite user answering every question is not evidence the full machinery is wanted, and the user can always ask for the complete treatment.
+
+The binding scale comes from the first available source: the printed `Scale:` header, a chain handoff that names a scale or time box, or on-the-spot classification from the prompt and cheap repository evidence. An explicit user time constraint is a ceiling, not one vector among fifteen: work that must fit one sitting caps the scale at `session`, and a day-or-two deadline caps it at `hobby`, regardless of higher vectors. A chained invocation inherits the upstream scale and time box without re-asking, and every handoff it emits carries them forward.
+
+- `session` and `hobby`: batch every question the initial prompt left unanswered into one AskUserQuestion round (two rounds for hobby); skip web or landscape research, outside voices, second opinions, and visual sketches unless the user asks (privacy gates are unchanged whenever they run); cap any adversarial or spec review loop at one iteration; keep the decision artifact near one page with next steps sized in hours (session) or days (hobby), never a phased multi-week roadmap or a distribution plan the user did not ask for.
+- `project`: run the specialist's default workflow, batching question rounds where its source authorizes smart skips; size the roadmap in weeks.
+- `product` and `venture`: the full specialist workflow and its complete question pressure apply; this rule removes nothing.
+- Never run a questioning round merely to classify scale. Classify from the prompt and cheap repository evidence, defaulting unknown vectors low; a specialist's own later questions may raise the scale mid-session, and an upgrade restores the full workflow from that point.
+
+Review specialists spend question rounds on decisions, not ceremony — at every scale, and sharpest at `session`/`hobby`:
+
+- When the handoff or prompt names the review target unambiguously, print it on the Target line and proceed. Re-confirming a target the chain already fixed is not a STOP gate; the target gate exists for genuinely ambiguous targets.
+- A finding whose fix is obvious and inside the authorized mutation boundary is applied and reported in a compact applied-changes list. Question rounds are reserved for genuine forks — scope changes, user-visible tradeoffs, anything hard to reverse — and are batched, up to four questions per round, never one round per finding.
+- Optional extras (opening resources, offering the next review or a follow-up phase) never get their own question round at `session`/`hobby`: fold them into an existing round or a one-line closing offer.
+
+For office-hours specifically: at session or hobby scale, batch the Phase 2B questions (this refines the one-at-a-time rule, whose pressure exists for startup diagnostics), default-skip the Phase 2.75 landscape search, gate the visual sketch and outside design voices on an explicit ask, and cap the Spec Review Loop at one iteration.
+<!-- GSTACK2_BUG_FIX_END pr=886 -->
+
 <!-- GSTACK2_BUG_FIX_START pr=452 anchor=GSTACK2_FIX_452_CLAUDEMD_REVIEW_SECTION -->
 ## Upstream judgment port: PR #452
 
