@@ -236,7 +236,7 @@ jobs:
             "$SKILLS_DIR/office-hours/SKILL.md" \
             "$SKILLS_DIR/plan-ceo-review/SKILL.md" \
             "$SKILLS_DIR/gstack/bin/gstack-update-check" \
-            "$SKILLS_DIR/gstack/office-hours/sections/design-and-handoff.md" \
+            "$SKILLS_DIR/gstack/office-hours/sections/doc-and-handoff.md" \
             "$SKILLS_DIR/gstack/plan-ceo-review/sections/review-sections.md"; do
             if [ ! -e "$f" ]; then
               echo "ERROR: skill-registry target missing (symlink dangles): $f" >&2

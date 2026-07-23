@@ -18,8 +18,18 @@ export function repositoryRelativePath(absolutePath: string): string {
   return normalizeRepositoryPath(path.relative(ROOT, absolutePath));
 }
 
+// Working-tree sources renamed after the pinned base was cut still port their
+// immutable pinned bytes. Map the current path back to the pinned path so both
+// `pinnedText` and `blobShaForPath` resolve. The office-hours Phase 5/6 section
+// dropped its `design-` filename prefix (it produces a "design doc", not a
+// design REVIEW) so no ported path carries a `/design-` fragment.
+const PINNED_PATH_RENAMES: Readonly<Record<string, string>> = {
+  'office-hours/sections/doc-and-handoff.md.tmpl': 'office-hours/sections/design-and-handoff.md.tmpl',
+};
+
 export function pinnedRevisionPath(relativePath: string): string {
-  return `${GSTACK2_BASE_SHA}:${normalizeRepositoryPath(relativePath)}`;
+  const normalized = normalizeRepositoryPath(relativePath);
+  return `${GSTACK2_BASE_SHA}:${PINNED_PATH_RENAMES[normalized] ?? normalized}`;
 }
 
 export function legacyTemplatePath(source: string): string {
@@ -235,8 +245,20 @@ const DESIGN_REVIEW_OFFER_REWRITES: Array<[string, string]> = [
   // mention. stripDesignReviewOfferings runs before portLegacyText rewrites
   // $GSTACK_ROOT/bin -> $GSTACK_BIN, so the search text carries the $GSTACK_ROOT form.
   ['\n\nFor Design Review: run `source <($GSTACK_ROOT/bin/gstack-diff-scope <base> 2>/dev/null)`. If `SCOPE_FRONTEND=true` and no design review (plan-design-review or design-review-lite) exists in the dashboard, mention: "Design Review not run — this PR changes frontend code. The lite design check will run automatically in Step 9, but consider running /design-review for a full visual audit post-implementation." Still never block.', ''],
-  // land-and-deploy review-log parse list: drop the retired design-review-lite source
-  ['plan-design-review, design-review-lite, codex-review, review, adversarial-review,', 'plan-design-review, codex-review, review, adversarial-review,'],
+  // land-and-deploy review-log parse list: drop the retired plan-design-review +
+  // design-review-lite sources (both gone from the five-skill surface).
+  ['plan-design-review, design-review-lite, codex-review, review, adversarial-review,', 'codex-review, review, adversarial-review,'],
+  // land-and-deploy readiness dashboard box: drop the retired Design Review row.
+  ['\n║  ├─ Design Review: CURRENT / — (optional)                ║', ''],
+  // ship/sections/pr-body: drop the retired Design Review PR-body section.
+  ['## Design Review\n<If design review ran: "Design Review (lite): N findings — M auto-fixed, K skipped. AI Slop: clean/N issues.">\n<If no frontend files changed: "No frontend files changed — design review skipped.">\n\n', ''],
+  // open-gstack-browser: drop the retired /design-review from the headed-mode examples.
+  ['`/qa`, `/design-review`, `/benchmark`', '`/qa`, `/benchmark`'],
+  ['\n> - `/design-review` takes screenshots in the real browser — same pixels you see', ''],
+  // gstack meta-skill routing (root SKILL.md.tmpl): drop the retired design-consultation route.
+  ['\n- User asks about design system, brand, visual identity, "how should this look" → invoke `/design-consultation`', ''],
+  // office-hours: the design-consultation specialist is retired; drop the pointer.
+  [' (that\'s /design-consultation\'s job)', ''],
 ];
 
 // The retired design-review-lite specialist is gone, so its `{{DESIGN_REVIEW_LITE}}`
@@ -245,6 +267,11 @@ const DESIGN_REVIEW_OFFER_REWRITES: Array<[string, string]> = [
 // throws). This converges the ported pinned section with the working-tree section.
 export function stripRetiredDesignPlaceholders(template: string): string {
   return template
+    // office-hours Phase 5/6 section lost its `design-` filename prefix (see
+    // PINNED_PATH_RENAMES). The pinned parent still names it `design-and-handoff`
+    // in its {{SECTION:...}} placeholder and prose pointer; converge both onto
+    // the renamed section so nothing generated carries a `/design-` path.
+    .replaceAll('design-and-handoff', 'doc-and-handoff')
     .replace(
       '{{DESIGN_REVIEW_LITE}}\n\n   Include any design findings alongside the code review findings. They follow the same Fix-First flow below.\n\n',
       '',
@@ -324,11 +351,11 @@ function portLegacyText(value: string, source: string): string {
   body = body
     .replaceAll(
       '$GSTACK_ROOT/plan-design-review/SKILL.md',
-      'the retired design-review phase (removed from the five public skills; skip it)',
+      'the retired plan design phase (removed from the five public skills; skip it)',
     )
     .replaceAll(
       'Follow plan-design-review/SKILL.md — all 7 dimensions, full depth.',
-      'Design review is retired from the five public skills; skip this phase and continue with the CEO, engineering, and DX reviews.',
+      'The plan design phase is retired from the five public skills; skip it and continue with the CEO, engineering, and DX reviews.',
     );
   // Every state read/write follows the canonical override. Quote the root so
   // custom homes containing spaces remain valid. Compatibility pointer files
@@ -488,7 +515,7 @@ function portLegacyText(value: string, source: string): string {
     .replaceAll('Use the helper at `browse/src/browser-skill-write.ts`.', 'Resolve the managed helper first with `GSTACK_BROWSER_SKILL_WRITE=$($GSTACK_BIN/gstack runtime path browse/src/browser-skill-write.ts)` and use that exact path.')
     .replaceAll('<gstack-install>/browse/src/browser-skill-write', '<resolved GSTACK_BROWSER_SKILL_WRITE path>');
 
-  for (const filename of ['TODOS-format.md', 'checklist.md', 'design-checklist.md', 'greptile-triage.md']) {
+  for (const filename of ['TODOS-format.md', 'checklist.md', 'greptile-triage.md']) {
     const marker = `__GSTACK2_REVIEW_ASSET_${filename}__`;
     body = body
       .replaceAll(`.agents/skills/gstack/review/${filename}`, marker)

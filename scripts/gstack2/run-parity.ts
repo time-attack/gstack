@@ -34,7 +34,7 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // design source modules, routing scenarios, carved sections, and design-only
 // overlays (#696, #1777, #1920, #2189) while keeping #538, which recomputes
 // the inventory to the value below.
-export const EXPECTED_PARITY_CHECKS = 4374;
+export const EXPECTED_PARITY_CHECKS = 4356;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');

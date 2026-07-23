@@ -312,7 +312,7 @@ function assetInputs(): Array<{ trees: TreeName[]; source: string; target?: stri
     ...basePaths('ios-qa/scripts/gen-accessors-tool'),
     'ios-qa/docs/tailscale-acl-example.md',
   ];
-  const review = basePaths('review').filter((file) => !file.includes('/SKILL.md') && !file.includes('/sections/'));
+  const review = basePaths('review').filter((file) => !file.includes('/SKILL.md') && !file.includes('/sections/') && !file.endsWith('/design-checklist.md'));
   return [
     ...['ETHOS.md', 'docs/askuserquestion-split.md', 'docs/askuserquestion-cjk.md', 'scripts/jargon-list.json']
       .map((source) => ({
@@ -329,7 +329,6 @@ function assetInputs(): Array<{ trees: TreeName[]; source: string; target?: stri
     ...ios.map((source) => ({ trees: ['qa', 'ship'] as TreeName[], source })),
     ...review.map((source) => ({ trees: ['review'] as TreeName[], source })),
     { trees: ['ship'], source: 'review/checklist.md' },
-    { trees: ['ship'], source: 'review/design-checklist.md' },
     { trees: ['ship'], source: 'review/greptile-triage.md' },
     { trees: ['review'], source: 'cso/ACKNOWLEDGEMENTS.md' },
   ];
