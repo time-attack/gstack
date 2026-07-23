@@ -7,7 +7,6 @@ Resolve these paths relative to `skills/review/`. Files come from base bb57306d9
 |---|---|---|---|
 | `cso/ACKNOWLEDGEMENTS.md` | `references/artifacts/cso/ACKNOWLEDGEMENTS.md` | `MECHANICAL_PORT` | `c4b89aebd4d6d129bc508215f2b07ce21014e933` |
 | `review/checklist.md` | `references/artifacts/review/checklist.md` | `VERBATIM_PORT` | `238c2acc4d111e51b670e76b3a70c040bc3898b2` |
-| `review/design-checklist.md` | `references/artifacts/review/design-checklist.md` | `MECHANICAL_PORT` | `e9d2b7117c039f82b78daec8f7db63998ee1480c` |
 | `review/greptile-triage.md` | `references/artifacts/review/greptile-triage.md` | `MECHANICAL_PORT` | `3cb6e8d597fd04462b5c2fe18174be2c9ce75c8f` |
 | `review/specialists/api-contract.md` | `references/artifacts/review/specialists/api-contract.md` | `VERBATIM_PORT` | `01a649b1b0f47bb1af78e1614924b80cddbd48fa` |
 | `review/specialists/data-migration.md` | `references/artifacts/review/specialists/data-migration.md` | `VERBATIM_PORT` | `effc11469c12ec14975cc12036f0e28570d39019` |

@@ -1010,7 +1010,7 @@ sections. Read a section in full before doing its step; do not work from memory.
 
 | When | Read this section |
 |------|-------------------|
-| writing the design doc and running the tiered relationship handoff (Phases 5-6, after the conversation and alternatives are done) | `sections/design-and-handoff.md` |
+| writing the design doc and running the tiered relationship handoff (Phases 5-6, after the conversation and alternatives are done) | `sections/doc-and-handoff.md` |
 ---
 
 ## Phase 2A: Startup Mode — YC Product Diagnostic
@@ -1576,12 +1576,12 @@ selection in Phase 6 Beat 3.5.
 
 ---
 
-> **STOP.** Before writing the design doc and running the tiered relationship handoff (Phases 5-6, after the conversation and alternatives are done), Read `~/.claude/skills/gstack/office-hours/sections/design-and-handoff.md` and execute it
+> **STOP.** Before writing the design doc and running the tiered relationship handoff (Phases 5-6, after the conversation and alternatives are done), Read `~/.claude/skills/gstack/office-hours/sections/doc-and-handoff.md` and execute it
 > in full. Do not work from memory — that section is the source of truth for this step.
 
 ## Section self-check (before you finish)
 
-Confirm you Read every section the Section index named as applying to this run, and executed it in full. The design doc and the handoff are the deliverables — if you produced them from memory without Reading `sections/design-and-handoff.md`, stop and Read it now.
+Confirm you Read every section the Section index named as applying to this run, and executed it in full. The design doc and the handoff are the deliverables — if you produced them from memory without Reading `sections/doc-and-handoff.md`, stop and Read it now.
 
 ---
 

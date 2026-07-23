@@ -46,30 +46,30 @@
       "baseline": {
         "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
         "source_path": "office-hours/SKILL.md.tmpl",
-        "rendered_sha256": "3587d004903c615fb367a66f47c57e942a4185a9d06e7826a276c1d527e6c961",
+        "rendered_sha256": "f9dc3e03dbf193c96111c6e79e9ec0fd97505f5edecb79fd94fbe0de4622e721",
         "semantic_signature": {
-          "normalized_sha256": "3587d004903c615fb367a66f47c57e942a4185a9d06e7826a276c1d527e6c961",
+          "normalized_sha256": "f9dc3e03dbf193c96111c6e79e9ec0fd97505f5edecb79fd94fbe0de4622e721",
           "headings_sha256": "b59fe6eb1b4b7f3d6484f6d0323009096205fadf8a67885f1b4e5fd7e321773d",
           "questions_sha256": "30e4f21e54de8e457a7a1c8d347e97a8ea129e9228fd8e90f094248588678885",
-          "obligations_sha256": "034d6d1f106ff55d9a1426e4e291d2782918ed20b25e355264786011557a9f39",
+          "obligations_sha256": "e401a4af84508c008e42732fd23ec0f192afed170d824787af129364a07d6850",
           "heading_count": 72,
           "question_count": 23,
           "obligation_count": 113
         }
       },
       "mechanical_port": {
-        "rendered_sha256": "da7f25f6062ee0dcf7a68258147850b345841b63b95fdac8d44460b4228d058a",
+        "rendered_sha256": "2984ade43079ea34d5765ab636c11166d00a422fbd5fdb8f19caf0101813446d",
         "differs_from_baseline": true,
         "allowed_difference": "Canonical GStack 2 carve: exclude the retired shared onboarding wrapper and host hook advisory; resolve retired invocations to five public routes; relocate host/runtime paths; lazy-load pinned carved sections from package-local references."
       },
       "candidate": {
         "target_path": "skills/plan/references/legacy/office-hours.md",
-        "rendered_legacy_body_sha256": "da7f25f6062ee0dcf7a68258147850b345841b63b95fdac8d44460b4228d058a",
+        "rendered_legacy_body_sha256": "2984ade43079ea34d5765ab636c11166d00a422fbd5fdb8f19caf0101813446d",
         "semantic_signature": {
-          "normalized_sha256": "da7f25f6062ee0dcf7a68258147850b345841b63b95fdac8d44460b4228d058a",
-          "headings_sha256": "ea5b04cf07a3f68916caf4bfd438a9ee45d64472c8d54805af939681b5dde05b",
+          "normalized_sha256": "2984ade43079ea34d5765ab636c11166d00a422fbd5fdb8f19caf0101813446d",
+          "headings_sha256": "fe80342e907cc2e379f928da7bc0afc2e1602da76aca875d794aaa0685cb8c6c",
           "questions_sha256": "92d854d47b2f92f30cc34a59cfb6f3e18449beddcb8ebd5490162545bc8384c7",
-          "obligations_sha256": "5fe72f4aed8690c05e5684ba21c4a2496235a841402feb3d44a746ed8db59039",
+          "obligations_sha256": "3653cd3492bb9ceafd621c5e6b81d0343b29c14b50d931a678358bf5eb7707a2",
           "heading_count": 33,
           "question_count": 13,
           "obligation_count": 41

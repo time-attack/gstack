@@ -18,7 +18,6 @@ Resolve these paths relative to `skills/ship/`. Files come from base bb57306d98c
 | `ios-qa/templates/StateAccessor.swift.template` | `references/artifacts/ios-qa/templates/StateAccessor.swift.template` | `VERBATIM_PORT` | `07de99e19bb7cf5c58450ab63e42dd1961d39d58` |
 | `ios-qa/templates/StateServer.swift.template` | `references/artifacts/ios-qa/templates/StateServer.swift.template` | `VERBATIM_PORT` | `803bedf31fe708d18888b4508203c941ca406404` |
 | `review/checklist.md` | `references/artifacts/review/checklist.md` | `VERBATIM_PORT` | `238c2acc4d111e51b670e76b3a70c040bc3898b2` |
-| `review/design-checklist.md` | `references/artifacts/review/design-checklist.md` | `MECHANICAL_PORT` | `e9d2b7117c039f82b78daec8f7db63998ee1480c` |
 | `review/greptile-triage.md` | `references/artifacts/review/greptile-triage.md` | `MECHANICAL_PORT` | `3cb6e8d597fd04462b5c2fe18174be2c9ce75c8f` |
 | `review/TODOS-format.md` | `references/artifacts/review/TODOS-format.md` | `MECHANICAL_PORT` | `eb2f4d9418f9930f0ca6af7f8eed6ca5f1685628` |
 | `docs/askuserquestion-cjk.md` | `references/support/docs/askuserquestion-cjk.md` | `VERBATIM_PORT` | `54f4ac34509ecb094b266108958eb73aac19ca86` |

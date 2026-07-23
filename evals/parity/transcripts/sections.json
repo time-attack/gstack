@@ -24,7 +24,7 @@
       "classification": "EQUIVALENT"
     },
     {
-      "source_path": "office-hours/sections/design-and-handoff.md.tmpl",
+      "source_path": "office-hours/sections/doc-and-handoff.md.tmpl",
       "parent_source": "office-hours",
       "target_path": "skills/plan/references/legacy/office-hours.md",
       "baseline_render_sha256": "ca4ffc09d9515971a9c116e3acf12ae7d6ab2b93c79da0e69ac5f5105b4527b5",
@@ -116,10 +116,10 @@
       "parent_source": "ship",
       "target_path": "skills/ship/references/legacy/ship.md",
       "baseline_render_sha256": "813c4c75f1cc8c85ab3121f0a76966673118cf759d283c3ef5f6aa1ba64dd764",
-      "ported_render_sha256": "c45be8e6407b208154b0123c3d9e10658030c1b74067a1218d4a0115b0a1c83d",
+      "ported_render_sha256": "609f895f1aaacc495c2be353061ab53d346b75101d767d98477d8c0f5de924a2",
       "candidate_inline_occurrences": 0,
       "candidate_lazy_reference_occurrences": 1,
-      "packaged_sha256": "c45be8e6407b208154b0123c3d9e10658030c1b74067a1218d4a0115b0a1c83d",
+      "packaged_sha256": "609f895f1aaacc495c2be353061ab53d346b75101d767d98477d8c0f5de924a2",
       "classification": "EQUIVALENT"
     },
     {
