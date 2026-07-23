@@ -27,8 +27,8 @@ The fixed public modes are: Design = `Explore | Generate | Critique | Implement`
 | `/design-consultation` | `$design --mode Generate --module design-consultation` | internal (primary) | yes | #679, #2030, #2189, #879 |
 | `/design-shotgun` | `$design --mode Explore --module design-shotgun` | internal (primary) | yes | #679, #1777, #879 |
 | `/design-html` | `$design --mode Implement --module design-html` | internal (primary) | yes | #679, #879 |
-| `/plan-design-review` | `$design --mode Critique --module plan-design-review` | internal (primary) | yes | #679, #2030, #2189, #879 |
-| `/design-review` | `$design --mode Implement --module design-review` | internal (primary) | yes | #679, #1920, #2030, #2189, #696, #879 |
+| `/plan-design-review` | `$design --mode Critique --module plan-design-review` | internal (primary) | yes | #679, #2030, #2189, #886, #879 |
+| `/design-review` | `$design --mode Implement --module design-review` | internal (primary) | yes | #679, #1920, #2030, #2189, #696, #886, #879 |
 | `/ios-design-review` | `$design --mode Critique --module ios-design-review` | internal (primary) | yes | #679, #879 |
 | `/diagram` | `$design --mode Generate --module diagram` | internal (internal) | no | #679, #879 |
 | `/make-pdf` | `$design --mode Generate --module make-pdf` | internal (internal) | no | #679, #879 |
@@ -51,7 +51,7 @@ The fixed public modes are: Design = `Explore | Generate | Critique | Implement`
 | `/freeze` | `$debug --mode Diagnose-only --module freeze` | internal (internal) | no | #679, #879 |
 | `/guard` | `$debug --mode Diagnose-only --module guard` | internal (internal) | no | #679, #879 |
 | `/unfreeze` | `$debug --mode Diagnose-only --module unfreeze` | internal (internal) | no | #679, #879 |
-| `/review` | `$review --mode Normal --module review` | internal (primary) | yes | #610, #645, #679, #2030, #2141, #579, #452, #879 |
+| `/review` | `$review --mode Normal --module review` | internal (primary) | yes | #610, #645, #679, #2030, #2141, #579, #886, #452, #879 |
 | `/cso` | `$review --mode Security --module cso` | internal (primary) | yes | #679, #2030, #1523, #1053, #879 |
 | `/health` | `$review --mode Deep --module health` | internal (primary) | yes | #679, #879 |
 | `/codex` | `$review --mode Deep --module codex` | internal (primary) | yes | #679, #879 |

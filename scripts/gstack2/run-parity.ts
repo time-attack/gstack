@@ -28,8 +28,10 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // overlay for issue #538 (29 -> 30, office-hours only) added 5 more. The
 // per-tree code-intelligence offer contract added 18 (3 per dispatcher). The
 // third-party web-action contract added 24 more (4 per tree: exists, marker
-// format, dispatcher load, consent/secret content).
-export const EXPECTED_PARITY_CHECKS = 5074;
+// format, dispatcher load, consent/secret content). Extending the #886
+// overlay to the review specialists (review, plan-design-review,
+// design-review) added 6 more (2 per newly targeted module).
+export const EXPECTED_PARITY_CHECKS = 5080;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
