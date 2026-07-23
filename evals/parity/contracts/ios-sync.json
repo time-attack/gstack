@@ -12,7 +12,8 @@
   "normalized_render_sha256": "88f9f20aa406c13098ebd2709afc6487bb42c5466ac9f757bf4d9baff7f028d0",
   "target": "skills/ship/references/legacy/ios-sync.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

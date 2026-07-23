@@ -12,7 +12,8 @@
   "normalized_render_sha256": "ae5050b0558b5324f58ee9181dc83ac0189b63da70d94f86792c08e112765fe9",
   "target": "skills/ship/references/legacy/landing-report.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

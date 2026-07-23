@@ -12,7 +12,8 @@
   "normalized_render_sha256": "f32ab85292ae920d811f4014480c48941d9b34d3ad8141840b4fd33bfdccc7dd",
   "target": "skills/qa/references/legacy/open-gstack-browser.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

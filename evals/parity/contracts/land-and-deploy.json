@@ -13,7 +13,8 @@
   "target": "skills/ship/references/legacy/land-and-deploy.md",
   "overlays": [
     679,
-    884
+    884,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

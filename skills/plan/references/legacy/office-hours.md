@@ -807,3 +807,13 @@ When the session produces a design or plan document and the working directory is
 
 The design doc is a decision record, not a transcript of the session. There is no fixed page limit, but every word must earn its place: prefer bullet points over paragraphs, one bullet per decision with its why. An approach the user ruled out during the session gets at most one line — name plus rejection reason — never its own section, comparison matrix, or re-argued case. Omit template sections that are empty or that restate what the conversation already settled. Cut preamble, hedging, and restated context; extra length must be earned by genuinely open questions, not by template completeness. (Placement is governed by the repo-local design-artifact rule from issue #703.)
 <!-- GSTACK2_BUG_FIX_END pr=2000 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=879 anchor=GSTACK2_FIX_879_SELF_CONTAINED_QUESTIONS -->
+## Upstream judgment port: issue #879
+
+[Show the content a question refers to before asking it](https://github.com/garrytan/gstack/issues/879)
+
+### Self-contained questions
+
+A question is only answerable if the user can see what it refers to. Before any AskUserQuestion or prose decision brief that asks the user to confirm, approve, rank, or choose among content this session produced — premises, findings, plans, approaches, scores, summaries — render that content in full as direct assistant text immediately before the question, or restate it inside the question and option descriptions. Internal reasoning is invisible to the user, and collapsed tool output (Bash cat, Read) does not count as shown. Never ask "do you agree with the N premises?" when the premises exist only in your reasoning: print them, then ask. This generalizes the inline design-doc approval rule from PR #1116 to every question in every workflow.
+<!-- GSTACK2_BUG_FIX_END pr=879 -->

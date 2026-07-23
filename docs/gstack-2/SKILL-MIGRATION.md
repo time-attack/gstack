@@ -10,61 +10,61 @@ The fixed public modes are: Design = `Explore | Generate | Critique | Implement`
 
 | Legacy invocation | Replacement | Visibility | Mandatory | Judgment overlays |
 |---|---|---|---|---|
-| `/gstack` | `$plan --mode Discovery --module gstack` | internal (internal) | no | #679 |
-| `/office-hours` | `$plan --mode Discovery --module office-hours` | internal (primary) | yes | #679, #2030, #1049, #1116, #886, #703, #2000 |
-| `/plan-ceo-review` | `$plan --mode Product --module plan-ceo-review` | internal (primary) | yes | #679, #2030, #886, #703 |
-| `/plan-eng-review` | `$plan --mode Engineering --module plan-eng-review` | internal (primary) | yes | #679, #1071, #2030, #592, #886, #703 |
-| `/plan-devex-review` | `$plan --mode DX --module plan-devex-review` | internal (primary) | yes | #679, #2030, #886, #703 |
-| `/autoplan` | `$plan --mode Full chain --module autoplan` | internal (primary) | yes | #679, #2014, #2023, #886, #703 |
-| `/spec` | `$plan --mode Specification --module spec` | internal (primary) | yes | #679, #886 |
-| `/plan-tune` | `$plan --mode Discovery --module plan-tune` | internal (primary) | yes | #679 |
-| `/context-save` | `$plan --mode Discovery --module context-save` | internal (internal) | no | #679 |
-| `/context-restore` | `$plan --mode Discovery --module context-restore` | internal (internal) | no | #679 |
-| `/learn` | `$plan --mode Discovery --module learn` | internal (internal) | no | #679, #2030 |
-| `/retro` | `$plan --mode Discovery --module retro` | internal (internal) | no | #679, #1636, #2037 |
-| `/setup-gbrain` | `$plan --mode Discovery --module setup-gbrain` | internal (internal) | no | #679 |
-| `/sync-gbrain` | `$plan --mode Discovery --module sync-gbrain` | internal (internal) | no | #679 |
-| `/design-consultation` | `$design --mode Generate --module design-consultation` | internal (primary) | yes | #679, #2030, #2189 |
-| `/design-shotgun` | `$design --mode Explore --module design-shotgun` | internal (primary) | yes | #679, #1777 |
-| `/design-html` | `$design --mode Implement --module design-html` | internal (primary) | yes | #679 |
-| `/plan-design-review` | `$design --mode Critique --module plan-design-review` | internal (primary) | yes | #679, #2030, #2189 |
-| `/design-review` | `$design --mode Implement --module design-review` | internal (primary) | yes | #679, #1920, #2030, #2189, #696 |
-| `/ios-design-review` | `$design --mode Critique --module ios-design-review` | internal (primary) | yes | #679 |
-| `/diagram` | `$design --mode Generate --module diagram` | internal (internal) | no | #679 |
-| `/make-pdf` | `$design --mode Generate --module make-pdf` | internal (internal) | no | #679 |
-| `/qa` | `$qa --mode Fix --module qa` | internal (primary) | yes | #679, #1484, #2030, #2186 |
-| `/qa-only` | `$qa --mode Report --module qa-only` | internal (primary) | yes | #679, #1484, #2030 |
-| `/ios-qa` | `$qa --mode Report --module ios-qa` | internal (primary) | yes | #679 |
-| `/devex-review` | `$qa --mode Report --module devex-review` | internal (primary) | yes | #679, #2030 |
-| `/benchmark` | `$qa --mode Report --module benchmark` | internal (primary) | yes | #679 |
-| `/canary` | `$qa --mode Report --module canary` | internal (primary) | yes | #679, #2186 |
-| `/browse` | `$qa --mode Report --module browse` | internal (internal) | no | #679, #2186 |
-| `/open-gstack-browser` | `$qa --mode Report --module open-gstack-browser` | internal (internal) | no | #679 |
-| `/setup-browser-cookies` | `$qa --mode Report --module setup-browser-cookies` | internal (internal) | no | #679 |
-| `/pair-agent` | `$qa --mode Report --module pair-agent` | internal (internal) | no | #679 |
-| `/scrape` | `$qa --mode Report --module scrape` | internal (internal) | no | #679, #2030 |
-| `/skillify` | `$qa --mode Report --module skillify` | internal (internal) | no | #679, #2030 |
-| `/benchmark-models` | `$qa --mode Report --module benchmark-models` | internal (internal) | no | #679 |
-| `/investigate` | `$debug --mode Diagnose-only --module investigate` | internal (primary) | yes | #679, #2030, #2186 |
-| `/ios-fix` | `$debug --mode Fix --module ios-fix` | internal (primary) | yes | #679 |
-| `/careful` | `$debug --mode Diagnose-only --module careful` | internal (internal) | no | #679 |
-| `/freeze` | `$debug --mode Diagnose-only --module freeze` | internal (internal) | no | #679 |
-| `/guard` | `$debug --mode Diagnose-only --module guard` | internal (internal) | no | #679 |
-| `/unfreeze` | `$debug --mode Diagnose-only --module unfreeze` | internal (internal) | no | #679 |
-| `/review` | `$review --mode Normal --module review` | internal (primary) | yes | #610, #645, #679, #2030, #2141, #579, #452 |
-| `/cso` | `$review --mode Security --module cso` | internal (primary) | yes | #679, #2030, #1523, #1053 |
-| `/health` | `$review --mode Deep --module health` | internal (primary) | yes | #679 |
-| `/codex` | `$review --mode Deep --module codex` | internal (primary) | yes | #679 |
-| `/claude` | `$review --mode Deep --module claude` | internal (primary) | yes | #679 |
-| `/ship` | `$ship --mode Prepare --module ship` | internal (primary) | yes | #679, #884, #2030, #2186, #1102 |
-| `/land-and-deploy` | `$ship --mode Land --module land-and-deploy` | internal (primary) | yes | #679, #884 |
-| `/landing-report` | `$ship --mode Prepare --module landing-report` | internal (primary) | yes | #679 |
-| `/document-release` | `$ship --mode Prepare --module document-release` | internal (primary) | yes | #679 |
-| `/setup-deploy` | `$ship --mode Deploy --module setup-deploy` | internal (primary) | yes | #679 |
-| `/document-generate` | `$ship --mode Prepare --module document-generate` | internal (internal) | no | #679 |
-| `/gstack-upgrade` | `$ship --mode Prepare --module gstack-upgrade` | internal (internal) | no | #679 |
-| `/ios-clean` | `$ship --mode Prepare --module ios-clean` | internal (internal) | no | #679 |
-| `/ios-sync` | `$ship --mode Prepare --module ios-sync` | internal (internal) | no | #679 |
+| `/gstack` | `$plan --mode Discovery --module gstack` | internal (internal) | no | #679, #879 |
+| `/office-hours` | `$plan --mode Discovery --module office-hours` | internal (primary) | yes | #679, #2030, #1049, #1116, #886, #703, #2000, #879 |
+| `/plan-ceo-review` | `$plan --mode Product --module plan-ceo-review` | internal (primary) | yes | #679, #2030, #886, #703, #879 |
+| `/plan-eng-review` | `$plan --mode Engineering --module plan-eng-review` | internal (primary) | yes | #679, #1071, #2030, #592, #886, #703, #879 |
+| `/plan-devex-review` | `$plan --mode DX --module plan-devex-review` | internal (primary) | yes | #679, #2030, #886, #703, #879 |
+| `/autoplan` | `$plan --mode Full chain --module autoplan` | internal (primary) | yes | #679, #2014, #2023, #886, #703, #879 |
+| `/spec` | `$plan --mode Specification --module spec` | internal (primary) | yes | #679, #886, #879 |
+| `/plan-tune` | `$plan --mode Discovery --module plan-tune` | internal (primary) | yes | #679, #879 |
+| `/context-save` | `$plan --mode Discovery --module context-save` | internal (internal) | no | #679, #879 |
+| `/context-restore` | `$plan --mode Discovery --module context-restore` | internal (internal) | no | #679, #879 |
+| `/learn` | `$plan --mode Discovery --module learn` | internal (internal) | no | #679, #2030, #879 |
+| `/retro` | `$plan --mode Discovery --module retro` | internal (internal) | no | #679, #1636, #2037, #879 |
+| `/setup-gbrain` | `$plan --mode Discovery --module setup-gbrain` | internal (internal) | no | #679, #879 |
+| `/sync-gbrain` | `$plan --mode Discovery --module sync-gbrain` | internal (internal) | no | #679, #879 |
+| `/design-consultation` | `$design --mode Generate --module design-consultation` | internal (primary) | yes | #679, #2030, #2189, #879 |
+| `/design-shotgun` | `$design --mode Explore --module design-shotgun` | internal (primary) | yes | #679, #1777, #879 |
+| `/design-html` | `$design --mode Implement --module design-html` | internal (primary) | yes | #679, #879 |
+| `/plan-design-review` | `$design --mode Critique --module plan-design-review` | internal (primary) | yes | #679, #2030, #2189, #879 |
+| `/design-review` | `$design --mode Implement --module design-review` | internal (primary) | yes | #679, #1920, #2030, #2189, #696, #879 |
+| `/ios-design-review` | `$design --mode Critique --module ios-design-review` | internal (primary) | yes | #679, #879 |
+| `/diagram` | `$design --mode Generate --module diagram` | internal (internal) | no | #679, #879 |
+| `/make-pdf` | `$design --mode Generate --module make-pdf` | internal (internal) | no | #679, #879 |
+| `/qa` | `$qa --mode Fix --module qa` | internal (primary) | yes | #679, #1484, #2030, #2186, #879 |
+| `/qa-only` | `$qa --mode Report --module qa-only` | internal (primary) | yes | #679, #1484, #2030, #879 |
+| `/ios-qa` | `$qa --mode Report --module ios-qa` | internal (primary) | yes | #679, #879 |
+| `/devex-review` | `$qa --mode Report --module devex-review` | internal (primary) | yes | #679, #2030, #879 |
+| `/benchmark` | `$qa --mode Report --module benchmark` | internal (primary) | yes | #679, #879 |
+| `/canary` | `$qa --mode Report --module canary` | internal (primary) | yes | #679, #2186, #879 |
+| `/browse` | `$qa --mode Report --module browse` | internal (internal) | no | #679, #2186, #879 |
+| `/open-gstack-browser` | `$qa --mode Report --module open-gstack-browser` | internal (internal) | no | #679, #879 |
+| `/setup-browser-cookies` | `$qa --mode Report --module setup-browser-cookies` | internal (internal) | no | #679, #879 |
+| `/pair-agent` | `$qa --mode Report --module pair-agent` | internal (internal) | no | #679, #879 |
+| `/scrape` | `$qa --mode Report --module scrape` | internal (internal) | no | #679, #2030, #879 |
+| `/skillify` | `$qa --mode Report --module skillify` | internal (internal) | no | #679, #2030, #879 |
+| `/benchmark-models` | `$qa --mode Report --module benchmark-models` | internal (internal) | no | #679, #879 |
+| `/investigate` | `$debug --mode Diagnose-only --module investigate` | internal (primary) | yes | #679, #2030, #2186, #879 |
+| `/ios-fix` | `$debug --mode Fix --module ios-fix` | internal (primary) | yes | #679, #879 |
+| `/careful` | `$debug --mode Diagnose-only --module careful` | internal (internal) | no | #679, #879 |
+| `/freeze` | `$debug --mode Diagnose-only --module freeze` | internal (internal) | no | #679, #879 |
+| `/guard` | `$debug --mode Diagnose-only --module guard` | internal (internal) | no | #679, #879 |
+| `/unfreeze` | `$debug --mode Diagnose-only --module unfreeze` | internal (internal) | no | #679, #879 |
+| `/review` | `$review --mode Normal --module review` | internal (primary) | yes | #610, #645, #679, #2030, #2141, #579, #452, #879 |
+| `/cso` | `$review --mode Security --module cso` | internal (primary) | yes | #679, #2030, #1523, #1053, #879 |
+| `/health` | `$review --mode Deep --module health` | internal (primary) | yes | #679, #879 |
+| `/codex` | `$review --mode Deep --module codex` | internal (primary) | yes | #679, #879 |
+| `/claude` | `$review --mode Deep --module claude` | internal (primary) | yes | #679, #879 |
+| `/ship` | `$ship --mode Prepare --module ship` | internal (primary) | yes | #679, #884, #2030, #2186, #1102, #879 |
+| `/land-and-deploy` | `$ship --mode Land --module land-and-deploy` | internal (primary) | yes | #679, #884, #879 |
+| `/landing-report` | `$ship --mode Prepare --module landing-report` | internal (primary) | yes | #679, #879 |
+| `/document-release` | `$ship --mode Prepare --module document-release` | internal (primary) | yes | #679, #879 |
+| `/setup-deploy` | `$ship --mode Deploy --module setup-deploy` | internal (primary) | yes | #679, #879 |
+| `/document-generate` | `$ship --mode Prepare --module document-generate` | internal (internal) | no | #679, #879 |
+| `/gstack-upgrade` | `$ship --mode Prepare --module gstack-upgrade` | internal (internal) | no | #679, #879 |
+| `/ios-clean` | `$ship --mode Prepare --module ios-clean` | internal (internal) | no | #679, #879 |
+| `/ios-sync` | `$ship --mode Prepare --module ios-sync` | internal (internal) | no | #679, #879 |
 
 ## Intentional behavioral gaps
 

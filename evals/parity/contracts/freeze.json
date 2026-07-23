@@ -12,7 +12,8 @@
   "normalized_render_sha256": "036fe2c7d5c154982ba3509e9b9ab1f5867f86c1d71beb569802d7f7be46ed7c",
   "target": "skills/debug/references/legacy/freeze.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

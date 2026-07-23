@@ -12,7 +12,8 @@
   "normalized_render_sha256": "973d3d126e97f2c720bc048e6a124e51c0195f9bc7a714ffc41fd57af37f4e73",
   "target": "skills/plan/references/legacy/sync-gbrain.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

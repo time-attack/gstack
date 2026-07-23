@@ -12,7 +12,8 @@
   "normalized_render_sha256": "2c8cf9e505b7da27730bf646a33ee38e8092259f3335a524c71e57ba5b602541",
   "target": "skills/ship/references/legacy/gstack-upgrade.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

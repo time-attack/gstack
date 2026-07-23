@@ -12,7 +12,8 @@
   "normalized_render_sha256": "44c64ae4a63d0ed0fbc427ee2e4f0330d5074c14cdc589baa660dd7a22dbcdf9",
   "target": "skills/plan/references/legacy/context-restore.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

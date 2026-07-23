@@ -13,7 +13,8 @@
   "target": "skills/design/references/legacy/design-shotgun.md",
   "overlays": [
     679,
-    1777
+    1777,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

@@ -12,7 +12,8 @@
   "normalized_render_sha256": "21de7096aa788e3c4206587761f3122016f4cfc3080ec07f07cd7698075307a5",
   "target": "skills/ship/references/legacy/document-release.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

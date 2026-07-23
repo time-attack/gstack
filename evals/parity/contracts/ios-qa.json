@@ -12,7 +12,8 @@
   "normalized_render_sha256": "73ea0aabaa9e7c8fdd4ae279f519303a78682540b2340816f97e239718908e62",
   "target": "skills/qa/references/legacy/ios-qa.md",
   "overlays": [
-    679
+    679,
+    879
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",
