@@ -44,9 +44,9 @@
       "baseline": {
         "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
         "source_path": "ship/SKILL.md.tmpl",
-        "rendered_sha256": "9af827a90f953b6a527b82a16ffd4dce19f498717c6993a01824f86a7cec68ec",
+        "rendered_sha256": "80d00ed7032c85bdce177b5e60893e54f334b73b60812c76618902471c4ae9a7",
         "semantic_signature": {
-          "normalized_sha256": "9af827a90f953b6a527b82a16ffd4dce19f498717c6993a01824f86a7cec68ec",
+          "normalized_sha256": "80d00ed7032c85bdce177b5e60893e54f334b73b60812c76618902471c4ae9a7",
           "headings_sha256": "461d9c01c10b07c3b06abdb0f43b02201564eeea0ccdcdf704c043ecb27789e3",
           "questions_sha256": "60ed392fcb9487d43d89d5efb968d1444df3859b90b57bcd45d4bae904d3c7f6",
           "obligations_sha256": "45a9fa0ebf09ba893a91be53b58604af4192a46f468cd64729b87884188af880",

@@ -66,7 +66,6 @@ Based on the scope signals above, select which specialists to dispatch.
 4. **Performance** — if SCOPE_BACKEND=true OR SCOPE_FRONTEND=true. Read \`${ctx.paths.skillRoot}/review/specialists/performance.md\`
 5. **Data Migration** — if SCOPE_MIGRATIONS=true. Read \`${ctx.paths.skillRoot}/review/specialists/data-migration.md\`
 6. **API Contract** — if SCOPE_API=true. Read \`${ctx.paths.skillRoot}/review/specialists/api-contract.md\`
-7. **Design** — if SCOPE_FRONTEND=true. Use the existing design review checklist at \`${ctx.paths.skillRoot}/review/design-checklist.md\`
 
 ### Adaptive gating
 
@@ -76,7 +75,7 @@ For each conditional specialist that passed scope gating, check the \`gstack-spe
 - If tagged \`[GATE_CANDIDATE]\` (0 findings in 10+ dispatches): skip it. Print: "[specialist] auto-gated (0 findings in N reviews)."
 - If tagged \`[NEVER_GATE]\`: always dispatch regardless of hit rate. Security and data-migration are insurance policy specialists — they should run even when silent.
 
-**Force flags:** If the user's prompt includes \`--security\`, \`--performance\`, \`--testing\`, \`--maintainability\`, \`--data-migration\`, \`--api-contract\`, \`--design\`, or \`--all-specialists\`, force-include that specialist regardless of gating.
+**Force flags:** If the user's prompt includes \`--security\`, \`--performance\`, \`--testing\`, \`--maintainability\`, \`--data-migration\`, \`--api-contract\`, or \`--all-specialists\`, force-include that specialist regardless of gating.
 
 Note which specialists were selected, gated, and skipped. Print the selection:
 "Dispatching N specialists: [names]. Skipped: [names] (scope not detected). Gated: [names] (0 findings in N+ reviews)."`;
@@ -191,13 +190,12 @@ The Fix-First heuristic applies identically — specialist findings follow the s
 
 **Compile per-specialist stats:**
 After merging findings, compile a \`specialists\` object for ${persistRef}.
-For each specialist (testing, maintainability, security, performance, data-migration, api-contract, design, red-team):
+For each specialist (testing, maintainability, security, performance, data-migration, api-contract, red-team):
 - If dispatched: \`{"dispatched": true, "findings": N, "critical": N, "informational": N}\`
 - If skipped by scope: \`{"dispatched": false, "reason": "scope"}\`
 - If skipped by gating: \`{"dispatched": false, "reason": "gated"}\`
 - If not applicable (e.g., red-team not activated): omit from the object
 
-Include the Design specialist even though it uses \`design-checklist.md\` instead of the specialist schema files.
 Remember these stats — you will need them for the review-log entry in Step 5.8.`;
 }
 

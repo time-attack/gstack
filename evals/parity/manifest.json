@@ -17,7 +17,7 @@
     "internal_execution_adapters": 1,
     "scenarios": 19,
     "bug_fix_ports": 24,
-    "assets": 72,
+    "assets": 70,
     "dependency_copies": 3,
     "runtime_helpers": 38
   },
@@ -30,7 +30,7 @@
       "source_path": "SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "402bd0d7b0f2bf02f6c9e4754e0e2a655f5f4057",
-      "normalized_render_sha256": "afe200bbc30f4176bfdb3e18e3e562c60d6a7f7993f4921942ddeb01652bbbec",
+      "normalized_render_sha256": "4b63f137a98f1ac0bef6c6fcac1179a54494e8440583ef7a0f582bbbaad7d65e",
       "target": "skills/plan/references/legacy/gstack.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -83,7 +83,7 @@
       "source_path": "office-hours/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "8568fe73cca76a80805fab3092cacd10db7e1d7f",
-      "normalized_render_sha256": "da7f25f6062ee0dcf7a68258147850b345841b63b95fdac8d44460b4228d058a",
+      "normalized_render_sha256": "2984ade43079ea34d5765ab636c11166d00a422fbd5fdb8f19caf0101813446d",
       "target": "skills/plan/references/legacy/office-hours.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -605,7 +605,7 @@
       "source_path": "autoplan/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "b2eaca9fde8f46001bea9961b8ed651d0f6f9e13",
-      "normalized_render_sha256": "f46c010514fe8c6cf65ca4a132db504371fa2c6364c7692905a80c3b6fb962c3",
+      "normalized_render_sha256": "690d7a2550c7be6105dcd61ecd5a1f5c39799b2ff36e0ccf271d9e067b5c494b",
       "target": "skills/plan/references/legacy/autoplan.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2086,7 +2086,7 @@
       "source_path": "open-gstack-browser/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "ef91a527890a3ac3622cc7dc84bad1ff7b64443b",
-      "normalized_render_sha256": "d2cd696e2ba459ea7e386d08dc3e5c7d1154bbd37d77d3745b881eafea06cf3c",
+      "normalized_render_sha256": "a596b6eb8d0bc719bb217a3616c0ea0a0bf96618f82b27bef3dcd2524c9c1e16",
       "target": "skills/qa/references/legacy/open-gstack-browser.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3447,7 +3447,7 @@
       "source_path": "land-and-deploy/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "98976ad020d541d251cc7e34802a13458ddc88e2",
-      "normalized_render_sha256": "2699a74614cf2c24bec81e96199e4162cb48cdeb39a87a0315763dcb78cdcfe5",
+      "normalized_render_sha256": "0a421a6c1a4872a0b6a3677aab72f262a436682d724c7919f461ee0bbb5435c5",
       "target": "skills/ship/references/legacy/land-and-deploy.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -4167,19 +4167,19 @@
       "parity_test": "scripts/gstack2/run-parity.ts exact packaged-section, lazy-reference, and Git-blob checks"
     },
     {
-      "source_path": "office-hours/sections/design-and-handoff.md.tmpl",
+      "source_path": "office-hours/sections/doc-and-handoff.md.tmpl",
       "parent_source": "office-hours",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "a8f8c5aac4b39b87d222c25201475b5f1ab9bf15",
       "normalized_render_sha256": "ca4ffc09d9515971a9c116e3acf12ae7d6ab2b93c79da0e69ac5f5105b4527b5",
       "ported_render_sha256": "7987539224ab925cb50d6393426f9ba8c10e5f326e39d3dc330de52d171c3b92",
-      "target": "skills/plan/references/sections/office-hours/design-and-handoff.md",
+      "target": "skills/plan/references/sections/office-hours/doc-and-handoff.md",
       "lazy_reference_module_target": "skills/plan/references/legacy/office-hours.md",
       "packaged_targets": [
-        "skills/plan/references/sections/office-hours/design-and-handoff.md"
+        "skills/plan/references/sections/office-hours/doc-and-handoff.md"
       ],
       "disposition": "JUDGMENT_PRESERVING_CARVE",
-      "original_source_file": "office-hours/sections/design-and-handoff.md.tmpl",
+      "original_source_file": "office-hours/sections/doc-and-handoff.md.tmpl",
       "original_line_range": "1-474",
       "purpose": "Carved specialist section from office-hours, packaged behind a lazy reference at its original workflow point.",
       "invocation_conditions": "Loaded only when the parent office-hours workflow reaches this carved section.",
@@ -4216,7 +4216,7 @@
       "exit_states": "Inherited unchanged from the parent specialist workflow.",
       "voice": "Inherited unchanged from the parent specialist workflow.",
       "response_posture": "Inherited unchanged from the parent specialist workflow.",
-      "new_location": "skills/plan/references/sections/office-hours/design-and-handoff.md",
+      "new_location": "skills/plan/references/sections/office-hours/doc-and-handoff.md",
       "parity_test": "scripts/gstack2/run-parity.ts exact packaged-section, lazy-reference, and Git-blob checks"
     },
     {
@@ -4635,7 +4635,7 @@
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "22ac0d668ba8f2a15c7f9416508d81727c5114e0",
       "normalized_render_sha256": "813c4c75f1cc8c85ab3121f0a76966673118cf759d283c3ef5f6aa1ba64dd764",
-      "ported_render_sha256": "c45be8e6407b208154b0123c3d9e10658030c1b74067a1218d4a0115b0a1c83d",
+      "ported_render_sha256": "609f895f1aaacc495c2be353061ab53d346b75101d767d98477d8c0f5de924a2",
       "target": "skills/ship/references/sections/ship/pr-body.md",
       "lazy_reference_module_target": "skills/ship/references/legacy/ship.md",
       "packaged_targets": [
@@ -4816,8 +4816,8 @@
     {
       "tree": "plan",
       "source": "office-hours",
-      "source_path": "office-hours/sections/design-and-handoff.md.tmpl",
-      "target_path": "skills/plan/references/sections/office-hours/design-and-handoff.md",
+      "source_path": "office-hours/sections/doc-and-handoff.md.tmpl",
+      "target_path": "skills/plan/references/sections/office-hours/doc-and-handoff.md",
       "blob_sha": "a8f8c5aac4b39b87d222c25201475b5f1ab9bf15",
       "sha256": "7987539224ab925cb50d6393426f9ba8c10e5f326e39d3dc330de52d171c3b92"
     },
@@ -4899,7 +4899,7 @@
       "source_path": "ship/sections/pr-body.md.tmpl",
       "target_path": "skills/ship/references/sections/ship/pr-body.md",
       "blob_sha": "22ac0d668ba8f2a15c7f9416508d81727c5114e0",
-      "sha256": "c45be8e6407b208154b0123c3d9e10658030c1b74067a1218d4a0115b0a1c83d"
+      "sha256": "609f895f1aaacc495c2be353061ab53d346b75101d767d98477d8c0f5de924a2"
     },
     {
       "tree": "ship",
@@ -5270,15 +5270,6 @@
     },
     {
       "tree": "review",
-      "source_path": "review/design-checklist.md",
-      "target_path": "skills/review/references/artifacts/review/design-checklist.md",
-      "blob_sha": "e9d2b7117c039f82b78daec8f7db63998ee1480c",
-      "baseline_sha256": "e6f4ac34f034005c7fc91e4008bb8101a0973a26230b86b50c4f580182e6c8bb",
-      "sha256": "c54596fca160b6f1a1f53e7652eee144f57c95c2ea7d13aca25620a971cbfbde",
-      "disposition": "MECHANICAL_PORT"
-    },
-    {
-      "tree": "review",
       "source_path": "review/greptile-triage.md",
       "target_path": "skills/review/references/artifacts/review/greptile-triage.md",
       "blob_sha": "3cb6e8d597fd04462b5c2fe18174be2c9ce75c8f",
@@ -5528,15 +5519,6 @@
       "baseline_sha256": "cfe559e2f4ece967a2e2e6243dd4166e5cf988c546c8590edaeb9beafd4f2f30",
       "sha256": "cfe559e2f4ece967a2e2e6243dd4166e5cf988c546c8590edaeb9beafd4f2f30",
       "disposition": "VERBATIM_PORT"
-    },
-    {
-      "tree": "ship",
-      "source_path": "review/design-checklist.md",
-      "target_path": "skills/ship/references/artifacts/review/design-checklist.md",
-      "blob_sha": "e9d2b7117c039f82b78daec8f7db63998ee1480c",
-      "baseline_sha256": "e6f4ac34f034005c7fc91e4008bb8101a0973a26230b86b50c4f580182e6c8bb",
-      "sha256": "c54596fca160b6f1a1f53e7652eee144f57c95c2ea7d13aca25620a971cbfbde",
-      "disposition": "MECHANICAL_PORT"
     },
     {
       "tree": "ship",

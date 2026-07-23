@@ -1,8 +1,6 @@
 import type { TemplateContext } from './types';
 import { AI_SLOP_BLACKLIST, OPENAI_HARD_REJECTIONS, OPENAI_LITMUS_CHECKS } from './constants';
 
-// NOTE: design-checklist.md is a subset of this methodology for code-level detection.
-// When adding items here, also update review/design-checklist.md, and vice versa.
 export function generateDesignMethodology(_ctx: TemplateContext): string {
   return `## Modes
 
