@@ -674,6 +674,7 @@ When preflight finds a missing icon, or the storefront step needs screenshots, a
 - **App icon**: SnapAI (\`npx snapai\`, the app-icon agent skill) generates a 1024×1024 icon-styled square with the user's own OpenAI key (roughly $0.05–0.19 per icon); Xcode 15+ derives every size from that single image, so no resizer tool is needed.
 - **Marketing screenshots**: the aso-appstore-screenshots agent skill (benefit-headline discovery, deterministic scaffold, Nano Banana Pro enhancement with the user's Gemini key, exact App Store dimensions). If installed, follow its workflow rather than reimplementing it.
 - **Plain device framing**: \`asc screenshots capture\` and \`asc screenshots frame\` — free, local, upload-normalized output (requires the axe CLI and pinned Koubou).
+- **Designed screenshot decks, free and local**: the app-store-screenshots agent skill (parthjadhav editor) — scaffold its editor, prefill \`app-store-screenshots.json\` with captures and copy, and export one bundle covering every required iPhone size per locale; the user can refine slides interactively before export.
 - **User-supplied assets**: always a valid answer; validate dimensions and move on.
 
 ## App Store Connect completion
