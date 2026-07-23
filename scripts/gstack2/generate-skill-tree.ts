@@ -642,7 +642,7 @@ function appleReleaseContract(): string {
 
 Applies when the ship target is an Apple platform app: the repository contains an \`.xcodeproj\` or \`.xcworkspace\`, or a Swift package with an app product. This adapter extends the preserved ship judgment to the App Store journey end to end; it replaces no gate, and every upload or submission remains an external effect executed through \`references/EXTERNAL-EFFECTS.md\`.
 
-Work only with the native Apple toolchain (\`xcodebuild\`, \`xcrun\`, \`agvtool\`). Never add fastlane or another release manager as a project dependency to ship; the release itself adds no new dependency to the user's project.
+Build and upload with the native Apple toolchain (\`xcodebuild\`, \`xcrun\`, \`agvtool\`); finish the storefront work with a consent-gated App Store Connect API CLI as described below. Never add fastlane or another release manager as a project dependency to ship; the release itself adds no new dependency to the user's project — the App Store Connect CLI is a machine tool, installed only with explicit consent.
 
 ## Membership gate
 
@@ -669,7 +669,11 @@ Resolve and verify before archiving. Fix what the printed mutation boundary auth
 
 ## App Store Connect completion
 
-Everything the CLI cannot finish lives in App Store Connect: the app record (name, bundle ID, SKU, primary language), screenshots per required device size, description and keywords, support URL, privacy nutrition labels, age rating, pricing and availability, attaching the uploaded build, and Submit for Review. Offer to drive these through \`references/THIRD-PARTY-ACTIONS.md\` with its per-task consent gate, or hand over a complete manual checklist covering every field App Review requires. Offer a TestFlight distribution of the uploaded build as an intermediate step before review submission. After submission, report that App Review typically answers within a day or two and close the run; review outcome is not a gate this workflow can hold open.
+The App Store Connect API covers nearly all remaining work; drive it from a CLI, not a browser. Offer to install a dedicated App Store Connect CLI with one explicit consent question: \`asc\` (rorkai/App-Store-Connect-CLI, \`brew install asc\`) is the default offer; ittybittyapps/appstoreconnect-cli and codemagic-ci-cd cli-tools are equivalents if the user prefers them. It is a machine-level tool authenticated with the same App Store Connect API key, never a project dependency, and its telemetry is disabled unless the user opts in. If the user already has dedicated App Store Connect agent skills installed (for example rorkai/app-store-connect-cli-skills via the standard skills installer), defer to those flows instead of duplicating them.
+
+Through the CLI: description, keywords, and localizations; screenshot upload per required device size; TestFlight groups and testers as an intermediate distribution before review; attaching the uploaded build to the version; Submit for Review; and review-status monitoring afterward. Submission is an external effect like the upload: run it through the durable state wrapper with a key like \`appstore.submit.<bundle-id>.<version>\`.
+
+The API cannot create the initial app record (name, bundle ID, SKU, primary language), accept agreements, or configure banking and tax; those stay on the App Store Connect website, offered through \`references/THIRD-PARTY-ACTIONS.md\` or as a short manual checklist. The same fallback applies to any individual field the chosen CLI cannot set. After submission, report that App Review typically answers within a day or two and close the run; review outcome is not a gate this workflow can hold open.
 `;
 }
 
