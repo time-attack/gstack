@@ -1,7 +1,7 @@
 {
   "name": "gstack",
-  "version": "1.63.0.0",
-  "description": "GStack 2 — six portable Agent Skills with an optional host-neutral runtime.",
+  "version": "1.64.0.0",
+  "description": "GStack 2 \u2014 six portable Agent Skills with an optional host-neutral runtime.",
   "license": "MIT",
   "type": "module",
   "gstack": {
