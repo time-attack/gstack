@@ -82,7 +82,7 @@ function assertInventory(): void {
   }
   if (legacySections().length !== 16) throw new Error(`Expected 16 section templates, found ${legacySections().length}`);
   if (SCENARIOS.length !== 25) throw new Error(`Expected 25 parity scenarios, found ${SCENARIOS.length}`);
-  if (BUG_FIX_OVERLAYS.length !== 29) throw new Error(`Expected 29 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
+  if (BUG_FIX_OVERLAYS.length !== 30) throw new Error(`Expected 30 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
 }
 
 function toc(body: string): string {
