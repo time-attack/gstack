@@ -202,7 +202,7 @@ function rootSkill(dispatcher: DispatcherDefinition): string {
   const supplemental = dispatcher.name === 'qa'
     ? '\n9. When `system-functional` is active, read `references/SYSTEM-FUNCTIONAL.md` completely and execute it alongside the selected preserved specialists.\n'
     : dispatcher.name === 'ship'
-      ? '\n9. Before push, PR creation/update, merge, deploy, rollback, release publication, or external notification, read `references/EXTERNAL-EFFECTS.md` and execute the action through its durable state wrapper.\n'
+      ? '\n9. Before push, PR creation/update, merge, deploy, rollback, release publication, or external notification, read `references/EXTERNAL-EFFECTS.md` and execute the action through its durable state wrapper.\n10. When the release target is an Apple platform app (an `.xcodeproj`, `.xcworkspace`, or app-product Swift package is present), read `references/APPLE-RELEASE.md` before release preparation and follow its App Store journey end to end.\n'
       : dispatcher.name === 'plan'
         ? '\n9. Classify the Scale header line from the Build scale section before any questioning begins. Every planning specialist applies its proportional-planning judgment port to that scale.\n'
         : '';
@@ -636,6 +636,43 @@ Do not put secrets in run IDs, effect keys, or command arguments. Existing appro
 `;
 }
 
+function appleReleaseContract(): string {
+  return `${GENERATED}
+# Apple App Store release
+
+Applies when the ship target is an Apple platform app: the repository contains an \`.xcodeproj\` or \`.xcworkspace\`, or a Swift package with an app product. This adapter extends the preserved ship judgment to the App Store journey end to end; it replaces no gate, and every upload or submission remains an external effect executed through \`references/EXTERNAL-EFFECTS.md\`.
+
+Work only with the native Apple toolchain (\`xcodebuild\`, \`xcrun\`, \`agvtool\`). Never add fastlane or another release manager as a project dependency to ship; the release itself adds no new dependency to the user's project.
+
+## Membership gate
+
+Before any archive work, ask one explicit question: does the user have a paid Apple Developer Program membership (US$99/year)? App Store distribution and TestFlight both require it.
+
+- Yes: continue.
+- No: STOP the App Store path. Offer to walk enrollment at developer.apple.com through \`references/THIRD-PARTY-ACTIONS.md\` (enrollment is a purchase the user completes themselves and can take a day or two to activate), or name the free-account ceiling honestly: personal-team signing installs only on the user's own devices and expires after 7 days, with no TestFlight and no App Store.
+
+## Release preflight
+
+Resolve and verify before archiving. Fix what the printed mutation boundary authorizes; report everything else as a blocking finding.
+
+- Signing: development team set on the app target, automatic signing enabled (or a valid distribution certificate and provisioning profile), bundle identifier decided.
+- Versioning: a marketing version users should see and a build number strictly greater than any build already uploaded for that version.
+- Dependencies: \`xcodebuild -resolvePackageDependencies\` succeeds; if a \`Podfile\` or \`Cartfile\` exists, its install step has been run and lockfiles are current.
+- App Store validation blockers: complete app icon set including the 1024pt marketing icon, launch screen, a usage-description string for every privacy-gated API the app touches, required privacy manifests, an export-compliance answer (\`ITSAppUsesNonExemptEncryption\`), and a sane deployment target.
+
+## Archive, validate, upload
+
+1. Archive the Release configuration: \`xcodebuild archive -scheme <scheme> -destination 'generic/platform=iOS' -archivePath <name>.xcarchive\` (substitute the actual platform).
+2. Author an export-options plist with method \`app-store-connect\`. Prefer \`destination: upload\`, which validates and uploads in one supported step; \`destination: export\` plus the Transporter app is the fallback.
+3. Authenticate with an App Store Connect API key (\`-authenticationKeyPath\`, \`-authenticationKeyID\`, \`-authenticationKeyIssuerID\`). The \`.p8\` key is a secret under the \`THIRD-PARTY-ACTIONS.md\` rules: stored outside the repository, referenced by path, never echoed.
+4. The upload is an external effect: run it through the durable state wrapper with a key like \`appstore.upload.<bundle-id>.<build>\`. Never re-upload on ambiguity; inspect App Store Connect for the build first.
+
+## App Store Connect completion
+
+Everything the CLI cannot finish lives in App Store Connect: the app record (name, bundle ID, SKU, primary language), screenshots per required device size, description and keywords, support URL, privacy nutrition labels, age rating, pricing and availability, attaching the uploaded build, and Submit for Review. Offer to drive these through \`references/THIRD-PARTY-ACTIONS.md\` with its per-task consent gate, or hand over a complete manual checklist covering every field App Review requires. Offer a TestFlight distribution of the uploaded build as an intermediate step before review submission. After submission, report that App Review typically answers within a day or two and close the run; review outcome is not a gate this workflow can hold open.
+`;
+}
+
 function writeSharedContracts(): void {
   const bootstrap = fs.readFileSync(path.join(ROOT, 'runtime', 'runtime-bootstrap.mjs'));
   const browserChoice = fs.readFileSync(path.join(ROOT, 'runtime', 'browser-choice.mjs'));
@@ -657,6 +694,7 @@ function writeSharedContracts(): void {
   }
   write(path.join(ROOT, 'skills', 'qa', 'references', 'SYSTEM-FUNCTIONAL.md'), systemFunctionalContract());
   write(path.join(ROOT, 'skills', 'ship', 'references', 'EXTERNAL-EFFECTS.md'), externalEffectsContract());
+  write(path.join(ROOT, 'skills', 'ship', 'references', 'APPLE-RELEASE.md'), appleReleaseContract());
 }
 
 interface RenderedModuleRecord {

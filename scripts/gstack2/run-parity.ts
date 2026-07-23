@@ -31,7 +31,7 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // format, dispatcher load, consent/secret content). Extending the #886
 // overlay to the review specialists (review, plan-design-review,
 // design-review) added 6 more (2 per newly targeted module).
-export const EXPECTED_PARITY_CHECKS = 5080;
+export const EXPECTED_PARITY_CHECKS = 5083;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -206,6 +206,18 @@ export function runParity(): ParityResult {
     check(effects.includes('gstack state effect') && effects.includes('Never retry automatically'), 'Ship external-effect protocol lost durable claim or no-repeat behavior');
   }
   check(fs.readFileSync(path.join(ROOT, 'skills', 'ship', 'SKILL.md'), 'utf8').includes('references/EXTERNAL-EFFECTS.md'), 'Ship dispatcher does not bind external actions to durable state');
+  const appleReleasePath = path.join(ROOT, 'skills', 'ship', 'references', 'APPLE-RELEASE.md');
+  check(fs.existsSync(appleReleasePath), 'Ship lacks the Apple App Store release adapter');
+  if (fs.existsSync(appleReleasePath)) {
+    const apple = fs.readFileSync(appleReleasePath, 'utf8');
+    check(
+      apple.includes('paid Apple Developer Program membership')
+        && apple.includes('The upload is an external effect')
+        && apple.includes('the release itself adds no new dependency'),
+      'Apple release adapter lost its membership gate, durable-upload binding, or no-new-dependency rule',
+    );
+  }
+  check(fs.readFileSync(path.join(ROOT, 'skills', 'ship', 'SKILL.md'), 'utf8').includes('references/APPLE-RELEASE.md'), 'Ship dispatcher does not load the Apple release adapter for Apple targets');
 
   check(files(path.join(ROOT, 'evals', 'parity', 'contracts'), '.json').length === 55, 'Contract fixture count is not 55');
   const baselineRenders = json(path.join(ROOT, 'evals', 'parity', 'baseline-render-hashes.json'));
