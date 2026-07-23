@@ -25,17 +25,10 @@ describe('GStack 2 skill parity', () => {
 
   test('preserves the pinned specialist corpus and generated evidence', () => {
     const result = runParity();
-    expect(result.sources).toBe(55);
-    expect(result.sections).toBe(16);
-    expect(result.regressions).toBe(30);
+    expect(result.sources).toBe(47);
+    expect(result.sections).toBe(14);
+    expect(result.regressions).toBe(26);
   }, 30_000);
-
-  test('keeps image generation host-native, optional, and provider-free', () => {
-    const design = readFileSync(join(ROOT, 'skills', 'design', 'SKILL.md'), 'utf8');
-    expect(design).toContain('Use host-native image generation');
-    expect(design).toContain('keep it optional');
-    expect(design).toContain('Never install an image provider, local model, weights, GPU runtime, or background image server');
-  });
 
   test('does not overclaim safety-hook enforcement in portable installs', () => {
     const debug = readFileSync(join(ROOT, 'skills', 'debug', 'SKILL.md'), 'utf8');
@@ -45,7 +38,7 @@ describe('GStack 2 skill parity', () => {
 
   test('keeps the default catalog at least 75 percent below the measured 1.x baseline', () => {
     const baselineTokenEquivalents = 1_100;
-    const catalogCharacters = ['plan', 'design', 'qa', 'debug', 'review', 'ship']
+    const catalogCharacters = ['plan', 'qa', 'debug', 'review', 'ship']
       .map((skill) => readFileSync(join(ROOT, 'skills', skill, 'SKILL.md'), 'utf8'))
       .reduce((total, body) => {
         const name = body.match(/^name:\s*(.+)$/m)?.[1]?.trim() ?? '';

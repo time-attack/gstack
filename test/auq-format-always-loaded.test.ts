@@ -60,7 +60,6 @@ const MANDATORY: Array<{ name: string; re: RegExp }> = [
 const PER_SKILL_RULES: Record<string, RegExp[]> = {
   'plan-ceo-review': [/One issue = one AskUserQuestion call/i],
   'plan-eng-review': [/One issue = one AskUserQuestion call/i],
-  'plan-design-review': [/One issue = one AskUserQuestion call/i],
   'plan-devex-review': [/One issue = one AskUserQuestion call/i],
   // /codex emits its recommendation as prose; the instruction MUST stay in the
   // always-loaded skeleton because codex has no on-demand section.
@@ -98,7 +97,6 @@ const interactive = skills.filter(s =>
 const EXPECTED_INTERACTIVE = [
   'plan-ceo-review',
   'plan-eng-review',
-  'plan-design-review',
   'plan-devex-review',
   'office-hours',
   'ship',
@@ -110,8 +108,6 @@ const EXPECTED_INTERACTIVE = [
   'cso',
   'investigate',
   'retro',
-  'design-review',
-  'design-consultation',
   'spec',
   'land-and-deploy',
 ];

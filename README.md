@@ -7,13 +7,12 @@
 > `./setup` instructions and the many-command catalog describe the 1.x
 > compatibility surface.
 
-GStack 2 presents one engineering judgment layer through exactly six public
+GStack 2 presents one engineering judgment layer through exactly five public
 skills:
 
 | Skill | Start here when… |
 |---|---|
 | `/plan` | The product, scope, architecture, DX, or specification is unsettled. |
-| `/design` | You need a visual direction, alternatives, implementation, or design audit. |
 | `/qa` | You need report-only or fix-and-verify evidence from the local browser or a physical iPhone. |
 | `/debug` | A failure needs root-cause proof before a fix. |
 | `/review` | A diff or repository needs correctness, security, compatibility, or health review. |
@@ -23,7 +22,7 @@ skills:
 DX, Specification, and Full chain**. The other dispatchers refine their small
 public mode set into the preserved specialist modules only after selection.
 
-The specialist judgment was not flattened into six generic prompts. Each
+The specialist judgment was not flattened into five generic prompts. Each
 dispatcher states its mode, depth, mutation boundary, active and skipped
 modules, and web-context choice, then lazily reads the preserved specialist
 module. See the complete [old-command mapping](docs/gstack-2/SKILL-MIGRATION.md)
@@ -38,7 +37,7 @@ scope, destination paths, updates, removal, and selected-skill installation:
 npx skills add time-attack/gstack/skills
 ```
 
-That installs the six judgment skills. Install a subset with the installer's
+That installs the five judgment skills. Install a subset with the installer's
 `--skill` option, or use `-g` for its global scope. GStack does not silently
 enroll detected hosts.
 
@@ -94,7 +93,7 @@ tree contains legacy GStack 1 entry points and is not the GStack 2 install
 surface.
 
 The npm package is deliberately not the skill installer and does not contain
-the six skill tree or compiled browser/design/PDF payloads. It is the small
+the five skill tree or compiled browser/design/PDF payloads. It is the small
 host-neutral runtime control/bootstrap surface used by release tooling. New
 users should install skills with `npx skills add time-attack/gstack/skills`; optional
 capabilities are downloaded by a skill after consent.
@@ -132,7 +131,7 @@ I'm [Garry Tan](https://x.com/garrytan), President & CEO of [Y Combinator](https
 
 Same person. Different era. The difference is the tooling.
 
-**gstack is how I do it.** It turns an AI coding host into a virtual engineering team — a CEO who rethinks the product, an eng manager who locks architecture, a designer who catches AI slop, a reviewer who finds production bugs, a QA lead who opens a real browser, a security officer who runs OWASP + STRIDE audits, and a release engineer who ships the PR. In GStack 2 those preserved specialists sit behind six lazy dispatchers rather than dozens of default commands. It remains MIT licensed.
+**gstack is how I do it.** It turns an AI coding host into a virtual engineering team — a CEO who rethinks the product, an eng manager who locks architecture, a designer who catches AI slop, a reviewer who finds production bugs, a QA lead who opens a real browser, a security officer who runs OWASP + STRIDE audits, and a release engineer who ships the PR. In GStack 2 those preserved specialists sit behind five lazy dispatchers rather than dozens of default commands. It remains MIT licensed.
 
 This is my open source software factory. I use it every day. I'm sharing it because these tools should be available to everyone.
 
@@ -305,12 +304,10 @@ Each skill feeds into the next. `/office-hours` writes a design doc that `/plan-
 | `/office-hours` | **YC Office Hours** | Start here. Six forcing questions that reframe your product before you write code. Pushes back on your framing, challenges premises, generates implementation alternatives. Design doc feeds into every downstream skill. |
 | `/plan-ceo-review` | **CEO / Founder** | Rethink the problem. Find the 10-star product hiding inside the request. Four modes: Expansion, Selective Expansion, Hold Scope, Reduction. |
 | `/plan-eng-review` | **Eng Manager** | Lock in architecture, data flow, diagrams, edge cases, and tests. Forces hidden assumptions into the open. |
-| `/plan-design-review` | **Senior Designer** | Rates each design dimension 0-10, explains what a 10 looks like, then edits the plan to get there. AI Slop detection. Interactive — one AskUserQuestion per design choice. |
 | `/plan-devex-review` | **Developer Experience Lead** | Interactive DX review: explores developer personas, benchmarks against competitors' TTHW, designs your magical moment, traces friction points step by step. Three modes: DX EXPANSION, DX POLISH, DX TRIAGE. 20-45 forcing questions. |
 | `/design-consultation` | **Design Partner** | Build a complete design system from scratch. Researches the landscape, proposes creative risks, generates realistic product mockups. |
 | `/review` | **Staff Engineer** | Find the bugs that pass CI but blow up in production. Auto-fixes the obvious ones. Flags completeness gaps. |
 | `/investigate` | **Debugger** | Systematic root-cause debugging. Iron Law: no fixes without investigation. Traces data flow, tests hypotheses, stops after 3 failed fixes. |
-| `/design-review` | **Designer Who Codes** | Same audit as /plan-design-review, then fixes what it finds. Atomic commits, before/after screenshots. |
 | `/devex-review` | **DX Tester** | Live developer experience audit. Actually tests your onboarding: navigates docs, tries the getting started flow, times TTHW, screenshots errors. Compares against `/plan-devex-review` scores — the boomerang that shows if your plan matched reality. |
 | `/design-shotgun` | **Design Explorer** | "Show me options." Generates 4-6 AI mockup variants, opens a comparison board in your browser, collects your feedback, and iterates. Taste memory learns what you like. Repeat until you love something, then hand it to `/design-html`. |
 | `/design-html` | **Design Engineer** | Turn a mockup into production HTML that actually works. Pretext computed layout: text reflows, heights adjust, layouts are dynamic. 30KB, zero deps. Detects React/Svelte/Vue. Smart API routing per design type (landing page vs dashboard vs form). The output is shippable, not a demo. |
@@ -327,7 +324,7 @@ Each skill feeds into the next. `/office-hours` writes a design doc that `/plan-
 | `/retro` | **Eng Manager** | Team-aware weekly retro. Per-person breakdowns, shipping streaks, test health trends, growth opportunities. `/retro global` runs across all your projects and AI tools (Claude Code, Codex, Gemini). |
 | `/browse` | **QA Engineer** | Give the agent eyes. Real Chromium browser, real clicks, real screenshots. ~100ms per command. `/open-gstack-browser` launches GStack Browser with anti-bot stealth and one-click cookie import. |
 | `/setup-browser-cookies` | **Session Manager** | Import cookies from your real browser (Chrome, Arc, Brave, Edge) into the headless session. Test authenticated pages. |
-| `/autoplan` | **Review Pipeline** | One command, fully reviewed plan. Runs CEO → design → eng review automatically with encoded decision principles. Surfaces only taste decisions for your approval. |
+| `/autoplan` | **Review Pipeline** | One command, fully reviewed plan. Runs CEO → eng review automatically with encoded decision principles. Surfaces only taste decisions for your approval. |
 | `/spec` | **Spec Author** | Turn vague intent into a precise, executable spec in five phases (why, scope, technical with mandatory code-reading, draft, file). Codex quality gate before file (blocks below 7/10), fail-closed secret redaction, dedupe against existing issues, archive to `$GSTACK_STATE_ROOT/projects/$SLUG/specs/` for team-corpus recall. `--execute` spawns `claude -p` in a fresh worktree; `/ship` auto-closes the source issue on merge. Plan-mode aware. |
 | `/learn` | **Memory** | Manage what gstack learned across sessions. Review, search, prune, and export project-specific patterns, pitfalls, and preferences. Learnings compound across sessions so gstack gets smarter on your codebase over time. |
 | `/make-pdf` | **Publisher** | Markdown in, publication-quality document out. Mermaid and excalidraw fences render as vector diagrams, fully offline. Images scale to the page and never truncate; wide diagrams get their own landscape page. `--to html` emits one self-contained file, `--to docx` a Word doc. |
@@ -337,10 +334,9 @@ Each skill feeds into the next. `/office-hours` writes a design doc that `/plan-
 
 | Building for... | Plan stage (before code) | Live audit (after shipping) |
 |-----------------|--------------------------|----------------------------|
-| **End users** (UI, web app, mobile) | `/plan-design-review` | `/design-review` |
 | **Developers** (API, CLI, SDK, docs) | `/plan-devex-review` | `/devex-review` |
 | **Architecture** (data flow, perf, tests) | `/plan-eng-review` | `/review` |
-| **All of the above** | `/autoplan` (runs CEO → design → eng → DX, auto-detects which apply) | — |
+| **All of the above** | `/autoplan` (runs CEO → eng → DX, auto-detects which apply) | — |
 
 ### Power tools
 
@@ -401,7 +397,7 @@ gstack works well with one sprint. It gets interesting with ten running at once.
 
 **`/qa` was a massive unlock.** It let me go from 6 to 12 parallel workers. Claude Code saying *"I SEE THE ISSUE"* and then actually fixing it, generating a regression test, and verifying the fix — that changed how I work. The agent has eyes now.
 
-**Smart review routing.** Just like at a well-run startup: CEO doesn't have to look at infra bug fixes, design review isn't needed for backend changes. gstack tracks what reviews are run, figures out what's appropriate, and just does the smart thing. The Review Readiness Dashboard tells you where you stand before you ship.
+**Smart review routing.** Just like at a well-run startup: CEO doesn't have to look at infra bug fixes, a deep architecture review isn't needed for a copy tweak. gstack tracks what reviews are run, figures out what's appropriate, and just does the smart thing. The Review Readiness Dashboard tells you where you stand before you ship.
 
 **Test everything.** `/ship` bootstraps test frameworks from scratch if your project doesn't have one. Every `/ship` run produces a coverage audit. Every `/qa` bug fix generates a regression test. 100% test coverage is the goal — tests make vibe coding safe instead of yolo coding.
 

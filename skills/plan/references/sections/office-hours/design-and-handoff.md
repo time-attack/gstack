@@ -532,7 +532,6 @@ strongest retention).
 in one line and stop, letting the user invoke:
 - EXPANSION / ambitious → "Next: `$plan --mode Product --module plan-ceo-review` to pressure-test scope and find the 10-star product."
 - well-scoped → "Next: `$plan --mode Engineering --module plan-eng-review` to lock architecture, tests, and edge cases."
-- visual/UX-heavy → "Next: `$design --mode Critique --module plan-design-review` for a visual/UX pass."
 
 **Otherwise**, offer via AskUserQuestion (D<N> format from the preamble):
 
@@ -544,7 +543,7 @@ you can run it later yourself.
 Stakes if we pick wrong: skipping review means problems surface mid-build, costing rework.
 Recommendation: the mode-mapped option (`$plan --mode Engineering --module plan-eng-review` if unsure) because it locks the
 plan before any code is written.
-Completeness: A=10/10, B=9/10, C=8/10, D=3/10
+Completeness: A=10/10, B=9/10, C=3/10
 Pros / cons:
 A) Run $plan --mode Engineering --module plan-eng-review now (recommended)
   ✅ Locks architecture, tests, and edge cases before a line of code is written
@@ -552,19 +551,16 @@ A) Run $plan --mode Engineering --module plan-eng-review now (recommended)
 B) Run $plan --mode Product --module plan-ceo-review now
   ✅ Pressure-tests ambition and scope — finds the 10-star version of the product
   ❌ Lower value when the scope is already tight and well understood
-C) Run $design --mode Critique --module plan-design-review now
-  ✅ Catches visual/UX problems while they are still cheap plan-stage changes
-  ❌ Little value for backend-only or non-visual features
-D) Not now — I'll run a review later
+C) Not now — I'll run a review later
   ✅ Keeps you in flow if you want to start building immediately
   ❌ Review gaps compound; problems get more expensive after code exists
 Net: 15 minutes of structured review now against rework risk later.
 
-On the user's SELECTION of A/B/C (not on invocation success), log the handoff, then invoke
+On the user's SELECTION of A/B (not on invocation success), log the handoff, then invoke
 the chosen skill via the **Skill tool** (it auto-discovers the design doc):
 ```bash
 ```
-On D, log declined and stop:
+On C, log declined and stop:
 ```bash
 ```
 

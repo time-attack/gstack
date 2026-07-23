@@ -24,4 +24,4 @@ Resolve these paths relative to `skills/qa/`. Files come from base bb57306d98c97
 | `docs/askuserquestion-split.md` | `references/support/docs/askuserquestion-split.md` | `VERBATIM_PORT` | `ec2f880cef9d64d37b1da5b101531172509fdcf2` |
 | `ETHOS.md` | `references/support/ETHOS.md` | `VERBATIM_PORT` | `3dbd5e570807a4f11cd75cfcaa8e77cb52d9fb7a` |
 | `scripts/jargon-list.json` | `references/support/scripts/jargon-list.json` | `VERBATIM_PORT` | `e8f321d8ae51c458f9ab48bbb7fdf3789c472c14` |
-| `scripts/question-registry.ts` | `references/support/scripts/question-registry.ts` | `VERBATIM_PORT` | `eb1bf0f98bda7ecdee5ea6186828d2fad3b595f9` |
+| `scripts/question-registry.ts` | `references/support/scripts/question-registry.ts` | `MECHANICAL_PORT` | `eb1bf0f98bda7ecdee5ea6186828d2fad3b595f9` |

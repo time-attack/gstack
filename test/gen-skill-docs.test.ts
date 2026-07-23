@@ -7,7 +7,7 @@ import * as os from 'os';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const MAX_SKILL_DESCRIPTION_LENGTH = 1024;
-const PUBLIC_SKILL_NAMES = ['debug', 'design', 'plan', 'qa', 'review', 'ship'] as const;
+const PUBLIC_SKILL_NAMES = ['debug', 'plan', 'qa', 'review', 'ship'] as const;
 
 // Carved-skill aware (v2 plan T9): ship is now a skeleton SKILL.md + sections/*.md.
 // Read the union so assertions about content that MOVED into a section still pass.
@@ -142,7 +142,7 @@ describe('gen-skill-docs', () => {
     expect(commands).toEqual(sorted);
   });
 
-  test('GStack 2 exposes exactly six canonical public skills and no root SKILL.md', () => {
+  test('GStack 2 exposes exactly five canonical public skills and no root SKILL.md', () => {
     expect(fs.existsSync(path.join(ROOT, 'SKILL.md'))).toBe(false);
 
     const publicSkills = fs.readdirSync(path.join(ROOT, 'skills'), { withFileTypes: true })
@@ -686,7 +686,7 @@ describe('description quality evals', () => {
 });
 
 describe('REVIEW_DASHBOARD resolver', () => {
-  const REVIEW_SKILLS = ['plan-ceo-review', 'plan-eng-review', 'plan-design-review'];
+  const REVIEW_SKILLS = ['plan-ceo-review', 'plan-eng-review'];
 
   for (const skill of REVIEW_SKILLS) {
     test(`review dashboard appears in ${skill} generated file`, () => {
@@ -760,14 +760,6 @@ describe('REVIEW_DASHBOARD resolver', () => {
     const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
     expect(content).toContain('/plan-design-review');
     expect(content).toContain('/plan-ceo-review');
-  });
-
-  test('plan-design-review chaining mentions eng, ceo, and design skills', () => {
-    const content = readSkillUnion('plan-design-review');
-    expect(content).toContain('/plan-eng-review');
-    expect(content).toContain('/plan-ceo-review');
-    expect(content).toContain('/design-shotgun');
-    expect(content).toContain('/design-html');
   });
 
   test('ship does NOT contain review chaining', () => {
@@ -977,7 +969,7 @@ describe('TEST_FAILURE_TRIAGE resolver', () => {
 // --- {{PLAN_FILE_REVIEW_REPORT}} resolver tests ---
 
 describe('PLAN_FILE_REVIEW_REPORT resolver', () => {
-  const REVIEW_SKILLS = ['plan-ceo-review', 'plan-eng-review', 'plan-design-review', 'codex'];
+  const REVIEW_SKILLS = ['plan-ceo-review', 'plan-eng-review', 'codex'];
 
   for (const skill of REVIEW_SKILLS) {
     test(`plan file review report appears in ${skill} generated file`, () => {
@@ -1170,26 +1162,6 @@ describe('Plan status footer in preamble', () => {
     // The preamble must NOT impose review-report rules on operational skills
     // that have no review report. It's a forward reference, not enforcement.
     expect(content).not.toContain('NO REVIEWS YET');
-  });
-});
-
-// --- make-pdf setup ordering ---
-
-describe('make-pdf setup ordering', () => {
-  test('MAKE-PDF SETUP appears before generic preamble footer sections', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'make-pdf', 'SKILL.md'), 'utf-8');
-    const preambleIdx = content.indexOf('## Preamble (run first)');
-    const setupIdx = content.indexOf('## MAKE-PDF SETUP');
-    const planModeIdx = content.indexOf('## Plan Mode Safe Operations');
-    const telemetryIdx = content.indexOf('## Telemetry (run last)');
-    const workflowIdx = content.indexOf('# make-pdf: publication-quality PDFs from markdown');
-
-    expect(preambleIdx).toBeGreaterThanOrEqual(0);
-    expect(setupIdx).toBeGreaterThan(preambleIdx);
-    expect(setupIdx).toBeLessThan(planModeIdx);
-    expect(setupIdx).toBeLessThan(telemetryIdx);
-    expect(setupIdx).toBeLessThan(workflowIdx);
-    expect(content.match(/^## MAKE-PDF SETUP/gm)?.length ?? 0).toBe(1);
   });
 });
 
@@ -1565,80 +1537,6 @@ describe('preamble routing injection', () => {
   });
 });
 
-// --- {{DESIGN_OUTSIDE_VOICES}} resolver tests ---
-
-describe('DESIGN_OUTSIDE_VOICES resolver', () => {
-  test('plan-design-review contains outside voices section', () => {
-    const content = readSkillUnion('plan-design-review');
-    expect(content).toContain('Design Outside Voices');
-    expect(content).toContain('CODEX_AVAILABLE');
-    expect(content).toContain('LITMUS SCORECARD');
-  });
-
-  test('design-review contains outside voices section', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Design Outside Voices');
-    expect(content).toContain('source audit');
-  });
-
-  test('design-consultation contains outside voices section', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'design-consultation', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Design Outside Voices');
-    expect(content).toContain('design direction');
-  });
-
-  test('branches correctly per skillName — different prompts', () => {
-    const planContent = readSkillUnion('plan-design-review');
-    const consultContent = fs.readFileSync(path.join(ROOT, 'design-consultation', 'SKILL.md'), 'utf-8');
-    // plan-design-review uses analytical prompt (high reasoning)
-    expect(planContent).toContain('model_reasoning_effort="high"');
-    // design-consultation uses creative prompt (medium reasoning)
-    expect(consultContent).toContain('model_reasoning_effort="medium"');
-  });
-});
-
-// --- {{DESIGN_HARD_RULES}} resolver tests ---
-
-describe('DESIGN_HARD_RULES resolver', () => {
-  test('plan-design-review Pass 4 contains hard rules', () => {
-    const content = readSkillUnion('plan-design-review');
-    expect(content).toContain('Design Hard Rules');
-    expect(content).toContain('Classifier');
-    expect(content).toContain('MARKETING/LANDING PAGE');
-    expect(content).toContain('APP UI');
-  });
-
-  test('design-review contains hard rules', () => {
-    const content = fs.readFileSync(path.join(ROOT, 'design-review', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('Design Hard Rules');
-  });
-
-  test('includes all 3 rule sets', () => {
-    const content = readSkillUnion('plan-design-review');
-    expect(content).toContain('Landing page rules');
-    expect(content).toContain('App UI rules');
-    expect(content).toContain('Universal rules');
-  });
-
-  test('references shared AI slop blacklist items', () => {
-    const content = readSkillUnion('plan-design-review');
-    expect(content).toContain('3-column feature grid');
-    expect(content).toContain('Purple/violet/indigo');
-  });
-
-  test('includes OpenAI hard rejection criteria', () => {
-    const content = readSkillUnion('plan-design-review');
-    expect(content).toContain('Generic SaaS card grid');
-    expect(content).toContain('Carousel with no narrative purpose');
-  });
-
-  test('includes OpenAI litmus checks', () => {
-    const content = readSkillUnion('plan-design-review');
-    expect(content).toContain('Brand/product unmistakable');
-    expect(content).toContain('premium with all decorative shadows removed');
-  });
-});
-
 // --- Extended DESIGN_SKETCH resolver tests ---
 
 describe('DESIGN_SKETCH extended with outside voices', () => {
@@ -1985,13 +1883,6 @@ describe('Codex generation (--host codex)', () => {
         expect(content).not.toContain('.agents/skills');
       }
     }
-  });
-
-  // ─── Design outside voices: Codex host guard ─────────────────
-
-  test('codex host produces empty outside voices in design-review', () => {
-    const codexContent = fs.readFileSync(path.join(AGENTS_DIR, 'gstack-design-review', 'SKILL.md'), 'utf-8');
-    expect(codexContent).not.toContain('Design Outside Voices');
   });
 
   test('codex host does not include Codex design block in ship', () => {
@@ -3055,7 +2946,6 @@ describe('plan-mode-info resolver (handshake-replacement)', () => {
   const REVIEW_SKILLS = [
     'plan-ceo-review',
     'plan-eng-review',
-    'plan-design-review',
     'plan-devex-review',
   ];
 
@@ -3159,7 +3049,6 @@ describe('plan-mode-info resolver (handshake-replacement)', () => {
 describe('GSTACK REVIEW REPORT delete-then-append flow', () => {
   const PLAN_REVIEW_SKILLS = [
     'plan-ceo-review',
-    'plan-design-review',
     'plan-devex-review',
     'plan-eng-review',
   ];
@@ -3244,7 +3133,7 @@ describe('LEARNINGS_SEARCH resolver: query parameter', () => {
 
 describe('EXIT PLAN MODE GATE placement', () => {
   // Fresh skill list — do NOT reuse REVIEW_SKILLS upstream (3 entries, missing plan-devex).
-  const planSkills = ['plan-eng-review', 'plan-ceo-review', 'plan-design-review', 'plan-devex-review'];
+  const planSkills = ['plan-eng-review', 'plan-ceo-review', 'plan-devex-review'];
 
   // Strip fenced code blocks before matching headings — PLAN_FILE_REVIEW_REPORT
   // already contains `## GSTACK REVIEW REPORT` inside a markdown example fence,
@@ -3277,7 +3166,6 @@ describe('GSTACK REVIEW REPORT mandatory unresolved-decisions status', () => {
   const REPORT_CONSUMERS = [
     'plan-ceo-review',
     'plan-eng-review',
-    'plan-design-review',
     'plan-devex-review',
     'codex',
     'devex-review',
@@ -3286,7 +3174,6 @@ describe('GSTACK REVIEW REPORT mandatory unresolved-decisions status', () => {
   const GATE_SKILLS = [
     'plan-ceo-review',
     'plan-eng-review',
-    'plan-design-review',
     'plan-devex-review',
     'codex',
   ];

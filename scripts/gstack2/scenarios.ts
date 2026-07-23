@@ -78,43 +78,6 @@ export const SCENARIOS: ScenarioFixture[] = [
   ),
 
   fixture(
-    'new-visual-system',
-    'Define the typography, color, layout, motion, and interaction rationale for a calm clinical product.',
-    { surface: 'design-system', implementation_exists: false, alternatives_requested: false, output: 'system-artifacts' },
-    E('design', 'Generate', 'deep', 'design-artifacts', ['design-consultation'], 'optional', ['surface=design-system', 'implementation_exists=false']),
-  ),
-  fixture(
-    'compare-directions',
-    'I do not know which visual direction is right. Show several concrete options I can react to.',
-    { surface: 'visual-direction', implementation_exists: false, alternatives_requested: true, output: 'comparison' },
-    E('design', 'Explore', 'deep', 'design-artifacts', ['design-shotgun'], 'optional', ['alternatives_requested=true', 'output=comparison']),
-  ),
-  fixture(
-    'coded-marketing-surface',
-    'Produce the responsive page implementation with real text reflow and accessible interactions.',
-    { surface: 'web', implementation_exists: false, output: 'html-css', runtime_verification: true },
-    E('design', 'Implement', 'standard', 'design-artifacts', ['design-html'], 'local-browser', ['output=html-css', 'runtime_verification=true']),
-  ),
-  fixture(
-    'prebuild-interface-critique',
-    'Before implementation, check the states, hierarchy, accessibility, responsive behavior, and interaction decisions in this document.',
-    { surface: 'web', implementation_exists: false, artifact_exists: true, output: 'plan-revision' },
-    E('design', 'Critique', 'deep', 'plan-only', ['plan-design-review'], 'optional', ['implementation_exists=false', 'artifact_exists=true']),
-  ),
-  fixture(
-    'implemented-interface-audit',
-    'Inspect the running dashboard, repair visual inconsistencies, and prove the improvements with before-and-after evidence.',
-    { surface: 'web', implementation_exists: true, mutation_authorized: true, evidence: 'before-after' },
-    E('design', 'Implement', 'deep', 'fix-safe', ['design-review'], 'local-browser', ['implementation_exists=true', 'mutation_authorized=true']),
-  ),
-  fixture(
-    'real-device-hig-audit',
-    'Score every screen of the installed phone app against platform conventions and capture device evidence.',
-    { surface: 'ios', implementation_exists: true, real_device: true, mutation_authorized: false },
-    E('design', 'Critique', 'deep', 'report-only', ['ios-design-review'], 'none', ['surface=ios', 'real_device=true']),
-  ),
-
-  fixture(
     'browser-findings-only',
     'Exercise checkout in the running site and give me reproducible findings, but do not change the repository.',
     { surface: 'web', implementation_exists: true, mutation_authorized: false, evidence_required: true },

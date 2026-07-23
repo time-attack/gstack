@@ -2,9 +2,9 @@
 
 Pinned baseline: `bb57306d98c97011b0919c6132705a15b1579781`.
 
-GStack 2 exposes exactly six public skills: `plan`, `design`, `qa`, `debug`, `review`, and `ship`. The specialist bodies from 55 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 16 carved specialist sections are package-local lazy references loaded only at their original workflow point. Thirty-one primary modules are mandatory specialist inputs, and 24 supporting modules remain reachable through compatibility routing.
+GStack 2 exposes exactly five public skills: `plan`, `qa`, `debug`, `review`, and `ship`. The specialist bodies from 47 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 14 carved specialist sections are package-local lazy references loaded only at their original workflow point. Twenty-five primary modules are mandatory specialist inputs, and 22 supporting modules remain reachable through compatibility routing.
 
-The fixed public modes are: Design = `Explore | Generate | Critique | Implement`; QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; Review = `Normal | Security | Performance | Deep`; Ship = `Prepare | Land | Deploy | Monitor | Resume`. Richer legacy modes are internal aliases only.
+The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; Review = `Normal | Security | Performance | Deep`; Ship = `Prepare | Land | Deploy | Monitor | Resume`. Richer legacy modes are internal aliases only.
 
 ## Migration map
 
@@ -24,14 +24,6 @@ The fixed public modes are: Design = `Explore | Generate | Critique | Implement`
 | `/retro` | `$plan --mode Discovery --module retro` | internal (internal) | no | #679, #1636, #2037, #879 |
 | `/setup-gbrain` | `$plan --mode Discovery --module setup-gbrain` | internal (internal) | no | #679, #879 |
 | `/sync-gbrain` | `$plan --mode Discovery --module sync-gbrain` | internal (internal) | no | #679, #879 |
-| `/design-consultation` | `$design --mode Generate --module design-consultation` | internal (primary) | yes | #679, #2030, #2189, #879 |
-| `/design-shotgun` | `$design --mode Explore --module design-shotgun` | internal (primary) | yes | #679, #1777, #879 |
-| `/design-html` | `$design --mode Implement --module design-html` | internal (primary) | yes | #679, #879 |
-| `/plan-design-review` | `$design --mode Critique --module plan-design-review` | internal (primary) | yes | #679, #2030, #2189, #886, #879 |
-| `/design-review` | `$design --mode Implement --module design-review` | internal (primary) | yes | #679, #1920, #2030, #2189, #696, #886, #879 |
-| `/ios-design-review` | `$design --mode Critique --module ios-design-review` | internal (primary) | yes | #679, #879 |
-| `/diagram` | `$design --mode Generate --module diagram` | internal (internal) | no | #679, #879 |
-| `/make-pdf` | `$design --mode Generate --module make-pdf` | internal (internal) | no | #679, #879 |
 | `/qa` | `$qa --mode Fix --module qa` | internal (primary) | yes | #679, #1484, #2030, #2186, #879 |
 | `/qa-only` | `$qa --mode Report --module qa-only` | internal (primary) | yes | #679, #1484, #2030, #879 |
 | `/ios-qa` | `$qa --mode Report --module ios-qa` | internal (primary) | yes | #679, #879 |
@@ -74,6 +66,6 @@ The fixed public modes are: Design = `Explore | Generate | Critique | Implement`
 
 ## Mechanical versus judgment changes
 
-- `JUDGMENT_PRESERVING_CARVE`: pinned specialist workflow with the retired shared onboarding wrapper excluded, retired invocations resolved to six public routes, host/runtime paths normalized, and large carved phases loaded lazily from package-local pinned references.
-- `BUG_FIX`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 28 upstream PRs and issues and its regression fixture.
+- `JUDGMENT_PRESERVING_CARVE`: pinned specialist workflow with the retired shared onboarding wrapper excluded, retired invocations resolved to five public routes, host/runtime paths normalized, and large carved phases loaded lazily from package-local pinned references.
+- `BUG_FIX`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 24 upstream PRs and issues and its regression fixture.
 - Asset relocation is byte-for-byte from the pinned Git blob and is indexed per tree.

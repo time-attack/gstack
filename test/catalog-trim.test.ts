@@ -283,11 +283,11 @@ describe('proactive-suggestions.json determinism (regression for v1.45.0.0 CI fr
     expect(keys).toEqual(sorted);
   });
 
-  test('retired root skill is absent and the public tree has exactly six dispatchers', () => {
+  test('retired root skill is absent and the public tree has exactly five dispatchers', () => {
     // GStack 2 intentionally has no public root router. The legacy catalog is
     // still generated for compatibility modules, but neither "gstack" nor a
     // checkout-specific basename may leak back into that catalog. The
-    // standards-based public surface lives under skills/ and is exactly six.
+    // standards-based public surface lives under skills/.
     const fs = require('fs');
     const path = require('path');
     const json = JSON.parse(
@@ -304,7 +304,7 @@ describe('proactive-suggestions.json determinism (regression for v1.45.0.0 CI fr
       .filter((entry: { isDirectory(): boolean; name: string }) => entry.isDirectory() && !entry.name.startsWith('.'))
       .map((entry: { name: string }) => entry.name)
       .sort();
-    expect(publicSkills).toEqual(['debug', 'design', 'plan', 'qa', 'review', 'ship']);
+    expect(publicSkills).toEqual(['debug', 'plan', 'qa', 'review', 'ship']);
   });
 
   test('schema + catalog_mode + note fields are stable', () => {

@@ -16,7 +16,7 @@
  * firing ad-hoc ids as candidates for registry promotion.
  *
  * v1 coverage target: the ~30-50 most-common recurring question categories across
- * ship, review, office-hours, plan-ceo-review, plan-eng-review, plan-design-review,
+ * ship, review, office-hours, plan-ceo-review, plan-eng-review,
  * plan-devex-review, qa, investigate, and land-and-deploy. One-way doors 100%.
  *
  * Adding a new entry
@@ -352,28 +352,6 @@ export const QUESTIONS = {
     door_type: 'two-way',
     options: ['accept', 'skip', 'build-now'],
     description: "Proposed TODO item — add to TODOs, skip, or build in this PR?",
-  },
-
-  // -----------------------------------------------------------------------
-  // /plan-design-review — UI/UX plan audit
-  // -----------------------------------------------------------------------
-  'plan-design-review-mode': {
-    id: 'plan-design-review-mode',
-    skill: 'plan-design-review',
-    category: 'routing',
-    door_type: 'two-way',
-    options: ['expand', 'polish', 'triage'],
-    signal_key: 'design-care',
-    description: "Design review depth: expand for competitive edge, polish every touchpoint, or triage critical gaps?",
-  },
-  'plan-design-review-fix': {
-    id: 'plan-design-review-fix',
-    skill: 'plan-design-review',
-    category: 'approval',
-    door_type: 'two-way',
-    options: ['fix-now', 'defer', 'skip'],
-    signal_key: 'design-care',
-    description: "Design issue flagged — fix now, defer to TODOs, or skip?",
   },
 
   // -----------------------------------------------------------------------

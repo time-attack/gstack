@@ -181,7 +181,7 @@ function applyCodexRewrites(content: string): string {
  * Render a legacy template exactly as the canonical Codex host would render
  * its body: resolver expansion, non-Claude section inlining, safety prose, and
  * host rewrites. The legacy frontmatter and generated header are intentionally
- * excluded because GStack 2 owns the six public skill manifests.
+ * excluded because GStack 2 owns the five public skill manifests.
  */
 export function renderLegacyBody(source: string): string {
   const templatePath = legacyTemplatePath(source);
@@ -202,16 +202,112 @@ export function renderLegacyBody(source: string): string {
  * render. `renderLegacyBody()` remains the raw parity oracle; this function is
  * the installable port and every rewrite is separately asserted in parity.
  */
+// Pinned-source -> current-tree rewrites that remove the plan-flow design-REVIEW
+// offers. Search text is the pinned (pre-strip) form; replacement matches what the
+// working-tree section templates now carry, so applying this to either the pinned
+// section (ported) or the already-edited inlined section (parent body) converges.
+const DESIGN_REVIEW_OFFER_REWRITES: Array<[string, string]> = [
+  // office-hours/sections/design-and-handoff
+  ['\n- visual/UX-heavy → "Next: `/plan-design-review` for a visual/UX pass."', ''],
+  ['Completeness: A=10/10, B=9/10, C=8/10, D=3/10', 'Completeness: A=10/10, B=9/10, C=3/10'],
+  ['C) Run /plan-design-review now\n  ✅ Catches visual/UX problems while they are still cheap plan-stage changes\n  ❌ Little value for backend-only or non-visual features\nD) Not now — I\'ll run a review later', 'C) Not now — I\'ll run a review later'],
+  ["On the user's SELECTION of A/B/C (not on invocation success)", "On the user's SELECTION of A/B (not on invocation success)"],
+  ['On D, log declined and stop:', 'On C, log declined and stop:'],
+  // plan-ceo-review/sections/review-sections
+  ["The CEO calling in the designer. Not a pixel-level audit — that's /plan-design-review and /design-review. This is ensuring the plan has design intentionality.", 'The CEO calling in the designer. Not a pixel-level audit. This is ensuring the plan has design intentionality.'],
+  ['\nIf this plan has significant UI scope, recommend: "Consider running /plan-design-review for a deep design review of this plan before implementation."', ''],
+  ['## Post-Implementation Design Audit (if UI scope detected)\nAfter implementation, run `/design-review` on the live site to catch visual issues that can only be evaluated with rendered output.\n\n', ''],
+  ['**Recommend /plan-design-review if UI scope was detected** — specifically if Section 11 (Design & UX Review) was NOT skipped, or if accepted scope expansions included UI-facing features. If an existing design review is stale (commit hash drift), note that. In SCOPE REDUCTION mode, skip this recommendation — design review is unlikely relevant for scope cuts.\n\n**If both are needed, recommend eng review first** (required gate), then design review.\n\n', ''],
+  ['- **A)** Run /plan-eng-review next (required gate)\n- **B)** Run /plan-design-review next (only if UI scope detected)\n- **C)** Skip — I\'ll handle reviews manually', '- **A)** Run /plan-eng-review next (required gate)\n- **B)** Skip — I\'ll handle reviews manually'],
+  // plan-eng-review/sections/review-sections
+  ["**Suggest /plan-design-review if UI changes exist and no design review has been run** — detect from the test diagram, architecture review, or any section that touched frontend components, CSS, views, or user-facing interaction flows. If an existing design review's commit hash shows it predates significant changes found in this eng review, note that it may be stale.\n\n", ''],
+  ['**Note staleness** of existing CEO or design reviews if this eng review found assumptions that contradict them, or if the commit hash shows significant drift.', '**Note staleness** of an existing CEO review if this eng review found assumptions that contradict it, or if the commit hash shows significant drift.'],
+  ['- **A)** Run /plan-design-review (only if UI scope detected and no design review exists)\n- **B)** Run /plan-ceo-review (only if significant product change and no CEO review exists)\n- **C)** Ready to implement — run /ship when done', '- **A)** Run /plan-ceo-review (only if significant product change and no CEO review exists)\n- **B)** Ready to implement — run /ship when done'],
+  // plan-devex-review/sections/review-sections
+  ['**Suggest /plan-design-review if user-facing UI exists** — DX review focuses on\ndeveloper-facing surfaces; design review covers end-user-facing UI.\n\n', ''],
+  ['- **A)** Run /plan-eng-review next (required gate)\n- **B)** Run /plan-design-review (only if UI scope detected)\n- **C)** Ready to implement, run /devex-review after shipping\n- **D)** Skip, I\'ll handle next steps manually', '- **A)** Run /plan-eng-review next (required gate)\n- **B)** Ready to implement, run /devex-review after shipping\n- **C)** Skip, I\'ll handle next steps manually'],
+  // plan-devex-review parent body: no-scope fallback line
+  ['/plan-eng-review or /plan-design-review instead."', '/plan-eng-review instead."'],
+  // gstack meta-skill routing table (root SKILL.md.tmpl): drop the design-REVIEW routes
+  ['\n- User asks to review design of a plan → invoke `/plan-design-review`', ''],
+  ['\n- User asks about visual polish, design audit of a live site, "this looks off" → invoke `/design-review`', ''],
+];
+
+function stripDesignReviewOfferings(value: string, source: string): string {
+  let out = value;
+  for (const [from, to] of DESIGN_REVIEW_OFFER_REWRITES) out = out.split(from).join(to);
+  if (source === 'autoplan') out = stripAutoplanDesignPhase(out);
+  return out;
+}
+
+// autoplan is a parent module (no carved sections), ported straight from the
+// pinned source. The design REVIEW phase (CEO -> Design -> Eng -> DX) is retired;
+// collapse the chain to CEO -> Eng -> DX and drop the design phase, its checklists,
+// its review-log entries, and its consensus wiring so the ported plan module never
+// runs or references a review that no longer exists. The in-review design-scope
+// prose inside the surviving CEO section is untouched.
+function stripAutoplanDesignPhase(value: string): string {
+  return value
+    .split('reads the full CEO, design, eng, and DX review skill files from disk').join('reads the full CEO, eng, and DX review skill files from disk')
+    .split('Phases MUST execute in strict order: CEO → Design → Eng → DX.').join('Phases MUST execute in strict order: CEO → Eng → DX.')
+    .split('- **Sequential order.** CEO → Design → Eng → DX. Each phase builds on the last.').join('- **Sequential order.** CEO → Eng → DX. Each phase builds on the last.')
+    .replace('\n- **Design phase:** P5 (explicit) + P1 (completeness) dominate.', '')
+    .replace('- Detect UI scope: grep the plan for view/rendering terms (component, screen, form,\n  button, modal, layout, dashboard, sidebar, nav, dialog). Require 2+ matches. Exclude\n  false positives ("page" alone, "UI" in acronyms).\n', '')
+    .replace('\n- `~/.claude/skills/gstack/plan-design-review/SKILL.md` (only if UI scope detected)', '')
+    .replace('\n- Design Outside Voices (parallel)', '')
+    .replace('. UI scope: [yes/no]. DX scope:', '. DX scope:')
+    .replace('- Section 11 (Design): run only if UI scope was detected in Phase 0', "- Section 11 (Design & UX): run per the CEO skill's own UI-scope skip condition")
+    .replace('> Passing to Phase 2.', '> Passing to Phase 3 (Eng Review).')
+    .replace('Do NOT begin Phase 2 until all Phase 1 outputs are written to the plan file', 'Do NOT begin Phase 3 until all Phase 1 outputs are written to the plan file')
+    .replace('**Pre-Phase 2 checklist (verify before starting):**', '**Pre-Phase 3 checklist (verify before starting):**')
+    .replace(/\n## Phase 2: Design Review \(conditional[\s\S]*?(?=\n## Phase 3: Eng Review \+ Dual Voices)/, '\n')
+    .replace("\n  Design: <insert Design consensus table summary, or 'skipped, no UI scope'>", '')
+    .replace(/\n\*\*Phase 2 \(Design\) outputs — only if UI scope detected:\*\*\n[\s\S]*?(?=\n\*\*Phase 3 \(Eng\) outputs)/, '')
+    .replace('\n- Design: [summary or "skipped, no UI scope"]\n- Design Voices: Codex [summary], Claude subagent [summary], Consensus [X/7 confirmed] (or "skipped")', '')
+    .replace('On approval, write 3 separate review log entries so /ship\'s dashboard recognizes them.', 'On approval, write a review log entry per phase that ran so /ship\'s dashboard recognizes them.')
+    .replace(/\nIf Phase 2 ran \(UI scope\):\n```bash\n[^\n]*"skill":"plan-design-review"[^\n]*\n```\n/, '')
+    .replace(/\nIf Phase 2 ran \(UI scope\), also log:\n```bash\n[^\n]*"phase":"design"[^\n]*\n```\n/, '');
+}
+
 function portLegacyText(value: string, source: string): string {
   if (source === 'gstack-upgrade') {
     return `# Legacy upgrade compatibility\n\nThe 1.x host-directory detector, vendored-copy synchronizer, and destructive Git replacement blocks were duplicated installation infrastructure. GStack 2 delegates skill placement and updates to the standard Agent Skills installer and manages the optional shared runtime atomically.\n\n- Update selected skills with \`npx skills add time-attack/gstack/skills\` using the user's existing project/global choice. Never infer or enroll a host.\n- Upgrade a complete local runtime package with \`gstack upgrade --source <complete-gstack-package> --version <version>\`.\n- Roll back the runtime with \`gstack upgrade --rollback\`.\n- Run \`gstack doctor\` after either operation.\n- Do not reset, delete, move, or rewrite a host skill directory. Do not infer Context.dev choice or consent.\n\nThis compatibility module contains no specialist judgment; release readiness and rollback judgment remain in the preserved ship modules.\n`;
   }
   let body = value;
 
+  // Design REVIEW offerings are retired from the five-skill surface (the /design
+  // public skill and its plan-design-review / design-review specialists are gone;
+  // autoplan orchestrates CEO -> engineering -> DX only). Strip the plan-flow
+  // "run a design review" offers here, before the retired-invocation and host-path
+  // rewrites, so the ported plan modules never recommend a review that no longer
+  // exists. Each rewrite maps the pinned source text to the same text the working
+  // tree now carries, so the carve of the inlined (already-edited) section and the
+  // ported pinned section converge on an identical, offer-free body. The preserved
+  // in-review design intentionality prose (office-hours handoff, CEO Section 11) is
+  // intentionally left as historical judgment; only the review OFFER is removed.
+  body = stripDesignReviewOfferings(body, source);
+
   // Retired names remain valid only as opt-in compatibility aliases. Normal
-  // canonical execution must recommend one of the six public routes, with the
+  // canonical execution must recommend one of the five public routes, with the
   // exact internal refinement retained for deterministic dispatch.
   body = replaceRetiredInvocations(body);
+
+  // The /design public skill and its plan-design-review specialist are retired
+  // in the five-skill surface. Autoplan orchestrates CEO -> engineering -> DX
+  // only. De-reference the removed design-review module so the canonical carve
+  // never packages or instructs a module that no longer exists; the surrounding
+  // preserved design-scope prose is left as historical context. This runs
+  // before the generic host-path -> references/legacy rewrite below so the
+  // dangling module pointer is neutralized rather than repackaged.
+  body = body
+    .replaceAll(
+      '$GSTACK_ROOT/plan-design-review/SKILL.md',
+      'the retired design-review phase (removed from the five public skills; skip it)',
+    )
+    .replaceAll(
+      'Follow plan-design-review/SKILL.md — all 7 dimensions, full depth.',
+      'Design review is retired from the five public skills; skip this phase and continue with the CEO, engineering, and DX reviews.',
+    );
   // Every state read/write follows the canonical override. Quote the root so
   // custom homes containing spaces remain valid. Compatibility pointer files
   // such as ~/.gstack-artifacts-remote.txt are outside this state root and are
@@ -496,6 +592,16 @@ export function renderPortedLegacySection(section: LegacySection): string {
 
 /** Apply host-neutral runtime-path mechanics to linked text assets. */
 export function renderPortedAssetBytes(relativePath: string, input: Uint8Array): Uint8Array {
+  // The question registry ports as-is except for the retired /plan-design-review
+  // entries: that skill is gone from the five-skill surface, so its question ids
+  // can never fire. Drop them (and the header mention) so the ported metadata does
+  // not reference a removed skill.
+  if (relativePath === 'scripts/question-registry.ts') {
+    const text = Buffer.from(input).toString('utf8')
+      .replace(' * ship, review, office-hours, plan-ceo-review, plan-eng-review, plan-design-review,\n * plan-devex-review', ' * ship, review, office-hours, plan-ceo-review, plan-eng-review,\n * plan-devex-review')
+      .replace(`  // -----------------------------------------------------------------------\n  // /plan-design-review — UI/UX plan audit\n  // -----------------------------------------------------------------------\n  'plan-design-review-mode': {\n    id: 'plan-design-review-mode',\n    skill: 'plan-design-review',\n    category: 'routing',\n    door_type: 'two-way',\n    options: ['expand', 'polish', 'triage'],\n    signal_key: 'design-care',\n    description: "Design review depth: expand for competitive edge, polish every touchpoint, or triage critical gaps?",\n  },\n  'plan-design-review-fix': {\n    id: 'plan-design-review-fix',\n    skill: 'plan-design-review',\n    category: 'approval',\n    door_type: 'two-way',\n    options: ['fix-now', 'defer', 'skip'],\n    signal_key: 'design-care',\n    description: "Design issue flagged — fix now, defer to TODOs, or skip?",\n  },\n\n`, '');
+    return Buffer.from(text, 'utf8');
+  }
   if (!relativePath.endsWith('.md')) return input;
   const ported = replaceRetiredInvocations(Buffer.from(input).toString('utf8')
     .replaceAll(

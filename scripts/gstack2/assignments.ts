@@ -47,12 +47,6 @@ function publicModeFor(source: string, tree: SourceAssignment['tree'], legacyMod
     if (source === 'spec') return 'Specification';
     return 'Discovery';
   }
-  if (tree === 'design') {
-    if (source === 'design-shotgun') return 'Explore';
-    if (['design-consultation', 'diagram', 'make-pdf'].includes(source)) return 'Generate';
-    if (['plan-design-review', 'ios-design-review'].includes(source)) return 'Critique';
-    return 'Implement';
-  }
   if (tree === 'qa') return source === 'qa' ? 'Fix' : 'Report';
   if (tree === 'debug') return source === 'ios-fix' ? 'Fix' : 'Diagnose-only';
   if (tree === 'review') {
@@ -79,7 +73,7 @@ export const SOURCE_ASSIGNMENTS: SourceAssignment[] = [
   A('plan-ceo-review', 'plan', 'ceo', 'Challenge scope, strategy, and the ten-star product shape.', { mandatory: true, overlays: [2030], defaultDepth: 'deep', defaultMutation: 'plan-only', webContext: 'optional' }),
   A('plan-eng-review', 'plan', 'eng', 'Review architecture, data flow, tests, performance, and failure modes.', { mandatory: true, overlays: [592, 1071, 2030], defaultDepth: 'deep', defaultMutation: 'plan-only' }),
   A('plan-devex-review', 'plan', 'dx', 'Review developer personas, time-to-hello-world, friction, and DX measurement.', { mandatory: true, overlays: [2030], defaultDepth: 'deep', defaultMutation: 'plan-only', webContext: 'optional' }),
-  A('autoplan', 'plan', 'auto', 'Run CEO, design, engineering, and DX plan reviews with an auditable decision trail.', { mandatory: true, overlays: [2014, 2023], defaultDepth: 'deep', defaultMutation: 'plan-only', webContext: 'optional' }),
+  A('autoplan', 'plan', 'auto', 'Run CEO, engineering, and DX plan reviews with an auditable decision trail.', { mandatory: true, overlays: [2014, 2023], defaultDepth: 'deep', defaultMutation: 'plan-only', webContext: 'optional' }),
   A('spec', 'plan', 'spec', 'Turn intent into a backlog-ready issue/spec and optional execution handoff.', { mandatory: true, defaultDepth: 'deep', defaultMutation: 'spec-and-issue', webContext: 'optional' }),
   A('plan-tune', 'plan', 'preferences', 'Inspect and tune question preferences and developer profile.', { mandatory: true, defaultMutation: 'profile-only' }),
   A('context-save', 'plan', 'context-save', 'Save branch, decisions, and remaining work.', { visibility: 'internal', defaultMutation: 'state-only' }),
@@ -88,16 +82,6 @@ export const SOURCE_ASSIGNMENTS: SourceAssignment[] = [
   A('retro', 'plan', 'retro', 'Produce evidence-backed shipping retrospectives.', { visibility: 'internal', overlays: [1636, 2037], defaultDepth: 'deep' }),
   A('setup-gbrain', 'plan', 'memory-setup', 'Configure cross-machine memory.', { visibility: 'internal', defaultMutation: 'configuration' }),
   A('sync-gbrain', 'plan', 'memory-sync', 'Refresh the memory index from repository sources.', { visibility: 'internal', defaultMutation: 'state-only' }),
-
-  // Design family.
-  A('design-consultation', 'design', 'consult', 'Build a complete design system from product context.', { mandatory: true, overlays: [2030], defaultDepth: 'deep', defaultMutation: 'design-artifacts', webContext: 'optional' }),
-  A('design-shotgun', 'design', 'alternatives', 'Generate and compare multiple visual directions.', { mandatory: true, overlays: [1777], defaultDepth: 'deep', defaultMutation: 'design-artifacts', webContext: 'optional' }),
-  A('design-html', 'design', 'html', 'Generate production-quality Pretext-native HTML/CSS.', { mandatory: true, defaultMutation: 'design-artifacts', webContext: 'local-browser' }),
-  A('plan-design-review', 'design', 'plan-review', 'Review a plan for interaction states, visual quality, and accessibility.', { mandatory: true, overlays: [2030, 2189], defaultDepth: 'deep', defaultMutation: 'plan-only', webContext: 'optional' }),
-  A('design-review', 'design', 'live-review', 'Audit, fix, and verify an implemented web UI.', { mandatory: true, overlays: [696, 1920, 2030, 2189], defaultDepth: 'deep', defaultMutation: 'fix-safe', webContext: 'local-browser' }),
-  A('ios-design-review', 'design', 'ios-review', 'Score and iterate a real iOS interface against Apple HIG.', { mandatory: true, defaultDepth: 'deep', defaultMutation: 'report-only', webContext: 'none' }),
-  A('diagram', 'design', 'diagram', 'Render diagrams from English descriptions.', { visibility: 'internal', defaultMutation: 'design-artifacts' }),
-  A('make-pdf', 'design', 'pdf', 'Render publication-quality PDFs from Markdown.', { visibility: 'internal', defaultMutation: 'design-artifacts' }),
 
   // QA and browser/device execution family.
   A('qa', 'qa', 'fix', 'Test a web application, fix validated bugs, and re-verify.', { mandatory: true, overlays: [1484, 2030, 2186], defaultDepth: 'deep', defaultMutation: 'fix-safe', webContext: 'local-browser' }),
@@ -155,29 +139,9 @@ export const DISPATCHERS: DispatcherDefinition[] = [
       { mode: 'Engineering', target: 'Architecture and implementation plan', modules: ['plan-eng-review'], inferWhen: 'The plan needs architecture, data, failure-mode, performance, or test review.', depth: 'deep', mutation: 'plan-only', webContext: 'none' },
       { mode: 'DX', target: 'Developer-facing plan', modules: ['plan-devex-review'], inferWhen: 'Developers, SDK/CLI/API consumers, onboarding, or documentation are the product surface.', depth: 'deep', mutation: 'plan-only', webContext: 'optional' },
       { mode: 'Specification', target: 'Backlog-ready executable specification', modules: ['spec'], inferWhen: 'Intent must become acceptance criteria, issue structure, testing, rollback, and handoff.', depth: 'deep', mutation: 'spec-and-issue', webContext: 'optional' },
-      { mode: 'Full chain', target: 'Cross-functional plan', modules: ['autoplan'], inferWhen: 'The user wants the full CEO/design/engineering/DX chain with automatic routing.', depth: 'deep', mutation: 'plan-only', webContext: 'optional' },
+      { mode: 'Full chain', target: 'Cross-functional plan', modules: ['autoplan'], inferWhen: 'The user wants the full CEO/engineering/DX chain with automatic routing.', depth: 'deep', mutation: 'plan-only', webContext: 'optional' },
     ],
     hardRules: ['Never silently expand scope.', 'Never skip a selected review phase without listing the evidence for the skip.', 'Do not implement product code from this dispatcher unless the user explicitly changes Mutation.'],
-  },
-  {
-    name: 'design',
-    displayName: 'GStack Design',
-    description: 'Explore, generate, critique, or implement product design. Use for design systems, visual alternatives, HTML, live web UI, accessibility, or iOS HIG review.',
-    shortDescription: 'Create and audit product design systems',
-    defaultPrompt: 'Use $design to choose a design direction or audit this interface.',
-    purpose: 'Infer the existing design thesis first, then create or audit only the requested surface.',
-    modes: [
-      { mode: 'Explore', target: 'Competing design directions', modules: ['design-shotgun'], inferWhen: 'The user needs alternatives and structured preference discovery before committing.', depth: 'deep', mutation: 'design-artifacts', webContext: 'optional' },
-      { mode: 'Generate', target: 'A design system or visual artifact', modules: ['design-consultation', 'diagram', 'make-pdf'], inferWhen: 'The user wants a coherent new artifact without product-code implementation.', depth: 'deep', mutation: 'design-artifacts', webContext: 'optional' },
-      { mode: 'Critique', target: 'A plan, live surface, or iOS interface', modules: ['plan-design-review', 'design-review', 'ios-design-review'], inferWhen: 'The user wants design judgment and evidence without authorizing implementation changes.', depth: 'deep', mutation: 'report-only', webContext: 'optional' },
-      { mode: 'Implement', target: 'Production HTML or an existing web UI', modules: ['design-html', 'design-review'], inferWhen: 'The user authorizes design code generation or validated visual fixes.', depth: 'deep', mutation: 'fix-safe', webContext: 'local-browser' },
-    ],
-    hardRules: [
-      'Infer the design system before scoring deviations.',
-      'Treat a coherent design thesis as valid even when headings use different language.',
-      'Do not substitute generated mockups for inspection of an existing implementation.',
-      'Use host-native image generation when it is available and materially useful, but keep it optional. Never install an image provider, local model, weights, GPU runtime, or background image server; continue with HTML/CSS, screenshots, diagrams, wireframes, or code-generated variants when no native tool exists.',
-    ],
   },
   {
     name: 'qa',

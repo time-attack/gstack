@@ -504,8 +504,8 @@ If they approve or say "good enough," proceed.
 **Step 5: Include in design doc**
 
 Reference the wireframe screenshot in the design doc's "Recommended Approach" section.
-The screenshot file at \`/tmp/gstack-sketch.png\` can be referenced by downstream skills
-(\`/plan-design-review\`, \`/design-review\`) to see what was originally envisioned.
+The screenshot file at \`/tmp/gstack-sketch.png\` can be referenced by downstream reviews
+to see what was originally envisioned.
 
 **Step 6: Outside design voices** (optional)
 

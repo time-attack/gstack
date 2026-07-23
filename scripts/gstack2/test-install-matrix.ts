@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SOURCE_ASSIGNMENTS } from './assignments';
 
-export const PUBLIC_SKILLS = ['debug', 'design', 'plan', 'qa', 'review', 'ship'] as const;
+export const PUBLIC_SKILLS = ['debug', 'plan', 'qa', 'review', 'ship'] as const;
 export const COLLISION_SKILLS = ['qa', 'review', 'ship'] as const;
 export type PublicSkill = (typeof PUBLIC_SKILLS)[number];
 export type InstallScope = 'project' | 'global';

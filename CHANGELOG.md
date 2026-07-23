@@ -24,7 +24,7 @@ Source: `bun run scripts/gstack2/run-parity.ts` on this release.
 |---|---|---|
 | /ship coverage of the Apple release journey | archive advice | membership gate through Submit for Review |
 | New project dependencies required to release | n/a | 0 |
-| Pinned parity checks | 5,080 | 5,083 |
+| Pinned parity checks | 4,378 | 4,381 |
 
 The +3 checks pin the membership gate, the durable-upload binding, and the no-new-dependency rule, so none of them can quietly regress.
 
@@ -42,7 +42,7 @@ The distance between "my app works in the simulator" and "my app is in review" u
 
 ### For contributors
 
-- New `appleReleaseContract()` in `scripts/gstack2/generate-skill-tree.ts`; 3 pinned checks in `run-parity.ts` (5,080 to 5,083).
+- New `appleReleaseContract()` in `scripts/gstack2/generate-skill-tree.ts`; 3 pinned checks in `run-parity.ts` (4,378 to 4,381).
 
 ## [1.63.0.0] - 2026-07-23
 
