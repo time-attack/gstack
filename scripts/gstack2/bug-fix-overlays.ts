@@ -435,6 +435,25 @@ A question is only answerable if the user can see what it refers to. Before any 
       },
     },
   },
+  {
+    pr: 538,
+    url: 'https://github.com/garrytan/gstack/issues/538',
+    title: 'Founder resources honor a persistent never-show-again opt-out',
+    targets: ['office-hours'],
+    anchor: 'GSTACK2_FIX_538_FOUNDER_RESOURCES_OPTOUT',
+    body: `### Founder-resources opt-out
+
+Before sharing any founder resources (Paul Graham essays, Garry Tan or YC videos, or similar motivational recommendations), check the persistent opt-out with \`"$GSTACK_BIN/gstack-config" get founder_resources\`. If it prints \`false\`, skip the entire resources phase silently — no resources, no mention that they were skipped — and continue with the rest of the handoff, which is unaffected. When resources are shown, the offer-to-open question must include a **"Never show me these again"** option alongside the open/skip options. Choosing it runs \`"$GSTACK_BIN/gstack-config" set founder_resources false\`, confirms in one line that resources will not be recommended again and that \`gstack-config set founder_resources true\` re-enables them, then continues. The opt-out is a durable user decision: never re-pitch the resources, never ask the user to reconsider, and never let a session's context override the stored \`false\`.`,
+    regression: {
+      input: { founder_resources_config: 'false', phase: 'founder-resources' },
+      expected: {
+        resources_shown: false,
+        skip_is_silent: true,
+        never_again_option_when_shown: true,
+        opt_out_persisted_via: 'gstack-config set founder_resources false',
+      },
+    },
+  },
 ];
 
 export function overlaysForSource(source: string): BugFixOverlay[] {
@@ -676,6 +695,15 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
         step_unit: ['hours', 'days', 'weeks', 'stage-appropriate', 'stage-appropriate'][rank],
         target_confirmation_round: input.handoff_target == null,
         minor_findings_applied_not_asked: small,
+      };
+    }
+    case 538: {
+      const optedOut = String(input.founder_resources_config ?? '') === 'false';
+      return {
+        resources_shown: !optedOut,
+        skip_is_silent: optedOut,
+        never_again_option_when_shown: true,
+        opt_out_persisted_via: 'gstack-config set founder_resources false',
       };
     }
     default:

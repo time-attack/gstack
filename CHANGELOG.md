@@ -7,6 +7,77 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.62.0.0] - 2026-07-23
+
+## **Open a large repo and gstack offers to index it.**
+## **Once, with real choices, then never again.**
+
+Every gstack skill now checks the size of the repository it lands in before starting real work. Small repo, nothing happens, grep is already fast. Large repo (1,000+ tracked files) and you have never answered the question, the skill pauses once and asks whether you want code-intelligence indexing, with the actual trade-offs spelled out: GBrain gives semantic "where is X handled?" search but sends repo content to your GBrain database and asks consent per repo. Sourcebot gives fast whole-repo search, self-hosted, local when it runs on localhost. Graphify builds a local tree-sitter code graph and nothing ever leaves your machine, but you install it yourself. Or say no indexing, and gstack remembers that too. Decline once and no skill asks again, on any repo, until you change your mind with `gstack-code-intelligence select`.
+
+### The numbers that matter
+
+Source: `bun run scripts/gstack2/run-parity.ts` and `bun test test/code-intelligence.test.ts` on this release.
+
+| Metric | Before | After |
+|---|---|---|
+| Skills that surface the indexing option | 0 | all 6 dispatchers |
+| Times the question is asked per machine | n/a | at most 1 |
+| Large-repo threshold | n/a | 1,000 tracked files |
+| Parity checks pinning the behavior | 5,032 | 5,050 |
+| code-intelligence tests | 25 | 31 |
+
+The "at most 1" row is the one that matters. The offer gate (`gstack-code-intelligence suggest`) refuses to fire when a provider is already selected, when you declined before, when the repo is small, or when the directory is not a git repo. A missing helper is a silent skip, not an error.
+
+### What this means for builders
+
+On a 10-file toy, nothing changes. On your 5,000-file production monolith, the first `/plan` or `/review` run offers you semantic search over the whole codebase, you pick a provider (or none) in one question, and every later session benefits without ever being asked again. Grep and the file-only decision store remain the always-working default; indexing is an upgrade, never a dependency.
+
+### Itemized changes
+
+#### Added
+- Session-start indexing offer: every dispatcher reads the new generated `references/CODE-INTELLIGENCE.md` once per repository invocation and runs `gstack-code-intelligence suggest` to decide whether to ask. The question presents GBrain (recommended, consent-gated), Sourcebot, Graphify (local, never auto-installed), and No indexing, each with its reason and live availability.
+- `gstack-code-intelligence suggest [path] [--json]`: the offer gate as a command. Emits offer/no-offer with the reason (`provider-selected`, `declined`, `not-a-repo`, `small-repo`, `large-repo`) and, when offering, the provider options.
+- `gstack-code-intelligence select none` now persists the decline so the question is never repeated.
+- The `gstack-code-intelligence` helper ships in the managed runtime, so standard installs can run the offer from `$GSTACK_HOME/bin`.
+
+#### For contributors
+- New `lib/code-intelligence/suggest.ts` (`shouldOfferIndexing`, `trackedFileCount`, threshold injectable for tests) and a `declined` flag in the selection store; 6 new tests in `test/code-intelligence.test.ts`.
+- Parity pins the per-tree contract (existence, dispatcher wiring, silent-degrade, decline, no-auto-install), 3 checks per dispatcher. Runtime helper surface: `DEFAULT_RUNTIME_HELPERS` + `RUNTIME_HELPER_DEPENDENCIES` in `runtime/install.js`.
+
+## [1.61.2.0] - 2026-07-23
+
+## **The founder-resources pitch now takes no for an answer.**
+## **Never means never.**
+
+Office-hours ends by recommending 2-3 items from a 34-item pool of Paul Graham essays and Garry Tan / YC videos, every single session. Until now your only choices were open them or skip them this once, and the reporter on issue #538 found that even memory instructions telling the agent to stop kept getting overridden on every update. This release adds a "Never show me these again" option to that offer. Pick it once and the opt-out is stored in config, where session context cannot override it: every future session skips the entire resources phase silently, no resources, no "skipped as requested" mention. The rest of the handoff is untouched.
+
+### The three numbers that matter
+
+Source: the executable parity inventory (`bun run scripts/gstack2/run-parity.ts`) and the office-hours resource pool in `skills/plan/references/sections/office-hours/design-and-handoff.md`.
+
+| Metric | Before | After |
+|---|---|---|
+| Ways to permanently decline the 34-resource pool | 0 | 1 selection |
+| Sessions that re-pitch after you decline | every one | 0 |
+| Judgment overlays / parity checks | 29 / 5,027 | 30 / 5,032 |
+
+The middle row is the fix. A stored `false` in `~/.gstack` beats a memory instruction because config survives updates and the overlay forbids the agent from re-litigating it.
+
+### What this means for builders
+
+Run `/plan` product mode as often as you want. The essays and videos show up until the day you say never, and then they stay gone. Changed your mind later? `gstack-config set founder_resources true` brings them back. That is the whole contract.
+
+### Itemized changes
+
+#### Added
+
+- **"Never show me these again"** option in the office-hours Founder Resources offer. Selecting it runs `gstack-config set founder_resources false`, confirms in one line with the re-enable command, and continues the handoff.
+- New `founder_resources` config key (default `true`, validated to `true`/`false`), shipped with the managed runtime.
+
+#### For contributors
+
+- Judgment overlay #538 (`GSTACK2_FIX_538_FOUNDER_RESOURCES_OPTOUT`, office-hours only) with executable regression fixture `evals/parity/regressions/pr-538.json`; parity inventory grows 5,027 to 5,032.
+
 ## [1.61.1.0] - 2026-07-22
 
 ## **Design docs now read like decision records.**

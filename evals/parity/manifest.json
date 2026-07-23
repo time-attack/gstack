@@ -95,7 +95,8 @@
         886,
         703,
         2000,
-        879
+        879,
+        538
       ],
       "original_source_file": "office-hours/SKILL.md.tmpl",
       "original_line_range": "1-526",
@@ -6739,6 +6740,7 @@
       "consumer_modules": [
         "autoplan",
         "document-generate",
+        "office-hours",
         "plan-tune",
         "setup-gbrain",
         "ship",
@@ -7539,6 +7541,15 @@
         "*"
       ],
       "anchor": "GSTACK2_FIX_879_SELF_CONTAINED_QUESTIONS"
+    },
+    {
+      "pr": 538,
+      "url": "https://github.com/garrytan/gstack/issues/538",
+      "title": "Founder resources honor a persistent never-show-again opt-out",
+      "targets": [
+        "office-hours"
+      ],
+      "anchor": "GSTACK2_FIX_538_FOUNDER_RESOURCES_OPTOUT"
     }
   ]
 }

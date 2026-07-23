@@ -825,3 +825,13 @@ The design doc is a decision record, not a transcript of the session. There is n
 
 A question is only answerable if the user can see what it refers to. Before any AskUserQuestion or prose decision brief that asks the user to confirm, approve, rank, or choose among content this session produced — premises, findings, plans, approaches, scores, summaries — render that content in full as direct assistant text immediately before the question, or restate it inside the question and option descriptions. Internal reasoning is invisible to the user, and collapsed tool output (Bash cat, Read) does not count as shown. Never ask "do you agree with the N premises?" when the premises exist only in your reasoning: print them, then ask. This generalizes the inline design-doc approval rule from PR #1116 to every question in every workflow.
 <!-- GSTACK2_BUG_FIX_END pr=879 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=538 anchor=GSTACK2_FIX_538_FOUNDER_RESOURCES_OPTOUT -->
+## Upstream judgment port: issue #538
+
+[Founder resources honor a persistent never-show-again opt-out](https://github.com/garrytan/gstack/issues/538)
+
+### Founder-resources opt-out
+
+Before sharing any founder resources (Paul Graham essays, Garry Tan or YC videos, or similar motivational recommendations), check the persistent opt-out with `"$GSTACK_BIN/gstack-config" get founder_resources`. If it prints `false`, skip the entire resources phase silently — no resources, no mention that they were skipped — and continue with the rest of the handoff, which is unaffected. When resources are shown, the offer-to-open question must include a **"Never show me these again"** option alongside the open/skip options. Choosing it runs `"$GSTACK_BIN/gstack-config" set founder_resources false`, confirms in one line that resources will not be recommended again and that `gstack-config set founder_resources true` re-enables them, then continues. The opt-out is a durable user decision: never re-pitch the resources, never ask the user to reconsider, and never let a session's context override the stored `false`.
+<!-- GSTACK2_BUG_FIX_END pr=538 -->

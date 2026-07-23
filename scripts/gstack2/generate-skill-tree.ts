@@ -82,7 +82,7 @@ function assertInventory(): void {
   }
   if (legacySections().length !== 16) throw new Error(`Expected 16 section templates, found ${legacySections().length}`);
   if (SCENARIOS.length !== 25) throw new Error(`Expected 25 parity scenarios, found ${SCENARIOS.length}`);
-  if (BUG_FIX_OVERLAYS.length !== 29) throw new Error(`Expected 29 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
+  if (BUG_FIX_OVERLAYS.length !== 30) throw new Error(`Expected 30 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
 }
 
 function toc(body: string): string {
@@ -261,7 +261,7 @@ Web context: <none, optional, local-browser, or production>
 1. Infer the mode from product stage, surface, requested artifact, mutation authorization, evidence needs, and deployment state. Do not route by keyword alone.
 2. Refine the public mode to the smallest applicable internal specialist set, then print the required execution header before any substantive output.
 3. Read each active module in full from the path shown in the mode/alias tables. Its specialist body, behavioral contract, STOP gates, and appended upstream judgment ports are binding. Read a lazy specialist phase in full only when the workflow reaches its package-local reference.
-4. Read \`references/EXECUTION-PROFILES.md\`, \`references/SHARED-JUDGMENT.md\`, and \`references/AUTHORITY-POLICY.md\` for every invocation. Infer Depth from structured operating conditions, then obey its mandatory modules, legal skips, artifacts, and claim limits. Read \`references/RUNTIME.md\` before capability-dependent work and \`references/WEB-CONTEXT.md\` before public-web work.
+4. Read \`references/EXECUTION-PROFILES.md\`, \`references/SHARED-JUDGMENT.md\`, and \`references/AUTHORITY-POLICY.md\` for every invocation. Infer Depth from structured operating conditions, then obey its mandatory modules, legal skips, artifacts, and claim limits. Read \`references/RUNTIME.md\` before capability-dependent work and \`references/WEB-CONTEXT.md\` before public-web work. When the target is a repository, read \`references/CODE-INTELLIGENCE.md\` once before substantive specialist work and follow its one-time indexing offer.
 5. If an old asset path is unavailable, use \`references/ASSETS.md\`. If legacy prose invokes another retired skill, resolve it through \`references/COMPATIBILITY.md\` and stay inside these six dispatchers.
 6. Preserve report-only versus mutation boundaries. Missing mutation authorization fails closed: do not edit merely because a specialist can fix. Commits, pushes, PRs, merges, deploys, messages, and other external mutations still require affirmative authority from the user.
 7. Match the user's language. Keep code identifiers, commands, and source quotations original when translation would reduce accuracy.
@@ -519,6 +519,26 @@ function webContextContract(): string {
   ].join('\n');
 }
 
+function codeIntelligenceContract(): string {
+  return [GENERATED,
+    '# Optional code-intelligence indexing',
+    '',
+    'gstack works fully without an index: grep and the file-only decision store are the default and never depend on a provider. Indexing is an optional enhancement that pays off in large repositories.',
+    '',
+    'Once per invocation, before substantive specialist work inside a repository, run `"${GSTACK_HOME:-$HOME/.gstack}"/bin/gstack-code-intelligence suggest --json 2>/dev/null || true`. If the helper is unavailable or the result says `offer: false`, continue silently; pure judgment never requires it and the user is never nagged. The helper offers only for a large repository (tracked-file count above its threshold) with no prior decision, and an explicit decline is persisted so the question is never repeated.',
+    '',
+    'When the result says `offer: true`, pause and ask via AskUserQuestion whether to index the repository, presenting exactly these options with these reasons and each option\'s availability from the suggest output:',
+    '',
+    '- **GBrain** (recommended): semantic search over code plus federated memory across your repos; answers "where is X handled?" questions grep cannot. It sends repository content to your GBrain database, so it requires explicit per-repo consent before indexing.',
+    '- **Sourcebot**: self-hosted whole-repo regex and code search, fast on very large repos; local when the server runs on localhost, in which case nothing leaves the machine.',
+    '- **Graphify**: local tree-sitter code graph (definitions, references, structure); nothing ever leaves the machine and no consent is needed, but you install it yourself — it is never auto-installed.',
+    '- **No indexing**: gstack continues with grep and file-only state, fully supported. This choice is remembered and the question is not asked again.',
+    '',
+    'Persist only the explicit choice: `"${GSTACK_HOME:-$HOME/.gstack}"/bin/gstack-code-intelligence select <gbrain|sourcebot|graphify|none>`. For a non-local provider, run `consent` for this repository only after the user explicitly approves sending its content off-machine, then `index`. Never infer a choice, never auto-install a provider, never treat an unavailable provider as forbidden (the user may set it up later), and never block or delay specialist work on indexing: if the user declines or the index is still building, proceed with grep.',
+    '',
+  ].join('\n');
+}
+
 function runtimeContract(): string {
   return `${GENERATED}
 # Optional runtime capabilities
@@ -606,6 +626,7 @@ function writeSharedContracts(): void {
     write(path.join(ROOT, 'skills', tree, 'references', 'SHARED-JUDGMENT.md'), sharedJudgmentContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'AUTHORITY-POLICY.md'), authorityPolicyContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'WEB-CONTEXT.md'), webContextContract());
+    write(path.join(ROOT, 'skills', tree, 'references', 'CODE-INTELLIGENCE.md'), codeIntelligenceContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'RUNTIME.md'), runtimeContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'BROWSER-PROVIDERS.md'), `${GENERATED}\n${renderBrowserProviderContract()}`);
     write(path.join(ROOT, 'skills', tree, 'references', 'support', 'runtime-bootstrap.mjs'), bootstrap);
