@@ -38,7 +38,7 @@ The distance between "my app works in the simulator" and "my app is in review" u
 
 - `references/APPLE-RELEASE.md` generated into the ship tree: paid Apple Developer Program membership gate with honest free-account ceilings, native-toolchain release preflight, archive/validate/upload via `xcodebuild` with App Store Connect API key auth, uploads and submissions bound to the durable external-effects wrapper, and App Store Connect completion (metadata, screenshots, TestFlight, Submit for Review, status monitoring) driven by a consent-gated App Store Connect API CLI (`asc` by default, ittybittyapps and Codemagic equivalents named). Browser/manual fallback only for what the API cannot do: initial app record, agreements, banking/tax.
 - Ship dispatch protocol step 10: Apple platform targets load the adapter before release preparation.
-- Store-asset offers, asked before any generation: SnapAI app icons (one 1024×1024 image, Xcode derives the rest), ASO marketing screenshots via the aso-appstore-screenshots skill, free local device framing via `asc screenshots frame`, or bring your own. The skill never spends your image-API budget without asking.
+- Store-asset offers, asked before any generation: SnapAI app icons (one 1024×1024 image, Xcode derives the rest), ASO marketing screenshots via the aso-appstore-screenshots skill, free local device framing via `asc screenshots frame`, free multi-size screenshot decks via the app-store-screenshots editor skill, or bring your own. The skill never spends your image-API budget without asking.
 
 ### For contributors
 
