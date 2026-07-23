@@ -23,7 +23,7 @@ Source: `bun run scripts/gstack2/run-parity.ts` and `bun test test/code-intellig
 | Skills that surface the indexing option | 0 | all 6 dispatchers |
 | Times the question is asked per machine | n/a | at most 1 |
 | Large-repo threshold | n/a | 1,000 tracked files |
-| Parity checks pinning the behavior | 5,027 | 5,045 |
+| Parity checks pinning the behavior | 5,032 | 5,050 |
 | code-intelligence tests | 25 | 31 |
 
 The "at most 1" row is the one that matters. The offer gate (`gstack-code-intelligence suggest`) refuses to fire when a provider is already selected, when you declined before, when the repo is small, or when the directory is not a git repo. A missing helper is a silent skip, not an error.
@@ -42,7 +42,41 @@ On a 10-file toy, nothing changes. On your 5,000-file production monolith, the f
 
 #### For contributors
 - New `lib/code-intelligence/suggest.ts` (`shouldOfferIndexing`, `trackedFileCount`, threshold injectable for tests) and a `declined` flag in the selection store; 6 new tests in `test/code-intelligence.test.ts`.
-- Parity pins the per-tree contract (existence, dispatcher wiring, silent-degrade, decline, no-auto-install): 5,027 to 5,045 checks. Runtime helper surface: `DEFAULT_RUNTIME_HELPERS` + `RUNTIME_HELPER_DEPENDENCIES` in `runtime/install.js`.
+- Parity pins the per-tree contract (existence, dispatcher wiring, silent-degrade, decline, no-auto-install), 3 checks per dispatcher. Runtime helper surface: `DEFAULT_RUNTIME_HELPERS` + `RUNTIME_HELPER_DEPENDENCIES` in `runtime/install.js`.
+
+## [1.61.2.0] - 2026-07-23
+
+## **The founder-resources pitch now takes no for an answer.**
+## **Never means never.**
+
+Office-hours ends by recommending 2-3 items from a 34-item pool of Paul Graham essays and Garry Tan / YC videos, every single session. Until now your only choices were open them or skip them this once, and the reporter on issue #538 found that even memory instructions telling the agent to stop kept getting overridden on every update. This release adds a "Never show me these again" option to that offer. Pick it once and the opt-out is stored in config, where session context cannot override it: every future session skips the entire resources phase silently, no resources, no "skipped as requested" mention. The rest of the handoff is untouched.
+
+### The three numbers that matter
+
+Source: the executable parity inventory (`bun run scripts/gstack2/run-parity.ts`) and the office-hours resource pool in `skills/plan/references/sections/office-hours/design-and-handoff.md`.
+
+| Metric | Before | After |
+|---|---|---|
+| Ways to permanently decline the 34-resource pool | 0 | 1 selection |
+| Sessions that re-pitch after you decline | every one | 0 |
+| Judgment overlays / parity checks | 29 / 5,027 | 30 / 5,032 |
+
+The middle row is the fix. A stored `false` in `~/.gstack` beats a memory instruction because config survives updates and the overlay forbids the agent from re-litigating it.
+
+### What this means for builders
+
+Run `/plan` product mode as often as you want. The essays and videos show up until the day you say never, and then they stay gone. Changed your mind later? `gstack-config set founder_resources true` brings them back. That is the whole contract.
+
+### Itemized changes
+
+#### Added
+
+- **"Never show me these again"** option in the office-hours Founder Resources offer. Selecting it runs `gstack-config set founder_resources false`, confirms in one line with the re-enable command, and continues the handoff.
+- New `founder_resources` config key (default `true`, validated to `true`/`false`), shipped with the managed runtime.
+
+#### For contributors
+
+- Judgment overlay #538 (`GSTACK2_FIX_538_FOUNDER_RESOURCES_OPTOUT`, office-hours only) with executable regression fixture `evals/parity/regressions/pr-538.json`; parity inventory grows 5,027 to 5,032.
 
 ## [1.61.1.0] - 2026-07-22
 
