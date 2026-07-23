@@ -16,9 +16,9 @@ describe("managed runtime asset resolution", () => {
     roots.push(root);
     const home = path.join(root, "home with spaces");
     const versionRoot = path.join(home, "versions", "2.0.0");
-    const asset = path.join(versionRoot, "lib", "diagram-render", "dist", "diagram-render.html");
+    const asset = path.join(versionRoot, "browse", "dist", "server-node.mjs");
     await fs.mkdir(path.dirname(asset), { recursive: true });
-    await fs.writeFile(asset, "offline diagram bundle\n");
+    await fs.writeFile(asset, "offline browser server bundle\n");
     await fs.writeFile(path.join(home, "versions", "current.json"), `${JSON.stringify({ current: "2.0.0" })}\n`);
 
     let stdout = "";
@@ -27,7 +27,7 @@ describe("managed runtime asset resolution", () => {
     const errors = { write(value: string) { stderr += value; } };
     const options = { env: { GSTACK_HOME: home }, cwd: root, stdout: output, stderr: errors };
 
-    expect(await main(["runtime", "path", "lib/diagram-render/dist/diagram-render.html"], options)).toBe(0);
+    expect(await main(["runtime", "path", "browse/dist/server-node.mjs"], options)).toBe(0);
     expect(stdout.trim()).toBe(asset);
     expect(stderr).toBe("");
 

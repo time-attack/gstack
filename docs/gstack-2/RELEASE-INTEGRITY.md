@@ -56,8 +56,8 @@ vendored under `runtime/licenses/` and their expected hashes are release-gated.
 The native release smoke removes the `setup-bun` directory from `PATH`, supplies
 only an explicit `GSTACK_NODE`, runs the stable managed-Bun launcher, and opens
 `about:blank` through the installed browser before cleanup. Compiled browser
-clients use their adjacent `server-node.mjs` on every platform, so browser,
-design, and PDF readiness does not depend on a host-global Bun installation.
+clients use their adjacent `server-node.mjs` on every platform, so browser
+readiness does not depend on a host-global Bun installation.
 
 The bootstrap always verifies the manifest schema, target, exact byte count,
 and SHA-256 before extraction. If Cosign is already installed it additionally
@@ -73,7 +73,7 @@ Runtime tool requirements are capability-scoped. Node is the bootstrap and
 stable-launcher floor. On Windows, retained shell-based helpers additionally
 require Git for Windows Bash; doctor reports that check explicitly. Python 3 is
 only required by specialist flows that label it as a prerequisite. Missing
-Bash or Python does not change the native browser/design/PDF payload or turn
+Bash or Python does not change the native browser payload or turn
 those capabilities into host-global Bun consumers.
 
 ## npm package
@@ -81,7 +81,7 @@ those capabilities into host-global Bun consumers.
 The npm tarball is a small runtime-control/bootstrap package, not a second
 GStack installer. Its allowlist contains the Node-only runtime control plane,
 the `gstack` launcher, documentation, license, and version marker. It excludes
-the six skills and large compiled capability payloads. Skills come from the
+the five skills and large compiled capability payloads. Skills come from the
 Agent Skills installer; optional capability payloads come from the verified
 runtime release only after approval.
 

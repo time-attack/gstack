@@ -43,7 +43,6 @@ The expected discoverable names are exactly:
 
 ```text
 plan
-design
 qa
 debug
 review
@@ -51,11 +50,11 @@ ship
 ```
 
 `compat/*.md` and `references/legacy/*.md` are not `SKILL.md` files and must not
-appear as additional skills. Installing a subset must not pull the other five
+appear as additional skills. Installing a subset must not pull the other four
 public entries unless the user selected them.
 
 With `skills` CLI 1.5.19, the repository-root `--list` result is exactly these
-six names. For selected installation, use the canonical `skills/` source as in
+five names. For selected installation, use the canonical `skills/` source as in
 the example above. That CLI version's pre-filter display can count hidden
 compatibility aliases, but the committed actual-host artifact proves that only
 the selected `qa` directory was installed; the display count is not an
@@ -73,7 +72,7 @@ selected source. The standard skill installation remains Markdown-only and
 does not install the optional runtime. The committed evidence artifact is
 [`evals/installation/install-matrix.json`](../../evals/installation/install-matrix.json).
 
-| Host | Portable | Project all-six | Global all-six | Selected-skill coverage | Installer tier | Host UI/process |
+| Host | Portable | Project all-five | Global all-five | Selected-skill coverage | Installer tier | Host UI/process |
 |---|---|---|---|---|---|---|
 | Claude Code | yes | pass | pass | no separate subset case | **Verified — installer** | pending |
 | OpenAI Codex | yes | pass | pass | global `qa`, `review`, `ship` pass + removal pass; actual selected `qa` runtime-absent run; opt-in alias covered | **Verified — installer**; runtime-absent invocation passed | live v1/v2/v3 failed; v3 was 3/4 |
@@ -112,9 +111,9 @@ Use a clean temporary home and project for every cell; never test against an
 operator's live skill directory.
 
 1. Record OS, host version, Node/npm version, and `skills` CLI version.
-2. List the source and assert exactly six default entries.
-3. Install all six at project scope and verify each host discovers only those
-   six GStack public skills.
+2. List the source and assert exactly five default entries.
+3. Install all five at project scope and verify each host discovers only those
+   five GStack public skills.
 4. Remove them through the standard installer.
 5. Repeat at global scope.
 6. Install a selected subset; verify unselected skills were not enrolled.
@@ -164,12 +163,12 @@ Windows and includes the CoreDevice/iOS bundle only on Darwin. Add the bin
 directory to `PATH` if the short `gstack` command is desired.
 
 Official bundles capture the pinned Bun 1.3.14 executable inside the immutable
-runtime and expose it as `$GSTACK_HOME/bin/bun`; browser/design/PDF launchers do
+runtime and expose it as `$GSTACK_HOME/bin/bun`; browser launchers do
 not use host-global Bun. Node remains the bootstrap/launcher floor. On Windows,
 Git for Windows Bash is required only for retained shell helpers and is a
 separate doctor check. Python 3 is an optional prerequisite only for specialist
 flows that name it. Doctor reports both tools independently of native
-browser/design/PDF readiness.
+browser readiness.
 
 Twenty-five focused installer tests pass with 341 assertions. They cover
 manifests, paths with spaces,

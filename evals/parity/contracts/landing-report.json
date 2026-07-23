@@ -9,7 +9,7 @@
   "source_path": "landing-report/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "32a8cc1ab036b1ff8692f0400b68d8b56224a251",
-  "normalized_render_sha256": "ae5050b0558b5324f58ee9181dc83ac0189b63da70d94f86792c08e112765fe9",
+  "normalized_render_sha256": "f1b3a158878fd085d328ceb9a606c21d9ca080b7e9b21e017392789c0059a572",
   "target": "skills/ship/references/legacy/landing-report.md",
   "overlays": [
     679,

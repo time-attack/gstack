@@ -9,7 +9,7 @@
   "source_path": "freeze/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "c0b31aa7f9f216fc5a351d91f4bcff68c828d090",
-  "normalized_render_sha256": "036fe2c7d5c154982ba3509e9b9ab1f5867f86c1d71beb569802d7f7be46ed7c",
+  "normalized_render_sha256": "92970ea04923e860250dd6c2988a846ed418a0d3630a90ff8fd5669db11c348f",
   "target": "skills/debug/references/legacy/freeze.md",
   "overlays": [
     679,

@@ -93,7 +93,7 @@ tree contains legacy GStack 1 entry points and is not the GStack 2 install
 surface.
 
 The npm package is deliberately not the skill installer and does not contain
-the five skill tree or compiled browser/design/PDF payloads. It is the small
+the five skill tree or the compiled browser payload. It is the small
 host-neutral runtime control/bootstrap surface used by release tooling. New
 users should install skills with `npx skills add time-attack/gstack/skills`; optional
 capabilities are downloaded by a skill after consent.
@@ -567,7 +567,7 @@ Other references: [docs/gbrain-sync.md](docs/gbrain-sync.md) (sync-specific guid
 | Doc | What it covers |
 |-----|---------------|
 | [GStack 2 status](docs/gstack-2/STATUS.md) | Release gates, blockers, and evidence links; the authoritative completion state |
-| [GStack 2 architecture](docs/gstack-2/ARCHITECTURE.md) | Six-skill judgment layer, lazy modules, runtime, browser, iOS, and Context.dev boundaries |
+| [GStack 2 architecture](docs/gstack-2/ARCHITECTURE.md) | Five-skill judgment layer, lazy modules, runtime, browser, iOS, and Context.dev boundaries |
 | [GStack 2 host compatibility](docs/gstack-2/HOST-COMPATIBILITY.md) | Portable / Verified / Native definitions and install matrix |
 | [GStack 2 semantic parity](docs/gstack-2/SEMANTIC-PARITY.md) | Deterministic primary evidence and the non-green supplemental live-model samples |
 | [GStack 2 upgrade and rollback](docs/gstack-2/UPGRADE-AND-ROLLBACK.md) | Atomic runtime upgrades, rollback, and 1.x alias migration |

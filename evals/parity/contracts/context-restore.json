@@ -9,7 +9,7 @@
   "source_path": "context-restore/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "55889f6e06d3ba896f33a16969959c700bc24f1e",
-  "normalized_render_sha256": "44c64ae4a63d0ed0fbc427ee2e4f0330d5074c14cdc589baa660dd7a22dbcdf9",
+  "normalized_render_sha256": "6f51edee130fa663b79978bcea4ecab0f853e38cf147cbceb7c19e7ef438bae4",
   "target": "skills/plan/references/legacy/context-restore.md",
   "overlays": [
     679,

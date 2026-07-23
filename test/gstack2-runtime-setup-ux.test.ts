@@ -98,15 +98,14 @@ describe("GStack runtime setup UX", () => {
     for (const target of Object.values(core.capabilities)) {
       expect(corePaths.some((root) => target === root || target.startsWith(`${root}/`))).toBe(true);
     }
-    expect(runtimeSlotVersion("2.0.0", ["pdf", "browser"]))
-      .toBe(runtimeSlotVersion("2.0.0", ["browser", "pdf"]));
     expect(runtimeSlotVersion("2.0.0", ["browser"]))
-      .not.toBe(runtimeSlotVersion("2.0.0", ["browser", "pdf"]));
+      .not.toBe(runtimeSlotVersion("2.0.0", []));
+    if (process.platform === "darwin") {
+      expect(runtimeSlotVersion("2.0.0", ["ios", "browser"]))
+        .toBe(runtimeSlotVersion("2.0.0", ["browser", "ios"]));
+    }
     const expected = {
       browser: ["browser"],
-      design: ["design"],
-      diagram: ["browser", "diagram"],
-      pdf: ["browser", "diagram", "pdf"],
       ...(process.platform === "darwin" ? { ios: ["ios"] } : {}),
     };
     for (const [capability, dependencies] of Object.entries(expected)) {
@@ -115,6 +114,10 @@ describe("GStack runtime setup UX", () => {
   });
 
   test("later capability installs retain already approved capabilities unless replacement is explicit", async () => {
+    // ios is the only second optional capability after the design/pdf/diagram
+    // removal, and it is Darwin-only, so the cross-capability retain/replace
+    // path is only exercisable on Darwin.
+    if (process.platform !== "darwin") return;
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "gstack-setup-retain-"));
     const home = path.join(root, "home");
     const source = path.resolve(import.meta.dir, "..");
@@ -126,19 +129,19 @@ describe("GStack runtime setup UX", () => {
         schemaVersion: 2, status: "active", current: "existing", lastKnownGood: "existing",
       }));
       await fs.writeFile(path.join(active, ".gstack-bundle.json"), JSON.stringify({
-        selectedCapabilities: ["design"],
+        selectedCapabilities: ["ios"],
       }));
       const retained = capture();
       expect(await runInstallerCli([
-        "--source", source, "--home", home, "--capabilities", "pdf", "--browser", "managed", "--dry-run", "--json",
+        "--source", source, "--home", home, "--capabilities", "browser", "--browser", "managed", "--dry-run", "--json",
       ], { stdout: retained.stream, stderr: retained.stream })).toBe(0);
-      expect(JSON.parse(retained.value()).preview.capabilities).toEqual(["browser", "design", "diagram", "pdf"]);
+      expect(JSON.parse(retained.value()).preview.capabilities).toEqual(["browser", "ios"]);
 
       const replaced = capture();
       expect(await runInstallerCli([
-        "--source", source, "--home", home, "--capabilities", "pdf", "--browser", "managed", "--replace-capabilities", "--dry-run", "--json",
+        "--source", source, "--home", home, "--capabilities", "browser", "--browser", "managed", "--replace-capabilities", "--dry-run", "--json",
       ], { stdout: replaced.stream, stderr: replaced.stream })).toBe(0);
-      expect(JSON.parse(replaced.value()).preview.capabilities).toEqual(["browser", "diagram", "pdf"]);
+      expect(JSON.parse(replaced.value()).preview.capabilities).toEqual(["browser"]);
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }
@@ -390,6 +393,10 @@ describe("GStack runtime setup UX", () => {
   });
 
   test("official previews retain an active installed-browser choice across same- and cross-release additions", async () => {
+    // Adding a second capability on top of an installed-browser choice requires
+    // a non-browser capability. After the design/pdf/diagram removal, ios is the
+    // only such capability and it is Darwin-only.
+    if (process.platform !== "darwin") return;
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "gstack-bootstrap-retain-browser-"));
     const executable = await fs.realpath(process.execPath);
     const target = `${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`;
@@ -407,17 +414,16 @@ describe("GStack runtime setup UX", () => {
         });
         const output = capture();
         expect(await bootstrapMain([
-          "preview", "--capability", "design", "--home", home, "--json",
+          "preview", "--capability", "ios", "--home", home, "--json",
         ], {
           stdout: output.stream,
           stderr: output.stream,
-          libc: process.platform === "linux" ? "glibc" : undefined,
           fetch: async (url: string) => ({ ok: true, url, json: async () => officialManifestFixture(target) }),
         })).toBe(0);
         const result = JSON.parse(output.value());
-        expect(result.capabilities).toEqual(["browser", "design"]);
+        expect(result.capabilities).toEqual(["browser", "ios"]);
         expect(result.browser).toEqual({ provider: "installed", executablePath: executable });
-        expect(result.components).toEqual(["browser-code", "core", "design"]);
+        expect(result.components).toContain("ios");
         expect(result.components).not.toContain("browser-headless");
         expect(result.reusedComponents.length > 0).toBe(expectsReuse);
       }
@@ -526,32 +532,6 @@ describe("GStack runtime setup UX", () => {
         status: "fail",
         details: { expectedSkillApi: "3.0" },
       });
-    } finally {
-      await fs.rm(root, { recursive: true, force: true });
-    }
-  });
-
-  test("doctor rejects selected capabilities whose declared dependencies are absent", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "gstack-doctor-deps-"));
-    const home = path.join(root, "home");
-    try {
-      await setupRuntime({ home, cwd: root });
-      const paths = resolveRuntimePaths({ home });
-      const active = path.join(paths.versions, "fixture");
-      await fs.mkdir(active, { recursive: true });
-      await fs.writeFile(path.join(active, ".gstack-bundle.json"), JSON.stringify({
-        compatibility: { skillApi: "2.0" },
-        selectedCapabilities: ["pdf"],
-        capabilities: { "make-pdf": "make-pdf/dist/pdf" },
-      }));
-      await fs.writeFile(paths.versionPointer, JSON.stringify({
-        schemaVersion: 2, status: "active", current: "fixture", lastKnownGood: "fixture",
-      }));
-      await configSetBrowserChoice(home, { provider: "managed", executablePath: null });
-      const report = await runDoctor({ home, cwd: root, nodeCommand: process.execPath });
-      expect(report.ok).toBe(false);
-      expect(report.checks.find((check) => check.id === "capability:pdf")).toMatchObject({ status: "fail" });
-      expect(report.checks.find((check) => check.id === "capability:pdf")?.message).toContain("browser, diagram");
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }

@@ -27,9 +27,7 @@ mkdir -p "$REPO"
 cp -R "$SOURCE/." "$REPO/"
 rm -rf "$REPO/node_modules"
 rm -f \
-  "$REPO/browse/dist/browse" "$REPO/browse/dist/browse.exe" \
-  "$REPO/design/dist/design" "$REPO/design/dist/design.exe" \
-  "$REPO/make-pdf/dist/pdf" "$REPO/make-pdf/dist/pdf.exe"
+  "$REPO/browse/dist/browse" "$REPO/browse/dist/browse.exe"
 
 (
   cd "$REPO"
@@ -109,8 +107,6 @@ export BROWSE_STATE_FILE="$ROOT/browser-state/browse.json"
 test -s "$ROOT/runtime-full.png"
 "$HOME_DIR/bin/browse" stop
 
-"$HOME_DIR/bin/gstack-design" daemon status
-"$HOME_DIR/bin/make-pdf" version
 "$HOME_DIR/bin/gstack" uninstall --json
 
 test ! -e "$HOME_DIR/versions"

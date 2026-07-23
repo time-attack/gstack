@@ -1,6 +1,6 @@
 # gstack — AI engineering judgment layer
 
-GStack 2 exposes exactly six default public skills. Treat this as a routing
+GStack 2 exposes exactly five default public skills. Treat this as a routing
 surface over preserved specialist judgment, not permission to simplify that
 judgment into generic checklists.
 
@@ -9,7 +9,6 @@ judgment into generic checklists.
 | Skill | Primary responsibility |
 |---|---|
 | `/plan` | Product framing, CEO scope, engineering architecture, DX, autoplan, executable specs, and planning preferences. |
-| `/design` | Design systems, alternatives, HTML/CSS, plan and live-interface review, and physical-iOS HIG review. |
 | `/qa` | Report-only or fix-and-verify web QA, physical-iOS QA, DX journeys, performance, and canaries. |
 | `/debug` | Root-cause investigation, physical-iOS fixes, and internal safety controls. |
 | `/review` | Diff, security, repository-health, and independent outside-voice review. |
@@ -48,8 +47,6 @@ they contain no copied judgment. Representative mappings:
 | `/office-hours` | `/plan --mode product` |
 | `/plan-ceo-review` | `/plan --mode ceo` |
 | `/plan-eng-review` | `/plan --mode eng` |
-| `/design-consultation` | `/design --mode consult` |
-| `/design-review` | `/design --mode live-review` |
 | `/qa-only` | `/qa --mode report` |
 | `/investigate` | `/debug --mode investigate` |
 | `/cso` | `/review --mode security` |
@@ -70,8 +67,8 @@ silently enroll a host. Pure judgment works without the optional runtime.
 The browser is the existing local Chromium/Playwright implementation. Do not
 add a cloud browser or remote browser provider. Physical iOS uses only the
 existing DebugBridge/CoreDevice harness; do not add an alternate device
-backend. PDF and Mermaid/Excalidraw remain internal. Do not install ComfyUI,
-local model weights, checkpoints, or GPU runtimes.
+backend. Do not install ComfyUI, local model weights, checkpoints, or GPU
+runtimes.
 
 Context.dev is the only new external service and only for public web context.
 It is off until explicit consent. Never send authenticated/private pages,
@@ -85,9 +82,9 @@ Persist that choice with `gstack context select host|local-browser|none`;
 
 ```bash
 bun install
-bun run gen:gstack2       # regenerate six dispatchers, preserved modules, parity fixtures
+bun run gen:gstack2       # regenerate five dispatchers, preserved modules, parity fixtures
 bun run test:gstack2      # GStack 2 routing, provenance, parity, runtime, privacy, upgrade
-bun test                  # full free suite, including design + iOS daemon tests
+bun test                  # full free suite, including browser + iOS daemon tests
 bun run test:windows      # curated Windows-safe subset
 bun run build
 bun run skill:check

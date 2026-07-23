@@ -9,7 +9,7 @@
   "source_path": "devex-review/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "081d4f35bbdec0c6b3da8ae71615ec4d41a84551",
-  "normalized_render_sha256": "8fa9a613a71180cbb0f98326c96918f02587e6bc4fbfcdce15b5c374742dfcee",
+  "normalized_render_sha256": "479701a64cfd526fc3b77abc963928b0966bb4adfac538e9d9e93d4c7d6f3095",
   "target": "skills/qa/references/legacy/devex-review.md",
   "overlays": [
     679,
