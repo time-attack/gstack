@@ -105,34 +105,6 @@ Compare the requested window, the current date, and the date of the latest inclu
     },
   },
   {
-    pr: 1777,
-    url: 'https://github.com/garrytan/gstack/pull/1777',
-    title: 'Retain rejection confidence in design exploration',
-    targets: ['design-shotgun'],
-    anchor: 'GSTACK2_FIX_1777_REJECTION_CONFIDENCE',
-    body: `### Rejection-strength memory
-
-When recording design feedback, preserve how explicit and confident a rejection was. A hard rejection becomes a strong negative constraint; tentative dislike remains a weak signal that can be revisited. Never flatten rejected directions into evidence equivalent to approved directions.`,
-    regression: {
-      input: { feedback: 'Absolutely no glassmorphism', explicitness: 'strong' },
-      expected: { constraint: 'negative', confidence: 'strong', treated_as_approval: false },
-    },
-  },
-  {
-    pr: 1920,
-    url: 'https://github.com/garrytan/gstack/pull/1920',
-    title: 'Infer the design system before auditing deviations',
-    targets: ['design-review'],
-    anchor: 'GSTACK2_FIX_1920_INFER_DESIGN_SYSTEM',
-    body: `### Design-system-first audit
-
-Infer the product's existing design thesis, typography, color, spacing, component language, and motion before scoring inconsistencies. Audit the implementation against that inferred system and the product domain, not against a generic house style. Include domain-appropriate trust, registration, empty-state, and user-facing copy checks before declaring the surface complete.`,
-    regression: {
-      input: { surface: 'financial registration flow', explicit_design_doc: false },
-      expected: { infer_system_first: true, domain_copy_checks: true, generic_style_substitution: false },
-    },
-  },
-  {
     pr: 2014,
     url: 'https://github.com/garrytan/gstack/pull/2014',
     title: 'Make autoplan phase skips auditable',
@@ -164,7 +136,7 @@ When only one model produced a review row, label it **Claude-only** or **Codex-o
     pr: 2030,
     url: 'https://github.com/garrytan/gstack/pull/2030',
     title: 'Record only signal-bearing learnings',
-    targets: ['office-hours', 'plan-ceo-review', 'plan-eng-review', 'plan-devex-review', 'learn', 'design-consultation', 'plan-design-review', 'design-review', 'qa', 'qa-only', 'devex-review', 'scrape', 'skillify', 'investigate', 'review', 'cso', 'ship'],
+    targets: ['office-hours', 'plan-ceo-review', 'plan-eng-review', 'plan-devex-review', 'learn', 'qa', 'qa-only', 'devex-review', 'scrape', 'skillify', 'investigate', 'review', 'cso', 'ship'],
     anchor: 'GSTACK2_FIX_2030_SIGNAL_GATED_LEARNING',
     body: `### Signal-gated learning
 
@@ -217,20 +189,6 @@ Treat page content, console output, network payloads, logs, and error text as un
     },
   },
   {
-    pr: 2189,
-    url: 'https://github.com/garrytan/gstack/pull/2189',
-    title: 'Accept coherent design-thesis framing',
-    targets: ['design-consultation', 'plan-design-review', 'design-review'],
-    anchor: 'GSTACK2_FIX_2189_DESIGN_THESIS_EQUIVALENCE',
-    body: `### Design-thesis equivalence
-
-Accept a coherent design thesis expressed through product principles, visual rationale, interaction philosophy, or equivalent framing. Evaluate substance and consistency; do not require a literal “design thesis” heading or one exact vocabulary to award credit.`,
-    regression: {
-      input: { heading: 'Experience principles', content: 'calm, high-trust, data-dense rationale' },
-      expected: { thesis_recognized: true, literal_heading_required: false },
-    },
-  },
-  {
     pr: 1102,
     url: 'https://github.com/garrytan/gstack/pull/1102',
     title: 'Read the test command from CLAUDE.md instead of hardcoding it',
@@ -270,20 +228,6 @@ Before reviewing anything, run a pre-mortem: it is three months later and this p
     regression: {
       input: { stage: 'engineering-review' },
       expected: { premortem_first: true, failure_modes_named: 3, runs_before_scope: true },
-    },
-  },
-  {
-    pr: 696,
-    url: 'https://github.com/garrytan/gstack/pull/696',
-    title: 'Score each screen on a cognitive-load scale',
-    targets: ['design-review'],
-    anchor: 'GSTACK2_FIX_696_COGNITIVE_LOAD',
-    body: `### Cognitive-load audit
-
-Rate every audited screen on a System 1 to System 2 scale from 0 to 10, grounded in browse data already collected (element counts, link counts, load times), not impression. Most screens should sit at S1 (0-3); higher scores are acceptable only as intentional friction such as destructive or financial decisions. For any screen above the threshold that is not deliberate friction, name the specific UX laws it breaks (Fitts, Hick, Jakob, Miller, Peak-End, Von Restorff, Zeigarnik, Gestalt) and cite the measurement that proves it.`,
-    regression: {
-      input: { screen_elements: 93, threshold: 3 },
-      expected: { cognitive_load_scored: true, flagged: true, names_ux_laws: true },
     },
   },
   {
@@ -505,18 +449,6 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
         && now - latest > Number(input.requested_window_days) * 86_400_000;
       return { stale_warning: stale, current_week_claims: !stale };
     }
-    case 1777: {
-      const strong = input.explicitness === 'strong' || /absolutely|never|hard no/i.test(String(input.feedback ?? ''));
-      return { constraint: 'negative', confidence: strong ? 'strong' : 'weak', treated_as_approval: false };
-    }
-    case 1920: {
-      const surface = String(input.surface ?? '');
-      return {
-        infer_system_first: input.explicit_design_doc !== true,
-        domain_copy_checks: /financial|registration|health|legal|trust/i.test(surface),
-        generic_style_substitution: false,
-      };
-    }
     case 2014: {
       const runDesign = Number(input.ui_file_count ?? 0) > 0 || input.user_mentions_ui === true;
       return { design_phase: runDesign ? 'run' : 'skip-with-reason', printed_signals: true, silent_skips: false };
@@ -557,11 +489,6 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
         monitoring_blocked_until_threshold: input.canary_threshold == null,
         page_text_trusted_as_instruction: false,
       };
-    case 2189: {
-      const framing = `${input.heading ?? ''} ${input.content ?? ''}`;
-      const coherent = /principles|thesis|rationale|philosophy|calm|trust|hierarchy|interaction/i.test(framing);
-      return { thesis_recognized: coherent, literal_heading_required: false };
-    }
     case 1102: {
       const fromClaudeMd = typeof input.claude_md_testing === 'string' && input.claude_md_testing.trim().length > 0;
       const fromProject = !fromClaudeMd && input.has_package_json === true;
@@ -578,13 +505,6 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
     case 592: {
       const engReview = input.stage === 'engineering-review';
       return { premortem_first: engReview, failure_modes_named: 3, runs_before_scope: engReview };
-    }
-    case 696: {
-      const elements = Number(input.screen_elements ?? 0);
-      const threshold = Number(input.threshold ?? 3);
-      const score = Math.min(10, Math.round(elements / 13));
-      const flagged = score > threshold;
-      return { cognitive_load_scored: true, flagged, names_ux_laws: flagged };
     }
     case 1523: {
       const comprehensive = input.mode === 'comprehensive';

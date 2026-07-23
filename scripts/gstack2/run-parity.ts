@@ -24,7 +24,10 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // targets) added 13 more. The design-doc concision overlay for issue #2000
 // (27 -> 28, office-hours only) added 5 more. The self-contained-questions
 // overlay for issue #879 (28 -> 29, targets '*', all 55 modules) added 113
-// more (2 per module + 3 regression checks).
+// more (2 per module + 3 regression checks). Removing the /design skill dropped
+// eight source modules, six routing scenarios, two carved sections, and four
+// design-only overlays (#696, #1777, #1920, #2189), which recomputes the
+// inventory to the value pinned below.
 export const EXPECTED_PARITY_CHECKS = 5027;
 
 function sha256(value: string | Uint8Array): string {
@@ -260,8 +263,8 @@ export function runParity(): ParityResult {
     check(JSON.stringify(json(path.join(ROOT, 'evals', 'parity', 'scenarios', `${scenario.id}.json`))) === JSON.stringify(scenario), `${scenario.id} generated fixture drift`);
   }
 
-  check(BUG_FIX_OVERLAYS.length === 29, `Expected 29 regression definitions; got ${BUG_FIX_OVERLAYS.length}`);
-  check(files(path.join(ROOT, 'evals', 'parity', 'regressions'), '.json').length === 29, 'Generated regression fixture count is not 29');
+  check(BUG_FIX_OVERLAYS.length === 25, `Expected 25 regression definitions; got ${BUG_FIX_OVERLAYS.length}`);
+  check(files(path.join(ROOT, 'evals', 'parity', 'regressions'), '.json').length === 25, 'Generated regression fixture count is not 25');
   for (const overlay of BUG_FIX_OVERLAYS) {
     const fixture = json(path.join(ROOT, 'evals', 'parity', 'regressions', `pr-${overlay.pr}.json`));
     check(JSON.stringify(fixture) === JSON.stringify(overlay), `PR #${overlay.pr} regression fixture drift`);
