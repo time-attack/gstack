@@ -28,6 +28,8 @@ import {
   getRoot,
   resolveSelectedProvider,
   RECOMMENDED_ORDER,
+  shouldOfferIndexing,
+  trackedFileCount,
 } from "../lib/code-intelligence";
 
 describe("capability matrix", () => {
@@ -128,6 +130,64 @@ describe("selection store + provider-OFF", () => {
     expect(getRoot("graphify", env)).toBeUndefined();
     setRoot("graphify", "/tmp/some/repo", env);
     expect(getRoot("graphify", env)).toBe(path.resolve("/tmp/some/repo"));
+  });
+
+  test("select none records the decline; selecting a provider clears it", () => {
+    setProvider(null, env);
+    expect(readSelection(env).declined).toBe(true);
+    setProvider("graphify", env);
+    expect(readSelection(env).declined).toBe(false);
+  });
+});
+
+describe("session-start indexing offer (suggest)", () => {
+  let home: string;
+  let repo: string;
+  let env: NodeJS.ProcessEnv;
+  beforeEach(() => {
+    home = fs.mkdtempSync(path.join(os.tmpdir(), "ci-home-"));
+    repo = fs.mkdtempSync(path.join(os.tmpdir(), "ci-repo-"));
+    env = { ...process.env, GSTACK_HOME: home };
+    Bun.spawnSync(["git", "init", "-q", repo]);
+    for (const name of ["a.ts", "b.ts", "c.ts"]) fs.writeFileSync(path.join(repo, name), "x\n");
+    Bun.spawnSync(["git", "-C", repo, "add", "-A"]);
+  });
+  afterEach(() => {
+    fs.rmSync(home, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  });
+
+  test("offers exactly once: large repo with no prior decision", () => {
+    const s = shouldOfferIndexing(repo, { env, threshold: 3 });
+    expect(s).toEqual({ offer: true, reason: "large-repo", fileCount: 3, threshold: 3 });
+  });
+
+  test("small repo → no offer", () => {
+    expect(shouldOfferIndexing(repo, { env, threshold: 4 }).reason).toBe("small-repo");
+  });
+
+  test("not a git repo → no offer", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ci-plain-"));
+    try {
+      expect(shouldOfferIndexing(dir, { env, threshold: 0 }).reason).toBe("not-a-repo");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("provider already selected → no offer", () => {
+    setProvider("graphify", env);
+    expect(shouldOfferIndexing(repo, { env, threshold: 3 }).reason).toBe("provider-selected");
+  });
+
+  test("explicit decline → never asked again", () => {
+    setProvider(null, env);
+    expect(shouldOfferIndexing(repo, { env, threshold: 3 }).reason).toBe("declined");
+  });
+
+  test("trackedFileCount counts git-tracked files only", () => {
+    fs.writeFileSync(path.join(repo, "untracked.ts"), "x\n");
+    expect(trackedFileCount(repo)).toBe(3);
   });
 });
 

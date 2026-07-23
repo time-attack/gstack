@@ -20,9 +20,11 @@ export interface Selection {
   consents: Record<string, boolean>;
   /** Provider id → the absolute repo path it last indexed (so search finds it). */
   roots: Record<string, string>;
+  /** User explicitly chose no indexing — never offer again. */
+  declined: boolean;
 }
 
-const EMPTY: Selection = { provider: null, consents: {}, roots: {} };
+const EMPTY: Selection = { provider: null, consents: {}, roots: {}, declined: false };
 
 function storePath(env: NodeJS.ProcessEnv = process.env): string {
   const home = env.GSTACK_HOME || join(env.HOME || homedir(), ".gstack");
@@ -38,6 +40,7 @@ export function readSelection(env: NodeJS.ProcessEnv = process.env): Selection {
       provider: raw.provider ?? null,
       consents: raw.consents && typeof raw.consents === "object" ? raw.consents : {},
       roots: raw.roots && typeof raw.roots === "object" ? raw.roots : {},
+      declined: raw.declined === true,
     };
   } catch {
     return { ...EMPTY };
@@ -53,7 +56,9 @@ function write(selection: Selection, env: NodeJS.ProcessEnv = process.env): void
 }
 
 export function setProvider(provider: CodeProviderId | null, env: NodeJS.ProcessEnv = process.env): Selection {
-  const next = { ...readSelection(env), provider };
+  // Choosing a provider clears a prior decline; clearing to null records one,
+  // so the session-start offer is never repeated after an explicit "none".
+  const next = { ...readSelection(env), provider, declined: provider === null };
   write(next, env);
   return next;
 }
