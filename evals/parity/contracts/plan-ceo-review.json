@@ -9,7 +9,7 @@
   "source_path": "plan-ceo-review/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "c43cfe64146fe79df74a974f1673fe36defcce00",
-  "normalized_render_sha256": "651d60dc117a45e2b7a327eef33453f9c00194915ff5656b319dc51915781caf",
+  "normalized_render_sha256": "8b53b9a5362c834edd08b5f50cf8511a532188b8295092ca7b7f285d9270a355",
   "target": "skills/plan/references/legacy/plan-ceo-review.md",
   "overlays": [
     679,
