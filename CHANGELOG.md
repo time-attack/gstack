@@ -7,6 +7,18 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.13.0] - 2026-07-24
+
+**The session is enough. Demanding an app-specific password is a bug.**
+
+A release run stopped to demand an app-specific password "because Apple requires it for uploading on 2FA accounts." Per fastlane's own documentation that is false: the cached spaceauth session alone uploads binaries through deliver and pilot; the app-specific password is an alternative for sessionless environments, not a requirement. The adapter now says so explicitly again (the sentence was lost in the v1.64.7.0 rewrite), and adds an attempt-first rule: only a real authentication error from a real upload attempt may open any credential fallback conversation. App Review contact details also stop being a mid-run roadblock — collected once inside the authorization moment, persisted, never re-asked.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): restored the session-suffices-for-upload guarantee with an attempt-first rule (preemptive app-specific-password demands are a named violation); App Review contact info folded into the authorization moment and the decision store.
+
 ## [1.64.12.0] - 2026-07-24
 
 **The screenshots question is built from a live skill check, not memory.**
