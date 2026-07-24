@@ -7,6 +7,20 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.11.0] - 2026-07-24
+
+**Shipping to the App Store is not landing a PR.**
+**The branch gate no longer blocks store releases.**
+
+A release run on an Xcode project aborted at "you're on the base branch, ship from a feature branch" — without ever reaching the Apple journey. That gate belongs to repository landing (commit, review, PR, merge), which is a different release path than store distribution. The ship dispatcher now loads the Apple adapter FIRST for Apple targets, before any specialist preflight, and the adapter states it outright: an App Store or TestFlight ask proceeds from whatever branch you are on. A solo developer with a clean tree on main is the normal case, not an error.
+
+### Itemized changes
+
+### Changed
+
+- Ship dispatcher step 10: Apple targets read `references/APPLE-RELEASE.md` before any specialist preflight or repository gate; store distribution explicitly does not route through the branch/PR ceremony.
+- `references/APPLE-RELEASE.md` (ship tree): store distribution declared its own release path — branch/PR ceremony applies only to repository-landing asks; never abort an App Store release over branch topology.
+
 ## [1.64.10.0] - 2026-07-24
 
 **Marketing screenshots never required an API key.**
