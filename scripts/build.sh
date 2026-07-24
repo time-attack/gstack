@@ -34,8 +34,9 @@ esac
 
 "$BUN_CMD" build --compile browse/src/cli.ts --outfile browse/dist/browse
 bash browse/scripts/build-node-server.sh
-bash scripts/write-version-files.sh browse/dist/.version
-chmod +x browse/dist/browse
+"$BUN_CMD" build --compile make-pdf/src/cli.ts --outfile make-pdf/dist/pdf
+bash scripts/write-version-files.sh browse/dist/.version make-pdf/dist/.version
+chmod +x browse/dist/browse make-pdf/dist/pdf
 if [ "$RUNTIME_ONLY" -eq 0 ]; then
   "$BUN_CMD" run gen:gstack2
   "$BUN_CMD" run gen:skill-docs --host all

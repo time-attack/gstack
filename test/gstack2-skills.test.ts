@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { blobShaForPath, pinnedRevisionPath } from '../scripts/gstack2/render-legacy';
 import { runParity } from '../scripts/gstack2/run-parity';
@@ -29,6 +29,21 @@ describe('GStack 2 skill parity', () => {
     expect(result.sections).toBe(14);
     expect(result.regressions).toBe(26);
   }, 30_000);
+
+  test('ships make-pdf as a sixth discoverable tool skill in the canonical tree', () => {
+    const discovered = readdirSync(join(ROOT, 'skills'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && existsSync(join(ROOT, 'skills', entry.name, 'SKILL.md')))
+      .map((entry) => entry.name)
+      .sort();
+    expect(discovered).toEqual(['debug', 'make-pdf', 'plan', 'qa', 'review', 'ship']);
+
+    const skill = readFileSync(join(ROOT, 'skills', 'make-pdf', 'SKILL.md'), 'utf8');
+    expect(skill).toMatch(/^---\nname: make-pdf\n/);
+    expect(skill).toContain('description: >-');
+    expect(skill).toContain('references/RUNTIME.md');
+    // The runtime handoff reference is packaged so the skill is self-contained.
+    expect(existsSync(join(ROOT, 'skills', 'make-pdf', 'references', 'RUNTIME.md'))).toBe(true);
+  });
 
   test('does not overclaim safety-hook enforcement in portable installs', () => {
     const debug = readFileSync(join(ROOT, 'skills', 'debug', 'SKILL.md'), 'utf8');

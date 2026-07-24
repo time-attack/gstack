@@ -17,6 +17,10 @@ import { execSync } from 'child_process';
 const ROOT = path.resolve(import.meta.dir, '..');
 const ROOT_REALPATH = fs.realpathSync(ROOT);
 const GSTACK2_PUBLIC_SKILLS = ['debug', 'plan', 'qa', 'review', 'ship'];
+// make-pdf is a tool skill (not a mode-based dispatcher) that ships in the same
+// canonical tree, so the discoverable surface is six skills.
+const GSTACK2_TOOL_SKILLS = ['make-pdf'];
+const GSTACK2_ALL_SKILLS = [...GSTACK2_PUBLIC_SKILLS, ...GSTACK2_TOOL_SKILLS].sort();
 const RETIRED_GSTACK2_MONOLITH_OUTPUTS = new Set(['SKILL.md', 'claude/SKILL.md']);
 
 function hasGStack2Package(): boolean {
@@ -75,11 +79,11 @@ if (GSTACK2_PACKAGE) {
     .filter((entry) => fs.existsSync(path.join(ROOT, 'skills', entry.name, 'SKILL.md')))
     .map((entry) => entry.name)
     .sort();
-  if (JSON.stringify(publicSkills) === JSON.stringify(GSTACK2_PUBLIC_SKILLS)) {
-    console.log(`  \u2705 skills/ public package          — exactly five dispatchers (${publicSkills.join(', ')})`);
+  if (JSON.stringify(publicSkills) === JSON.stringify(GSTACK2_ALL_SKILLS)) {
+    console.log(`  \u2705 skills/ public package          — exactly five dispatchers (${GSTACK2_PUBLIC_SKILLS.join(', ')}) plus make-pdf tool skill`);
   } else {
     hasErrors = true;
-    console.log(`  \u274c skills/ public package          — expected ${GSTACK2_PUBLIC_SKILLS.join(', ')}, found ${publicSkills.join(', ') || 'none'}`);
+    console.log(`  \u274c skills/ public package          — expected ${GSTACK2_ALL_SKILLS.join(', ')}, found ${publicSkills.join(', ') || 'none'}`);
   }
 }
 

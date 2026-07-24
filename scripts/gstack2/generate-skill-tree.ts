@@ -65,12 +65,56 @@ function basePaths(prefix: string): string[] {
     .filter(Boolean);
 }
 
+// Tool skills that keep their source/binary at repo root (own SKILL.md.tmpl)
+// but are NOT legacy specialist inputs to the five judgment dispatchers. Their
+// host-neutral SKILL surface is emitted into `skills/<tool>/` so they install
+// with the canonical tree (`npx skills add time-attack/gstack/skills`) as
+// additional discoverable skills. The dispatcher inventory ignores them rather
+// than demand a source assignment.
+const TOOL_SKILLS = ['make-pdf'] as const;
+const TOOL_SKILL_SET = new Set<string>(TOOL_SKILLS);
+
+// One-line description for each tool skill's generated frontmatter.
+const TOOL_SKILL_DESCRIPTIONS: Record<string, string> = {
+  'make-pdf':
+    'Turn any Markdown file into a publication-quality, print-ready PDF with proper margins, page numbers, cover pages, running headers, and a clickable table of contents. Mermaid and Excalidraw fences render as vector diagrams fully offline, and --to html or --to docx emit a self-contained web page or Word document. Use when asked to "make a PDF", "export to PDF", "turn this markdown into a document", or "generate a document".',
+};
+
+function toolSkill(source: string): string {
+  const description = TOOL_SKILL_DESCRIPTIONS[source];
+  if (!description) throw new Error(`Tool skill ${source} lacks a frontmatter description`);
+  const body = renderPortedLegacyBody(source);
+  return `---
+name: ${source}
+description: >-
+  ${description}
+---
+
+${body.trim()}
+`;
+}
+
+function writeToolSkillReferences(source: string): void {
+  const bootstrap = fs.readFileSync(path.join(ROOT, 'runtime', 'runtime-bootstrap.mjs'));
+  const browserChoice = fs.readFileSync(path.join(ROOT, 'runtime', 'browser-choice.mjs'));
+  const browserSmoke = fs.readFileSync(path.join(ROOT, 'runtime', 'browser-provider-smoke.mjs'));
+  const base = path.join(ROOT, 'skills', source, 'references');
+  write(path.join(base, 'RUNTIME.md'), runtimeContract());
+  write(path.join(base, 'BROWSER-PROVIDERS.md'), `${GENERATED}\n${renderBrowserProviderContract()}`);
+  write(path.join(base, 'support', 'runtime-bootstrap.mjs'), bootstrap);
+  write(path.join(base, 'support', 'browser-choice.mjs'), browserChoice);
+  write(path.join(base, 'support', 'browser-provider-smoke.mjs'), browserSmoke);
+  writeJson(path.join(base, 'support', 'runtime-contract.json'), RUNTIME_SKILL_CONTRACT);
+  writeJson(path.join(base, 'support', 'execution-result-contract.json'), EXECUTION_RESULT_SCHEMA);
+}
+
 function assertInventory(): void {
   const discovered = [
     fs.existsSync(path.join(ROOT, 'SKILL.md.tmpl')) ? 'gstack' : '',
     ...fs.readdirSync(ROOT, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, entry.name, 'SKILL.md.tmpl')))
-      .map((entry) => entry.name),
+      .map((entry) => entry.name)
+      .filter((name) => !TOOL_SKILL_SET.has(name)),
   ].filter(Boolean).sort();
   const assigned = SOURCE_ASSIGNMENTS.map((entry) => entry.source).sort();
   if (JSON.stringify(discovered) !== JSON.stringify(assigned)) {
@@ -774,6 +818,7 @@ function runtimeHelperClosure(rendered: Map<string, RenderedModuleRecord>): Arra
   }
   const platformSourceOverrides: Record<string, { posix: string; win32: string }> = {
     browse: { posix: 'browse/dist/browse', win32: 'browse/dist/browse.exe' },
+    'make-pdf': { posix: 'make-pdf/dist/pdf', win32: 'make-pdf/dist/pdf.exe' },
   };
   const sourceOverrides: Record<string, string> = {
     'remote-slug': 'browse/bin/remote-slug',
@@ -845,7 +890,7 @@ function migrationDoc(): string {
 
 Pinned baseline: \`${GSTACK2_BASE_SHA}\`.
 
-GStack 2 exposes exactly five public skills: \`plan\`, \`qa\`, \`debug\`, \`review\`, and \`ship\`. The specialist bodies from 47 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 14 carved specialist sections are package-local lazy references loaded only at their original workflow point. Twenty-five primary modules are mandatory specialist inputs, and 22 supporting modules remain reachable through compatibility routing.
+GStack 2 exposes exactly five judgment dispatchers: \`plan\`, \`qa\`, \`debug\`, \`review\`, and \`ship\`, plus the \`make-pdf\` tool skill that installs with the same canonical tree (six discoverable skills total). The specialist bodies from 47 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 14 carved specialist sections are package-local lazy references loaded only at their original workflow point. Twenty-five primary modules are mandatory specialist inputs, and 22 supporting modules remain reachable through compatibility routing.
 
 The fixed public modes are: QA = \`Report | Fix\`; Debug = \`Diagnose-only | Fix\`; Review = \`Normal | Security | Performance | Deep\`; Ship = \`Prepare | Land | Deploy | Monitor | Resume\`. Richer legacy modes are internal aliases only.
 
@@ -889,7 +934,7 @@ The pinned release inventory passes **${EXPECTED_PARITY_CHECKS.toLocaleString('e
 
 The suite verifies:
 
-- exactly five discoverable public skills and 47 internal legacy modules;
+- exactly five discoverable judgment dispatchers plus the make-pdf tool skill (six discoverable skills) and 47 internal legacy modules;
 - 47 canonical templates plus 14 carved section templates at base \`${GSTACK2_BASE_SHA}\`;
 - immutable full 1.x render hashes plus canonical specialist-render equality, with the excluded onboarding wrapper and lazy section references asserted explicitly;
 - preservation of nine behavioral contract dimensions per module;
@@ -907,6 +952,9 @@ function main(): void {
   for (const tree of TREE_NAMES) {
     purge(path.join(ROOT, 'skills', tree, 'references'), true);
     purge(path.join(ROOT, 'skills', tree, 'assets'), true);
+  }
+  for (const tool of TOOL_SKILLS) {
+    purge(path.join(ROOT, 'skills', tool, 'references'), true);
   }
   // Deterministic evidence is regenerated from source. Supplemental paid live
   // transcripts are append-only evidence and must survive a normal build.
@@ -989,6 +1037,10 @@ function main(): void {
     write(path.join(ROOT, 'skills', dispatcher.name, 'SKILL.md'), rootSkill(dispatcher));
     write(path.join(ROOT, 'skills', dispatcher.name, 'agents', 'openai.yaml'), openAiYaml(dispatcher));
   }
+  for (const tool of TOOL_SKILLS) {
+    write(path.join(ROOT, 'skills', tool, 'SKILL.md'), toolSkill(tool));
+    writeToolSkillReferences(tool);
+  }
 
   const assets = copyAssets();
   writeAssetMaps(assets);
@@ -1044,7 +1096,8 @@ function main(): void {
     schema_version: 1,
     base_sha: GSTACK2_BASE_SHA,
     public_skills: [...TREE_NAMES],
-    counts: { public_skills: 5, mandatory_inputs: 25, templates: 47, section_templates: 14, packaged_section_copies: sectionCopies.length, internal_execution_adapters: 1, scenarios: 19, bug_fix_ports: 24, assets: assets.length, dependency_copies: dependencyCopies.length, runtime_helpers: runtimeHelpers.length },
+    tool_skills: [...TOOL_SKILLS],
+    counts: { public_skills: 5, tool_skills: TOOL_SKILLS.length, mandatory_inputs: 25, templates: 47, section_templates: 14, packaged_section_copies: sectionCopies.length, internal_execution_adapters: 1, scenarios: 19, bug_fix_ports: 24, assets: assets.length, dependency_copies: dependencyCopies.length, runtime_helpers: runtimeHelpers.length },
     sources: sourceRecords,
     sections: sectionRecords,
     section_copies: sectionCopies,
@@ -1066,7 +1119,7 @@ function main(): void {
   write(path.join(DOCS, 'JUDGMENT-PARITY.md'), parityDoc(assets.length));
   write(path.join(DOCS, 'SCENARIOS.md'), scenarioDoc());
   const semantic = runDeterministicSemanticParity(true);
-  process.stdout.write(`Generated 5 dispatchers, ${sourceRecords.length} modules, ${sectionRecords.length} lazy specialist sections, ${SCENARIOS.length} scenarios, ${BUG_FIX_OVERLAYS.length} bug-fix ports, and ${assets.length} asset copies.\n`);
+  process.stdout.write(`Generated 5 dispatchers, ${TOOL_SKILLS.length} tool skill(s), ${sourceRecords.length} modules, ${sectionRecords.length} lazy specialist sections, ${SCENARIOS.length} scenarios, ${BUG_FIX_OVERLAYS.length} bug-fix ports, and ${assets.length} asset copies.\n`);
   process.stdout.write(`Generated semantic evidence: ${semantic.checks} checks across ${semantic.suites} suites and ${semantic.policyUnits} authority-policy unit cases.\n`);
 }
 

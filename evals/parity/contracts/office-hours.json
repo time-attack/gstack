@@ -9,7 +9,7 @@
   "source_path": "office-hours/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "8568fe73cca76a80805fab3092cacd10db7e1d7f",
-  "normalized_render_sha256": "2984ade43079ea34d5765ab636c11166d00a422fbd5fdb8f19caf0101813446d",
+  "normalized_render_sha256": "c77376fa95348c5c8deb1319f9bd232cc38532d78f3a45802f640749e2c76215",
   "target": "skills/plan/references/legacy/office-hours.md",
   "overlays": [
     679,

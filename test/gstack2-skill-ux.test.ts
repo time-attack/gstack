@@ -33,7 +33,8 @@ describe('GStack 2 canonical skill UX', () => {
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, 'skills', entry.name, 'SKILL.md')))
       .map((entry) => entry.name)
       .sort();
-    expect(publicSkills).toEqual([...TREE_NAMES].sort());
+    // Five judgment dispatchers plus the make-pdf tool skill in the same tree.
+    expect(publicSkills).toEqual([...TREE_NAMES, 'make-pdf'].sort());
 
     for (const assignment of SOURCE_ASSIGNMENTS) {
       const body = fs.readFileSync(ownerModule(assignment.source), 'utf8');

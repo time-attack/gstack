@@ -257,6 +257,12 @@ export const DEFAULT_RUNTIME_BUNDLE = Object.freeze([
   entry("browse/dist/server-node.mjs", "core"),
   entry("browse/dist/bun-polyfill.cjs", "core"),
   entry("browse/dist/.version", "core"),
+  // make-pdf: Markdown → styled/publication PDF. Compiled by the core build
+  // step but capability-gated to `browser` (via CAPABILITY_PATH_PREFIXES) since
+  // it drives the browse daemon's Chromium print round-trip — same shape as the
+  // browse binary itself. Not in core: a headless-only install skips its ~65MB.
+  entry(platformBinary("make-pdf/dist/pdf"), "core", true),
+  entry("make-pdf/dist/.version", "core"),
   // The compiled client deliberately spawns the existing Bun server source.
   // Keep its small, audited dependency closure explicit instead of copying all
   // node_modules or introducing a cloud browser.
@@ -291,6 +297,7 @@ export const DEFAULT_RUNTIME_BUNDLE = Object.freeze([
 export const DEFAULT_CAPABILITY_LAUNCHERS = Object.freeze({
   bun: managedBunRelativePath(),
   browse: platformBinary("browse/dist/browse"),
+  "make-pdf": platformBinary("make-pdf/dist/pdf"),
   ...DEFAULT_HELPER_CAPABILITIES,
   ...(process.platform === "darwin" ? {
     "gstack-ios-qa-daemon": "ios-qa/dist/gstack-ios-qa-daemon",
@@ -300,7 +307,7 @@ export const DEFAULT_CAPABILITY_LAUNCHERS = Object.freeze({
 
 const CAPABILITY_PATH_PREFIXES = Object.freeze({
   browser: Object.freeze([
-    "browse/", ".gstack-runtime-browsers", "node_modules/playwright", "node_modules/diff", "node_modules/socks",
+    "browse/", "make-pdf/", ".gstack-runtime-browsers", "node_modules/playwright", "node_modules/diff", "node_modules/socks",
     "node_modules/smart-buffer", "node_modules/ip-address", "node_modules/sharp", "node_modules/@img/",
     "node_modules/@ngrok/", "node_modules/detect-libc", "node_modules/semver",
   ]),
@@ -1128,7 +1135,7 @@ export function runtimeReleaseComponentForPath(value) {
 }
 
 function capabilityForLauncher(name) {
-  if (["browse", "remote-slug"].includes(name)) return "browser";
+  if (["browse", "remote-slug", "make-pdf"].includes(name)) return "browser";
   if (name.startsWith("gstack-ios-qa-")) return "ios";
   return null;
 }

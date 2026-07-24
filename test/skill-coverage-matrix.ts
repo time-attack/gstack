@@ -64,6 +64,11 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
     periodic: [],
     rationale: 'browse binary has its own integration suite under browse/test/.',
   },
+  'make-pdf': {
+    gate: ['test/skill-coverage-floor.test.ts'],
+    periodic: [],
+    rationale: 'Standalone markdown->PDF tool skill; render/e2e behavior has its own suite under make-pdf/test/ (render.test.ts + e2e/*-gate.test.ts).',
+  },
   spec: {
     gate: [
       'test/spec-template-invariants.test.ts',

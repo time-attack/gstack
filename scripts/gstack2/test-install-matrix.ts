@@ -9,6 +9,10 @@ import { fileURLToPath } from 'node:url';
 import { SOURCE_ASSIGNMENTS } from './assignments';
 
 export const PUBLIC_SKILLS = ['debug', 'plan', 'qa', 'review', 'ship'] as const;
+// make-pdf is a tool skill (not a mode-based dispatcher) that ships in the same
+// canonical tree, so the standard installer surfaces it as a sixth skill.
+export const TOOL_SKILLS = ['make-pdf'] as const;
+export const ALL_PUBLIC_SKILLS: readonly string[] = [...PUBLIC_SKILLS, ...TOOL_SKILLS].sort();
 export const COLLISION_SKILLS = ['qa', 'review', 'ship'] as const;
 export type PublicSkill = (typeof PUBLIC_SKILLS)[number];
 export type InstallScope = 'project' | 'global';
@@ -205,16 +209,16 @@ export function inspectRepository(repoRoot = DEFAULT_REPO_ROOT): RepositoryInspe
   const skillFiles = walkFiles(skillsRoot)
     .filter((file) => {
       const parts = file.split('/');
-      return parts.length === 2 && parts[1] === 'SKILL.md' && (PUBLIC_SKILLS as readonly string[]).includes(parts[0]);
+      return parts.length === 2 && parts[1] === 'SKILL.md' && ALL_PUBLIC_SKILLS.includes(parts[0]);
     })
     .sort();
-  const expectedFiles = PUBLIC_SKILLS.map((skill) => `${skill}/SKILL.md`).sort();
+  const expectedFiles = ALL_PUBLIC_SKILLS.map((skill) => `${skill}/SKILL.md`).sort();
 
   record(
     checks,
     'repository.public-skill-names',
-    JSON.stringify(publicSkills) === JSON.stringify([...PUBLIC_SKILLS]),
-    `expected ${PUBLIC_SKILLS.join(', ')}; found ${publicSkills.join(', ') || '(none)'}`,
+    JSON.stringify(publicSkills) === JSON.stringify([...ALL_PUBLIC_SKILLS]),
+    `expected ${ALL_PUBLIC_SKILLS.join(', ')}; found ${publicSkills.join(', ') || '(none)'}`,
   );
   record(
     checks,
@@ -224,7 +228,7 @@ export function inspectRepository(repoRoot = DEFAULT_REPO_ROOT): RepositoryInspe
   );
 
   const seenNames = new Map<string, string>();
-  for (const skill of PUBLIC_SKILLS) {
+  for (const skill of ALL_PUBLIC_SKILLS) {
     const file = path.join(skillsRoot, skill, 'SKILL.md');
     const exists = fs.existsSync(file);
     record(checks, `repository.${skill}.exists`, exists, exists ? normalizeRelative(path.relative(repoRoot, file)) : `missing ${file}`);
@@ -236,13 +240,17 @@ export function inspectRepository(repoRoot = DEFAULT_REPO_ROOT): RepositoryInspe
       record(checks, `repository.${skill}.unique-name`, !prior, prior ? `${name} also appears in ${prior}` : `${name} is unique`);
       seenNames.set(name, normalizeRelative(path.relative(repoRoot, file)));
     }
-    const references = path.join(skillsRoot, skill, 'references', 'legacy');
-    record(
-      checks,
-      `repository.${skill}.preserved-modules`,
-      fs.existsSync(references) && walkFiles(references).length > 0,
-      fs.existsSync(references) ? `${walkFiles(references).length} preserved module files` : `missing ${references}`,
-    );
+    // Only judgment dispatchers carry preserved legacy specialist modules; the
+    // make-pdf tool skill hands off to a runtime capability instead.
+    if ((PUBLIC_SKILLS as readonly string[]).includes(skill)) {
+      const references = path.join(skillsRoot, skill, 'references', 'legacy');
+      record(
+        checks,
+        `repository.${skill}.preserved-modules`,
+        fs.existsSync(references) && walkFiles(references).length > 0,
+        fs.existsSync(references) ? `${walkFiles(references).length} preserved module files` : `missing ${references}`,
+      );
+    }
   }
 
   for (const skill of COLLISION_SKILLS) {
@@ -443,8 +451,8 @@ function verifyInstalledCase(
     record(
       checks,
       `${id}.public-discovery-count`,
-      reported === PUBLIC_SKILLS.length,
-      `expected installer to report 6 public skills; found ${Number.isFinite(reported) ? reported : '(unparsed)'}`,
+      reported === ALL_PUBLIC_SKILLS.length,
+      `expected installer to report ${ALL_PUBLIC_SKILLS.length} public skills; found ${Number.isFinite(reported) ? reported : '(unparsed)'}`,
     );
   }
   record(
@@ -615,12 +623,12 @@ export function runFullMatrix(options: FullMatrixOptions): InstallMatrixEvidence
     const discoveryChecks: CheckResult[] = [];
     record(discoveryChecks, 'discovery.command', discoveryCommand.exitCode === 0, `exit=${discoveryCommand.exitCode}`);
     record(discoveryChecks, 'discovery.copy-supported', supportsCopy, supportsCopy ? '--copy is supported' : '--copy missing from CLI help');
-    record(discoveryChecks, 'discovery.count', parsedDiscovery.count === PUBLIC_SKILLS.length, `expected 6; found ${parsedDiscovery.count ?? '(unparsed)'}`);
+    record(discoveryChecks, 'discovery.count', parsedDiscovery.count === ALL_PUBLIC_SKILLS.length, `expected ${ALL_PUBLIC_SKILLS.length}; found ${parsedDiscovery.count ?? '(unparsed)'}`);
     record(
       discoveryChecks,
       'discovery.names',
-      JSON.stringify(parsedDiscovery.names) === JSON.stringify([...PUBLIC_SKILLS]),
-      `expected ${PUBLIC_SKILLS.join(', ')}; found ${parsedDiscovery.names.join(', ') || '(unparsed)'}`,
+      JSON.stringify(parsedDiscovery.names) === JSON.stringify([...ALL_PUBLIC_SKILLS]),
+      `expected ${ALL_PUBLIC_SKILLS.join(', ')}; found ${parsedDiscovery.names.join(', ') || '(unparsed)'}`,
     );
 
     const installs: InstallCaseEvidence[] = [];
@@ -637,7 +645,7 @@ export function runFullMatrix(options: FullMatrixOptions): InstallMatrixEvidence
           sourceKind,
           sourceArgument: path.join(sourceKind === 'source-symlink' ? sourceLink : sourceRoot, 'skills'),
           sourceRoot,
-          expectedSkills: PUBLIC_SKILLS,
+          expectedSkills: ALL_PUBLIC_SKILLS,
           explicitSelection: false,
           workspaceRoot,
           npmCache,

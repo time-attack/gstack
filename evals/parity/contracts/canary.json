@@ -9,7 +9,7 @@
   "source_path": "canary/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "d1eb2950aba2fa2b09d90f13143492c60d46793c",
-  "normalized_render_sha256": "ee19b289f8863a257e182c762955d0c830bb3990267d6e8029da2ccbc32c626a",
+  "normalized_render_sha256": "fe54271351a13f54f6aee084cc6bc29303453f6bafcd8e8aec3a539cdf377c20",
   "target": "skills/qa/references/legacy/canary.md",
   "overlays": [
     679,

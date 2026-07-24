@@ -31,14 +31,14 @@ function readShipUnion(): string {
 }
 
 describe('SKILL.md command validation', () => {
-  test('root SKILL.md is absent and the public surface is exactly five dispatchers', () => {
+  test('root SKILL.md is absent and the public surface is five dispatchers plus the make-pdf tool skill', () => {
     expect(fs.existsSync(path.join(ROOT, 'SKILL.md'))).toBe(false);
 
     const discovered = fs.readdirSync(path.join(ROOT, 'skills'), { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && fs.existsSync(publicSkillPath(entry.name)))
       .map((entry) => entry.name)
       .sort();
-    expect(discovered).toEqual([...PUBLIC_SKILLS]);
+    expect(discovered).toEqual([...PUBLIC_SKILLS, 'make-pdf'].sort());
 
     for (const skill of PUBLIC_SKILLS) {
       const md = fs.readFileSync(publicSkillPath(skill), 'utf-8');
@@ -1619,7 +1619,8 @@ describe('Doc inventory cross-check', () => {
       .filter((entry) => entry.isDirectory() && fs.existsSync(publicSkillPath(entry.name)))
       .map((entry) => entry.name)
       .sort();
-    expect(publicDirs).toEqual([...PUBLIC_SKILLS]);
+    // Five judgment dispatchers plus the make-pdf tool skill in the same tree.
+    expect(publicDirs).toEqual([...PUBLIC_SKILLS, 'make-pdf'].sort());
   });
 
   test('every legacy template is represented in the compatibility map', () => {
@@ -1631,7 +1632,11 @@ describe('Doc inventory cross-check', () => {
       .sort();
     const legacyTemplates = fs.readdirSync(ROOT, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, entry.name, 'SKILL.md.tmpl')))
-      .map((entry) => entry.name);
+      .map((entry) => entry.name)
+      // make-pdf is a standalone tool skill, not a legacy invocation migrated to
+      // a dispatcher, so it has no compatibility alias (see STANDALONE_ROOT_SKILLS
+      // in scripts/gstack2/generate-skill-tree.ts).
+      .filter((name) => name !== 'make-pdf');
     expect(mapped).toEqual(['gstack', ...legacyTemplates].sort());
   });
 

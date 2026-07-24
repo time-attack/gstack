@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import {
   AGENT_MATRIX,
+  ALL_PUBLIC_SKILLS,
   COLLISION_SKILLS,
   DEFAULT_REPO_ROOT,
   PUBLIC_SKILLS,
@@ -40,8 +41,8 @@ describe('GStack 2 standard installer surface', () => {
     const result = inspectRepository(DEFAULT_REPO_ROOT);
 
     expect(result.passed).toBe(true);
-    expect(result.publicSkills).toEqual([...PUBLIC_SKILLS]);
-    expect(result.skillFiles).toEqual(PUBLIC_SKILLS.map((skill) => `${skill}/SKILL.md`).sort());
+    expect(result.publicSkills).toEqual([...ALL_PUBLIC_SKILLS]);
+    expect(result.skillFiles).toEqual(ALL_PUBLIC_SKILLS.map((skill) => `${skill}/SKILL.md`).sort());
     for (const skill of COLLISION_SKILLS) {
       expect(result.checks.find((check) => check.id === `repository.collision.${skill}.canonical`)).toMatchObject({
         passed: true,
@@ -61,7 +62,7 @@ describe('GStack 2 standard installer surface', () => {
     expect(fs.realpathSync(linked)).toBe(fs.realpathSync(projected));
     expect(inspectRepository(projected)).toMatchObject({
       passed: true,
-      publicSkills: [...PUBLIC_SKILLS],
+      publicSkills: [...ALL_PUBLIC_SKILLS],
     });
   });
 
