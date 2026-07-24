@@ -7,6 +7,18 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.15.0] - 2026-07-24
+
+**A bad credential means "sign in again," not "go generate a password."**
+
+Upload auth failures now escalate in the obvious order: quote the real error, re-run the same in-session sign-in from the authorization moment (expired sessions are the common case), retry with the fresh session, and only if a fresh session still fails does the self-service app-specific-password fallback open.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): auth-failure escalation ladder — verbatim error, re-sign-in + retry first, app-specific password only after a fresh session fails.
+
 ## [1.64.14.0] - 2026-07-24
 
 **Credentials are never created by a browser drive. Restored, permanently.**
