@@ -7,6 +7,18 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.20.0] - 2026-07-24
+
+**Shipping from Windows: honest about the Mac, smart about the workaround.**
+
+You cannot build an iOS app without Xcode, and Xcode only exists on macOS — that wall is Apple's. What the release can do from any machine: sign in, mint the upload credential, write metadata, upload screenshots, set pricing, and submit. So the contract now names the split instead of failing vaguely: on a non-Mac host, the build and upload legs route through a free GitHub Actions macOS runner using your minted key as a CI secret, and everything else stays local. No more "impossible on Windows," and no pretending the build works there either.
+
+### Itemized changes
+
+### Changed
+
+- `skills/ship/references/APPLE-RELEASE.md`: non-macOS hosts get the honest Mac-required split — build legs (archive, sign, upload) route through a macOS CI runner with the minted key as a secret; API legs stay local.
+
 ## [1.64.19.0] - 2026-07-24
 
 **Free or paid is your call, asked once, inside the question you already answer.**
