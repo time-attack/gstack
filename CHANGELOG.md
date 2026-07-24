@@ -7,6 +7,19 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.6.0] - 2026-07-24
+
+**Authentication is not a question.**
+**gstack says "installing fastlane," and gets on with it.**
+
+A live release run asked the user to pick between three auth paths, with a browser-driven API key as the recommended option. Wrong on every axis: the baseline user has one path, and a question about it is friction with no decision behind it. The adapter now resolves auth silently — a `.p8` already on the machine gets used, and everyone else gets one line ("fastlane is required for the upload, installing it") followed by the session mint. No auth menu, no API-key option shown to someone with no key, and browser drives for credential creation are gone entirely.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): auth resolution is silent and deterministic — existing `.p8` → xcodebuild key flags; otherwise announce-and-install fastlane (the /ship authorization covers the machine-tool install) and mint `FASTLANE_SESSION`. Asking the user to choose an auth mechanism, or offering a browser drive to create credentials, is now a contract violation. Storefront CLI selection follows the resolved credential, never a second question.
+
 ## [1.64.5.0] - 2026-07-24
 
 **The baseline user has an Apple ID and a $99 receipt.**
