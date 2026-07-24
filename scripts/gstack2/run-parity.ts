@@ -38,7 +38,7 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // load). Removing the remaining design-review footprint then dropped the
 // review/design-checklist.md asset from the review and ship trees (18 fewer
 // asset checks), recomputing the inventory to the value below.
-export const EXPECTED_PARITY_CHECKS = 4359;
+export const EXPECTED_PARITY_CHECKS = 4361;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');

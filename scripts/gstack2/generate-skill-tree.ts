@@ -65,12 +65,19 @@ function basePaths(prefix: string): string[] {
     .filter(Boolean);
 }
 
+// Standalone tool skills that live at repo root with their own SKILL.md.tmpl
+// but are NOT legacy specialist inputs to the five dispatchers. They install
+// on their own (e.g. `npx skills add time-attack/gstack/make-pdf`), so the
+// dispatcher inventory must ignore them rather than demand a source assignment.
+const STANDALONE_ROOT_SKILLS = new Set(['make-pdf']);
+
 function assertInventory(): void {
   const discovered = [
     fs.existsSync(path.join(ROOT, 'SKILL.md.tmpl')) ? 'gstack' : '',
     ...fs.readdirSync(ROOT, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, entry.name, 'SKILL.md.tmpl')))
-      .map((entry) => entry.name),
+      .map((entry) => entry.name)
+      .filter((name) => !STANDALONE_ROOT_SKILLS.has(name)),
   ].filter(Boolean).sort();
   const assigned = SOURCE_ASSIGNMENTS.map((entry) => entry.source).sort();
   if (JSON.stringify(discovered) !== JSON.stringify(assigned)) {
@@ -772,6 +779,7 @@ function runtimeHelperClosure(rendered: Map<string, RenderedModuleRecord>): Arra
   }
   const platformSourceOverrides: Record<string, { posix: string; win32: string }> = {
     browse: { posix: 'browse/dist/browse', win32: 'browse/dist/browse.exe' },
+    'make-pdf': { posix: 'make-pdf/dist/pdf', win32: 'make-pdf/dist/pdf.exe' },
   };
   const sourceOverrides: Record<string, string> = {
     'remote-slug': 'browse/bin/remote-slug',
