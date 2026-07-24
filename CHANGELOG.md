@@ -7,6 +7,19 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.5.0] - 2026-07-24
+
+**The baseline user has an Apple ID and a $99 receipt.**
+**The whole release is now designed around exactly that.**
+
+Previously the Apple release adapter treated the App Store Connect API key as the main road and session auth as the detour. Backwards: almost nobody starts with a `.p8`. The adapter now assumes you have nothing but an Apple ID and a just-paid membership, and the entire flow runs on one session mint (`fastlane spaceauth`, one 2FA entry, automatable): app record via `asc web` or `produce`, upload and TestFlight and Submit via session-authenticated `deliver`/`pilot`. Per fastlane's documented auth, the session alone covers binary upload — no app-specific password, no key, no browser. Holding a `.p8` becomes the optional upgrade that switches the storefront stage to the JSON-first `asc` CLI: one tool per credential world, never both in one release.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): upload step rewritten around the session-only baseline (fastlane `deliver`/`pilot` on `FASTLANE_SESSION`; app-specific password documented as an alternative, not a requirement); storefront completion picks its CLI by credential world (session → `deliver`, API key → `asc`); autonomy contract restated from the baseline user story.
+
 ## [1.64.4.0] - 2026-07-24
 
 **Membership plus Apple ID credentials is the whole requirement.**
