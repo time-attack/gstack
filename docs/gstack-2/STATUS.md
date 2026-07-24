@@ -23,9 +23,15 @@ PR, or PR-ready claim is authorized by this status.
   them candidate regressions.
 - [x] 755 unique open issue/PR records reconciled and deterministically mapped;
   all 16 required upstream PR snapshots traced.
-- [x] Exactly five canonical skill directories: `plan`, `qa`, `debug`,
-  `review`, and `ship`. (The `/design` skill was retired; its runtime image /
+- [x] Five canonical judgment dispatcher directories: `plan`, `qa`, `debug`,
+  `review`, and `ship`, plus the `make-pdf` tool skill emitted into
+  `skills/make-pdf/`. (The `/design` skill was retired; its runtime image /
   diagram / PDF capabilities remain available to the surviving skills.)
+  `make-pdf` is a tool skill, not a mode-based dispatcher, but it ships in the
+  same canonical tree, so `npx skills add time-attack/gstack/skills` now
+  surfaces six discoverable skills. The install-matrix and native-CI runs
+  recorded below ("exactly five skills") predate this addition; a fresh install
+  now finds six, and re-running those matrices to refresh the counts is pending.
 - [x] The six `/plan` top-level modes are exactly **Discovery, Product,
   Engineering, DX, Specification, and Full chain**.
 - [x] Standard installer matrix is green: 510/510 checks, 18 installs and two

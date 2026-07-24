@@ -12,6 +12,11 @@ GStack 2 is an engineering judgment layer with exactly five public skills:
 plan -> qa -> debug -> review -> ship
 ```
 
+The canonical tree also ships one tool skill, `make-pdf` (Markdown to
+publication-quality PDF). It is not a mode-based judgment dispatcher, but it is
+emitted into `skills/make-pdf/` so it installs with the same
+`npx skills add time-attack/gstack/skills` (six discoverable skills total).
+
 This is a navigation surface, not a linear workflow and not a compression of
 specialists into generic prompts. Each dispatcher selects a mode from
 structured stage, surface, artifact, mutation-authority, evidence, and deploy
