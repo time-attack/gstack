@@ -235,7 +235,7 @@
         "prompt_sha256": "a01bb977de84e53d8ce3dfa427bcc93d73c6e449cd4e9c1ff63b436fd41fb0d1",
         "semantic_attempt_sha256": "ce5c64c62c3ff9b60949f34717dffbc908f62ce30f8a4a48ec182eba4363a206"
       },
-      "policy_sha256": "b1c39db2c170ab19722a36bc5e79fea1278d919d3360e16c98355ba13c6f8de0",
+      "policy_sha256": "a95b0d10de018117bf779a2b691054e6e0d8d9177dd4cae8dca056dd6b311402",
       "policy_present": true,
       "prompt_is_not_authority_input": true,
       "verdict": "PASS"
