@@ -7,6 +7,19 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.3.0] - 2026-07-24
+
+**The app record was never a manual gate.**
+**One CLI command creates it, session-cached, headless.**
+
+Apple's public API refuses to create app records, and every release guide treats that as the moment you open a browser. The Apple release adapter now uses `asc web apps create` instead: an Apple web-session flow (the same mechanism fastlane produce has used for a decade) that creates the app record from the terminal with name, bundle ID, and SKU. With a cached session it is fully headless. A fresh login can even resolve two-factor codes programmatically via `--two-factor-code-command` when you point it at a local code source, so an autonomous agent can run the entire release without a browser. What still is not CLI: the membership purchase, first API-key download, agreements, and banking/tax — those keep the consent-gated browser drive from v1.64.2.0.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): app-record creation and bundle ID registration move from web residue to the CLI path (`asc web apps create`, `asc web bundle-ids`), with cached-session headless operation, programmatic 2FA resolution when the user approves a local code source, and no password storage or echo. Web residue shrinks to membership purchase, first `.p8` generation, agreements, banking/tax.
+
 ## [1.64.2.0] - 2026-07-23
 
 **The App Store "manual gate" mostly isn't.**
