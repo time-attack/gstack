@@ -22,7 +22,7 @@ Resolve and verify before archiving. Fix what the printed mutation boundary auth
 
 ## Store assets
 
-Only when preflight finds the icon or screenshots missing, ask once — the journey's second and final permitted question — then act on the choice without further prompts. Offer:
+Only when preflight finds the icon or screenshots missing, ask once — the journey's second and final permitted question — then act on the choice without further prompts. Once per app, EVER: before asking, check the decision store (`bin/gstack-decision-search --scope repo --query "store assets"`); a settled choice (including "defer screenshots" or "TestFlight only") is applied silently, never re-asked. After the user answers, persist it (`bin/gstack-decision-log` with scope `repo`) so no future run asks again; the user changes it by saying so, not by being re-prompted. Offer:
 
 - **App icon**: SnapAI (`npx snapai`, the app-icon agent skill) generates the single 1024×1024 with the user's own image-generation key; Xcode 15+ derives every size from that one image.
 - **Screenshots, free and local**: capture the built app in the simulator and frame with fastlane `frameit`.
