@@ -129,6 +129,7 @@ export const DEFAULT_RUNTIME_HELPERS = Object.freeze({
   "gstack-timeline-log": helper("bin/gstack-timeline-log"),
   "gstack-update-check": helper("bin/gstack-update-check"),
   "gstack-version-bump": helper("bin/gstack-version-bump"),
+  "gstack-web-data": helper("bin/gstack-web-data"),
   "remote-slug": helper("browse/bin/remote-slug"),
 });
 
@@ -160,6 +161,7 @@ const RUNTIME_HELPER_DEPENDENCIES = Object.freeze([
   "lib/redact-engine.ts",
   "lib/redact-patterns.ts",
   "lib/staging-guard.ts",
+  "lib/web-data.ts",
   "scripts/archetypes.ts",
   "scripts/brain-cache-spec.ts",
   "scripts/one-way-doors.ts",
