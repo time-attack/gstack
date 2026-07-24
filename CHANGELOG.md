@@ -7,6 +7,19 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.10.0] - 2026-07-24
+
+**Marketing screenshots never required an API key.**
+**The free deck editor is now impossible to overlook.**
+
+A release run told the user that marketing-grade screenshots need an image backend and an API key. False: the app-store-screenshots deck editor skill produces designed, benefit-headlined screenshots at every required iPhone size, fully locally, with a headlessly automatable export — no key, no cost. The store-assets options now lead with it, and the adapter explicitly forbids claiming screenshots need an API key while that skill is installed. The AI-enhanced ASO pipeline remains the one option that genuinely needs a key.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): store-assets options reordered and clarified — free local deck editor (marketing-grade, no key, automatable export) first, plain frameit second, AI-enhanced ASO pipeline explicitly the only key-requiring option.
+
 ## [1.64.9.0] - 2026-07-24
 
 **The assets question is asked once per app. Ever.**
