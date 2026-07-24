@@ -34,7 +34,7 @@ Web context: <none, optional, local-browser, or production>
 8. At exit, report completed artifacts, evidence, unresolved decisions, skipped modules with reasons, and any blocked gate.
 
 9. Before push, PR creation/update, merge, deploy, rollback, release publication, or external notification, read `references/EXTERNAL-EFFECTS.md` and execute the action through its durable state wrapper.
-10. When the release target is an Apple platform app (an `.xcodeproj`, `.xcworkspace`, or app-product Swift package is present), read `references/APPLE-RELEASE.md` before release preparation and follow its App Store journey end to end.
+10. When the release target is an Apple platform app (an `.xcodeproj`, `.xcworkspace`, or app-product Swift package is present), read `references/APPLE-RELEASE.md` FIRST — before any specialist preflight or repository gate — and follow its App Store journey end to end. An App Store or TestFlight ask is store distribution, not repository landing: the specialist branch/PR ceremony does not gate it, and a clean tree on the base branch is a valid state to archive and upload from.
 
 
 ## Top-level modes
