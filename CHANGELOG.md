@@ -7,6 +7,18 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.9.0] - 2026-07-24
+
+**The assets question is asked once per app. Ever.**
+
+A release run re-asked how to handle screenshots after an earlier run had already settled it ("TestFlight only, defer screenshots"). Settled means settled: the store-assets question now checks the per-project decision store before asking, applies a prior choice silently, and persists the answer the first time it is given. You change your mind by saying so, not by being re-prompted every run.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): the store-assets question is wired into the cross-session decision store (`gstack-decision-search` before asking, `gstack-decision-log` after answering, scope repo) — one ask per app for the life of the project.
+
 ## [1.64.8.0] - 2026-07-24
 
 **Two interactions, the contract's final shape:**
