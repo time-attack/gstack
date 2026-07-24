@@ -7,6 +7,19 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.8.0] - 2026-07-24
+
+**Two interactions, the contract's final shape:**
+**sign in once, and answer for missing assets. That's it.**
+
+Calibration release on the v1.64.7.0 rewrite. Missing icons or screenshots ask once again — that question earns its place because it spends your image-API budget and shapes your store listing — and the in-session sign-in stays. Everything else remains silent: fastlane installs itself with an announcement, uploads, fills the storefront, and submits, no menus, no plan confirmations, no narration.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): the journey permits exactly two interactions — the authorize/sign-in moment and the store-assets question when assets are missing (SnapAI icon, simulator capture + frameit, marketing-grade skills, or user files). Auth menus, tool choices, plan confirmations, and narration are named contract violations.
+
 ## [1.64.7.0] - 2026-07-24
 
 **One tool. One question. The rest is fastlane.**
