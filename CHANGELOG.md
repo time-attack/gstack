@@ -7,6 +7,19 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.4.0] - 2026-07-24
+
+**Membership plus Apple ID credentials is the whole requirement.**
+**A free app ships with zero browser steps, ever.**
+
+The Apple release adapter now states the autonomy contract outright: with an active $99 membership and Apple ID credentials, the entire release runs from the CLI. App record and bundle ID via `asc web`. Upload, TestFlight, and Submit via the API key when you have one — and when you don't, that is not a blocker: Apple ID session auth covers it through machine-level fastlane (`FASTLANE_SESSION` minted once by `fastlane spaceauth`, app-specific password from the environment, both env credentials that never touch argv or logs). The rule the adapter now enforces on itself: never declare a manual gate that a web-session tool covers. Web-only residue is exactly two things: buying the membership (a precondition, not a release step) and, for paid apps only, the one-time banking/tax agreement.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): missing `.p8` no longer routes to the browser — session-authenticated fastlane `deliver`/`pilot` (consent-gated machine tool, never a project dependency) uploads and submits without one. New autonomy contract paragraph: `asc web` first, fastlane completeness fallback, browser drive only for membership purchase and paid-app banking/tax.
+
 ## [1.64.3.0] - 2026-07-24
 
 **The app record was never a manual gate.**
