@@ -7,6 +7,18 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.14.0] - 2026-07-24
+
+**Credentials are never created by a browser drive. Restored, permanently.**
+
+The v1.64.7.0 contract compression dropped the explicit ban on browser-driven credential creation, and a release run promptly recommended driving account.apple.com to mint an app-specific password. The ban is back, wider: no Aside, no agentic browser, for any password, key, or token, under any framing. When a genuine upload auth error forces the app-specific-password fallback, the error is quoted verbatim and the only path offered is self-service — generate it on any device, enter it through the in-session masked keychain prompt, retry.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): browser-driven credential creation banned again explicitly; legal fallback shape defined (verbatim error + in-session masked `fastlane fastlane-credentials add` + retry).
+
 ## [1.64.13.0] - 2026-07-24
 
 **The session is enough. Demanding an app-specific password is a bug.**
