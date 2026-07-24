@@ -662,8 +662,9 @@ Resolve and verify before archiving. Fix what the printed mutation boundary auth
 Only when preflight finds the icon or screenshots missing, ask once — the journey's second and final permitted question — then act on the choice without further prompts. Once per app, EVER: before asking, check the decision store (\`bin/gstack-decision-search --scope repo --query "store assets"\`); a settled choice (including "defer screenshots" or "TestFlight only") is applied silently, never re-asked. After the user answers, persist it (\`bin/gstack-decision-log\` with scope \`repo\`) so no future run asks again; the user changes it by saying so, not by being re-prompted. Offer:
 
 - **App icon**: SnapAI (\`npx snapai\`, the app-icon agent skill) generates the single 1024×1024 with the user's own image-generation key; Xcode 15+ derives every size from that one image.
-- **Screenshots, free and local**: capture the built app in the simulator and frame with fastlane \`frameit\`.
-- **Marketing-grade screenshots**: the aso-appstore-screenshots agent skill (benefit headlines, breakout panels, exact App Store dimensions, user's own Gemini key) or the app-store-screenshots deck editor; when installed, follow their workflows rather than reimplementing them.
+- **Marketing screenshots, free and local, no API key**: the app-store-screenshots deck editor skill — scaffold it, prefill its deck JSON with simulator captures and benefit headlines, and export one bundle covering every required iPhone size (the export is headlessly automatable). Marketing-grade does NOT require an image backend; never claim screenshots need an API key while this skill is installed.
+- **Plain frames, free and local**: capture the built app in the simulator and frame with fastlane \`frameit\` — the minimal option when no designed deck is wanted.
+- **AI-enhanced marketing screenshots**: the aso-appstore-screenshots agent skill (benefit headlines, breakout panels, exact App Store dimensions) — the only option that needs the user's own image-generation key; when installed, follow its workflow rather than reimplementing it.
 - **User-supplied files**: always a valid answer; validate dimensions and move on.
 
 Assets already present skip this entirely. Announce what was generated at exit.
