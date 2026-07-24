@@ -7,7 +7,7 @@ One tool runs the entire release: machine-level fastlane — `produce` (app reco
 
 ## The one authorization moment
 
-The user is asked exactly one thing in the whole journey, up front: confirm they hold a paid Apple Developer Program membership (US$99/year — the App Store and TestFlight both require it) and authorize the release. Apple sign-in happens inside this same moment: run `fastlane spaceauth -u <apple-id>` through the host's interactive command path (in Claude Code, the user types `! fastlane spaceauth -u <email>` so their password and one two-factor code go directly to Apple in-session; a separate terminal window is the fallback only when the host has no interactive path). Keep the printed session token out of the transcript — the cached cookie in `~/.fastlane/spaceship/` is the credential fastlane actually uses; never store, echo, or log the password or token, and re-run the same one command when the session expires. After this moment there are ZERO further questions: tool installs, asset generation, upload, and submission are all covered by it.
+The whole journey permits exactly two interactions, and no others. FIRST, up front: confirm the user holds a paid Apple Developer Program membership (US$99/year — the App Store and TestFlight both require it) and authorize the release. Apple sign-in happens inside this same moment: run `fastlane spaceauth -u <apple-id>` through the host's interactive command path (in Claude Code, the user types `! fastlane spaceauth -u <email>` so their password and one two-factor code go directly to Apple in-session; a separate terminal window is the fallback only when the host has no interactive path). Keep the printed session token out of the transcript — the cached cookie in `~/.fastlane/spaceship/` is the credential fastlane actually uses; never store, echo, or log the password or token, and re-run the same one command when the session expires. SECOND, only when preflight finds the icon or screenshots missing: the store-assets question below. Everything else — tool installs, upload, storefront, submission — is covered by the authorization and proceeds without asking. Auth menus, tool-choice questions, plan confirmations, and step-by-step narration requests are contract violations.
 
 No membership: STOP the App Store path. Offer to walk enrollment at developer.apple.com through `references/THIRD-PARTY-ACTIONS.md` (a purchase the user completes themselves; activation can take a day or two), and name the free-account ceiling honestly: personal-team installs on the user's own devices only, expiring after 7 days, no TestFlight, no App Store.
 
@@ -20,9 +20,16 @@ Resolve and verify before archiving. Fix what the printed mutation boundary auth
 - Dependencies: `xcodebuild -resolvePackageDependencies` succeeds; if a `Podfile` or `Cartfile` exists, its install step has been run and lockfiles are current.
 - App Store validation blockers: complete app icon set including the 1024pt marketing icon, launch screen, a usage-description string for every privacy-gated API the app touches, required privacy manifests, an export-compliance answer (`ITSAppUsesNonExemptEncryption`), and a sane deployment target.
 
-## Store assets — autonomous
+## Store assets
 
-Missing assets never block the run with a question; the one authorization covers their generation. Cheapest path first: capture screens from the built app in the simulator, frame them with fastlane `frameit`, and generate the single 1024×1024 icon with SnapAI when an image-generation key is already configured (Xcode 15+ derives every size from that one image). The richer generators — the aso-appstore-screenshots skill for marketing-grade shots, the app-store-screenshots deck editor — run only when the user explicitly asked for marketing-grade assets. User-supplied files always win: validate dimensions and move on. Announce what was generated at exit.
+Only when preflight finds the icon or screenshots missing, ask once — the journey's second and final permitted question — then act on the choice without further prompts. Offer:
+
+- **App icon**: SnapAI (`npx snapai`, the app-icon agent skill) generates the single 1024×1024 with the user's own image-generation key; Xcode 15+ derives every size from that one image.
+- **Screenshots, free and local**: capture the built app in the simulator and frame with fastlane `frameit`.
+- **Marketing-grade screenshots**: the aso-appstore-screenshots agent skill (benefit headlines, breakout panels, exact App Store dimensions, user's own Gemini key) or the app-store-screenshots deck editor; when installed, follow their workflows rather than reimplementing them.
+- **User-supplied files**: always a valid answer; validate dimensions and move on.
+
+Assets already present skip this entirely. Announce what was generated at exit.
 
 ## Archive and upload
 
