@@ -7,6 +7,18 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.18.0] - 2026-07-24
+
+**Your sign-in now mints the upload credential. Nobody types an app-specific password.**
+
+Apple runs binary uploads through a separate tool (iTMSTransporter) that never accepts the web session — it wants an App Store Connect API key or an app-specific password, and until now that surfaced as error -22938 and a dead stop. Probed live and proven: the same web session your one sign-in creates can mint that API key itself, through the exact endpoints the App Store Connect website uses. So the release does it silently — sign in once, gstack creates a permanent upload key, stores it locked-down on your machine, and every release after that needs no sign-in at all. The password prompt Apple's error message asks for is now the last-resort path for team members without admin rights, not the default anyone sees.
+
+### Itemized changes
+
+### Changed
+
+- `skills/ship/references/APPLE-RELEASE.md`: upload leg corrected — the web session mints an ASC API key (iris `POST /v1/apiKeys`, one-time `privateKey` download decoded from base64-of-PEM, issuer from `olympus/v1/session`) stored at `~/.appstoreconnect/private_keys/` + `~/.gstack/apple/api-key.json` (0600); `deliver`/`pilot` run with `api_key_path`; repeat releases skip sign-in entirely. Escalation ladder: mint → re-sign-in + re-mint → self-service app-specific password only on a team-permissions refusal.
+
 ## [1.64.17.0] - 2026-07-24
 
 **The broad fix: claimed limitations now require evidence, everywhere.**
