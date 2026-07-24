@@ -7,6 +7,19 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.1.0] - 2026-07-23
+
+**The App Store "manual gate" mostly isn't.**
+**gstack now offers to drive it, not describe it.**
+
+Apple's API refuses four things: creating the app record, generating the first API key, agreements, and banking/tax. Those are form fields on a website, not judgment, so the Apple release adapter no longer hands you a checklist for them. With your consent it drives the app-record form and the API-key generation on your logged-in App Store Connect session, saves the .p8 to a path you approve, and hands off only for the moments that are genuinely yours: Apple ID sign-in, two-factor, payment. The checklist survives as the fallback when no agentic browser is available or you decline.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): App Store Connect web residue routes through the agentic-browser drive in `THIRD-PARTY-ACTIONS.md` first — app record, .p8 key generation with download-to-approved-path — with sign-in/2FA/payment as explicit user-performed hand-offs. Manual checklist demoted to fallback.
+
 ## [1.64.0.0] - 2026-07-23
 
 ## **/ship now takes an Apple app from working tree**
