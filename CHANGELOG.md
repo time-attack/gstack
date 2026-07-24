@@ -7,6 +7,18 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.7.0] - 2026-07-24
+
+**One tool. One question. The rest is fastlane.**
+
+The Apple release adapter is rewritten around three assumptions from a live release test. First: the user has never heard of a .p8 — they paid $99 and want to ship, so credential vocabulary is banned from everything they see. Second: a concise dev installs ONE tool, not a zoo of App Store CLIs — fastlane now runs the entire release: produce, cert, sigh, gym, pilot, deliver, frameit. Third: the interaction is minimal — the whole journey asks exactly one thing, up front: "authorize this release." Sign-in happens inside that same moment (`! fastlane spaceauth` in-session, password and one 2FA code straight to Apple, the printed token kept out of the transcript), and after it there are zero further questions: fastlane install, asset generation, upload, and submission are all covered. Missing screenshots or icons no longer prompt mid-run — simulator capture plus frameit plus a SnapAI icon happen autonomously, with the marketing-grade generators reserved for when you ask for marketing.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): rewritten fastlane-only — no asc, no auth branches, no credential words in user-facing flow; one authorization moment covering installs, assets, upload, and submission; store assets generate autonomously (simulator capture + frameit + SnapAI icon), richer generators only on explicit request; in-session `!` sign-in with the fallback terminal window demoted to hosts without an interactive path.
+
 ## [1.64.6.0] - 2026-07-24
 
 **Authentication is not a question.**
