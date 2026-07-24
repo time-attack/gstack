@@ -7,6 +7,18 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.12.0] - 2026-07-24
+
+**The screenshots question is built from a live skill check, not memory.**
+
+A release run offered a screenshots menu missing the free deck editor even though the skill was installed and the contract listed it first — the agent re-emitted an earlier conversation's options instead of re-reading the reference. The store-assets question must now be constructed from a live check of installed skills at ask time; omitting the free no-key deck editor option while it is installed is a named contract violation.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): store-assets options built from a live installed-skill check at ask time, never from conversation memory; the deck editor option is mandatory when installed.
+
 ## [1.64.11.0] - 2026-07-24
 
 **Shipping to the App Store is not landing a PR.**

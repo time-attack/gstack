@@ -667,7 +667,7 @@ Only when preflight finds the icon or screenshots missing, ask once — the jour
 - **AI-enhanced marketing screenshots**: the aso-appstore-screenshots agent skill (benefit headlines, breakout panels, exact App Store dimensions) — the only option that needs the user's own image-generation key; when installed, follow its workflow rather than reimplementing it.
 - **User-supplied files**: always a valid answer; validate dimensions and move on.
 
-Assets already present skip this entirely. Announce what was generated at exit.
+Build this question's options from a LIVE check of installed skills at ask time — never from memory or an earlier conversation turn. Whenever the app-store-screenshots deck editor skill is installed, its free no-key option MUST appear in the list; omitting it is a contract violation equal to claiming screenshots need an API key. Assets already present skip this entirely. Announce what was generated at exit.
 
 ## Archive and upload
 
