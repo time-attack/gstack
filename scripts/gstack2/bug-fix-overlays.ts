@@ -301,6 +301,8 @@ The binding scale comes from the first available source: the printed \`Scale:\` 
 - \`session\` and \`hobby\`: batch every question the initial prompt left unanswered into one AskUserQuestion round (two rounds for hobby); skip web or landscape research, outside voices, second opinions, and visual sketches unless the user asks (privacy gates are unchanged whenever they run); cap any adversarial or spec review loop at one iteration; keep the decision artifact near one page with next steps sized in hours (session) or days (hobby), never a phased multi-week roadmap or a distribution plan the user did not ask for.
 - \`project\`: run the specialist's default workflow, batching question rounds where its source authorizes smart skips; size the roadmap in weeks.
 - \`product\` and \`venture\`: the full specialist workflow and its complete question pressure apply; this rule removes nothing.
+
+The scale also fixes a chain-wide question budget — a ceiling on individual questions (not rounds) counted across the entire invocation and everything it chains into, reviews included: five at \`session\` (a hackathon demo or a one-sitting toy gets five questions, total, ever), eight at \`hobby\`, twelve at \`project\`, uncapped at \`product\` and \`venture\`. Every handoff carries the scale, the time box, and the questions already spent; the receiving specialist deducts from the remaining budget, never restarts it. A specialist whose remaining budget is zero infers the answer from the prompt, the repository, and stated constraints, states the inference and its default in one line, and proceeds — it does not ask. Approval STOP gates (approve/revise the plan, authorize a mutation) are outside the budget; everything else, including "which option do you prefer" refinements, spends it. Spend the budget on the questions whose wrong answer is most expensive to reverse, earliest.
 - Never run a questioning round merely to classify scale. Classify from the prompt and cheap repository evidence, defaulting unknown vectors low; a specialist's own later questions may raise the scale mid-session, and an upgrade restores the full workflow from that point.
 
 Review specialists spend question rounds on decisions, not ceremony — at every scale, and sharpest at \`session\`/\`hobby\`:
@@ -312,7 +314,7 @@ Review specialists spend question rounds on decisions, not ceremony — at every
 For office-hours specifically: at session or hobby scale, batch the Phase 2B questions (this refines the one-at-a-time rule, whose pressure exists for startup diagnostics), default-skip the Phase 2.75 landscape search, gate the visual sketch and outside design voices on an explicit ask, and cap the Spec Review Loop at one iteration.`,
     regression: {
       input: { audience: 'public', users: 'handful', commercial: 'none', deployment: 'none', horizon: 'session', stakes: 'fun', maintenance: 'throwaway', stated_time_constraint: 'one-sitting', handoff_target: 'docs/designs/hackathon-demo.md', minor_findings: 4 },
-      expected: { scale: 'session', time_constraint_caps_scale: true, questions_batched: true, question_rounds_max: 1, web_search: 'on-request', outside_voices: 'on-request', review_iterations_max: 1, step_unit: 'hours', target_confirmation_round: false, minor_findings_applied_not_asked: true },
+      expected: { scale: 'session', time_constraint_caps_scale: true, questions_batched: true, question_rounds_max: 1, chain_question_budget: 5, budget_spans_chain: true, web_search: 'on-request', outside_voices: 'on-request', review_iterations_max: 1, step_unit: 'hours', target_confirmation_round: false, minor_findings_applied_not_asked: true },
     },
   },
   {
@@ -609,6 +611,8 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
         time_constraint_caps_scale: cap != null,
         questions_batched: rank <= 2,
         question_rounds_max: small ? rank + 1 : null,
+        chain_question_budget: [5, 8, 12, null, null][rank],
+        budget_spans_chain: true,
         web_search: small ? 'on-request' : 'privacy-gated-offer',
         outside_voices: small ? 'on-request' : 'offer',
         review_iterations_max: small ? 1 : 3,

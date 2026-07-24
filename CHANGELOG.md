@@ -7,7 +7,7 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
-## [1.64.1.0] - 2026-07-23
+## [1.64.2.0] - 2026-07-23
 
 **The App Store "manual gate" mostly isn't.**
 **gstack now offers to drive it, not describe it.**
@@ -19,6 +19,41 @@ Apple's API refuses four things: creating the app record, generating the first A
 ### Changed
 
 - `references/APPLE-RELEASE.md` (ship tree): App Store Connect web residue routes through the agentic-browser drive in `THIRD-PARTY-ACTIONS.md` first — app record, .p8 key generation with download-to-approved-path — with sign-in/2FA/payment as explicit user-performed hand-offs. Manual checklist demoted to fallback.
+
+## [1.64.1.0] - 2026-07-23
+
+## **A hackathon plan now gets five questions, total.**
+## **Startups still get the full interrogation.**
+
+/plan already classified every request on a build scale (session, hobby, project, product, venture) and sized each specialist's machinery to it. What it did not do was count. Each specialist obeyed its own round cap, then handed off to the next one, and a one-sitting build could still collect 15+ questions across the full chain of planning and reviews. The scale now fixes one question budget for the entire chain: 5 at session, 8 at hobby, 12 at project, uncapped at product and venture. Every handoff carries the questions already spent, so a chained review deducts from what is left instead of starting fresh. When the budget runs out, the specialist states its inferred default in one line and keeps moving. Plan approvals and mutation authorizations never count against it.
+
+### The numbers that matter
+
+Source: the overlay contract in `scripts/gstack2/bug-fix-overlays.ts` (issue #886), verified by `bun run test:gstack2`, against an observed hackathon planning chain from 2026-07-23.
+
+| Metric | Before | After |
+|---|---|---|
+| Question ceiling across a full session-scale chain | none (18 rounds observed) | 5 questions |
+| Ceiling at hobby / project scale | none | 8 / 12 |
+| Ceiling at product / venture scale | none | none, on purpose |
+| Budget resets at each chained review | yes | never |
+
+The first row is the one that matters. The old proportionality rules capped rounds per specialist, and a chain of six specialists multiplied right past the cap.
+
+### What this means for builders
+
+If you are mapping out a weekend hack or a personal tool, /plan asks the few questions whose wrong answer would actually cost you, then plans from stated defaults. If you are planning a startup, nothing changed, the full question pressure is the point. Run `/plan` on something small and count for yourself.
+
+### Itemized changes
+
+### Changed
+
+- The `/plan` Build scale section now prints the chain-wide question budget with the scale and requires every handoff to carry the questions already spent.
+- The proportional-planning judgment port (issue #886) on the planning and review specialists enforces the budget: infer-and-state when exhausted, approval STOP gates excluded, budget spent on the hardest-to-reverse decisions first.
+
+### For contributors
+
+- The #886 regression fixture and `evaluateBugFixRegression` gained `chain_question_budget` and `budget_spans_chain` fields. No pinned parity-count change; the body-text edit rides the existing `includes()` checks.
 
 ## [1.64.0.0] - 2026-07-23
 

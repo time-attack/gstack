@@ -50,7 +50,7 @@ The highest tier any vector demands wins: `session` (all vectors low — one sit
 
 An explicit user time constraint is a ceiling, not one vector among fifteen: work that must fit one sitting (a hackathon demo, a stated hour count, "before my flight") caps the scale at `session`, and a day-or-two deadline caps it at `hobby`, no matter how public the audience or how ambitious the idea. The user's clock outranks every ambition vector. Print the constraint with the scale: `Scale: session (hackathon, one sitting)`.
 
-The scale binds the whole chain, not just this invocation. Every handoff to a chained review or specialist names the scale and any time box, and the receiving workflow applies its proportional-planning port to the inherited scale without re-asking or re-classifying upward.
+The scale binds the whole chain, not just this invocation, and fixes a chain-wide question budget: five total questions at `session`, eight at `hobby`, twelve at `project`, uncapped at `product` and `venture` (approval STOP gates excluded). Every handoff to a chained review or specialist names the scale, any time box, and the questions already spent; the receiving workflow applies its proportional-planning port to the inherited scale and the remaining budget without re-asking or re-classifying upward.
 
 
 ## Top-level modes
