@@ -7,6 +7,18 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.17.0] - 2026-07-24
+
+**The broad fix: claimed limitations now require evidence, everywhere.**
+
+Nine live-release failures in two days shared one root: the agent asserting folklore as fact — "Apple requires an app-specific password," "the API can't do this," "screenshots need a key" — instead of running the ten-second check that would have disproven it. The shared judgment contract that binds all six skills gains clause 13: a claimed limitation or requirement is a material claim, stated only with the verbatim error, the documented statement, or a live probe in hand. Pattern-matching a failure to a familiar story is not evidence. When a cheap probe settles the question, run it before asking the user anything or declaring a gate. The Apple adapter's specific rules remain as regression pins; this clause is the umbrella that covers the cases nobody has hit yet.
+
+### Itemized changes
+
+### Changed
+
+- `references/SHARED-JUDGMENT.md` (all six skill trees): clause 13 — evidence-before-claimed-limitations, probe-before-gate.
+
 ## [1.64.16.0] - 2026-07-24
 
 **A metadata error is not a login problem.**
