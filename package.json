@@ -70,6 +70,7 @@
     "@anthropic-ai/sdk": "^0.112.4",
     "@ngrok/ngrok": "^1.7.0",
     "diff": "^9.0.0",
+    "html-to-docx": "1.8.0",
     "marked": "^18.0.6",
     "playwright": "npm:playwright-core@^1.58.2",
     "sharp": "^0.34.5",
