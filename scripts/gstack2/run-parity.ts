@@ -37,8 +37,11 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // adapter added 3 more (adapter exists, preserved gate content, dispatcher
 // load). Removing the remaining design-review footprint then dropped the
 // review/design-checklist.md asset from the review and ship trees (18 fewer
-// asset checks), recomputing the inventory to the value below.
-export const EXPECTED_PARITY_CHECKS = 4361;
+// asset checks), recomputing the inventory to the value below. Emitting the
+// make-pdf tool skill into skills/make-pdf/ (six discoverable skills) added 6
+// more (SKILL.md exists, frontmatter name, description, canonical-render
+// freshness, runtime handoff reference, references/RUNTIME.md exists).
+export const EXPECTED_PARITY_CHECKS = 4367;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -84,11 +87,30 @@ export function runParity(): ParityResult {
   };
   const retiredInvocation = retiredInvocationPattern();
 
+  const TOOL_SKILLS = ['make-pdf'] as const;
   const publicSkills = fs.readdirSync(path.join(ROOT, 'skills'), { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, 'skills', entry.name, 'SKILL.md')))
     .map((entry) => entry.name)
     .sort();
-  check(JSON.stringify(publicSkills) === JSON.stringify([...TREE_NAMES].sort()), `Public skills differ: ${publicSkills.join(', ')}`);
+  check(
+    JSON.stringify(publicSkills) === JSON.stringify([...TREE_NAMES, ...TOOL_SKILLS].sort()),
+    `Discoverable skills differ: ${publicSkills.join(', ')}`,
+  );
+  // The five judgment dispatchers are mode-based; make-pdf is a tool skill that
+  // ships in the same tree. Verify its host-neutral surface is emitted fresh and
+  // its runtime handoff reference exists.
+  for (const tool of TOOL_SKILLS) {
+    const toolSkillPath = path.join(ROOT, 'skills', tool, 'SKILL.md');
+    check(fs.existsSync(toolSkillPath), `Tool skill ${tool} is missing its SKILL.md`);
+    if (fs.existsSync(toolSkillPath)) {
+      const toolSkill = fs.readFileSync(toolSkillPath, 'utf8');
+      check(new RegExp(`^---\\nname: ${tool}\\n`).test(toolSkill), `${tool} tool skill frontmatter name mismatch`);
+      check(toolSkill.includes('description: >-'), `${tool} tool skill lacks a frontmatter description`);
+      check(toolSkill.includes(renderPortedLegacyBody(tool).trim()), `${tool} tool skill body drifted from its canonical render`);
+      check(toolSkill.includes('references/RUNTIME.md'), `${tool} tool skill does not hand off to the runtime contract`);
+      check(fs.existsSync(path.join(ROOT, 'skills', tool, 'references', 'RUNTIME.md')), `${tool} tool skill lacks references/RUNTIME.md`);
+    }
+  }
   check(SOURCE_ASSIGNMENTS.length === 47, `Expected 47 source assignments; got ${SOURCE_ASSIGNMENTS.length}`);
   check(SOURCE_ASSIGNMENTS.filter((entry) => entry.mandatory).length === 25, 'Mandatory specialist count is not 25');
   const exactModes: Record<string, string[]> = {
