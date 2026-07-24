@@ -37,6 +37,8 @@ Build this question's options from a LIVE check of installed skills at ask time 
 1. Archive and export the signed Release build with `gym` (it drives xcodebuild and the signing minted in preflight). Projects with custom archive requirements may drop to `xcodebuild archive` directly; the output either way is an App Store-signed `.ipa`.
 2. The upload is an external effect: run `pilot` (TestFlight) or `deliver` (App Store) through the durable state wrapper with a key like `appstore.upload.<bundle-id>.<build>`. Never re-upload on ambiguity; inspect App Store Connect for the build first.
 3. The cached session is an env-level credential: never argv, never echoed, never committed.
+4. NEVER demand an app-specific password. Per fastlane's documented authentication, the cached spaceauth session ALONE suffices for binary upload through `deliver`/`pilot`; `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD` is an alternative for environments without a session, not a requirement on top of one. Attempt the session upload FIRST; only an actual authentication error from a real upload attempt may open a fallback conversation, and "Apple requires an app-specific password on 2FA accounts" stated without that error in hand is a contract violation.
+5. App Review contact details (name, email, phone) are required metadata for submission: infer name and email from the signed-in Apple ID and git config, collect the phone number once inside the authorization moment, persist it to the decision store, and never re-ask. Contact details are metadata, not a blocking gate to announce mid-run.
 
 ## Storefront completion
 
