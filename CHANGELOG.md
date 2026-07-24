@@ -7,6 +7,82 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.10.0] - 2026-07-24
+
+**Marketing screenshots never required an API key.**
+**The free deck editor is now impossible to overlook.**
+
+A release run told the user that marketing-grade screenshots need an image backend and an API key. False: the app-store-screenshots deck editor skill produces designed, benefit-headlined screenshots at every required iPhone size, fully locally, with a headlessly automatable export — no key, no cost. The store-assets options now lead with it, and the adapter explicitly forbids claiming screenshots need an API key while that skill is installed. The AI-enhanced ASO pipeline remains the one option that genuinely needs a key.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): store-assets options reordered and clarified — free local deck editor (marketing-grade, no key, automatable export) first, plain frameit second, AI-enhanced ASO pipeline explicitly the only key-requiring option.
+
+## [1.64.9.0] - 2026-07-24
+
+**The assets question is asked once per app. Ever.**
+
+A release run re-asked how to handle screenshots after an earlier run had already settled it ("TestFlight only, defer screenshots"). Settled means settled: the store-assets question now checks the per-project decision store before asking, applies a prior choice silently, and persists the answer the first time it is given. You change your mind by saying so, not by being re-prompted every run.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): the store-assets question is wired into the cross-session decision store (`gstack-decision-search` before asking, `gstack-decision-log` after answering, scope repo) — one ask per app for the life of the project.
+
+## [1.64.8.0] - 2026-07-24
+
+**Two interactions, the contract's final shape:**
+**sign in once, and answer for missing assets. That's it.**
+
+Calibration release on the v1.64.7.0 rewrite. Missing icons or screenshots ask once again — that question earns its place because it spends your image-API budget and shapes your store listing — and the in-session sign-in stays. Everything else remains silent: fastlane installs itself with an announcement, uploads, fills the storefront, and submits, no menus, no plan confirmations, no narration.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): the journey permits exactly two interactions — the authorize/sign-in moment and the store-assets question when assets are missing (SnapAI icon, simulator capture + frameit, marketing-grade skills, or user files). Auth menus, tool choices, plan confirmations, and narration are named contract violations.
+
+## [1.64.7.0] - 2026-07-24
+
+**One tool. One question. The rest is fastlane.**
+
+The Apple release adapter is rewritten around three assumptions from a live release test. First: the user has never heard of a .p8 — they paid $99 and want to ship, so credential vocabulary is banned from everything they see. Second: a concise dev installs ONE tool, not a zoo of App Store CLIs — fastlane now runs the entire release: produce, cert, sigh, gym, pilot, deliver, frameit. Third: the interaction is minimal — the whole journey asks exactly one thing, up front: "authorize this release." Sign-in happens inside that same moment (`! fastlane spaceauth` in-session, password and one 2FA code straight to Apple, the printed token kept out of the transcript), and after it there are zero further questions: fastlane install, asset generation, upload, and submission are all covered. Missing screenshots or icons no longer prompt mid-run — simulator capture plus frameit plus a SnapAI icon happen autonomously, with the marketing-grade generators reserved for when you ask for marketing.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): rewritten fastlane-only — no asc, no auth branches, no credential words in user-facing flow; one authorization moment covering installs, assets, upload, and submission; store assets generate autonomously (simulator capture + frameit + SnapAI icon), richer generators only on explicit request; in-session `!` sign-in with the fallback terminal window demoted to hosts without an interactive path.
+
+## [1.64.6.0] - 2026-07-24
+
+**Authentication is not a question.**
+**gstack says "installing fastlane," and gets on with it.**
+
+A live release run asked the user to pick between three auth paths, with a browser-driven API key as the recommended option. Wrong on every axis: the baseline user has one path, and a question about it is friction with no decision behind it. The adapter now resolves auth silently — a `.p8` already on the machine gets used, and everyone else gets one line ("fastlane is required for the upload, installing it") followed by the session mint. No auth menu, no API-key option shown to someone with no key, and browser drives for credential creation are gone entirely.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): auth resolution is silent and deterministic — existing `.p8` → xcodebuild key flags; otherwise announce-and-install fastlane (the /ship authorization covers the machine-tool install) and mint `FASTLANE_SESSION`. Asking the user to choose an auth mechanism, or offering a browser drive to create credentials, is now a contract violation. Storefront CLI selection follows the resolved credential, never a second question.
+
+## [1.64.5.0] - 2026-07-24
+
+**The baseline user has an Apple ID and a $99 receipt.**
+**The whole release is now designed around exactly that.**
+
+Previously the Apple release adapter treated the App Store Connect API key as the main road and session auth as the detour. Backwards: almost nobody starts with a `.p8`. The adapter now assumes you have nothing but an Apple ID and a just-paid membership, and the entire flow runs on one session mint (`fastlane spaceauth`, one 2FA entry, automatable): app record via `asc web` or `produce`, upload and TestFlight and Submit via session-authenticated `deliver`/`pilot`. Per fastlane's documented auth, the session alone covers binary upload — no app-specific password, no key, no browser. Holding a `.p8` becomes the optional upgrade that switches the storefront stage to the JSON-first `asc` CLI: one tool per credential world, never both in one release.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): upload step rewritten around the session-only baseline (fastlane `deliver`/`pilot` on `FASTLANE_SESSION`; app-specific password documented as an alternative, not a requirement); storefront completion picks its CLI by credential world (session → `deliver`, API key → `asc`); autonomy contract restated from the baseline user story.
+
 ## [1.64.4.0] - 2026-07-24
 
 **Membership plus Apple ID credentials is the whole requirement.**
