@@ -79,6 +79,7 @@ describe('post-rename doc-regen regression (codex Finding #12)', () => {
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, 'skills', entry.name, 'SKILL.md')))
       .map((entry) => entry.name)
       .sort();
-    expect(publicSkills).toEqual(['debug', 'plan', 'qa', 'review', 'ship']);
+    // Five judgment dispatchers plus the make-pdf tool skill in the same tree.
+    expect(publicSkills).toEqual(['debug', 'make-pdf', 'plan', 'qa', 'review', 'ship']);
   });
 });

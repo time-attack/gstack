@@ -31,14 +31,14 @@ function readShipUnion(): string {
 }
 
 describe('SKILL.md command validation', () => {
-  test('root SKILL.md is absent and the public surface is exactly five dispatchers', () => {
+  test('root SKILL.md is absent and the public surface is five dispatchers plus the make-pdf tool skill', () => {
     expect(fs.existsSync(path.join(ROOT, 'SKILL.md'))).toBe(false);
 
     const discovered = fs.readdirSync(path.join(ROOT, 'skills'), { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && fs.existsSync(publicSkillPath(entry.name)))
       .map((entry) => entry.name)
       .sort();
-    expect(discovered).toEqual([...PUBLIC_SKILLS]);
+    expect(discovered).toEqual([...PUBLIC_SKILLS, 'make-pdf'].sort());
 
     for (const skill of PUBLIC_SKILLS) {
       const md = fs.readFileSync(publicSkillPath(skill), 'utf-8');
@@ -1619,7 +1619,8 @@ describe('Doc inventory cross-check', () => {
       .filter((entry) => entry.isDirectory() && fs.existsSync(publicSkillPath(entry.name)))
       .map((entry) => entry.name)
       .sort();
-    expect(publicDirs).toEqual([...PUBLIC_SKILLS]);
+    // Five judgment dispatchers plus the make-pdf tool skill in the same tree.
+    expect(publicDirs).toEqual([...PUBLIC_SKILLS, 'make-pdf'].sort());
   });
 
   test('every legacy template is represented in the compatibility map', () => {
