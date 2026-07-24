@@ -7,6 +7,18 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.19.0] - 2026-07-24
+
+**Free or paid is your call, asked once, inside the question you already answer.**
+
+Price is a launch decision: a free launch cannot be un-launched, and a paid app sells nothing until the banking agreement is signed. The release no longer defaults it silently — the one authorization question now also settles free-or-paid (and the price), once per app ever, remembered in the decision store so repeat releases stay zero-question. Paid answers get told about the one-time banking/tax agreement up front instead of at the finish line. Pricing also executes reliably now: it runs through Apple's price-schedule API directly, because fastlane's own pricing option is broken against the current App Store Connect API (proven on a live release).
+
+### Itemized changes
+
+### Changed
+
+- `skills/ship/references/APPLE-RELEASE.md`: pricing folded into the authorization moment (once per app, decision-store persisted, paid → Paid Apps agreement named up front); storefront pricing pinned to `POST /v1/appPriceSchedules` with fastlane `price_tier` documented as broken against the current API.
+
 ## [1.64.18.0] - 2026-07-24
 
 **Your sign-in now mints the upload credential. Nobody types an app-specific password.**
