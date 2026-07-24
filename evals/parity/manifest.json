@@ -8,8 +8,12 @@
     "review",
     "ship"
   ],
+  "tool_skills": [
+    "make-pdf"
+  ],
   "counts": {
     "public_skills": 5,
+    "tool_skills": 1,
     "mandatory_inputs": 25,
     "templates": 47,
     "section_templates": 14,
