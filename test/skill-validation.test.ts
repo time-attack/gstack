@@ -1631,7 +1631,11 @@ describe('Doc inventory cross-check', () => {
       .sort();
     const legacyTemplates = fs.readdirSync(ROOT, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, entry.name, 'SKILL.md.tmpl')))
-      .map((entry) => entry.name);
+      .map((entry) => entry.name)
+      // make-pdf is a standalone tool skill, not a legacy invocation migrated to
+      // a dispatcher, so it has no compatibility alias (see STANDALONE_ROOT_SKILLS
+      // in scripts/gstack2/generate-skill-tree.ts).
+      .filter((name) => name !== 'make-pdf');
     expect(mapped).toEqual(['gstack', ...legacyTemplates].sort());
   });
 
