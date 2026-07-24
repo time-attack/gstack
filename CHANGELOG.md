@@ -7,6 +7,19 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.64.16.0] - 2026-07-24
+
+**A metadata error is not a login problem.**
+**And the Apple release never opens a browser. Period.**
+
+A live run hit Apple's expanded age-rating questionnaire (new required attributes like lootBox, ageAssurance, parentalControls, messagingAndChat), misread the Spaceship validation error as an authentication failure, demanded an app-specific password, and started driving a browser at account.apple.com — three wrongs from one misdiagnosis. The adapter now classifies errors before touching credentials: only Apple's own words (401/403, session expired, "app-specific password") make an error an auth error; UnexpectedResponse/missing-attribute/validation errors are metadata problems fixed in the payload and retried from the CLI. And the adapter now explicitly overrides the general third-party browser-offer contract for the whole Apple journey: the only browser use it permits, ever, is the paid-app agreements/banking/tax residue.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): error-classification rule (metadata vs auth, with Apple's expanded age-rating attributes as the worked example); APPLE-RELEASE explicitly overrides THIRD-PARTY-ACTIONS within the Apple release — no browser, driven or manual, outside the named paid-app residue.
+
 ## [1.64.15.0] - 2026-07-24
 
 **A bad credential means "sign in again," not "go generate a password."**
