@@ -29,6 +29,7 @@
     "gen:skill-docs": "bun run scripts/gen-skill-docs.ts",
     "gen:skill-docs:user": "bun run scripts/gen-skill-docs.ts --respect-detection",
     "dev": "bun run browse/src/cli.ts",
+    "dev:make-pdf": "bun run make-pdf/src/cli.ts",
     "server": "bun run browse/src/server.ts",
     "test": "bun run scripts/test-free-strict.ts",
     "check:gstack2-generated": "bun run scripts/gstack2/check-generated.ts",

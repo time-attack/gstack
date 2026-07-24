@@ -257,6 +257,11 @@ export const DEFAULT_RUNTIME_BUNDLE = Object.freeze([
   entry("browse/dist/server-node.mjs", "core"),
   entry("browse/dist/bun-polyfill.cjs", "core"),
   entry("browse/dist/.version", "core"),
+  // make-pdf: Markdown → styled/publication PDF. Compiled binary that drives
+  // the browse daemon for the Chromium print round-trip. Ships with core so
+  // the `pdf` capability resolves $GSTACK_BIN/make-pdf without a headed browser.
+  entry(platformBinary("make-pdf/dist/pdf"), "core", true),
+  entry("make-pdf/dist/.version", "core"),
   // The compiled client deliberately spawns the existing Bun server source.
   // Keep its small, audited dependency closure explicit instead of copying all
   // node_modules or introducing a cloud browser.
@@ -291,6 +296,7 @@ export const DEFAULT_RUNTIME_BUNDLE = Object.freeze([
 export const DEFAULT_CAPABILITY_LAUNCHERS = Object.freeze({
   bun: managedBunRelativePath(),
   browse: platformBinary("browse/dist/browse"),
+  "make-pdf": platformBinary("make-pdf/dist/pdf"),
   ...DEFAULT_HELPER_CAPABILITIES,
   ...(process.platform === "darwin" ? {
     "gstack-ios-qa-daemon": "ios-qa/dist/gstack-ios-qa-daemon",
