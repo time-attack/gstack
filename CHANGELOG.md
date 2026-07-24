@@ -7,6 +7,48 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
+## [1.65.0.0] - 2026-07-24
+
+**Scraping now has a menu. Measured, ranked,**
+**and it tells you what to install when the best tool is missing.**
+
+When a task needs web data at scale, gstack used to design a bespoke scraper without asking. A flightconnections planning session hand-rolled a cheerio pipeline for a thousand Wikipedia pages and never mentioned that better options exist. That gap is closed. Every skill now reads a WEB-DATA contract before bulk web-data work, checks for an official API first (Wikipedia has MediaWiki, no scraper needed), and otherwise offers a provider menu once: Firecrawl, Exa, Context.dev, the Aside browser, or the local browser. Your choice persists. Declining persists too, and you are never nagged again.
+
+The rankings are not vibes. `gstack-web-data recommend <task>` answers per task kind (scrape, crawl, search, batch, hostile, authenticated) using measured results, filtered by what is actually installed on your machine. When the best tool is missing, it says so with the exact setup step (signup URL, env var, or install) and recommends the best already-installed option for right now.
+
+### The numbers that matter
+
+Source: the reproducible provider bakeoff (`~/.gstack-dev/scrape-bench/bench.ts`, report in `~/.gstack/provider-bakeoff/2026-07-23/`), 7 live tasks per provider.
+
+| Task | Winner | Time | Runner-up |
+|---|---|---|---|
+| Amazon prices (anti-bot) | Firecrawl | 1.1s clean markdown | Aside 3.9s (real session) |
+| Find URLs (search) | Exa | 0.05-0.8s | Firecrawl 2.0s |
+| Crawl 10 pages | Context.dev | 1.1s | Aside 3.6s |
+| Batch 8 pages | Firecrawl | 5.6s | Exa (cache) |
+| Logged-in pages | Aside | only capable option | none |
+
+Firecrawl was the only API to pass all 7 tasks with live fetches. The plain local headless browser got bot-walled on Amazon (empty page). Aside took 22.6s on the 8-page batch, so it is ranked for logged-in and hostile work, never bulk.
+
+Hard rails: off-machine providers receive public URLs only, never authenticated pages, private addresses, project content, or credentials. Logged-in pages route to the user's own browser or nowhere.
+
+### What this means for you
+
+The next time a task needs web data, you get a one-time question with real options, honest availability, and a measured recommendation instead of a silently hand-rolled scraper. Pick once, or say none and never hear about it again. Run `gstack-web-data options` to see where your machine stands.
+
+### Itemized changes
+
+### Added
+
+- `references/WEB-DATA.md` in all five skills: the optional scraping-provider contract. Official API first, provider menu once via AskUserQuestion, best-available recommendation per task, exact setup steps for better-but-unconfigured providers, decline persisted, hand-rolled path always valid.
+- `gstack-web-data` CLI (`status`, `options`, `select`, `recommend`) with availability detection: Firecrawl/Exa env keys, Context.dev runtime consent, `aside` CLI on PATH, installed browse binary. Ships with the managed runtime.
+- Dispatch-protocol trigger in all five dispatchers: read WEB-DATA.md before designing or performing bulk web-data acquisition, whether the agent fetches directly or a plan designs the pipeline.
+
+### For contributors
+
+- `lib/web-data.ts`: provider registry, task rankings (bakeoff-sourced), selection store at `$GSTACK_HOME/web-data.json`, availability detection. 14 unit tests in `test/web-data.test.ts`.
+- `runtime/install.js`: `gstack-web-data` registered in `DEFAULT_RUNTIME_HELPERS`, `lib/web-data.ts` in the helper dependency closure.
+
 ## [1.64.10.0] - 2026-07-24
 
 **Marketing screenshots never required an API key.**
