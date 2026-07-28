@@ -75,7 +75,7 @@ does not install the optional runtime. The committed evidence artifact is
 | Host | Portable | Project all-five | Global all-five | Selected-skill coverage | Installer tier | Host UI/process |
 |---|---|---|---|---|---|---|
 | Claude Code | yes | pass | pass | no separate subset case | **Verified — installer** | pending |
-| OpenAI Codex | yes | pass | pass | global `qa`, `review`, `ship` pass + removal pass; actual selected `qa` runtime-absent run; opt-in alias covered | **Verified — installer**; runtime-absent invocation passed | live v1/v2/v3 failed; v3 was 3/4 |
+| OpenAI Codex | yes | pass | pass | global `qa`, `review`, `ship` pass + removal pass; actual selected `qa` runtime-absent run; opt-in alias covered | **Verified — installer**; runtime-absent invocation passed | live v3 adversarial **passed 4/4** one-shot ([artifact](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json)); v1, v2, and two earlier 3/4 live v3 one-shots retained failed |
 | Kimi Code CLI | yes | pass | pass | no separate subset case | **Verified — installer** | browser automation uses the consented GStack local-browser fallback; host skill invocation pending |
 | Cursor | yes | pass | pass | project `qa`, `review`, `ship` pass + removal pass | **Verified — installer** | pending |
 | Pi | yes | pass | pass | no separate subset case | **Verified — installer** | pending |
@@ -93,10 +93,14 @@ This is filesystem/installer verification, not a claim that seven host UIs loade
 or executed the skills. A separate actual Codex invocation installed only `qa`
 from `time-attack/gstack/skills`, with the optional runtime absent, and passed
 the judgment/setup-gate behavior without changing its workspace or creating a
-runtime or browser. The Codex adversarial lane still has no passing live result:
-v1 and immutable v2 failed; the v3 offline harness is green at 18 tests / 111
-assertions, but paid live v3 was a one-shot **3/4 failure** because review
-failed compound inspection. It was not retried or relabeled. The installer
+runtime or browser. The Codex adversarial lane now has a passing live result:
+the 2026-07-22 paid live v3 one-shot **passed 4/4** (Codex CLI 0.145.0,
+`gpt-5.4`, `retry_count` 0; artifact
+[`2026-07-22T21-33-20-053Z-84fcb74b.json`](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json)).
+The retained failed history is unchanged: v1 and immutable v2 failed, and two
+earlier live v3 one-shots each failed 3/4 (review compound inspection, then
+ship `git symbolic-ref` under the pre-fix classifier). None was retried or
+relabeled; the v3 offline harness is green at 21 tests / 135 assertions. The installer
 matrix used the current local canonical projection through the published
 `npx skills` CLI. The release branch remained unpushed; native CI used the
 temporary `codex/gstack-2-ci-20260717-39bc307b` ref only.
@@ -139,9 +143,13 @@ removals; its JSON artifact is committed at
 [`evals/installation/install-matrix.json`](../../evals/installation/install-matrix.json).
 Steps 8–9 passed for the recorded Codex runtime-absent invocation; actual UI
 loading for the other representative hosts remains separate. The paid live v3
-adversarial run is retained as a failed 3/4 gate, not a pending run. Evidence:
-[`standard-codex-runtime-absent-2026-07-17.json`](../../evals/installation/standard-codex-runtime-absent-2026-07-17.json)
-and [`2026-07-17T19-48-45Z-v3-live-gpt-5-4.json`](../../evals/host-adversarial/runs/2026-07-17T19-48-45Z-v3-live-gpt-5-4.json).
+adversarial gate **passed 4/4 one-shot** on 2026-07-22; the two earlier 3/4
+one-shots are retained as immutable failed runs, not pending runs. Evidence:
+[`standard-codex-runtime-absent-2026-07-17.json`](../../evals/installation/standard-codex-runtime-absent-2026-07-17.json),
+[`2026-07-22T21-33-20-053Z-84fcb74b.json`](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json)
+(passed), and the retained failed one-shots
+[`2026-07-17T19-48-45Z-v3-live-gpt-5-4.json`](../../evals/host-adversarial/runs/2026-07-17T19-48-45Z-v3-live-gpt-5-4.json)
+and [`2026-07-22T20-57-26-117Z-b39a6a57.json`](../../evals/host-adversarial/runs/2026-07-22T20-57-26-117Z-b39a6a57.json).
 
 ## Optional runtime/platform matrix
 
