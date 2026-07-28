@@ -9,7 +9,7 @@
   "source_path": "autoplan/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "b2eaca9fde8f46001bea9961b8ed651d0f6f9e13",
-  "normalized_render_sha256": "690d7a2550c7be6105dcd61ecd5a1f5c39799b2ff36e0ccf271d9e067b5c494b",
+  "normalized_render_sha256": "08e1fc76cb9ef5335a365f008faff5c37558a648c9ff938caa28097f1ca8e60c",
   "target": "skills/plan/references/legacy/autoplan.md",
   "overlays": [
     679,

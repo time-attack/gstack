@@ -87,7 +87,9 @@ describe("GStack runtime setup UX", () => {
     expect(paths).toContain("runtime");
     expect(paths.some((entry) => entry.startsWith("browse/"))).toBe(true);
     expect(paths.some((entry) => entry.startsWith("design/"))).toBe(false);
-    expect(paths.some((entry) => entry.startsWith("make-pdf/"))).toBe(false);
+    // make-pdf rides with the browser capability (it drives the browse daemon's
+    // Chromium print round-trip), so selecting `browser` includes it.
+    expect(paths.some((entry) => entry.startsWith("make-pdf/"))).toBe(true);
     expect(surface.capabilities.browse).toBeTruthy();
     expect(surface.capabilities["gstack-design"]).toBeUndefined();
     for (const target of Object.values(surface.capabilities)) {

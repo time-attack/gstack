@@ -8,8 +8,12 @@
     "review",
     "ship"
   ],
+  "tool_skills": [
+    "make-pdf"
+  ],
   "counts": {
     "public_skills": 5,
+    "tool_skills": 1,
     "mandatory_inputs": 25,
     "templates": 47,
     "section_templates": 14,
@@ -19,7 +23,7 @@
     "bug_fix_ports": 24,
     "assets": 70,
     "dependency_copies": 3,
-    "runtime_helpers": 38
+    "runtime_helpers": 39
   },
   "sources": [
     {
@@ -83,7 +87,7 @@
       "source_path": "office-hours/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "8568fe73cca76a80805fab3092cacd10db7e1d7f",
-      "normalized_render_sha256": "2984ade43079ea34d5765ab636c11166d00a422fbd5fdb8f19caf0101813446d",
+      "normalized_render_sha256": "c77376fa95348c5c8deb1319f9bd232cc38532d78f3a45802f640749e2c76215",
       "target": "skills/plan/references/legacy/office-hours.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -203,7 +207,7 @@
       "source_path": "plan-ceo-review/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "c43cfe64146fe79df74a974f1673fe36defcce00",
-      "normalized_render_sha256": "651d60dc117a45e2b7a327eef33453f9c00194915ff5656b319dc51915781caf",
+      "normalized_render_sha256": "8b53b9a5362c834edd08b5f50cf8511a532188b8295092ca7b7f285d9270a355",
       "target": "skills/plan/references/legacy/plan-ceo-review.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -345,7 +349,7 @@
       "source_path": "plan-eng-review/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "1d5be0e6f47f0896ee831b53c56818850b1dcfe4",
-      "normalized_render_sha256": "7b2461d9f7bd7cdce0912bba1444f39a6945da99da03596de3c161604d4247d4",
+      "normalized_render_sha256": "57d9e304a41b7d348b28220ab7dff075aff74461c796687afc89d5de4a9f83ec",
       "target": "skills/plan/references/legacy/plan-eng-review.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -469,7 +473,7 @@
       "source_path": "plan-devex-review/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "1ef723c10997a08ef87940daceb08bf8d60dd810",
-      "normalized_render_sha256": "b0d4189a531a2c64574ceb718ff7fd21c05edb540da9b8255f511e408f26ab7a",
+      "normalized_render_sha256": "1289c366de5492b120ed562b0c0b6bc9c603ee26cad3c9378079cd2cdbfefff6",
       "target": "skills/plan/references/legacy/plan-devex-review.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -605,7 +609,7 @@
       "source_path": "autoplan/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "b2eaca9fde8f46001bea9961b8ed651d0f6f9e13",
-      "normalized_render_sha256": "690d7a2550c7be6105dcd61ecd5a1f5c39799b2ff36e0ccf271d9e067b5c494b",
+      "normalized_render_sha256": "08e1fc76cb9ef5335a365f008faff5c37558a648c9ff938caa28097f1ca8e60c",
       "target": "skills/plan/references/legacy/autoplan.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -699,7 +703,7 @@
       "source_path": "spec/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "6c0c14e1b37e1e56d85427e9c8d080a6df908992",
-      "normalized_render_sha256": "e1369668980fb75cb03bc8a5e021eb9e62219f34f871efd8bb711fa3654f329d",
+      "normalized_render_sha256": "e4525d525e43fc24fa0d72ee01a21020e115faa49bb94949ba9f4b38dd6332dd",
       "target": "skills/plan/references/legacy/spec.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -834,7 +838,7 @@
       "source_path": "plan-tune/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "dc1214d4c023ed2b126aca8aedb4153b222e73c5",
-      "normalized_render_sha256": "a8d16b743982d7ad9cbe54f52aeb84a17139229d310c80fd80a30d1b67bd8c4c",
+      "normalized_render_sha256": "97e6b1468ce1382245c4d5e92bd71a2a16d0d171508cd32e7f1501ed2e24f54c",
       "target": "skills/plan/references/legacy/plan-tune.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -914,7 +918,7 @@
       "source_path": "context-save/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "a3702bc95439cddd87841aba836708bf511ef55d",
-      "normalized_render_sha256": "9202f9bf88569b19240967ba8e3ab3608e205f8b1b40dca2fff182ff125c5958",
+      "normalized_render_sha256": "c7cf8af4b2eb818f444fa3169efa9282771e4f08680bc8246cd49bb2e83d216e",
       "target": "skills/plan/references/legacy/context-save.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -990,7 +994,7 @@
       "source_path": "context-restore/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "55889f6e06d3ba896f33a16969959c700bc24f1e",
-      "normalized_render_sha256": "6f51edee130fa663b79978bcea4ecab0f853e38cf147cbceb7c19e7ef438bae4",
+      "normalized_render_sha256": "4a7a0ff4687bf1a037c93e9a6f61206b63aacbb651a2056ea6d6ccee8277b9db",
       "target": "skills/plan/references/legacy/context-restore.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1063,7 +1067,7 @@
       "source_path": "learn/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "90d08d2298cccd0d5090f194a2cd76a5361b4323",
-      "normalized_render_sha256": "4daa0e7ba0d850896f79f3246249fe1f00dda750cbe9141d4f98d2a18a57ac89",
+      "normalized_render_sha256": "df5c0ca631e7dac93e1121ba2e8c566459d822bb7411c12dc58d3590ceeb2dac",
       "target": "skills/plan/references/legacy/learn.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1137,7 +1141,7 @@
       "source_path": "retro/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "b0819c8a6b736baf489179ba587442cf9973b9d2",
-      "normalized_render_sha256": "586bcfe4c4dd8267514a0ddc7243c63229b65bddd99ea64d5fbbe6f75c7d47d5",
+      "normalized_render_sha256": "6170c5cb16cb9408f8501150c9b97748cc769847da4b6babf92e4c318dd9bbef",
       "target": "skills/plan/references/legacy/retro.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1265,7 +1269,7 @@
       "source_path": "setup-gbrain/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "f48581543b46ecf889f4f86fb7a0d9e75d0bd6ca",
-      "normalized_render_sha256": "1170cb7fb045d5eb6f2d86dbddf11488aa0e47691470a66a163002aaaa57cc13",
+      "normalized_render_sha256": "c18de976c888b7e5ed90470bd4c94adcc8ba702afa33ecb86b07b7b38a0822d7",
       "target": "skills/plan/references/legacy/setup-gbrain.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1366,7 +1370,7 @@
       "source_path": "sync-gbrain/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "2ec065472e263a07f3818ed87ee9a6a2e13ca3ae",
-      "normalized_render_sha256": "8ad4c387540025298a0cb856ace1c3d302e91df722e57908d6bb350dbbea0d6f",
+      "normalized_render_sha256": "c3e8c6bee0e7b7eb04aed78c3097135a380c3bc09e49b7ec3e8affe0c40d7246",
       "target": "skills/plan/references/legacy/sync-gbrain.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1443,7 +1447,7 @@
       "source_path": "qa/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "11997f7b878282c34b6bfd3d4b7a8131f9ad4da8",
-      "normalized_render_sha256": "d183afbd52ef70022ee6379a9fcedeec6a002fea78ed69771112a96bd6c6af9d",
+      "normalized_render_sha256": "262eeb8667c1ae1011b135fb2ba4c4340755246d832fc29dd1c570607a3ca2b2",
       "target": "skills/qa/references/legacy/qa.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1570,7 +1574,7 @@
       "source_path": "qa-only/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "75c4123cc5c406ffdd36c71a094335c137135b1e",
-      "normalized_render_sha256": "c51cb107dee42b39595816c72555d522eeb947d45231b3c11ab84498db8d1b6d",
+      "normalized_render_sha256": "2ba35b1c61520c8b1744228a3a633a6a11664abef4258bcd37719c4cb1ac2731",
       "target": "skills/qa/references/legacy/qa-only.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1672,7 +1676,7 @@
       "source_path": "ios-qa/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "e93d2831a31df65ec8e4e8693919ef5bf148457f",
-      "normalized_render_sha256": "f52bc2bf974d87d5ae7fcf178d2c56471cc51eff3817bc1cb09cb0d9f21b35ee",
+      "normalized_render_sha256": "89f86c6816c9e8316e06206a03fe506cb065c7c4de5ea26c1daee4aa121d7c8e",
       "target": "skills/qa/references/legacy/ios-qa.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1750,7 +1754,7 @@
       "source_path": "devex-review/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "081d4f35bbdec0c6b3da8ae71615ec4d41a84551",
-      "normalized_render_sha256": "479701a64cfd526fc3b77abc963928b0966bb4adfac538e9d9e93d4c7d6f3095",
+      "normalized_render_sha256": "c1dfb5bab67f6b91a0146f147528513e82ae63dcf3ad979365a93c2ce2107a8a",
       "target": "skills/qa/references/legacy/devex-review.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1850,7 +1854,7 @@
       "source_path": "benchmark/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "038f16f5fba4ae4e9eae922e3276bba8ef88149e",
-      "normalized_render_sha256": "cb9f851d81a2c42a6783081e39e972735f41eed17eaccd088418d92f071d10db",
+      "normalized_render_sha256": "067727275b1a2c35135c8057be3b4d825c109c331c059d47167ee05fb73419b1",
       "target": "skills/qa/references/legacy/benchmark.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1917,7 +1921,7 @@
       "source_path": "canary/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "d1eb2950aba2fa2b09d90f13143492c60d46793c",
-      "normalized_render_sha256": "ee19b289f8863a257e182c762955d0c830bb3990267d6e8029da2ccbc32c626a",
+      "normalized_render_sha256": "fe54271351a13f54f6aee084cc6bc29303453f6bafcd8e8aec3a539cdf377c20",
       "target": "skills/qa/references/legacy/canary.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1997,7 +2001,7 @@
       "source_path": "browse/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "9a159e4c9820172c229e2174d4a62a8f9668ab93",
-      "normalized_render_sha256": "baf29ae180652d04060ec2f51ee5783c1c1afe7e508afbba4fde5172d6d97644",
+      "normalized_render_sha256": "7f68a4f9a973ea7910a20bd3b96d5943ddf23343fc7378acb00a681c2d6efd3d",
       "target": "skills/qa/references/legacy/browse.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2086,7 +2090,7 @@
       "source_path": "open-gstack-browser/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "ef91a527890a3ac3622cc7dc84bad1ff7b64443b",
-      "normalized_render_sha256": "a596b6eb8d0bc719bb217a3616c0ea0a0bf96618f82b27bef3dcd2524c9c1e16",
+      "normalized_render_sha256": "4df3d0f861e3bd36e5b67b3fa327af2c37abcc8157795b7c053888e5cba91f36",
       "target": "skills/qa/references/legacy/open-gstack-browser.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2162,7 +2166,7 @@
       "source_path": "setup-browser-cookies/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "f812d9f56f27c32fb5f102083bbe418344c1a652",
-      "normalized_render_sha256": "d44e3ca601a2033a8798e3202e6c30d9070a6dcecefd2ba04d0c93a1fef33a46",
+      "normalized_render_sha256": "a4fc163026fb9897a9b8ba0aca0a99330b0cc112d6acd420ad58b688794e672b",
       "target": "skills/qa/references/legacy/setup-browser-cookies.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2224,7 +2228,7 @@
       "source_path": "pair-agent/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "75ed42d590f99c46cd0883c37bb1f2f9f499211c",
-      "normalized_render_sha256": "f32de827c5c57451130c1d9d18275964d66a1f8cdaf688e05fcea8a1cfe42c1e",
+      "normalized_render_sha256": "478f84d29a9591e4161103a711e6dfcefd5c42645c43dd11ffc63a66785437ea",
       "target": "skills/qa/references/legacy/pair-agent.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2308,7 +2312,7 @@
       "source_path": "scrape/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "4cb4f17c074edcdce0bc8d133f19a6a739964851",
-      "normalized_render_sha256": "559c8df2926d86ef132bb2242ea41d4ccd5dfe3789d74da4f0b2a19e44fe1a41",
+      "normalized_render_sha256": "f45abd249c961f2278e92dbf42e58e4e78331b46699ba253b5d1ba9048524494",
       "target": "skills/qa/references/legacy/scrape.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2386,7 +2390,7 @@
       "source_path": "skillify/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "21fb2f503e3d40683fa782b21abf05a8f0fef69b",
-      "normalized_render_sha256": "b375c752d99badc39ee557ae788ede75314a41181aff239db9ed3980be44afca",
+      "normalized_render_sha256": "27d2b8f38c8ad846df38a846dcdbfa89729bbd02036eb31768138a5435748302",
       "target": "skills/qa/references/legacy/skillify.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2470,7 +2474,7 @@
       "source_path": "benchmark-models/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "034cda182406dc04a82c4336ac3ebc36b5fc41b1",
-      "normalized_render_sha256": "969ad2e89ab87e2b094f93def85df1fcba425b4d5435b628797fb2439392372b",
+      "normalized_render_sha256": "4bec3634223002fa47999bd4582dbe566d0561a5c9dbbd41f665787371940027",
       "target": "skills/qa/references/legacy/benchmark-models.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2531,7 +2535,7 @@
       "source_path": "investigate/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "67e254d743ffb9060f48e3f6d4b715c077ee688d",
-      "normalized_render_sha256": "dac4bc8e0c194536849c884e77a0f64cb647d15c33f5aefd52a6ae6d0cea6434",
+      "normalized_render_sha256": "e8309d8a213e388b079ef66a7d5220d78f791d408ae5d87a3c2aa4bbe1418c63",
       "target": "skills/debug/references/legacy/investigate.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2730,7 +2734,7 @@
       "source_path": "freeze/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "c0b31aa7f9f216fc5a351d91f4bcff68c828d090",
-      "normalized_render_sha256": "92970ea04923e860250dd6c2988a846ed418a0d3630a90ff8fd5669db11c348f",
+      "normalized_render_sha256": "8cf265b54adbfd46db597bfc7a2af912df734e4a429e73c369eb7585bfd8749a",
       "target": "skills/debug/references/legacy/freeze.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2775,7 +2779,7 @@
       "source_path": "guard/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "3d34ee0c181ec7b263bf6092ba8f384619c5efb6",
-      "normalized_render_sha256": "3ee5b6635542094fe1f3762a894db9eb441936ed768c9d71f1f28497f7a28e06",
+      "normalized_render_sha256": "a9c98d9f8d175f1e1024bfc1b37049fe6add831a8b4d86b37c31463d1a36852f",
       "target": "skills/debug/references/legacy/guard.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2819,7 +2823,7 @@
       "source_path": "unfreeze/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "88e413fe5a49a45d46d8867b2d80ace30b3b45aa",
-      "normalized_render_sha256": "b0c9ba9578bcffa03777c6e21527d5b3c46c854932e439a3adaa072abe24653c",
+      "normalized_render_sha256": "0e318fd3ca04ab9a67c1108ed4bef61cdd5f4836a7f5cf47fd6f009b803bb88c",
       "target": "skills/debug/references/legacy/unfreeze.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2862,7 +2866,7 @@
       "source_path": "review/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "ba1ea88068de4b09cf717eb4ae42aa247d198314",
-      "normalized_render_sha256": "2107171657dcda2551a99172bcf5dba8173fed380b83098405c0041a2c4e75d0",
+      "normalized_render_sha256": "3e446b7e523f114debd55c5d329e22554cb09af3271f9027db0ba6b88d8b8e80",
       "target": "skills/review/references/legacy/review.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2971,7 +2975,7 @@
       "source_path": "cso/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "413fb099597b55dadca116e45a202aa693a94b74",
-      "normalized_render_sha256": "899f89b47b55a133c0da6140eabd1bd032760d492f431208c3ae650b7b961cc3",
+      "normalized_render_sha256": "24b0c9f1d40e10685497cd517e19538f06b91e51f7f2ab6ffe8df66f4fc61490",
       "target": "skills/review/references/legacy/cso.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3076,7 +3080,7 @@
       "source_path": "health/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "f92eb7347ec4f77dd8dbf464d63fcdf6a3459908",
-      "normalized_render_sha256": "181c88c3e10f81f229288b4c352e09b38daf001beddbc17751ba43c7630ae1a3",
+      "normalized_render_sha256": "f3fee10a1c52fd11344c3c8c3adeba9f6abba967f979ca1bb180ab0927b9cc33",
       "target": "skills/review/references/legacy/health.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3150,7 +3154,7 @@
       "source_path": "codex/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "333de7d8d590cc78184b0e2371171f6121408f73",
-      "normalized_render_sha256": "034b63290d675424f5e4db5841f8f1ba90f8916435fe256d57861754667bae5a",
+      "normalized_render_sha256": "fda5208c92025ee46cd5cffab2f56bbea4bcb563d4ccacc43768c62b0de923c6",
       "target": "skills/review/references/legacy/codex.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3311,7 +3315,7 @@
       "source_path": "ship/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "068ac4fe54bcb46572295d48263b11bd38fcde18",
-      "normalized_render_sha256": "a0893ea65f869b7a08a27851f7b4ce1573583ce4f48c0dbe563bd3ac99b6eb82",
+      "normalized_render_sha256": "a6631f29b7ada76c5709ee9093534e950353be54c7cc663a9624302906f52d66",
       "target": "skills/ship/references/legacy/ship.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3447,7 +3451,7 @@
       "source_path": "land-and-deploy/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "98976ad020d541d251cc7e34802a13458ddc88e2",
-      "normalized_render_sha256": "0a421a6c1a4872a0b6a3677aab72f262a436682d724c7919f461ee0bbb5435c5",
+      "normalized_render_sha256": "9a152e3fe424059a59887a2f3a967d70433958e073b276a9efeb397ebba6e840",
       "target": "skills/ship/references/legacy/land-and-deploy.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3556,7 +3560,7 @@
       "source_path": "landing-report/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "32a8cc1ab036b1ff8692f0400b68d8b56224a251",
-      "normalized_render_sha256": "f1b3a158878fd085d328ceb9a606c21d9ca080b7e9b21e017392789c0059a572",
+      "normalized_render_sha256": "033e7aadf583b06e71c6ce7838ecd82646adf4864c7ddc8215a50b5259da9384",
       "target": "skills/ship/references/legacy/landing-report.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3631,7 +3635,7 @@
       "source_path": "document-release/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "7621cb31290217b5c7cc8fb000e910b3dd38128f",
-      "normalized_render_sha256": "e9870e7cd7b51a34e22cc8b40901f44bde41573b2aa9c0889603fd032347a273",
+      "normalized_render_sha256": "749676a8528caf0944e4bda2bedbb4178a24e4bc8ed871d883b3699b0e630ead",
       "target": "skills/ship/references/legacy/document-release.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3790,7 +3794,7 @@
       "source_path": "document-generate/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "d3ef0cbc3786c4010b3c692fb94246f56a7e1d7b",
-      "normalized_render_sha256": "c89176748159781897de676eb68585d7f550b308a87ec7c657de9ab4dcfb1006",
+      "normalized_render_sha256": "2917a10c27ca092ca6327460cf48959a7bfd6aa65205a2a0296ab43080aa62bb",
       "target": "skills/ship/references/legacy/document-generate.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3995,7 +3999,7 @@
       "source_path": "ios-sync/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "156a33c4c35d3bad804e44c93ae4c931878489f3",
-      "normalized_render_sha256": "d3887cb417a78c6bf7df486e400575eeec0c03ce97817b590847d3015197ae2e",
+      "normalized_render_sha256": "4cf68fce2aab08125cc68c9b34ae6c936405e26f95ced8dbe0194ff2ac06763d",
       "target": "skills/ship/references/legacy/ios-sync.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -4932,7 +4936,7 @@
       "owner_tree": "debug",
       "consumer_tree": "qa",
       "target": "skills/qa/references/legacy/investigate.md",
-      "sha256": "25a8505438110d033f4a26c16040c3fc656fe35d31e1818222ca980f07c1d1f4",
+      "sha256": "b9ce2b36f41eb5e1851c9a96a2d0a2075d78eb1f8b1b888410e7a672b955b6ff",
       "disposition": "SHARED_MODULE"
     },
     {
@@ -4940,7 +4944,7 @@
       "owner_tree": "qa",
       "consumer_tree": "ship",
       "target": "skills/ship/references/legacy/canary.md",
-      "sha256": "cc5f314e00ce9e2a03205a33809fdac6912a4f703d7aa34d09be53f16fb8274b",
+      "sha256": "babddc54ba40967f3d015b76cac69ce9287645ffabb94b467ea91d35eb89e950",
       "disposition": "SHARED_MODULE"
     },
     {
@@ -4948,7 +4952,7 @@
       "owner_tree": "plan",
       "consumer_tree": "ship",
       "target": "skills/ship/references/legacy/context-restore.md",
-      "sha256": "4f41a8263c4761164ca03c3b718854e4bc9e4cdc0ad92c8796dc8de96dd8bd4a",
+      "sha256": "215028aecbbe35a544a90733d8920db81014d1a195a8f6edfd67c285043841fe",
       "disposition": "SHARED_MODULE"
     }
   ],
@@ -6075,6 +6079,58 @@
         "ship"
       ],
       "stable_path": "${GSTACK_HOME:-$HOME/.gstack}/bin/gstack-version-bump"
+    },
+    {
+      "name": "make-pdf",
+      "delivery": "repository-payload",
+      "source_path": "make-pdf/dist/pdf",
+      "platform_source_paths": {
+        "posix": "make-pdf/dist/pdf",
+        "win32": "make-pdf/dist/pdf.exe"
+      },
+      "consumer_modules": [
+        "autoplan",
+        "benchmark",
+        "benchmark-models",
+        "browse",
+        "canary",
+        "codex",
+        "context-restore",
+        "context-save",
+        "cso",
+        "devex-review",
+        "document-generate",
+        "document-release",
+        "freeze",
+        "guard",
+        "health",
+        "investigate",
+        "ios-qa",
+        "ios-sync",
+        "land-and-deploy",
+        "landing-report",
+        "learn",
+        "office-hours",
+        "open-gstack-browser",
+        "pair-agent",
+        "plan-ceo-review",
+        "plan-devex-review",
+        "plan-eng-review",
+        "plan-tune",
+        "qa",
+        "qa-only",
+        "retro",
+        "review",
+        "scrape",
+        "setup-browser-cookies",
+        "setup-gbrain",
+        "ship",
+        "skillify",
+        "spec",
+        "sync-gbrain",
+        "unfreeze"
+      ],
+      "stable_path": "${GSTACK_HOME:-$HOME/.gstack}/bin/make-pdf"
     },
     {
       "name": "remote-slug",

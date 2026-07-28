@@ -10,6 +10,7 @@ import {
 const ROOT = path.resolve(import.meta.dir, '../..');
 const REQUIRED_CAPABILITIES = [
   'browse',
+  'make-pdf',
   ...(process.platform === 'darwin' ? ['gstack-ios-qa-daemon', 'gstack-ios-qa-mint'] : []),
 ] as const;
 

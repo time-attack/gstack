@@ -597,6 +597,7 @@ export function renderPortedLegacyBody(source: string): string {
       'GSTACK_BIN="$GSTACK_HOME/bin"',
       'BUN_CMD="$GSTACK_BIN/bun"',
       'B="$GSTACK_BIN/browse"',
+      'P="$GSTACK_BIN/make-pdf"',
       '```',
       '',
     ].join('\n');

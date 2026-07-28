@@ -304,7 +304,8 @@ describe('proactive-suggestions.json determinism (regression for v1.45.0.0 CI fr
       .filter((entry: { isDirectory(): boolean; name: string }) => entry.isDirectory() && !entry.name.startsWith('.'))
       .map((entry: { name: string }) => entry.name)
       .sort();
-    expect(publicSkills).toEqual(['debug', 'plan', 'qa', 'review', 'ship']);
+    // Five judgment dispatchers plus the make-pdf tool skill in the same tree.
+    expect(publicSkills).toEqual(['debug', 'make-pdf', 'plan', 'qa', 'review', 'ship']);
   });
 
   test('schema + catalog_mode + note fields are stable', () => {

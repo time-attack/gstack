@@ -1,6 +1,6 @@
 {
   "name": "gstack",
-  "version": "1.64.10.0",
+  "version": "1.64.20.0",
   "description": "GStack 2 \u2014 six portable Agent Skills with an optional host-neutral runtime.",
   "license": "MIT",
   "type": "module",
@@ -29,6 +29,7 @@
     "gen:skill-docs": "bun run scripts/gen-skill-docs.ts",
     "gen:skill-docs:user": "bun run scripts/gen-skill-docs.ts --respect-detection",
     "dev": "bun run browse/src/cli.ts",
+    "dev:make-pdf": "bun run make-pdf/src/cli.ts",
     "server": "bun run browse/src/server.ts",
     "test": "bun run scripts/test-free-strict.ts",
     "check:gstack2-generated": "bun run scripts/gstack2/check-generated.ts",
@@ -70,6 +71,7 @@
     "@anthropic-ai/sdk": "^0.112.4",
     "@ngrok/ngrok": "^1.7.0",
     "diff": "^9.0.0",
+    "html-to-docx": "1.8.0",
     "marked": "^18.0.6",
     "playwright": "npm:playwright-core@^1.58.2",
     "sharp": "^0.34.5",

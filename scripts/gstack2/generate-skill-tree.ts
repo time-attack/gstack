@@ -65,12 +65,56 @@ function basePaths(prefix: string): string[] {
     .filter(Boolean);
 }
 
+// Tool skills that keep their source/binary at repo root (own SKILL.md.tmpl)
+// but are NOT legacy specialist inputs to the five judgment dispatchers. Their
+// host-neutral SKILL surface is emitted into `skills/<tool>/` so they install
+// with the canonical tree (`npx skills add time-attack/gstack/skills`) as
+// additional discoverable skills. The dispatcher inventory ignores them rather
+// than demand a source assignment.
+const TOOL_SKILLS = ['make-pdf'] as const;
+const TOOL_SKILL_SET = new Set<string>(TOOL_SKILLS);
+
+// One-line description for each tool skill's generated frontmatter.
+const TOOL_SKILL_DESCRIPTIONS: Record<string, string> = {
+  'make-pdf':
+    'Turn any Markdown file into a publication-quality, print-ready PDF with proper margins, page numbers, cover pages, running headers, and a clickable table of contents. Mermaid and Excalidraw fences render as vector diagrams fully offline, and --to html or --to docx emit a self-contained web page or Word document. Use when asked to "make a PDF", "export to PDF", "turn this markdown into a document", or "generate a document".',
+};
+
+function toolSkill(source: string): string {
+  const description = TOOL_SKILL_DESCRIPTIONS[source];
+  if (!description) throw new Error(`Tool skill ${source} lacks a frontmatter description`);
+  const body = renderPortedLegacyBody(source);
+  return `---
+name: ${source}
+description: >-
+  ${description}
+---
+
+${body.trim()}
+`;
+}
+
+function writeToolSkillReferences(source: string): void {
+  const bootstrap = fs.readFileSync(path.join(ROOT, 'runtime', 'runtime-bootstrap.mjs'));
+  const browserChoice = fs.readFileSync(path.join(ROOT, 'runtime', 'browser-choice.mjs'));
+  const browserSmoke = fs.readFileSync(path.join(ROOT, 'runtime', 'browser-provider-smoke.mjs'));
+  const base = path.join(ROOT, 'skills', source, 'references');
+  write(path.join(base, 'RUNTIME.md'), runtimeContract());
+  write(path.join(base, 'BROWSER-PROVIDERS.md'), `${GENERATED}\n${renderBrowserProviderContract()}`);
+  write(path.join(base, 'support', 'runtime-bootstrap.mjs'), bootstrap);
+  write(path.join(base, 'support', 'browser-choice.mjs'), browserChoice);
+  write(path.join(base, 'support', 'browser-provider-smoke.mjs'), browserSmoke);
+  writeJson(path.join(base, 'support', 'runtime-contract.json'), RUNTIME_SKILL_CONTRACT);
+  writeJson(path.join(base, 'support', 'execution-result-contract.json'), EXECUTION_RESULT_SCHEMA);
+}
+
 function assertInventory(): void {
   const discovered = [
     fs.existsSync(path.join(ROOT, 'SKILL.md.tmpl')) ? 'gstack' : '',
     ...fs.readdirSync(ROOT, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, entry.name, 'SKILL.md.tmpl')))
-      .map((entry) => entry.name),
+      .map((entry) => entry.name)
+      .filter((name) => !TOOL_SKILL_SET.has(name)),
   ].filter(Boolean).sort();
   const assigned = SOURCE_ASSIGNMENTS.map((entry) => entry.source).sort();
   if (JSON.stringify(discovered) !== JSON.stringify(assigned)) {
@@ -202,7 +246,7 @@ function rootSkill(dispatcher: DispatcherDefinition): string {
   const supplemental = dispatcher.name === 'qa'
     ? '\n9. When `system-functional` is active, read `references/SYSTEM-FUNCTIONAL.md` completely and execute it alongside the selected preserved specialists.\n'
     : dispatcher.name === 'ship'
-      ? '\n9. Before push, PR creation/update, merge, deploy, rollback, release publication, or external notification, read `references/EXTERNAL-EFFECTS.md` and execute the action through its durable state wrapper.\n10. When the release target is an Apple platform app (an `.xcodeproj`, `.xcworkspace`, or app-product Swift package is present), read `references/APPLE-RELEASE.md` before release preparation and follow its App Store journey end to end.\n'
+      ? '\n9. Before push, PR creation/update, merge, deploy, rollback, release publication, or external notification, read `references/EXTERNAL-EFFECTS.md` and execute the action through its durable state wrapper.\n10. When the release target is an Apple platform app (an `.xcodeproj`, `.xcworkspace`, or app-product Swift package is present), read `references/APPLE-RELEASE.md` FIRST — before any specialist preflight or repository gate — and follow its App Store journey end to end. An App Store or TestFlight ask is store distribution, not repository landing: the specialist branch/PR ceremony does not gate it, and a clean tree on the base branch is a valid state to archive and upload from.\n'
       : dispatcher.name === 'plan'
         ? '\n9. Classify the Scale header line from the Build scale section before any questioning begins. Every planning specialist applies its proportional-planning judgment port to that scale.\n'
         : '';
@@ -481,6 +525,7 @@ function sharedJudgmentContract(): string {
     '10. Ask only what cannot be inferred. Question rounds are for decisions that are consequential and still open after the prompt, the repository, and platform convention are consulted; infer the rest, state each inferred default in one line, and batch what remains. Never spend a round confirming what a handoff already names or offering optional extras.',
     '11. A user-stated time constraint binds every phase and every chained skill. Skip or compress optional phases that do not fit it, noting each skip in one line.',
     '12. The user makes the final decision.',
+    '13. A claimed limitation or requirement is a material claim. Never state that a tool, API, or platform cannot do something — or that a credential, key, account, or manual step is required — without evidence in hand: the verbatim error, the documented statement, or a live probe. Pattern-matching a failure to a familiar story is not evidence; diagnose from the actual output. When a cheap probe settles the question (run the command, list installed capabilities, attempt the operation), run it before asking the user for anything or declaring a gate.',
     '',
   ].join('\n');
 }
@@ -664,13 +709,15 @@ function appleReleaseContract(): string {
   return `${GENERATED}
 # Apple App Store release
 
-Applies when the ship target is an Apple platform app: the repository contains an \`.xcodeproj\` or \`.xcworkspace\`, or a Swift package with an app product. This adapter extends the preserved ship judgment to the App Store journey end to end; it replaces no gate, and every upload or submission remains an external effect executed through \`references/EXTERNAL-EFFECTS.md\`.
+Applies when the ship target is an Apple platform app: the repository contains an \`.xcodeproj\` or \`.xcworkspace\`, or a Swift package with an app product. Read this BEFORE any specialist preflight. This adapter extends the preserved ship judgment to the App Store journey end to end, and every upload or submission remains an external effect executed through \`references/EXTERNAL-EFFECTS.md\` — but store distribution is its own release path, not repository landing: the preserved specialist's branch/PR ceremony (feature-branch gate, commit-review-PR pipeline, merge queue) applies only when the user asked to land repository changes. A user shipping to the App Store or TestFlight proceeds through this adapter from whatever branch they are on; a clean working tree on the base branch is a normal and valid state to archive and upload from. Never abort an App Store release over branch topology.
 
 One tool runs the entire release: machine-level fastlane — \`produce\` (app record and bundle ID), \`cert\` and \`sigh\` (signing), \`gym\` (archive and signed export), \`pilot\` (TestFlight), \`deliver\` (metadata, screenshots, Submit for Review), \`frameit\` (device frames). Install it when missing (\`brew install fastlane\`) with a one-line announcement, not a question — the release authorization covers machine-tool installs. Never install additional App Store CLI tools, and never mention API keys, \`.p8\` files, sessions, or any credential format to the user; they paid US$99 and want to ship, and the release itself adds no new dependency to the user's project.
 
+A Mac is required only for the build legs. Archiving, signing, and the binary upload ride Xcode's macOS-only toolchain — Apple ships it nowhere else, and no tool routes around that. On a non-macOS host, say so plainly, then route exactly those legs through a macOS CI runner (a GitHub Actions \`macos\` runner executing the same \`gym\` and \`deliver\`/\`pilot\` commands, with the minted upload key supplied as a CI secret — key auth is precisely what CI wants); sign-in, key minting, metadata, screenshots, pricing, and submission judgment are plain API work that stays on the user's machine. Never claim the whole release is impossible off a Mac, and never pretend the build leg is possible there.
+
 ## The one authorization moment
 
-The whole journey permits exactly two interactions, and no others. FIRST, up front: confirm the user holds a paid Apple Developer Program membership (US$99/year — the App Store and TestFlight both require it) and authorize the release. Apple sign-in happens inside this same moment: run \`fastlane spaceauth -u <apple-id>\` through the host's interactive command path (in Claude Code, the user types \`! fastlane spaceauth -u <email>\` so their password and one two-factor code go directly to Apple in-session; a separate terminal window is the fallback only when the host has no interactive path). Keep the printed session token out of the transcript — the cached cookie in \`~/.fastlane/spaceship/\` is the credential fastlane actually uses; never store, echo, or log the password or token, and re-run the same one command when the session expires. SECOND, only when preflight finds the icon or screenshots missing: the store-assets question below. Everything else — tool installs, upload, storefront, submission — is covered by the authorization and proceeds without asking. Auth menus, tool-choice questions, plan confirmations, and step-by-step narration requests are contract violations.
+The whole journey permits exactly two interactions, and no others. FIRST, up front: confirm the user holds a paid Apple Developer Program membership (US$99/year — the App Store and TestFlight both require it) and authorize the release. Pricing belongs to this same breath, once per app EVER: ask free or paid (and the price if paid) inside the authorization question — never as a separate interruption — after checking the decision store (\`bin/gstack-decision-search --scope repo --query "pricing"\`); persist the answer (\`bin/gstack-decision-log\`, scope \`repo\`) so no later release re-asks, and a paid answer names the one-time Paid Apps banking/tax agreement honestly right there, since nothing sells until it is signed. Price is a launch decision the agent never defaults silently: a free launch cannot be un-launched. Apple sign-in happens inside this same moment: run \`fastlane spaceauth -u <apple-id>\` through the host's interactive command path (in Claude Code, the user types \`! fastlane spaceauth -u <email>\` so their password and one two-factor code go directly to Apple in-session; a separate terminal window is the fallback only when the host has no interactive path). Keep the printed session token out of the transcript — the cached cookie in \`~/.fastlane/spaceship/\` is the credential fastlane actually uses; never store, echo, or log the password or token, and re-run the same one command when the session expires. Immediately after the first sign-in, mint the permanent upload key from the session (step 4 of Archive and upload) — when that key already sits at \`~/.gstack/apple/api-key.json\` and no new app record is needed, skip the sign-in entirely: repeat releases authorize and proceed with zero sign-in. SECOND, only when preflight finds the icon or screenshots missing: the store-assets question below. Everything else — tool installs, upload, storefront, submission — is covered by the authorization and proceeds without asking. Auth menus, tool-choice questions, plan confirmations, and step-by-step narration requests are contract violations.
 
 No membership: STOP the App Store path. Offer to walk enrollment at developer.apple.com through \`references/THIRD-PARTY-ACTIONS.md\` (a purchase the user completes themselves; activation can take a day or two), and name the free-account ceiling honestly: personal-team installs on the user's own devices only, expiring after 7 days, no TestFlight, no App Store.
 
@@ -693,17 +740,20 @@ Only when preflight finds the icon or screenshots missing, ask once — the jour
 - **AI-enhanced marketing screenshots**: the aso-appstore-screenshots agent skill (benefit headlines, breakout panels, exact App Store dimensions) — the only option that needs the user's own image-generation key; when installed, follow its workflow rather than reimplementing it.
 - **User-supplied files**: always a valid answer; validate dimensions and move on.
 
-Assets already present skip this entirely. Announce what was generated at exit.
+Build this question's options from a LIVE check of installed skills at ask time — never from memory or an earlier conversation turn. Whenever the app-store-screenshots deck editor skill is installed, its free no-key option MUST appear in the list; omitting it is a contract violation equal to claiming screenshots need an API key. Assets already present skip this entirely. Announce what was generated at exit.
 
 ## Archive and upload
 
 1. Archive and export the signed Release build with \`gym\` (it drives xcodebuild and the signing minted in preflight). Projects with custom archive requirements may drop to \`xcodebuild archive\` directly; the output either way is an App Store-signed \`.ipa\`.
 2. The upload is an external effect: run \`pilot\` (TestFlight) or \`deliver\` (App Store) through the durable state wrapper with a key like \`appstore.upload.<bundle-id>.<build>\`. Never re-upload on ambiguity; inspect App Store Connect for the build first.
-3. The cached session is an env-level credential: never argv, never echoed, never committed.
+3. The cached session, the minted key, and every credential file are env- or file-level secrets: never argv, never echoed, never committed.
+4. NEVER demand an app-specific password — the session MINTS the upload key instead. Per fastlane's documented authentication, Apple's binary-upload tool (iTMSTransporter, which \`deliver\`/\`pilot\` shell out to for the \`.ipa\`) does not accept the web session: it takes only an App Store Connect API key or an app-specific password, and Apple's error \`-22938\` ("Sign in with the app-specific password") is Transporter saying exactly this. That is not a gate and not a question, because the web session creates the key itself, silently: through fastlane's bundled spaceship (\`Spaceship::Tunes.login(<apple-id>)\` reuses the cached cookie, then raw client requests), \`POST https://appstoreconnect.apple.com/iris/v1/apiKeys\` with JSON:API body \`{data:{type:"apiKeys",attributes:{nickname:"gstack-upload",allAppsVisible:true,roles:["APP_MANAGER"],keyType:"PUBLIC_API"}}}\`, then \`GET .../iris/v1/apiKeys/<id>?fields[apiKeys]=privateKey\` — the \`privateKey\` attribute is base64 of the COMPLETE PEM file: decode it exactly once and write \`~/.appstoreconnect/private_keys/AuthKey_<id>.p8\` (0600) immediately, it is downloadable only at creation. The issuer ID is \`provider.publicProviderId\` from \`GET https://appstoreconnect.apple.com/olympus/v1/session\`. Record key id, issuer id, and key content as a fastlane api-key JSON at \`~/.gstack/apple/api-key.json\` (0600) and run \`deliver\`/\`pilot\` with \`api_key_path\` from then on. The key never expires, so every later release skips sign-in; the session stays necessary only for \`produce\` (Apple's public API cannot create app records) and for re-minting if the key is ever revoked. Stating that the user must generate any credential themselves while key minting is untried is a contract violation. CLASSIFY the error before touching credentials: an error is an authentication failure ONLY when it says so (401/403, session invalid or expired, "sign in", "app-specific password" in Apple's own words). A \`Spaceship::UnexpectedResponse\`, missing/invalid attribute, validation, or precheck error is a METADATA problem — fix the payload (for example, Apple's expanded age-rating attributes such as \`lootBox\`, \`ageAssurance\`, \`parentalControls\`, \`messagingAndChat\` in \`app_rating_config.json\`) and retry from the CLI. Treating a metadata error as a credential problem is a contract violation.
+5. Within an Apple release, this adapter OVERRIDES \`references/THIRD-PARTY-ACTIONS.md\`: the general agentic-browser offer never applies to App Store Connect, Apple ID, or credential work here. The entire release is CLI (fastlane) plus the two permitted interactions; the ONLY browser use this adapter allows, ever, is the paid-app agreements/banking/tax residue named at the end of this document. Opening a browser — driven or manual — for anything else in this journey is a contract violation. When a real error does force the fallback, QUOTE the error verbatim, then escalate in this order: FIRST mint (or re-mint) the upload key from the session per step 4 and retry the upload with \`api_key_path\` — an upload-auth error with no key on disk means the mint was skipped, not that the user owes a credential. SECOND, if the minting itself fails with a session error, ask the user to sign in again (the same \`! fastlane spaceauth -u <apple-id>\` moment as the original authorization), re-mint, and retry. Only when a FRESH session still cannot mint a key — a permissions refusal because the signed-in Apple ID is not Admin or Account Holder on its team — does the app-specific-password path open, and its only shape is self-service: the user generates the password on any device and enters it through the host's in-session masked prompt into the macOS keychain (\`fastlane fastlane-credentials add --username <apple-id>\`), then the upload is retried. NEVER offer or recommend a browser drive to create credentials — no Aside, no agentic browser, for any password, key, or token, under any framing.
+6. App Review contact details (name, email, phone) are required metadata for submission: infer name and email from the signed-in Apple ID and git config, collect the phone number once inside the authorization moment, persist it to the decision store, and never re-ask. Contact details are metadata, not a blocking gate to announce mid-run.
 
 ## Storefront completion
 
-\`produce\` already created the app record and bundle ID during the run — never call the app record a manual gate. \`deliver\` owns everything the store listing needs: description, keywords, localizations, screenshot upload per device size, attaching the uploaded build, and Submit for Review; \`pilot\` manages TestFlight groups and testers as an intermediate round when the user asked for one. Submission is an external effect like the upload: durable key \`appstore.submit.<bundle-id>.<version>\`. Monitor review status from the CLI afterward.
+\`produce\` already created the app record and bundle ID during the run — never call the app record a manual gate. Apply the pricing settled in the authorization moment through the App Store Connect price-schedule endpoint (\`POST /v1/appPriceSchedules\` via the session or the minted key): fastlane's \`price_tier\` option is broken against the current API ("'prices' is not a relationship on 'apps'"), so never route pricing through it or call its failure an account problem. \`deliver\` owns everything else the store listing needs: description, keywords, localizations, screenshot upload per device size, attaching the uploaded build, and Submit for Review; \`pilot\` manages TestFlight groups and testers as an intermediate round when the user asked for one. Submission is an external effect like the upload: durable key \`appstore.submit.<bundle-id>.<version>\`. Monitor review status from the CLI afterward.
 
 What remains web-only, ever: the paid Apple Developer Program membership purchase itself (a precondition, not a release step) and, for PAID apps only, the one-time Paid Apps agreement with banking and tax — offer the agentic-browser drive per \`references/THIRD-PARTY-ACTIONS.md\` before any manual checklist for those. A free app needs no browser at any point. After submission, report that App Review typically answers within a day or two and close the run; review outcome is not a gate this workflow can hold open.
 `;
@@ -795,6 +845,7 @@ function runtimeHelperClosure(rendered: Map<string, RenderedModuleRecord>): Arra
   }
   const platformSourceOverrides: Record<string, { posix: string; win32: string }> = {
     browse: { posix: 'browse/dist/browse', win32: 'browse/dist/browse.exe' },
+    'make-pdf': { posix: 'make-pdf/dist/pdf', win32: 'make-pdf/dist/pdf.exe' },
   };
   const sourceOverrides: Record<string, string> = {
     'remote-slug': 'browse/bin/remote-slug',
@@ -866,7 +917,7 @@ function migrationDoc(): string {
 
 Pinned baseline: \`${GSTACK2_BASE_SHA}\`.
 
-GStack 2 exposes exactly five public skills: \`plan\`, \`qa\`, \`debug\`, \`review\`, and \`ship\`. The specialist bodies from 47 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 14 carved specialist sections are package-local lazy references loaded only at their original workflow point. Twenty-five primary modules are mandatory specialist inputs, and 22 supporting modules remain reachable through compatibility routing.
+GStack 2 exposes exactly five judgment dispatchers: \`plan\`, \`qa\`, \`debug\`, \`review\`, and \`ship\`, plus the \`make-pdf\` tool skill that installs with the same canonical tree (six discoverable skills total). The specialist bodies from 47 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 14 carved specialist sections are package-local lazy references loaded only at their original workflow point. Twenty-five primary modules are mandatory specialist inputs, and 22 supporting modules remain reachable through compatibility routing.
 
 The fixed public modes are: QA = \`Report | Fix\`; Debug = \`Diagnose-only | Fix\`; Review = \`Normal | Security | Performance | Deep\`; Ship = \`Prepare | Land | Deploy | Monitor | Resume\`. Richer legacy modes are internal aliases only.
 
@@ -910,7 +961,7 @@ The pinned release inventory passes **${EXPECTED_PARITY_CHECKS.toLocaleString('e
 
 The suite verifies:
 
-- exactly five discoverable public skills and 47 internal legacy modules;
+- exactly five discoverable judgment dispatchers plus the make-pdf tool skill (six discoverable skills) and 47 internal legacy modules;
 - 47 canonical templates plus 14 carved section templates at base \`${GSTACK2_BASE_SHA}\`;
 - immutable full 1.x render hashes plus canonical specialist-render equality, with the excluded onboarding wrapper and lazy section references asserted explicitly;
 - preservation of nine behavioral contract dimensions per module;
@@ -928,6 +979,9 @@ function main(): void {
   for (const tree of TREE_NAMES) {
     purge(path.join(ROOT, 'skills', tree, 'references'), true);
     purge(path.join(ROOT, 'skills', tree, 'assets'), true);
+  }
+  for (const tool of TOOL_SKILLS) {
+    purge(path.join(ROOT, 'skills', tool, 'references'), true);
   }
   // Deterministic evidence is regenerated from source. Supplemental paid live
   // transcripts are append-only evidence and must survive a normal build.
@@ -1010,6 +1064,10 @@ function main(): void {
     write(path.join(ROOT, 'skills', dispatcher.name, 'SKILL.md'), rootSkill(dispatcher));
     write(path.join(ROOT, 'skills', dispatcher.name, 'agents', 'openai.yaml'), openAiYaml(dispatcher));
   }
+  for (const tool of TOOL_SKILLS) {
+    write(path.join(ROOT, 'skills', tool, 'SKILL.md'), toolSkill(tool));
+    writeToolSkillReferences(tool);
+  }
 
   const assets = copyAssets();
   writeAssetMaps(assets);
@@ -1065,7 +1123,8 @@ function main(): void {
     schema_version: 1,
     base_sha: GSTACK2_BASE_SHA,
     public_skills: [...TREE_NAMES],
-    counts: { public_skills: 5, mandatory_inputs: 25, templates: 47, section_templates: 14, packaged_section_copies: sectionCopies.length, internal_execution_adapters: 1, scenarios: 19, bug_fix_ports: 24, assets: assets.length, dependency_copies: dependencyCopies.length, runtime_helpers: runtimeHelpers.length },
+    tool_skills: [...TOOL_SKILLS],
+    counts: { public_skills: 5, tool_skills: TOOL_SKILLS.length, mandatory_inputs: 25, templates: 47, section_templates: 14, packaged_section_copies: sectionCopies.length, internal_execution_adapters: 1, scenarios: 19, bug_fix_ports: 24, assets: assets.length, dependency_copies: dependencyCopies.length, runtime_helpers: runtimeHelpers.length },
     sources: sourceRecords,
     sections: sectionRecords,
     section_copies: sectionCopies,
@@ -1087,7 +1146,7 @@ function main(): void {
   write(path.join(DOCS, 'JUDGMENT-PARITY.md'), parityDoc(assets.length));
   write(path.join(DOCS, 'SCENARIOS.md'), scenarioDoc());
   const semantic = runDeterministicSemanticParity(true);
-  process.stdout.write(`Generated 5 dispatchers, ${sourceRecords.length} modules, ${sectionRecords.length} lazy specialist sections, ${SCENARIOS.length} scenarios, ${BUG_FIX_OVERLAYS.length} bug-fix ports, and ${assets.length} asset copies.\n`);
+  process.stdout.write(`Generated 5 dispatchers, ${TOOL_SKILLS.length} tool skill(s), ${sourceRecords.length} modules, ${sectionRecords.length} lazy specialist sections, ${SCENARIOS.length} scenarios, ${BUG_FIX_OVERLAYS.length} bug-fix ports, and ${assets.length} asset copies.\n`);
   process.stdout.write(`Generated semantic evidence: ${semantic.checks} checks across ${semantic.suites} suites and ${semantic.policyUnits} authority-policy unit cases.\n`);
 }
 

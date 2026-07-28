@@ -7,7 +7,7 @@
 > completion state and remaining P0 gates. No version bump or release claim is
 > made here while that status holds.
 
-## [1.65.0.0] - 2026-07-24
+## [1.65.0.0] - 2026-07-28
 
 **Scraping now has a menu. Measured, ranked,**
 **and it tells you what to install when the best tool is missing.**
@@ -48,6 +48,129 @@ The next time a task needs web data, you get a one-time question with real optio
 
 - `lib/web-data.ts`: provider registry, task rankings (bakeoff-sourced), selection store at `$GSTACK_HOME/web-data.json`, availability detection. 14 unit tests in `test/web-data.test.ts`.
 - `runtime/install.js`: `gstack-web-data` registered in `DEFAULT_RUNTIME_HELPERS`, `lib/web-data.ts` in the helper dependency closure.
+
+## [1.64.20.0] - 2026-07-24
+
+**Shipping from Windows: honest about the Mac, smart about the workaround.**
+
+You cannot build an iOS app without Xcode, and Xcode only exists on macOS — that wall is Apple's. What the release can do from any machine: sign in, mint the upload credential, write metadata, upload screenshots, set pricing, and submit. So the contract now names the split instead of failing vaguely: on a non-Mac host, the build and upload legs route through a free GitHub Actions macOS runner using your minted key as a CI secret, and everything else stays local. No more "impossible on Windows," and no pretending the build works there either.
+
+### Itemized changes
+
+### Changed
+
+- `skills/ship/references/APPLE-RELEASE.md`: non-macOS hosts get the honest Mac-required split — build legs (archive, sign, upload) route through a macOS CI runner with the minted key as a secret; API legs stay local.
+
+## [1.64.19.0] - 2026-07-24
+
+**Free or paid is your call, asked once, inside the question you already answer.**
+
+Price is a launch decision: a free launch cannot be un-launched, and a paid app sells nothing until the banking agreement is signed. The release no longer defaults it silently — the one authorization question now also settles free-or-paid (and the price), once per app ever, remembered in the decision store so repeat releases stay zero-question. Paid answers get told about the one-time banking/tax agreement up front instead of at the finish line. Pricing also executes reliably now: it runs through Apple's price-schedule API directly, because fastlane's own pricing option is broken against the current App Store Connect API (proven on a live release).
+
+### Itemized changes
+
+### Changed
+
+- `skills/ship/references/APPLE-RELEASE.md`: pricing folded into the authorization moment (once per app, decision-store persisted, paid → Paid Apps agreement named up front); storefront pricing pinned to `POST /v1/appPriceSchedules` with fastlane `price_tier` documented as broken against the current API.
+
+## [1.64.18.0] - 2026-07-24
+
+**Your sign-in now mints the upload credential. Nobody types an app-specific password.**
+
+Apple runs binary uploads through a separate tool (iTMSTransporter) that never accepts the web session — it wants an App Store Connect API key or an app-specific password, and until now that surfaced as error -22938 and a dead stop. Probed live and proven: the same web session your one sign-in creates can mint that API key itself, through the exact endpoints the App Store Connect website uses. So the release does it silently — sign in once, gstack creates a permanent upload key, stores it locked-down on your machine, and every release after that needs no sign-in at all. The password prompt Apple's error message asks for is now the last-resort path for team members without admin rights, not the default anyone sees.
+
+### Itemized changes
+
+### Changed
+
+- `skills/ship/references/APPLE-RELEASE.md`: upload leg corrected — the web session mints an ASC API key (iris `POST /v1/apiKeys`, one-time `privateKey` download decoded from base64-of-PEM, issuer from `olympus/v1/session`) stored at `~/.appstoreconnect/private_keys/` + `~/.gstack/apple/api-key.json` (0600); `deliver`/`pilot` run with `api_key_path`; repeat releases skip sign-in entirely. Escalation ladder: mint → re-sign-in + re-mint → self-service app-specific password only on a team-permissions refusal.
+
+## [1.64.17.0] - 2026-07-24
+
+**The broad fix: claimed limitations now require evidence, everywhere.**
+
+Nine live-release failures in two days shared one root: the agent asserting folklore as fact — "Apple requires an app-specific password," "the API can't do this," "screenshots need a key" — instead of running the ten-second check that would have disproven it. The shared judgment contract that binds all six skills gains clause 13: a claimed limitation or requirement is a material claim, stated only with the verbatim error, the documented statement, or a live probe in hand. Pattern-matching a failure to a familiar story is not evidence. When a cheap probe settles the question, run it before asking the user anything or declaring a gate. The Apple adapter's specific rules remain as regression pins; this clause is the umbrella that covers the cases nobody has hit yet.
+
+### Itemized changes
+
+### Changed
+
+- `references/SHARED-JUDGMENT.md` (all six skill trees): clause 13 — evidence-before-claimed-limitations, probe-before-gate.
+
+## [1.64.16.0] - 2026-07-24
+
+**A metadata error is not a login problem.**
+**And the Apple release never opens a browser. Period.**
+
+A live run hit Apple's expanded age-rating questionnaire (new required attributes like lootBox, ageAssurance, parentalControls, messagingAndChat), misread the Spaceship validation error as an authentication failure, demanded an app-specific password, and started driving a browser at account.apple.com — three wrongs from one misdiagnosis. The adapter now classifies errors before touching credentials: only Apple's own words (401/403, session expired, "app-specific password") make an error an auth error; UnexpectedResponse/missing-attribute/validation errors are metadata problems fixed in the payload and retried from the CLI. And the adapter now explicitly overrides the general third-party browser-offer contract for the whole Apple journey: the only browser use it permits, ever, is the paid-app agreements/banking/tax residue.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): error-classification rule (metadata vs auth, with Apple's expanded age-rating attributes as the worked example); APPLE-RELEASE explicitly overrides THIRD-PARTY-ACTIONS within the Apple release — no browser, driven or manual, outside the named paid-app residue.
+
+## [1.64.15.0] - 2026-07-24
+
+**A bad credential means "sign in again," not "go generate a password."**
+
+Upload auth failures now escalate in the obvious order: quote the real error, re-run the same in-session sign-in from the authorization moment (expired sessions are the common case), retry with the fresh session, and only if a fresh session still fails does the self-service app-specific-password fallback open.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): auth-failure escalation ladder — verbatim error, re-sign-in + retry first, app-specific password only after a fresh session fails.
+
+## [1.64.14.0] - 2026-07-24
+
+**Credentials are never created by a browser drive. Restored, permanently.**
+
+The v1.64.7.0 contract compression dropped the explicit ban on browser-driven credential creation, and a release run promptly recommended driving account.apple.com to mint an app-specific password. The ban is back, wider: no Aside, no agentic browser, for any password, key, or token, under any framing. When a genuine upload auth error forces the app-specific-password fallback, the error is quoted verbatim and the only path offered is self-service — generate it on any device, enter it through the in-session masked keychain prompt, retry.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): browser-driven credential creation banned again explicitly; legal fallback shape defined (verbatim error + in-session masked `fastlane fastlane-credentials add` + retry).
+
+## [1.64.13.0] - 2026-07-24
+
+**The session is enough. Demanding an app-specific password is a bug.**
+
+A release run stopped to demand an app-specific password "because Apple requires it for uploading on 2FA accounts." Per fastlane's own documentation that is false: the cached spaceauth session alone uploads binaries through deliver and pilot; the app-specific password is an alternative for sessionless environments, not a requirement. The adapter now says so explicitly again (the sentence was lost in the v1.64.7.0 rewrite), and adds an attempt-first rule: only a real authentication error from a real upload attempt may open any credential fallback conversation. App Review contact details also stop being a mid-run roadblock — collected once inside the authorization moment, persisted, never re-asked.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): restored the session-suffices-for-upload guarantee with an attempt-first rule (preemptive app-specific-password demands are a named violation); App Review contact info folded into the authorization moment and the decision store.
+
+## [1.64.12.0] - 2026-07-24
+
+**The screenshots question is built from a live skill check, not memory.**
+
+A release run offered a screenshots menu missing the free deck editor even though the skill was installed and the contract listed it first — the agent re-emitted an earlier conversation's options instead of re-reading the reference. The store-assets question must now be constructed from a live check of installed skills at ask time; omitting the free no-key deck editor option while it is installed is a named contract violation.
+
+### Itemized changes
+
+### Changed
+
+- `references/APPLE-RELEASE.md` (ship tree): store-assets options built from a live installed-skill check at ask time, never from conversation memory; the deck editor option is mandatory when installed.
+
+## [1.64.11.0] - 2026-07-24
+
+**Shipping to the App Store is not landing a PR.**
+**The branch gate no longer blocks store releases.**
+
+A release run on an Xcode project aborted at "you're on the base branch, ship from a feature branch" — without ever reaching the Apple journey. That gate belongs to repository landing (commit, review, PR, merge), which is a different release path than store distribution. The ship dispatcher now loads the Apple adapter FIRST for Apple targets, before any specialist preflight, and the adapter states it outright: an App Store or TestFlight ask proceeds from whatever branch you are on. A solo developer with a clean tree on main is the normal case, not an error.
+
+### Itemized changes
+
+### Changed
+
+- Ship dispatcher step 10: Apple targets read `references/APPLE-RELEASE.md` before any specialist preflight or repository gate; store distribution explicitly does not route through the branch/PR ceremony.
+- `references/APPLE-RELEASE.md` (ship tree): store distribution declared its own release path — branch/PR ceremony applies only to repository-landing asks; never abort an App Store release over branch topology.
 
 ## [1.64.10.0] - 2026-07-24
 

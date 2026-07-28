@@ -149,7 +149,8 @@ describe('gen-skill-docs', () => {
       .filter(entry => entry.isDirectory() && fs.existsSync(path.join(ROOT, 'skills', entry.name, 'SKILL.md')))
       .map(entry => entry.name)
       .sort();
-    expect(publicSkills).toEqual([...PUBLIC_SKILL_NAMES]);
+    // Five judgment dispatchers plus the make-pdf tool skill in the same tree.
+    expect(publicSkills).toEqual([...PUBLIC_SKILL_NAMES, 'make-pdf'].sort());
 
     for (const name of PUBLIC_SKILL_NAMES) {
       const content = fs.readFileSync(path.join(ROOT, 'skills', name, 'SKILL.md'), 'utf-8');

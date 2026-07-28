@@ -2,7 +2,7 @@
 
 Pinned baseline: `bb57306d98c97011b0919c6132705a15b1579781`.
 
-GStack 2 exposes exactly five public skills: `plan`, `qa`, `debug`, `review`, and `ship`. The specialist bodies from 47 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 14 carved specialist sections are package-local lazy references loaded only at their original workflow point. Twenty-five primary modules are mandatory specialist inputs, and 22 supporting modules remain reachable through compatibility routing.
+GStack 2 exposes exactly five judgment dispatchers: `plan`, `qa`, `debug`, `review`, and `ship`, plus the `make-pdf` tool skill that installs with the same canonical tree (six discoverable skills total). The specialist bodies from 47 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 14 carved specialist sections are package-local lazy references loaded only at their original workflow point. Twenty-five primary modules are mandatory specialist inputs, and 22 supporting modules remain reachable through compatibility routing.
 
 The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; Review = `Normal | Security | Performance | Deep`; Ship = `Prepare | Land | Deploy | Monitor | Resume`. Richer legacy modes are internal aliases only.
 

@@ -9,7 +9,7 @@
   "source_path": "guard/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "3d34ee0c181ec7b263bf6092ba8f384619c5efb6",
-  "normalized_render_sha256": "3ee5b6635542094fe1f3762a894db9eb441936ed768c9d71f1f28497f7a28e06",
+  "normalized_render_sha256": "a9c98d9f8d175f1e1024bfc1b37049fe6add831a8b4d86b37c31463d1a36852f",
   "target": "skills/debug/references/legacy/guard.md",
   "overlays": [
     679,

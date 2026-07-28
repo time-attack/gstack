@@ -8,7 +8,7 @@
 > compatibility surface.
 
 GStack 2 presents one engineering judgment layer through exactly five public
-skills:
+skills (plus the `make-pdf` tool skill, which installs with the same tree):
 
 | Skill | Start here when… |
 |---|---|

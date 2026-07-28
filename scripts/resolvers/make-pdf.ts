@@ -18,6 +18,7 @@ export function generateMakePdfSetup(ctx: TemplateContext): string {
 _ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 P=""
 [ -n "$MAKE_PDF_BIN" ] && [ -x "$MAKE_PDF_BIN" ] && P="$MAKE_PDF_BIN"
+[ -z "$P" ] && [ -x "\${GSTACK_HOME:-$HOME/.gstack}/bin/make-pdf" ] && P="\${GSTACK_HOME:-$HOME/.gstack}/bin/make-pdf"
 [ -z "$P" ] && [ -n "$_ROOT" ] && [ -x "$_ROOT/${ctx.paths.localSkillRoot}/make-pdf/dist/pdf" ] && P="$_ROOT/${ctx.paths.localSkillRoot}/make-pdf/dist/pdf"
 [ -z "$P" ] && P="$HOME${ctx.paths.makePdfDir.replace(/^~/, '')}/pdf"
 if [ -x "$P" ]; then

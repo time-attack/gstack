@@ -2,12 +2,15 @@
 
 ## GStack 2 canonical contract
 
-The public surface is exactly `/plan`, `/qa`, `/debug`, `/review`, and `/ship`.
+The judgment surface is exactly `/plan`, `/qa`, `/debug`, `/review`, and `/ship`.
 They are lazy dispatchers over the preserved modules under
 `skills/*/references/legacy/`; do not rewrite or summarize away the original
 question pressure, rubrics, pushback, approval gates, evidence, artifacts,
 mutation boundaries, recommendations, or voice. Compatibility files under
-`compat/` route old names and contain no judgment.
+`compat/` route old names and contain no judgment. `make-pdf` is a tool skill
+(not a judgment dispatcher) emitted into `skills/make-pdf/`; it installs with the
+same canonical tree, so `npx skills add time-attack/gstack/skills` yields six
+discoverable skills (five dispatchers plus make-pdf).
 
 `/plan` has exactly six top-level modes: Discovery, Product, Engineering, DX,
 Specification, and Full chain. Do not expose its internal aliases as more

@@ -2,7 +2,9 @@
 
 GStack 2 exposes exactly five default public skills. Treat this as a routing
 surface over preserved specialist judgment, not permission to simplify that
-judgment into generic checklists.
+judgment into generic checklists. The `make-pdf` tool skill also ships in the
+canonical tree (`skills/make-pdf`), so `npx skills add time-attack/gstack/skills`
+installs six discoverable skills: the five judgment dispatchers plus make-pdf.
 
 ## Public skills
 
