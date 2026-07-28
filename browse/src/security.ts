@@ -480,7 +480,10 @@ function reportAttemptTelemetry(record: AttemptRecord): void {
   try {
     const result = buildTelemetrySpawnCommand(bin, [
       '--event-type', 'attack_attempt',
-      '--url-domain', record.urlDomain || '',
+      // Salted-hash the domain exactly like the payload — the raw visited
+      // domain never leaves the machine. Local attempts.jsonl (written by
+      // logAttempt) keeps the raw domain for the user's own audit trail.
+      '--url-domain', record.urlDomain ? hashPayload(record.urlDomain) : '',
       '--payload-hash', record.payloadHash,
       '--confidence', String(record.confidence),
       '--layer', record.layer,
