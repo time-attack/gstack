@@ -21,8 +21,9 @@ PR, or PR-ready claim is authorized by this status.
   `bb57306d98c97011b0919c6132705a15b1579781`.
 - [x] Baseline counts and pre-existing failures captured without relabeling
   them candidate regressions.
-- [x] 755 unique open issue/PR records reconciled and deterministically mapped;
-  all 16 required upstream PR snapshots traced.
+- [x] 820 unique open issue/PR records reconciled and deterministically mapped
+  (snapshots refreshed 2026-07-28); all 16 required upstream PR snapshots
+  traced.
 - [x] Five canonical judgment dispatcher directories: `plan`, `qa`, `debug`,
   `review`, and `ship`, plus the `make-pdf` tool skill emitted into
   `skills/make-pdf/`. (The `/design` skill was retired; its runtime image /
@@ -212,7 +213,7 @@ PR, or PR-ready claim is authorized by this status.
 | Semantic parity | [SEMANTIC-PARITY.md](./SEMANTIC-PARITY.md) | Deterministic 295-check corpus green; retained live samples are regressions |
 | Installed-host adversarial | [eval overview](../../evals/host-adversarial/README.md), [passing live v3 artifact](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json) | V1/V2 failed; V3 offline 21/0 green; paid live V3 now passes 4/4 one-shot after the read-only-chain gate fix (earlier 3/4 run retained) |
 | Structured scenarios | [SCENARIOS.md](./SCENARIOS.md) | 25/25 structured routing fixtures green |
-| Backlog traceability | [BACKLOG-MAP.json](./BACKLOG-MAP.json) | 755 unique items mapped |
+| Backlog traceability | [BACKLOG-MAP.json](./BACKLOG-MAP.json) | 820 unique items mapped (snapshots refreshed 2026-07-28) |
 | Context integration | [CONTEXT-DEV.md](./CONTEXT-DEV.md) | Automated contract 22/139 green; verified-key official-endpoint live smoke passed |
 | Host matrix | [HOST-COMPATIBILITY.md](./HOST-COMPATIBILITY.md) | 510/510 checks; Codex runtime-absent run passed; live v3 failed; other UI launches pending |
 | Privacy boundary | [PRIVACY.md](./PRIVACY.md) | Implemented contract; full retained-tool egress audit pending |
