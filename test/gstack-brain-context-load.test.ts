@@ -252,6 +252,44 @@ describe("gstack-brain-context-load — graceful gbrain absence", () => {
     }
   });
 
+  it("manifest filter: blocks reach gbrain as --filter args with template vars resolved (#1687)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "gstack-bcl-"));
+    const binDir = join(dir, "bin");
+    mkdirSync(binDir);
+    writeFakeGbrain(binDir);
+    const skillFile = join(dir, "SKILL.md");
+    writeFileSync(
+      skillFile,
+      `---
+name: x
+gbrain:
+  schema: 1
+  context_queries:
+    - id: prior-sessions
+      kind: list
+      filter:
+        type: ceo-plan
+        tags_contains: "repo:{repo_slug}"
+      sort: updated_at_desc
+      limit: 5
+      render_as: "## Prior sessions"
+---
+`,
+      "utf-8"
+    );
+
+    try {
+      const r = runScript(["--skill-file", skillFile, "--repo", "my-test-repo"], prependPath(binDir));
+      expect(r.exitCode).toBe(0);
+      expect(r.stdout).toContain("fake gbrain list_pages");
+      expect(r.stdout).toContain("--filter type=ceo-plan");
+      expect(r.stdout).toContain("--filter tags_contains=repo:my-test-repo");
+      expect(r.stdout).toContain("--sort updated_at_desc");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("vector + list queries still complete (with SKIP) when gbrain CLI is missing", () => {
     // We can't easily un-install gbrain; rely on the helper's own missing-binary
     // detection. The default manifest uses kind: list which calls gbrain. If

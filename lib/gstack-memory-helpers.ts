@@ -355,66 +355,47 @@ function extractFrontmatter(content: string): string | null {
 }
 
 function extractGbrainBlock(frontmatter: string): GbrainManifest | null {
-  // Naive YAML extraction — finds the `gbrain:` key and parses its sub-tree.
-  // Real YAML parsing avoided to keep zero-deps; gen-skill-docs validates the
-  // shape strictly at build time.
+  // Isolate the `gbrain:` sub-block by line scan (so a malformed sibling key
+  // elsewhere in frontmatter can't break us), then REAL-YAML-parse it via
+  // Bun's built-in parser. The previous per-key regex parser silently dropped
+  // any key it didn't name — most damagingly `filter:` blocks, which reopened
+  // cross-repo contamination at skill startup (#1687). Parsing the full
+  // sub-tree makes every declared key survive by construction.
   const lines = frontmatter.split("\n");
   const start = lines.findIndex((l) => /^gbrain\s*:/.test(l));
   if (start === -1) return null;
 
-  // Collect indented lines under `gbrain:` until next top-level key or EOF
-  const block: string[] = [];
+  // Collect the `gbrain:` line + indented lines until next top-level key or EOF
+  const block: string[] = [lines[start]];
   for (let i = start + 1; i < lines.length; i++) {
     const line = lines[i];
     if (/^[A-Za-z_][A-Za-z0-9_-]*\s*:/.test(line)) break; // next top-level key
     block.push(line);
   }
 
-  const text = block.join("\n");
-  // Extract schema number
-  const schemaMatch = text.match(/\n\s*schema\s*:\s*(\d+)/);
-  const schema = schemaMatch ? parseInt(schemaMatch[1], 10) : 1;
+  let parsed: unknown;
+  try {
+    parsed = Bun.YAML.parse(block.join("\n"));
+  } catch {
+    return null; // invalid YAML → no manifest → caller uses the repo-filtered default
+  }
+  const g = (parsed as { gbrain?: unknown } | null)?.gbrain;
+  if (!g || typeof g !== "object" || Array.isArray(g)) return null;
+  const gb = g as Record<string, unknown>;
 
-  // Extract context_queries items
   const queries: GbrainManifestQuery[] = [];
-  const cqMatch = text.match(/\n\s*context_queries\s*:\s*\n([\s\S]+)/);
-  if (cqMatch) {
-    const cqText = cqMatch[1];
-    // Split using a positive lookahead so each chunk begins with the list-item dash.
-    // Pattern: line starting with 4-6 spaces + "-" + whitespace.
-    const rawItems = cqText.split(/(?=^[ ]{4,6}-\s)/m);
-    const items = rawItems.filter((s) => /^[ ]{4,6}-\s/.test(s));
-    for (const item of items) {
-      const q: Partial<GbrainManifestQuery> = {};
-      // Strip the leading list-item marker so id/kind/etc. regexes can use line-start.
-      const body = item.replace(/^[ ]{4,6}-\s+/, "      ");
-      const idM = body.match(/(?:^|\n)\s*id\s*:\s*([^\n]+)/);
-      const kindM = body.match(/(?:^|\n)\s*kind\s*:\s*([^\n]+)/);
-      const renderM = body.match(/(?:^|\n)\s*render_as\s*:\s*"?([^"\n]+?)"?\s*$/m);
-      const queryM = body.match(/(?:^|\n)\s*query\s*:\s*"?([^"\n]+?)"?\s*$/m);
-      const limitM = body.match(/(?:^|\n)\s*limit\s*:\s*(\d+)/);
-      const globM = body.match(/(?:^|\n)\s*glob\s*:\s*"?([^"\n]+?)"?\s*$/m);
-      const sortM = body.match(/(?:^|\n)\s*sort\s*:\s*([^\n]+)/);
-      const tailM = body.match(/(?:^|\n)\s*tail\s*:\s*(\d+)/);
-
-      if (idM) q.id = idM[1].trim();
-      if (kindM) {
-        const k = kindM[1].trim();
-        if (k === "vector" || k === "list" || k === "filesystem") q.kind = k;
-      }
-      if (renderM) q.render_as = renderM[1].trim();
-      if (queryM) q.query = queryM[1].trim();
-      if (limitM) q.limit = parseInt(limitM[1], 10);
-      if (globM) q.glob = globM[1].trim();
-      if (sortM) q.sort = sortM[1].trim();
-      if (tailM) q.tail = parseInt(tailM[1], 10);
-
-      if (q.id && q.kind && q.render_as) {
-        queries.push(q as GbrainManifestQuery);
-      }
-    }
+  const raw = Array.isArray(gb.context_queries) ? gb.context_queries : [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const q = item as Record<string, unknown>;
+    if (typeof q.id !== "string" || typeof q.render_as !== "string") continue;
+    if (q.kind !== "vector" && q.kind !== "list" && q.kind !== "filesystem") continue;
+    // Push the raw parsed item — ALL keys (filter, sort, glob, tail, limit,
+    // query, future additions) survive without a per-key allowlist.
+    queries.push(q as unknown as GbrainManifestQuery);
   }
 
+  const schema = typeof gb.schema === "number" ? gb.schema : 1;
   return { schema, context_queries: queries };
 }
 

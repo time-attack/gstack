@@ -244,6 +244,95 @@ body
     expect(m!.context_queries[0].id).toBe("complete");
     rmSync(dir, { recursive: true, force: true });
   });
+
+  it("parses filter: blocks — cross-repo isolation regression (#1687)", () => {
+    // Mirrors the real office-hours manifest. The old per-key regex parser
+    // silently dropped `filter:`, turning every list query into an
+    // unfiltered cross-repo query at skill startup.
+    const dir = mkdtempSync(join(tmpdir(), "gstack-test-"));
+    const file = join(dir, "filtered.md");
+    writeFileSync(
+      file,
+      `---
+name: office-hours
+gbrain:
+  schema: 1
+  context_queries:
+    - id: prior-sessions
+      kind: list
+      filter:
+        type: ceo-plan
+        tags_contains: "repo:{repo_slug}"
+      sort: updated_at_desc
+      limit: 5
+      render_as: "## Prior office-hours sessions in this repo"
+---
+
+body
+`
+    );
+
+    const m = parseSkillManifest(file);
+    expect(m).not.toBeNull();
+    expect(m!.context_queries).toHaveLength(1);
+    expect(m!.context_queries[0].filter).toEqual({
+      type: "ceo-plan",
+      tags_contains: "repo:{repo_slug}",
+    });
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("round-trips every manifest key (property-style: build → render → parse → compare)", () => {
+    // Complete-by-construction guard: build a manifest exercising EVERY
+    // GbrainManifestQuery field, render it to real YAML frontmatter, parse it
+    // back, and require deep equality. Any future key the parser drops
+    // (the #1687 failure class) fails this test without naming the key.
+    const queries = [
+      {
+        id: "vec",
+        kind: "vector",
+        query: "sessions for {repo_slug}",
+        limit: 5,
+        render_as: "## Vector results",
+      },
+      {
+        id: "lst",
+        kind: "list",
+        filter: { type: "transcript", tags_contains: "repo:{repo_slug}", updated_after: "now-7d" },
+        sort: "updated_at_desc",
+        limit: 10,
+        render_as: "## List results",
+      },
+      {
+        id: "fsq",
+        kind: "filesystem",
+        glob: "~/.gstack/projects/{repo_slug}/*.md",
+        sort: "mtime_desc",
+        tail: 3,
+        limit: 7,
+        render_as: "## Filesystem results",
+      },
+    ];
+    const frontmatter =
+      "---\nname: roundtrip\n" + Bun.YAML.stringify({ gbrain: { schema: 1, context_queries: queries } }, null, 2) + "\n---\n\nbody\n";
+
+    const dir = mkdtempSync(join(tmpdir(), "gstack-test-"));
+    const file = join(dir, "roundtrip.md");
+    writeFileSync(file, frontmatter);
+
+    const m = parseSkillManifest(file);
+    expect(m).not.toBeNull();
+    expect(m!.schema).toBe(1);
+    // Deep equality: every declared key survives with its value intact.
+    expect(m!.context_queries).toEqual(queries as never);
+    // Explicit superset check per query: manifest keys ⊆ parsed keys.
+    for (let i = 0; i < queries.length; i++) {
+      const declared = Object.keys(queries[i]).sort();
+      const parsed = Object.keys(m!.context_queries[i] as object).sort();
+      expect(parsed).toEqual(declared);
+    }
+    rmSync(dir, { recursive: true, force: true });
+  });
 });
 
 // ── withErrorContext ───────────────────────────────────────────────────────

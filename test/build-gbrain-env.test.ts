@@ -56,25 +56,52 @@ describe("buildGbrainEnv", () => {
     expect(result.DATABASE_URL).toBe("postgresql://intentional/app-db");
   });
 
-  it("returns caller env unchanged when config file is missing", () => {
-    // No config.json written.
-    const baseEnv = { HOME: home, DATABASE_URL: "postgresql://app/db" };
+  // --- Allowlist-by-engine (#1917) ---
+  // When gbrain's config declares no database_url (PGLite installs, missing
+  // or corrupt config), a caller DATABASE_URL can only be the host project's
+  // (.env.local via dotenv autoload). Passing it through poisons every PGLite
+  // probe routed through this helper. It must be STRIPPED, not passed along.
+
+  it("strips poisoned caller DATABASE_URL on PGLite config (no database_url field) — #1917", () => {
+    writeFileSync(join(gbrainHome, "config.json"), JSON.stringify({ engine: "pglite" }));
+    const baseEnv = {
+      HOME: home,
+      DATABASE_URL: "postgresql://app-local/poison",
+      GBRAIN_DATABASE_URL: "postgresql://app-local/poison2",
+      PATH: "/usr/bin",
+    };
     const result = buildGbrainEnv({ baseEnv });
-    expect(result.DATABASE_URL).toBe("postgresql://app/db");
+    expect(result.DATABASE_URL).toBeUndefined();
+    expect(result.GBRAIN_DATABASE_URL).toBeUndefined();
+    // Unrelated vars survive; caller env is not mutated.
+    expect(result.PATH).toBe("/usr/bin");
+    expect(baseEnv.DATABASE_URL).toBe("postgresql://app-local/poison");
   });
 
-  it("returns caller env unchanged when config file is unparseable", () => {
+  it("strips poisoned caller DATABASE_URL when config file is missing", () => {
+    // No config.json written — gbrain would fall back to its own default
+    // engine, so the caller's DATABASE_URL is never legitimately gbrain's.
+    const baseEnv = { HOME: home, DATABASE_URL: "postgresql://app/db" };
+    const result = buildGbrainEnv({ baseEnv });
+    expect(result.DATABASE_URL).toBeUndefined();
+  });
+
+  it("strips poisoned caller DATABASE_URL when config file is unparseable", () => {
     writeFileSync(join(gbrainHome, "config.json"), "{not json");
     const baseEnv = { HOME: home, DATABASE_URL: "postgresql://app/db" };
     const result = buildGbrainEnv({ baseEnv });
-    expect(result.DATABASE_URL).toBe("postgresql://app/db");
+    expect(result.DATABASE_URL).toBeUndefined();
   });
 
-  it("returns caller env unchanged when config has no database_url field", () => {
+  it("does NOT strip on PGLite config when GSTACK_RESPECT_ENV_DATABASE_URL=1", () => {
     writeFileSync(join(gbrainHome, "config.json"), JSON.stringify({ engine: "pglite" }));
-    const baseEnv = { HOME: home, DATABASE_URL: "postgresql://app/db" };
+    const baseEnv = {
+      HOME: home,
+      DATABASE_URL: "postgresql://intentional/app-db",
+      GSTACK_RESPECT_ENV_DATABASE_URL: "1",
+    };
     const result = buildGbrainEnv({ baseEnv });
-    expect(result.DATABASE_URL).toBe("postgresql://app/db");
+    expect(result.DATABASE_URL).toBe("postgresql://intentional/app-db");
   });
 
   it("honors GBRAIN_HOME when set (config aligned with detectEngineTier)", () => {

@@ -76,12 +76,17 @@ export function isTransactionModePooler(url: string): boolean {
 
 /**
  * Build an env dict with DATABASE_URL seeded from
- * `${GBRAIN_HOME:-$HOME/.gbrain}/config.json`. Returns the base env
- * unchanged when:
+ * `${GBRAIN_HOME:-$HOME/.gbrain}/config.json`.
+ *
+ * Allowlist-by-engine (#1917): DATABASE_URL is present in the returned env
+ * ONLY when gbrain's own config declares one. When the config has no
+ * `database_url` (PGLite installs, missing or unparseable config), the
+ * caller's DATABASE_URL / GBRAIN_DATABASE_URL are STRIPPED — otherwise
+ * gbrain's dotenv autoload treats the host project's `.env.local` postgres
+ * URL as its own database and every probe routed through this helper is
+ * poisoned. Returns the base env unchanged only when:
  *   - `GSTACK_RESPECT_ENV_DATABASE_URL=1` (intentional opt-out),
- *   - the config file is missing or unparseable,
- *   - the config has no `database_url`,
- *   - the caller already set DATABASE_URL to the same value.
+ *   - the caller already set DATABASE_URL to the config's value.
  *
  * GBRAIN_PREPARE is never set here (#1965): gbrain auto-disables prepared
  * statements on transaction-mode poolers itself, and forcing them on breaks
@@ -101,15 +106,30 @@ export function buildGbrainEnv(opts: BuildGbrainEnvOptions = {}): NodeJS.Process
   const homeBase = baseEnv.HOME || homedir();
   const gbrainHome = baseEnv.GBRAIN_HOME || join(homeBase, ".gbrain");
   const configPath = join(gbrainHome, "config.json");
-  if (!existsSync(configPath)) return out;
 
   let cfg: GbrainConfig = {};
-  try {
-    cfg = JSON.parse(readFileSync(configPath, "utf-8")) as GbrainConfig;
-  } catch {
+  if (existsSync(configPath)) {
+    try {
+      cfg = JSON.parse(readFileSync(configPath, "utf-8")) as GbrainConfig;
+    } catch {
+      cfg = {}; // unparseable config → treat as no database_url (strip below)
+    }
+  }
+
+  if (!cfg.database_url) {
+    // #1917: no database_url in gbrain's config (PGLite / missing / corrupt
+    // config) — a caller DATABASE_URL here can only be the host project's,
+    // never gbrain's. Strip it so PGLite probes don't hit the wrong database.
+    const hadCaller = out.DATABASE_URL !== undefined || out.GBRAIN_DATABASE_URL !== undefined;
+    delete out.DATABASE_URL;
+    delete out.GBRAIN_DATABASE_URL;
+    if (hadCaller && opts.announce) {
+      process.stderr.write(
+        `[gbrain-exec] stripped caller DATABASE_URL (no database_url in ${configPath} — PGLite engine)\n`
+      );
+    }
     return out;
   }
-  if (!cfg.database_url) return out;
 
   const hadCaller = baseEnv.DATABASE_URL !== undefined;
   const alreadyMatch = baseEnv.DATABASE_URL === cfg.database_url;
