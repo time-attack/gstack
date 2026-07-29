@@ -389,11 +389,13 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // exercised end-to-end. The no-device path is gate-tier; the with-device
   // path requires GSTACK_HAS_IOS_DEVICE=1 and is periodic-tier.
   'ios-qa-e2e':       ['ios-qa/**', 'ios-fix/**', 'ios-design-review/**', 'ios-clean/**', 'ios-sync/**', 'test/skill-e2e-ios.test.ts'],
-  // Swift-build invariant test — requires the Swift toolchain. Compiles the
-  // fixture SPM package + runs the XCTest suite that validates the real
-  // Swift StateServer implementation (loopback bind, boot token rotation,
-  // session lock). Periodic-tier — Swift build is heavier than TS unit tests.
-  'ios-qa-swift-build': ['ios-qa/templates/**', 'test/fixtures/ios-qa/FixtureApp/**', 'test/skill-e2e-ios-swift-build.test.ts'],
+  // Swift-build invariant test — requires the Swift toolchain. Renders the
+  // SHIPPED templates + gen-accessors output into a fresh package and builds
+  // it (the gstack#1735 first-run gate), plus compiles the fixture SPM
+  // package + runs the XCTest suite that validates the real Swift
+  // StateServer implementation (loopback bind, boot token rotation,
+  // session lock).
+  'ios-qa-swift-build': ['ios-qa/templates/**', 'ios-qa/scripts/gen-accessors.ts', 'ios-qa/scripts/gen-accessors-tool/**', 'test/fixtures/ios-qa/FixtureApp/**', 'test/skill-e2e-ios-swift-build.test.ts'],
   // Real-device path — only runs with GSTACK_HAS_IOS_DEVICE=1 + a paired
   // iPhone. Validates the CoreDevice agent + iOS SDK toolchain. Periodic-tier.
   'ios-qa-device':    ['ios-qa/templates/**', 'test/fixtures/ios-qa/FixtureApp/**', 'test/skill-e2e-ios-device.test.ts'],
@@ -729,8 +731,11 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   // /ios-qa daemon + codegen — no-device path runs every PR (no hardware
   // dependency, deterministic). with-device path requires GSTACK_HAS_IOS_DEVICE.
   'ios-qa-e2e': 'gate',
-  // Swift toolchain only, no device required, but heavier than TS unit tests.
-  'ios-qa-swift-build': 'periodic',
+  // Swift toolchain only, no device required. Gate-tier: it is the only
+  // check that builds what consumers actually get (the shipped templates,
+  // not the fixture) — gstack#1735 shipped broken for months because this
+  // ran nowhere. Skips loudly (typed reason) on hosts without Swift.
+  'ios-qa-swift-build': 'gate',
   // Requires a real connected + paired iPhone. Manual-trigger only.
   'ios-qa-device': 'periodic',
   // /spec end-to-end PTY pipeline (paid, non-deterministic — periodic-tier).
