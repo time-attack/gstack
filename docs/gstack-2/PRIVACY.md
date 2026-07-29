@@ -1,9 +1,10 @@
 # GStack 2 privacy boundary
 
 GStack 2 defaults to local judgment and local state. Optional network and
-device capabilities are separated by explicit purpose and consent. Passing a
-unit test is not a substitute for the remaining live egress audit listed in
-[STATUS.md](./STATUS.md).
+device capabilities are separated by explicit purpose and consent. The full
+retained-tool egress audit ran on 2026-07-28 and passed with zero violations;
+see [the audit section below](#retained-tool-egress-audit-2026-07-28) and the
+gate list in [STATUS.md](./STATUS.md).
 
 ## Data-flow summary
 
@@ -34,6 +35,54 @@ assertions. A verified-key live provider smoke also passed the official
 Markdown scrape endpoint. It used explicit consent, protected key input, and
 an isolated temporary home that was removed afterward; the committed artifact
 contains no credential or response body.
+
+## Retained-tool egress audit (2026-07-28)
+
+Every network egress path in the retained tools was audited against this
+contract across 9 surfaces: browse server + tunnel, the deleted design CLI and
+its residue, the runtime installer, the Context.dev client, pdf/diagram
+(make-pdf), the iOS daemon, the deleted Chrome extension, the `bin/` CLI
+utilities + code-intelligence contract, and the generated skill instructions.
+Verdict: **PASS**, zero violations. Evidence:
+[`evals/privacy/egress-audit-2026-07-28.md`](../../evals/privacy/egress-audit-2026-07-28.md)
+(with a machine-readable `.json` beside it).
+
+The audit surfaced 9 NEEDS_REVIEW findings; all are fixed:
+
+1. **Telemetry anonymous tier claimed local-only but uploaded.**
+   `bin/gstack-telemetry-sync` now exits before any upload for the anonymous
+   tier; only the community tier syncs.
+2. **`security_url_domain` uploaded the raw visited domain.** Attack-attempt
+   telemetry now ships the same salted hash treatment as the payload hash; raw
+   domains stay in the local `attempts.jsonl` only.
+3. **Welcome page fetched fonts from Google/Fontshare on every headed start.**
+   `browse/src/welcome.html` uses a system font stack; headed startup makes
+   zero third-party requests.
+4. **Orphaned 63MB design binary (embedding api.openai.com wiring) on disk.**
+   Deleted, plus the `gstack-upgrade/migrations/v1.64.21.0.sh` migration
+   removes it from existing installs.
+5. **Dead `DESIGN_SETUP`/`DESIGN_MOCKUP` resolvers could re-arm the retired
+   design CLI.** Deleted from `scripts/resolvers/`, along with the stale
+   `./setup` capability help text.
+6. **iOS daemon `dns.resolve6` fallback leaked device names as unicast DNS.**
+   The `legacyResolve6` path is removed; devicectl + mDNS `dns.lookup` cover
+   real hardware.
+7. **Braintrust uploaded benchmark content on key presence alone.**
+   `gstack-model-benchmark` now requires an explicit `--upload` flag or
+   `braintrust_upload` config in addition to the key.
+8. **Autoplan dispatched plan/diff content to Codex silently.** Judgment
+   overlay #9108 adds a persisted one-time per-repo consent before the first
+   Codex dispatch and the standard redact scan-at-sink.
+9. **/review outside voices (`codex`, `claude -p`) sent branch diffs
+   unscanned.** Judgment overlay #9109 requires the gstack-redact scan on the
+   exact prompt/diff bytes before every outside-voice dispatch; HIGH findings
+   block the dispatch.
+
+One consent-text caveat is deliberate: the frozen 1.x telemetry prompt still
+describes the anonymous tier as sending aggregate usage. The prompt is pinned
+normalized-render evidence for the GStack 2 parity oracle, so it is not
+rewritten; actual behavior sends nothing on that tier, which under-runs the
+stated consent. README.md documents the local-only anonymous tier.
 
 ## Public Context.dev gate
 
