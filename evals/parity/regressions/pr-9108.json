@@ -1,0 +1,24 @@
+{
+  "pr": 9108,
+  "url": "https://github.com/time-attack/gstack/blob/main/evals/privacy/egress-audit-2026-07-28.md",
+  "title": "Autoplan Codex dispatch requires per-repo consent and a redact scan",
+  "targets": [
+    "autoplan"
+  ],
+  "anchor": "GSTACK2_FIX_9108_AUTOPLAN_CODEX_CONSENT_REDACT",
+  "body": "### Codex dispatch consent and redaction gate\n\nAutoplan's dual-voice phases send plan and diff content to OpenAI through the\nuser's Codex CLI. CLI auth presence is not consent (PRIVACY.md), so \"run codex\"\nis NOT a Mechanical always-yes decision for the first dispatch in a repository.\n\n**One-time per-repo consent.** Before the FIRST Codex dispatch of the run, read\nthe persisted choice:\n\n```bash\neval \"$($GSTACK_BIN/gstack-slug 2>/dev/null)\"\n_CODEX_CONSENT_FILE=\"${GSTACK_HOME:-$HOME/.gstack}/projects/${PROJECT_ID:-unknown}/codex-consent\"\n_CODEX_CONSENT=$(cat \"$_CODEX_CONSENT_FILE\" 2>/dev/null || echo unset)\n```\n\nIf it prints `yes`, proceed without re-asking. If `no`, run Claude-only voices\n(same degradation path as a missing Codex binary) and do not re-pitch. If\n`unset`, ask once via AskUserQuestion — \"Autoplan can get a second opinion from\nOpenAI Codex. That sends this repository's plan and relevant diff content to\nOpenAI using your own Codex login. OK for this repository?\" with options\n**Yes, for this repo** / **No, Claude-only voices** — persist the answer\n(`mkdir -p \"$(dirname \"$_CODEX_CONSENT_FILE\")\" && printf 'yes\\n' > \"$_CODEX_CONSENT_FILE\"`,\nor `no`), and honor it for every later phase and session. The global\n`codex_reviews` config still wins when set to `disabled`.\n\n**Redaction scan at the sink.** Before EVERY Codex dispatch, write the exact\nbytes the CLI will carry off-machine (plan content, diff, instructions) to a\ntemp file and scan that file — never scan a string then re-render it:\n\n```bash\nREDACT_VIS=$($GSTACK_BIN/gstack-config get redact_repo_visibility 2>/dev/null)\n[ -z \"$REDACT_VIS\" ] && REDACT_VIS=$(gh repo view --json visibility -q .visibility 2>/dev/null | tr 'A-Z' 'a-z')\nREDACT_VIS=\"${REDACT_VIS:-unknown}\"\nREDACT_FILE=$(mktemp)\n# write the exact dispatch bytes to \"$REDACT_FILE\" first\n$GSTACK_BIN/gstack-redact --from-file \"$REDACT_FILE\" --repo-visibility \"$REDACT_VIS\" --self-email \"$(git config user.email 2>/dev/null)\" --json\n```\n\nExit 3 (HIGH): do not dispatch this voice — record the degradation (\"codex\nskipped: redaction HIGH finding\"), tell the user to rotate + redact at source,\nand continue Claude-only. HIGH has no skip flag. Exit 2 (MEDIUM):\nAskUserQuestion per finding before dispatch (sterner on public repos, no\nbatch-acknowledge). Exit 0: dispatch, passing the SAME scanned file (or its\nverbatim bytes) to the CLI so the bytes scanned are the bytes sent. Delete\n`$REDACT_FILE` afterwards.",
+  "regression": {
+    "input": {
+      "repo_consent_recorded": false,
+      "codex_cli_authenticated": true,
+      "scan_exit_code": 3
+    },
+    "expected": {
+      "first_dispatch_asks_user": true,
+      "auth_presence_is_consent": false,
+      "consent_scope": "repo",
+      "redact_scan_at_sink": true,
+      "dispatch_allowed": false
+    }
+  }
+}

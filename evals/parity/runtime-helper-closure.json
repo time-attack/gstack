@@ -419,6 +419,9 @@
       "delivery": "repository-payload",
       "source_path": "bin/gstack-redact",
       "consumer_modules": [
+        "autoplan",
+        "claude",
+        "codex",
         "document-generate",
         "ship",
         "spec"

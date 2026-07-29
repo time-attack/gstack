@@ -380,3 +380,37 @@ Write questions, progress updates, reports, and artifacts in the language used b
 
 A question is only answerable if the user can see what it refers to. Before any AskUserQuestion or prose decision brief that asks the user to confirm, approve, rank, or choose among content this session produced — premises, findings, plans, approaches, scores, summaries — render that content in full as direct assistant text immediately before the question, or restate it inside the question and option descriptions. Internal reasoning is invisible to the user, and collapsed tool output (Bash cat, Read) does not count as shown. Never ask "do you agree with the N premises?" when the premises exist only in your reasoning: print them, then ask. This generalizes the inline design-doc approval rule from PR #1116 to every question in every workflow.
 <!-- GSTACK2_BUG_FIX_END pr=879 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=9109 anchor=GSTACK2_FIX_9109_OUTSIDE_VOICE_REDACT_SCAN -->
+## Upstream judgment port: PR #9109
+
+[Outside-voice review dispatches scan the diff before it leaves the machine](https://github.com/time-attack/gstack/blob/main/evals/privacy/egress-audit-2026-07-28.md)
+
+### Redaction scan before outside-voice dispatch
+
+Every dispatch in this module ships repository content to an external model:
+the branch diff, any files the CLI reads for context, and the composed prompt.
+Before EACH such dispatch (`codex review`, `codex exec`, or `claude -p` with
+repo content), run the standard scan-at-sink procedure /spec, /ship, and /cso
+already apply to their external sinks:
+
+1. **Materialize what will leave the machine.** For prompt-file dispatches
+   (`cat "$PROMPT_FILE" | claude -p …`), the prompt file IS the sink bytes —
+   scan `$PROMPT_FILE` itself and pipe the SAME file after a clean scan. For
+   `codex review`, the CLI reads the branch diff itself; materialize those
+   bytes first (`git diff origin/<base>...HEAD 2>/dev/null || git diff <base>...HEAD`,
+   plus your prompt text, into a temp file) and scan them before dispatching.
+2. **Scan.** Resolve `$REDACT_VIS` once (local config `redact_repo_visibility`
+   → gh → glab → unknown=public-strict), then run
+   `$GSTACK_BIN/gstack-redact --from-file "$REDACT_FILE" --repo-visibility "$REDACT_VIS" --self-email "$(git config user.email 2>/dev/null)" --json`.
+3. **Exit 3 (HIGH):** do NOT dispatch. Print the findings, tell the user to
+   rotate + redact at source, and stop this outside voice with a typed
+   degradation note. HIGH has no skip flag.
+4. **Exit 2 (MEDIUM):** AskUserQuestion per finding before dispatching
+   (sterner on public repos, no batch-acknowledge, no silent-proceed).
+5. **Exit 0 (clean):** dispatch; surface WARN (tool-fence degrades) + LOW as a
+   one-line FYI. Delete the temp file afterwards.
+
+A secret in the diff must not reach OpenAI or Anthropic unscanned. Guardrail,
+not airtight enforcement — it catches accidents and carelessness.
+<!-- GSTACK2_BUG_FIX_END pr=9109 -->

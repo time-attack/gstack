@@ -1028,3 +1028,55 @@ When the session produces a design or plan document and the working directory is
 
 A question is only answerable if the user can see what it refers to. Before any AskUserQuestion or prose decision brief that asks the user to confirm, approve, rank, or choose among content this session produced — premises, findings, plans, approaches, scores, summaries — render that content in full as direct assistant text immediately before the question, or restate it inside the question and option descriptions. Internal reasoning is invisible to the user, and collapsed tool output (Bash cat, Read) does not count as shown. Never ask "do you agree with the N premises?" when the premises exist only in your reasoning: print them, then ask. This generalizes the inline design-doc approval rule from PR #1116 to every question in every workflow.
 <!-- GSTACK2_BUG_FIX_END pr=879 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=9108 anchor=GSTACK2_FIX_9108_AUTOPLAN_CODEX_CONSENT_REDACT -->
+## Upstream judgment port: PR #9108
+
+[Autoplan Codex dispatch requires per-repo consent and a redact scan](https://github.com/time-attack/gstack/blob/main/evals/privacy/egress-audit-2026-07-28.md)
+
+### Codex dispatch consent and redaction gate
+
+Autoplan's dual-voice phases send plan and diff content to OpenAI through the
+user's Codex CLI. CLI auth presence is not consent (PRIVACY.md), so "run codex"
+is NOT a Mechanical always-yes decision for the first dispatch in a repository.
+
+**One-time per-repo consent.** Before the FIRST Codex dispatch of the run, read
+the persisted choice:
+
+```bash
+eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)"
+_CODEX_CONSENT_FILE="${GSTACK_HOME:-$HOME/.gstack}/projects/${PROJECT_ID:-unknown}/codex-consent"
+_CODEX_CONSENT=$(cat "$_CODEX_CONSENT_FILE" 2>/dev/null || echo unset)
+```
+
+If it prints `yes`, proceed without re-asking. If `no`, run Claude-only voices
+(same degradation path as a missing Codex binary) and do not re-pitch. If
+`unset`, ask once via AskUserQuestion — "Autoplan can get a second opinion from
+OpenAI Codex. That sends this repository's plan and relevant diff content to
+OpenAI using your own Codex login. OK for this repository?" with options
+**Yes, for this repo** / **No, Claude-only voices** — persist the answer
+(`mkdir -p "$(dirname "$_CODEX_CONSENT_FILE")" && printf 'yes\n' > "$_CODEX_CONSENT_FILE"`,
+or `no`), and honor it for every later phase and session. The global
+`codex_reviews` config still wins when set to `disabled`.
+
+**Redaction scan at the sink.** Before EVERY Codex dispatch, write the exact
+bytes the CLI will carry off-machine (plan content, diff, instructions) to a
+temp file and scan that file — never scan a string then re-render it:
+
+```bash
+REDACT_VIS=$($GSTACK_BIN/gstack-config get redact_repo_visibility 2>/dev/null)
+[ -z "$REDACT_VIS" ] && REDACT_VIS=$(gh repo view --json visibility -q .visibility 2>/dev/null | tr 'A-Z' 'a-z')
+REDACT_VIS="${REDACT_VIS:-unknown}"
+REDACT_FILE=$(mktemp)
+# write the exact dispatch bytes to "$REDACT_FILE" first
+$GSTACK_BIN/gstack-redact --from-file "$REDACT_FILE" --repo-visibility "$REDACT_VIS" --self-email "$(git config user.email 2>/dev/null)" --json
+```
+
+Exit 3 (HIGH): do not dispatch this voice — record the degradation ("codex
+skipped: redaction HIGH finding"), tell the user to rotate + redact at source,
+and continue Claude-only. HIGH has no skip flag. Exit 2 (MEDIUM):
+AskUserQuestion per finding before dispatch (sterner on public repos, no
+batch-acknowledge). Exit 0: dispatch, passing the SAME scanned file (or its
+verbatim bytes) to the CLI so the bytes scanned are the bytes sent. Delete
+`$REDACT_FILE` afterwards.
+<!-- GSTACK2_BUG_FIX_END pr=9108 -->

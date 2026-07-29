@@ -618,7 +618,8 @@
         2023,
         886,
         703,
-        879
+        879,
+        9108
       ],
       "original_source_file": "autoplan/SKILL.md.tmpl",
       "original_line_range": "1-916",
@@ -3159,7 +3160,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        879
+        879,
+        9109
       ],
       "original_source_file": "codex/SKILL.md.tmpl",
       "original_line_range": "1-666",
@@ -3242,7 +3244,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        879
+        879,
+        9109
       ],
       "original_source_file": "claude/SKILL.md.tmpl",
       "original_line_range": "1-342",
@@ -6005,6 +6008,9 @@
       "delivery": "repository-payload",
       "source_path": "bin/gstack-redact",
       "consumer_modules": [
+        "autoplan",
+        "claude",
+        "codex",
         "document-generate",
         "ship",
         "spec"
@@ -6424,6 +6430,25 @@
         "office-hours"
       ],
       "anchor": "GSTACK2_FIX_538_FOUNDER_RESOURCES_OPTOUT"
+    },
+    {
+      "pr": 9108,
+      "url": "https://github.com/time-attack/gstack/blob/main/evals/privacy/egress-audit-2026-07-28.md",
+      "title": "Autoplan Codex dispatch requires per-repo consent and a redact scan",
+      "targets": [
+        "autoplan"
+      ],
+      "anchor": "GSTACK2_FIX_9108_AUTOPLAN_CODEX_CONSENT_REDACT"
+    },
+    {
+      "pr": 9109,
+      "url": "https://github.com/time-attack/gstack/blob/main/evals/privacy/egress-audit-2026-07-28.md",
+      "title": "Outside-voice review dispatches scan the diff before it leaves the machine",
+      "targets": [
+        "codex",
+        "claude"
+      ],
+      "anchor": "GSTACK2_FIX_9109_OUTSIDE_VOICE_REDACT_SCAN"
     }
   ]
 }

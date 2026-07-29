@@ -1,0 +1,23 @@
+{
+  "pr": 9109,
+  "url": "https://github.com/time-attack/gstack/blob/main/evals/privacy/egress-audit-2026-07-28.md",
+  "title": "Outside-voice review dispatches scan the diff before it leaves the machine",
+  "targets": [
+    "codex",
+    "claude"
+  ],
+  "anchor": "GSTACK2_FIX_9109_OUTSIDE_VOICE_REDACT_SCAN",
+  "body": "### Redaction scan before outside-voice dispatch\n\nEvery dispatch in this module ships repository content to an external model:\nthe branch diff, any files the CLI reads for context, and the composed prompt.\nBefore EACH such dispatch (`codex review`, `codex exec`, or `claude -p` with\nrepo content), run the standard scan-at-sink procedure /spec, /ship, and /cso\nalready apply to their external sinks:\n\n1. **Materialize what will leave the machine.** For prompt-file dispatches\n   (`cat \"$PROMPT_FILE\" | claude -p …`), the prompt file IS the sink bytes —\n   scan `$PROMPT_FILE` itself and pipe the SAME file after a clean scan. For\n   `codex review`, the CLI reads the branch diff itself; materialize those\n   bytes first (`git diff origin/<base>...HEAD 2>/dev/null || git diff <base>...HEAD`,\n   plus your prompt text, into a temp file) and scan them before dispatching.\n2. **Scan.** Resolve `$REDACT_VIS` once (local config `redact_repo_visibility`\n   → gh → glab → unknown=public-strict), then run\n   `$GSTACK_BIN/gstack-redact --from-file \"$REDACT_FILE\" --repo-visibility \"$REDACT_VIS\" --self-email \"$(git config user.email 2>/dev/null)\" --json`.\n3. **Exit 3 (HIGH):** do NOT dispatch. Print the findings, tell the user to\n   rotate + redact at source, and stop this outside voice with a typed\n   degradation note. HIGH has no skip flag.\n4. **Exit 2 (MEDIUM):** AskUserQuestion per finding before dispatching\n   (sterner on public repos, no batch-acknowledge, no silent-proceed).\n5. **Exit 0 (clean):** dispatch; surface WARN (tool-fence degrades) + LOW as a\n   one-line FYI. Delete the temp file afterwards.\n\nA secret in the diff must not reach OpenAI or Anthropic unscanned. Guardrail,\nnot airtight enforcement — it catches accidents and carelessness.",
+  "regression": {
+    "input": {
+      "sink": "codex-review-branch-diff",
+      "scan_exit_code": 3
+    },
+    "expected": {
+      "scan_before_dispatch": true,
+      "scanned_bytes_are_sent_bytes": true,
+      "dispatch_allowed": false,
+      "high_skip_flag_exists": false
+    }
+  }
+}

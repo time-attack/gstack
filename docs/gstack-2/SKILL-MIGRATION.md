@@ -15,7 +15,7 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 | `/plan-ceo-review` | `$plan --mode Product --module plan-ceo-review` | internal (primary) | yes | #679, #2030, #886, #703, #879 |
 | `/plan-eng-review` | `$plan --mode Engineering --module plan-eng-review` | internal (primary) | yes | #679, #1071, #2030, #592, #886, #703, #879 |
 | `/plan-devex-review` | `$plan --mode DX --module plan-devex-review` | internal (primary) | yes | #679, #2030, #886, #703, #879 |
-| `/autoplan` | `$plan --mode Full chain --module autoplan` | internal (primary) | yes | #679, #2014, #2023, #886, #703, #879 |
+| `/autoplan` | `$plan --mode Full chain --module autoplan` | internal (primary) | yes | #679, #2014, #2023, #886, #703, #879, #9108 |
 | `/spec` | `$plan --mode Specification --module spec` | internal (primary) | yes | #679, #886, #879 |
 | `/plan-tune` | `$plan --mode Discovery --module plan-tune` | internal (primary) | yes | #679, #879 |
 | `/context-save` | `$plan --mode Discovery --module context-save` | internal (internal) | no | #679, #879 |
@@ -46,8 +46,8 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 | `/review` | `$review --mode Normal --module review` | internal (primary) | yes | #610, #645, #679, #2030, #2141, #579, #886, #452, #879 |
 | `/cso` | `$review --mode Security --module cso` | internal (primary) | yes | #679, #2030, #1523, #1053, #879 |
 | `/health` | `$review --mode Deep --module health` | internal (primary) | yes | #679, #879 |
-| `/codex` | `$review --mode Deep --module codex` | internal (primary) | yes | #679, #879 |
-| `/claude` | `$review --mode Deep --module claude` | internal (primary) | yes | #679, #879 |
+| `/codex` | `$review --mode Deep --module codex` | internal (primary) | yes | #679, #879, #9109 |
+| `/claude` | `$review --mode Deep --module claude` | internal (primary) | yes | #679, #879, #9109 |
 | `/ship` | `$ship --mode Prepare --module ship` | internal (primary) | yes | #679, #884, #2030, #2186, #1102, #879 |
 | `/land-and-deploy` | `$ship --mode Land --module land-and-deploy` | internal (primary) | yes | #679, #884, #879 |
 | `/landing-report` | `$ship --mode Prepare --module landing-report` | internal (primary) | yes | #679, #879 |
