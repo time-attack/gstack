@@ -204,7 +204,7 @@ If A: run `~/.claude/skills/gstack/bin/gstack-config set telemetry community`
 
 If B: ask follow-up:
 
-> Anonymous mode keeps usage stats on this machine only — nothing is uploaded.
+> Anonymous mode sends only aggregate usage, no unique ID.
 
 Options:
 - A) Sure, anonymous is fine
