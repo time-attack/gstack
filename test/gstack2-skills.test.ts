@@ -27,7 +27,10 @@ describe('GStack 2 skill parity', () => {
     const result = runParity();
     expect(result.sources).toBe(47);
     expect(result.sections).toBe(14);
-    expect(result.regressions).toBe(28);
+    // 28 privacy-branch overlays + judgment-surface additions: portable
+    // dispatch #2370, no-key-echo #1078, external-effects #1079, and the
+    // restored /design-era ports #1777/#1920/#2189.
+    expect(result.regressions).toBe(34);
   }, 30_000);
 
   test('ships make-pdf as a sixth discoverable tool skill in the canonical tree', () => {
