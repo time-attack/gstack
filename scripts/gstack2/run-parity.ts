@@ -48,8 +48,10 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // added 7 more (2 per targeted module + 3 regression checks). The no-key-echo
 // overlay for upstream #1078 (29 -> 30, setup-deploy only) added 5 more. The
 // external-effects overlay for upstream #1079/#1892 (30 -> 31; ship,
-// land-and-deploy, document-release, codex) added 11 more.
-export const EXPECTED_PARITY_CHECKS = 4402;
+// land-and-deploy, document-release, codex) added 11 more. The packaged
+// QUESTION-FORMAT contract (#1208/#1066 class) added 15 (3 per tree:
+// exists, dispatcher load, brief/caps/fallback content).
+export const EXPECTED_PARITY_CHECKS = 4417;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -220,6 +222,18 @@ export function runParity(): ParityResult {
           && offer.includes('No indexing')
           && offer.includes('never auto-install a provider'),
         `${tree} code-intelligence offer lost its silent-degrade, decline, or no-auto-install behavior`,
+      );
+    }
+    const questionFormatPath = path.join(ROOT, 'skills', tree, 'references', 'QUESTION-FORMAT.md');
+    check(fs.existsSync(questionFormatPath), `${tree} lacks the packaged question-format contract`);
+    check(dispatcher.includes('references/QUESTION-FORMAT.md'), `${tree} dispatcher does not load the question-format contract`);
+    if (fs.existsSync(questionFormatPath)) {
+      const questionFormat = fs.readFileSync(questionFormatPath, 'utf8');
+      check(
+        questionFormat.includes('as direct assistant text')
+          && questionFormat.includes('NEVER silently default')
+          && questionFormat.includes('At most 4 options per call'),
+        `${tree} question-format contract lost its brief-as-text, no-silent-default, or payload-cap rules`,
       );
     }
     check(dispatcher.includes('references/THIRD-PARTY-ACTIONS.md'), `${tree} dispatcher does not load the third-party web-action contract`);

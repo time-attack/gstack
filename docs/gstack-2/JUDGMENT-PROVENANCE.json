@@ -87,7 +87,7 @@
       "source_path": "office-hours/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "8568fe73cca76a80805fab3092cacd10db7e1d7f",
-      "normalized_render_sha256": "c77376fa95348c5c8deb1319f9bd232cc38532d78f3a45802f640749e2c76215",
+      "normalized_render_sha256": "603b1ee5a1bf745cb1e06a0c14bbb1208e7149b4d6130b8f008975ddb0095b8f",
       "target": "skills/plan/references/legacy/office-hours.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -207,7 +207,7 @@
       "source_path": "plan-ceo-review/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "c43cfe64146fe79df74a974f1673fe36defcce00",
-      "normalized_render_sha256": "8b53b9a5362c834edd08b5f50cf8511a532188b8295092ca7b7f285d9270a355",
+      "normalized_render_sha256": "a12bf8b296f31c7c950ba07f64567c09a44d6173bca40628a33d8a61eafc00a8",
       "target": "skills/plan/references/legacy/plan-ceo-review.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1371,7 +1371,7 @@
       "source_path": "sync-gbrain/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "2ec065472e263a07f3818ed87ee9a6a2e13ca3ae",
-      "normalized_render_sha256": "c3e8c6bee0e7b7eb04aed78c3097135a380c3bc09e49b7ec3e8affe0c40d7246",
+      "normalized_render_sha256": "e198a6c156fd30cb7ba9c979c86ca1b3fdae03ca3d846d469786b8b403f20934",
       "target": "skills/plan/references/legacy/sync-gbrain.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -2475,7 +2475,7 @@
       "source_path": "benchmark-models/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "034cda182406dc04a82c4336ac3ebc36b5fc41b1",
-      "normalized_render_sha256": "4bec3634223002fa47999bd4582dbe566d0561a5c9dbbd41f665787371940027",
+      "normalized_render_sha256": "c7d4440746f2a3882371d9bd4211e006d1bef64de441ad0c15aadad983aaaf40",
       "target": "skills/qa/references/legacy/benchmark-models.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -4402,7 +4402,7 @@
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "64562a6b1ff51a9c528d34aef1a7447e18576c13",
       "normalized_render_sha256": "afd9782df4d0ec3397bfa45410e3fa0b9c55ee2df9d9bac8d703f9207d5ecd01",
-      "ported_render_sha256": "5902f0079fd4563bba5930d88aae480ba840c173233c41e4e2bbb20e6bb6e575",
+      "ported_render_sha256": "39e7012ebafd2e654abf0989fe952b3aa4a124b394eb2d5d246b15f836b31f46",
       "target": "skills/plan/references/sections/plan-eng-review/review-sections.md",
       "lazy_reference_module_target": "skills/plan/references/legacy/plan-eng-review.md",
       "packaged_targets": [
@@ -4857,7 +4857,7 @@
       "source_path": "plan-eng-review/sections/review-sections.md.tmpl",
       "target_path": "skills/plan/references/sections/plan-eng-review/review-sections.md",
       "blob_sha": "64562a6b1ff51a9c528d34aef1a7447e18576c13",
-      "sha256": "5902f0079fd4563bba5930d88aae480ba840c173233c41e4e2bbb20e6bb6e575"
+      "sha256": "39e7012ebafd2e654abf0989fe952b3aa4a124b394eb2d5d246b15f836b31f46"
     },
     {
       "tree": "review",

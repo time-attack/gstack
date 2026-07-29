@@ -93,13 +93,21 @@ function readStdin(): Promise<string> {
   });
 }
 
+/**
+ * Emit only documented PreToolUse outputs (#2035/#1924). The documented
+ * permissionDecision values are allow | deny | ask; the old 'defer' literal
+ * was never a valid value and some hosts reject the whole hook output over
+ * it. "No opinion" is silence: empty stdout + exit 0. additionalContext
+ * rides in hookSpecificOutput WITHOUT a permissionDecision.
+ */
 function defer(additionalContext?: string): void {
-  const out: Record<string, unknown> = {
-    hookEventName: 'PreToolUse',
-    permissionDecision: 'defer',
-  };
-  if (additionalContext) out.additionalContext = additionalContext;
-  process.stdout.write(JSON.stringify({ hookSpecificOutput: out }));
+  if (additionalContext) {
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext },
+      }),
+    );
+  }
   process.exit(0);
 }
 

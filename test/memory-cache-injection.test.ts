@@ -97,7 +97,7 @@ describe('memory injection', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
+    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBeUndefined(); // documented outputs only
     expect(r.parsed?.hookSpecificOutput?.additionalContext).toContain('verbose explanations');
   });
 
@@ -121,8 +121,7 @@ describe('memory injection', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
-    expect(r.parsed?.hookSpecificOutput?.additionalContext).toBeUndefined();
+    expect(r.stdout.trim()).toBe(''); // documented-only outputs: silence = no opinion, no context
   });
 
   test('caps to 3 most-recent nuggets when many match', () => {
@@ -225,7 +224,6 @@ describe('per-session memory cache', () => {
         ],
       },
     });
-    expect(r.parsed?.hookSpecificOutput?.permissionDecision).toBe('defer');
-    expect(r.parsed?.hookSpecificOutput?.additionalContext).toBeUndefined();
+    expect(r.stdout.trim()).toBe(''); // documented-only outputs: silence = no opinion, no context
   });
 });

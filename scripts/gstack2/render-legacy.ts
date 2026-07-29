@@ -550,6 +550,20 @@ function portLegacyText(value: string, source: string): string {
   // module may name or invoke the passive release check.
   body = body.replaceAll('`gstack-config`, `gstack-update-check`,', '`gstack-config`,');
 
+  // The 1.x shared onboarding preamble is excluded from canonical execution,
+  // so module references to "the preamble's AskUserQuestion Format section"
+  // dangle. Repoint them to the packaged question-format contract, which
+  // carries the same brief format plus the host-panel payload caps (#1208
+  // class) and the no-silent-default prose fallback (#1066).
+  body = body
+    .replaceAll("the preamble's AskUserQuestion Format section", '`references/QUESTION-FORMAT.md`')
+    .replaceAll(
+      'the one-line note from step 4 of the preamble format rule',
+      'the one-line kind-note from `references/QUESTION-FORMAT.md`',
+    )
+    .replaceAll('Use AskUserQuestion with the preamble format:', 'Use AskUserQuestion with the format in `references/QUESTION-FORMAT.md`:')
+    .replaceAll('AskUserQuestion via the format in the preamble:', 'AskUserQuestion via the format in `references/QUESTION-FORMAT.md`:');
+
   // PR mutations go through the canonical REST form (upstream #1079, overlay
   // 1079): the gh CLI's PR-edit subcommand hard-errors on its GraphQL path.
   // Argument-bearing invocations first, then the residual prose mentions, so

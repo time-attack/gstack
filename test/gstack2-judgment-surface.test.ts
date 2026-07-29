@@ -14,6 +14,9 @@
  *      REST PATCH, never the GraphQL PR-edit subcommand; codex passes prove
  *      they ran via the sandbox canary; effects discipline defined without
  *      the runtime.
+ *   #4 Question-format class (#1208/#1066/#2035): one packaged
+ *      QUESTION-FORMAT reference, no dangling preamble-format pointers, and
+ *      hooks emit only documented permissionDecision values.
  */
 import { describe, expect, test } from 'bun:test';
 import * as fs from 'fs';
@@ -183,6 +186,57 @@ describe('ship external effects (#1079, #1892)', () => {
         'utf8',
       );
       expect(rendered).toContain('anchor=GSTACK2_FIX_1079_EXTERNAL_EFFECTS');
+    }
+  });
+});
+
+describe('question-format class (#1208, #1066, #2035)', () => {
+  const TREES = ['plan', 'qa', 'debug', 'review', 'ship'] as const;
+
+  test('the packaged QUESTION-FORMAT reference exists in every dispatcher tree', () => {
+    for (const tree of TREES) {
+      const file = path.join(ROOT, 'skills', tree, 'references', 'QUESTION-FORMAT.md');
+      expect(fs.existsSync(file)).toBe(true);
+      const content = fs.readFileSync(file, 'utf8');
+      expect(content).toContain('as direct assistant text');
+      expect(content).toContain('ONE short sentence');
+      expect(content).toContain('At most 4 options per call');
+      expect(content).toContain('NEVER silently default');
+    }
+  });
+
+  test('every dispatcher that asks questions loads the QUESTION-FORMAT reference', () => {
+    for (const tree of TREES) {
+      const skill = fs.readFileSync(path.join(ROOT, 'skills', tree, 'SKILL.md'), 'utf8');
+      expect(skill).toContain('references/QUESTION-FORMAT.md');
+    }
+  });
+
+  test('no module still references the excluded preamble format section', () => {
+    const bad = findings((line) => /preamble(?:'s)? (?:AskUserQuestion )?[Ff]ormat/.test(line));
+    expect(bad).toEqual([]);
+  });
+
+  test('SHARED-JUDGMENT carries the no-silent-default fallback rule', () => {
+    for (const tree of TREES) {
+      const shared = fs.readFileSync(
+        path.join(ROOT, 'skills', tree, 'references', 'SHARED-JUDGMENT.md'),
+        'utf8',
+      );
+      expect(shared).toContain('render the identical options as numbered prose');
+      expect(shared).toContain('NEVER silently default');
+    }
+  });
+
+  test('hooks emit only documented permissionDecision values', () => {
+    const hooksDir = path.join(ROOT, 'hosts', 'claude', 'hooks');
+    const hookSources = fs.readdirSync(hooksDir).filter((name) => name.endsWith('.ts'));
+    expect(hookSources.length).toBeGreaterThan(0);
+    for (const name of hookSources) {
+      const source = fs.readFileSync(path.join(hooksDir, name), 'utf8');
+      for (const match of source.matchAll(/permissionDecision:\s*'([^']+)'/g)) {
+        expect(['allow', 'deny', 'ask']).toContain(match[1]);
+      }
     }
   });
 });

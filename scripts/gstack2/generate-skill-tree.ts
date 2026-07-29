@@ -306,7 +306,7 @@ Web context: <none, optional, local-browser, or production>
 1. Infer the mode from product stage, surface, requested artifact, mutation authorization, evidence needs, and deployment state. Do not route by keyword alone.
 2. Refine the public mode to the smallest applicable internal specialist set, then print the required execution header before any substantive output.
 3. Read each active module in full from the path shown in the mode/alias tables. Its specialist body, behavioral contract, STOP gates, and appended upstream judgment ports are binding. Read a lazy specialist phase in full only when the workflow reaches its package-local reference.
-4. Read \`references/EXECUTION-PROFILES.md\`, \`references/SHARED-JUDGMENT.md\`, and \`references/AUTHORITY-POLICY.md\` for every invocation. Infer Depth from structured operating conditions, then obey its mandatory modules, legal skips, artifacts, and claim limits. Read \`references/RUNTIME.md\` before capability-dependent work and \`references/WEB-CONTEXT.md\` before public-web work. When the target is a repository, read \`references/CODE-INTELLIGENCE.md\` once before substantive specialist work and follow its one-time indexing offer. Read \`references/THIRD-PARTY-ACTIONS.md\` before directing the user to act on a third-party website (API key registration, vendor accounts, dashboards).
+4. Read \`references/EXECUTION-PROFILES.md\`, \`references/SHARED-JUDGMENT.md\`, and \`references/AUTHORITY-POLICY.md\` for every invocation. Read \`references/QUESTION-FORMAT.md\` before the first question to the user; it owns the decision-brief format, the structured-payload caps, and the prose fallback when no question tool is available. Infer Depth from structured operating conditions, then obey its mandatory modules, legal skips, artifacts, and claim limits. Read \`references/RUNTIME.md\` before capability-dependent work and \`references/WEB-CONTEXT.md\` before public-web work. When the target is a repository, read \`references/CODE-INTELLIGENCE.md\` once before substantive specialist work and follow its one-time indexing offer. Read \`references/THIRD-PARTY-ACTIONS.md\` before directing the user to act on a third-party website (API key registration, vendor accounts, dashboards).
 5. If an old asset path is unavailable, use \`references/ASSETS.md\`. If legacy prose invokes another retired skill, resolve it through \`references/COMPATIBILITY.md\` and stay inside these five dispatchers.
 6. Preserve report-only versus mutation boundaries. Missing mutation authorization fails closed: do not edit merely because a specialist can fix. Commits, pushes, PRs, merges, deploys, messages, and other external mutations still require affirmative authority from the user.
 7. Match the user's language. Keep code identifiers, commands, and source quotations original when translation would reduce accuracy.
@@ -527,6 +527,55 @@ function sharedJudgmentContract(): string {
     '11. A user-stated time constraint binds every phase and every chained skill. Skip or compress optional phases that do not fit it, noting each skip in one line.',
     '12. The user makes the final decision.',
     '13. A claimed limitation or requirement is a material claim. Never state that a tool, API, or platform cannot do something — or that a credential, key, account, or manual step is required — without evidence in hand: the verbatim error, the documented statement, or a live probe. Pattern-matching a failure to a familiar story is not evidence; diagnose from the actual output. When a cheap probe settles the question (run the command, list installed capabilities, attempt the operation), run it before asking the user for anything or declaring a gate.',
+    '14. When the structured question tool is unavailable on the host or a call to it fails, render the identical options as numbered prose and STOP for the reply. NEVER silently default or auto-pick the recommendation. `references/QUESTION-FORMAT.md` owns the brief format, the payload caps, and the prose fallback.',
+    '',
+  ].join('\n');
+}
+
+function questionFormatContract(): string {
+  return [GENERATED,
+    '# Question format',
+    '',
+    'Every consequential question is a decision brief plus a structured question. The brief carries the reasoning as assistant text; the structured tool payload stays small enough for every host panel. This is the one question-format contract for every preserved specialist; question-format pointers inherited from the retired 1.x onboarding wrapper resolve here.',
+    '',
+    '## Decision brief (assistant text, before the tool call)',
+    '',
+    'Render the brief as direct assistant text immediately before the structured question — never inside the tool payload, and never only in collapsed tool output. Show any content the question refers to (premises, findings, plans this session produced) in full before the brief.',
+    '',
+    '```',
+    'D<N> — <one-line question title>',
+    'ELI10: <plain English, 2-4 sentences, name the stakes>',
+    'Stakes if we pick wrong: <one sentence>',
+    'Recommendation: <choice> because <one-line reason>',
+    'Completeness: A=X/10, B=Y/10   (or: Note: options differ in kind, not coverage — no completeness score)',
+    'A) <option label> (recommended)',
+    '  ✅ <pro — concrete, observable>',
+    '  ❌ <con — honest>',
+    'B) <option label>',
+    '  ✅ <pro>',
+    '  ❌ <con>',
+    'Net: <one-line synthesis of the tradeoff>',
+    '```',
+    '',
+    'D-numbering: the first question in an invocation is `D1`; increment yourself. Use `Completeness: N/10` only when options differ in coverage (10 complete, 7 happy path, 3 shortcut); when they differ in kind, write the kind-note instead and never silently drop the score. Keep the `(recommended)` marker on exactly one option, even for taste calls.',
+    '',
+    '## Structured question payload (small, capped)',
+    '',
+    'Oversized payloads break host question panels. When calling the structured question tool (AskUserQuestion or a host variant):',
+    '',
+    '- The question field is ONE short sentence (aim under 120 characters). The brief above carries the reasoning; do not repeat it in the payload.',
+    '- Header/tab labels: at most 12 characters.',
+    '- At most 4 options per call; option labels a few words; option descriptions at most ~150 characters.',
+    '- With 5+ real options, split into sequential calls or batch into groups of at most 4 — never drop, merge, or silently defer an option to fit. Full split protocol: `references/support/docs/askuserquestion-split.md`.',
+    '- Non-ASCII text (CJK, accents) is written directly, never `\\uXXXX`-escaped: `references/support/docs/askuserquestion-cjk.md`.',
+    '',
+    '## When the structured tool is unavailable',
+    '',
+    'Some hosts ship no structured question tool (Codex CLI, Claude desktop) and some disable it. When no variant is in your tool list or a call fails:',
+    '',
+    '1. Render the IDENTICAL options as a numbered or lettered prose list — the same brief as above plus one line telling the user to reply with a letter — then STOP and wait for the reply.',
+    '2. NEVER silently default, auto-pick the recommendation, or write the decision to a file as a substitute for asking.',
+    '3. One-way or destructive confirmations get a stronger prose gate: require the explicit option letter or word; silence or a vague "ok" is not confirmation — re-ask.',
     '',
   ].join('\n');
 }
@@ -761,6 +810,7 @@ function writeSharedContracts(): void {
     write(path.join(ROOT, 'skills', tree, 'references', 'EXECUTION-PROFILES.md'), `${GENERATED}\n${renderExecutionProfiles()}`);
     write(path.join(ROOT, 'skills', tree, 'references', 'SHARED-JUDGMENT.md'), sharedJudgmentContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'AUTHORITY-POLICY.md'), authorityPolicyContract());
+    write(path.join(ROOT, 'skills', tree, 'references', 'QUESTION-FORMAT.md'), questionFormatContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'WEB-CONTEXT.md'), webContextContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'CODE-INTELLIGENCE.md'), codeIntelligenceContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'THIRD-PARTY-ACTIONS.md'), thirdPartyActionsContract());
