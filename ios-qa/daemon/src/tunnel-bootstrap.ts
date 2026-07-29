@@ -15,6 +15,7 @@
 
 import { randomBytes } from 'crypto';
 import type { DeviceTunnel } from './proxy';
+import { readSessionCache, writeSessionCache } from './session-cache';
 import {
   listDevices,
   resolveTunnelIPv6,
@@ -36,6 +37,14 @@ export interface BootstrapOptions {
   bootTokenPath?: string;
   /** Max time to wait for the StateServer to start after launch (ms). */
   startupTimeoutMs?: number;
+  /**
+   * Rotated-bearer session cache path (see session-cache.ts). When set, a
+   * bootstrap first probes the device with the cached bearer and reuses it
+   * on 200 — the boot token is single-use, so this is what makes the device
+   * drivable more than once per app launch (gstack#1796). Omit/null to
+   * force the cold boot-token flow.
+   */
+  sessionCachePath?: string | null;
   /** Test injection. */
   spawnImpl?: SpawnImpl;
   resolveImpl?: ResolveImpl;
@@ -43,7 +52,7 @@ export interface BootstrapOptions {
 }
 
 export type BootstrapResult =
-  | { ok: true; tunnel: DeviceTunnel }
+  | { ok: true; tunnel: DeviceTunnel; warmStart?: boolean }
   | { ok: false; error: BootstrapErrorReason; detail?: string };
 
 export type BootstrapErrorReason =
@@ -145,6 +154,42 @@ export async function bootstrapTunnel(opts: BootstrapOptions): Promise<Bootstrap
     return { ok: false, error: 'state_server_unreachable', detail: `no /healthz response from [${ipv6}]:${port} within ${startupTimeoutMs}ms` };
   }
 
+  // Warm reconnect: if a cached rotated bearer exists for this device+app,
+  // probe a cheap authed endpoint at the freshly-resolved address. 200 means
+  // the app instance that minted the bearer is still alive — reuse it and
+  // skip the boot-token scrape entirely (the token file was deleted by the
+  // first rotate, so the cold path below would fail with
+  // boot_token_unavailable — gstack#1796). Any other outcome (401 after an
+  // app relaunch, timeout, network error) falls through to the cold flow.
+  const cached = opts.sessionCachePath ? readSessionCache(opts.sessionCachePath) : null;
+  if (cached && cached.udid === target.identifier && cached.bundleId === opts.bundleId) {
+    try {
+      const probe = await fetchFn(`http://[${ipv6}]:${port}/state/snapshot`, {
+        headers: { 'Authorization': `Bearer ${cached.bearer}` },
+        signal: AbortSignal.timeout(2_000),
+      });
+      if (probe.status === 200) {
+        const tunnel: DeviceTunnel = {
+          udid: target.identifier,
+          bundleId: opts.bundleId,
+          ipv6Addr: ipv6,
+          port,
+          bootTokenRotated: cached.bearer,
+        };
+        // Refresh the cache — the tunnel IPv6 can change between sessions.
+        writeSessionCache(opts.sessionCachePath!, {
+          udid: target.identifier,
+          bundleId: opts.bundleId,
+          ipv6Addr: ipv6,
+          port,
+          bearer: cached.bearer,
+          savedAt: new Date().toISOString(),
+        });
+        return { ok: true, tunnel, warmStart: true };
+      }
+    } catch { /* probe failed — cold bootstrap below */ }
+  }
+
   const bootToken = copyFileFromAppContainer({
     udid: target.identifier,
     bundleId: opts.bundleId,
@@ -172,6 +217,25 @@ export async function bootstrapTunnel(opts: BootstrapOptions): Promise<Bootstrap
     }
   } catch (err) {
     return { ok: false, error: 'rotate_failed', detail: (err as Error).message };
+  }
+
+  // Persist the rotated bearer so the NEXT bootstrap (daemon restart, 30s
+  // tunnel-cache expiry) can reconnect without the now-deleted boot token.
+  if (opts.sessionCachePath) {
+    try {
+      writeSessionCache(opts.sessionCachePath, {
+        udid: target.identifier,
+        bundleId: opts.bundleId,
+        ipv6Addr: ipv6,
+        port,
+        bearer: rotatedToken,
+        savedAt: new Date().toISOString(),
+      });
+    } catch {
+      // Cache write failure must not fail the bootstrap — it only costs the
+      // NEXT session a reconnect (it will die at boot_token_unavailable and
+      // the user relaunches the app, i.e. the pre-cache behavior).
+    }
   }
 
   return {
