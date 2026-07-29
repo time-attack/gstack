@@ -400,6 +400,115 @@ Before sharing any founder resources (Paul Graham essays, Garry Tan or YC videos
       },
     },
   },
+  {
+    // Audit-finding port (egress-audit-2026-07-28 finding 8) — 9108 is an
+    // audit-scoped identifier, not an upstream PR/issue number.
+    pr: 9108,
+    url: 'https://github.com/time-attack/gstack/blob/main/evals/privacy/egress-audit-2026-07-28.md',
+    title: 'Autoplan Codex dispatch requires per-repo consent and a redact scan',
+    targets: ['autoplan'],
+    anchor: 'GSTACK2_FIX_9108_AUTOPLAN_CODEX_CONSENT_REDACT',
+    body: `### Codex dispatch consent and redaction gate
+
+Autoplan's dual-voice phases send plan and diff content to OpenAI through the
+user's Codex CLI. CLI auth presence is not consent (PRIVACY.md), so "run codex"
+is NOT a Mechanical always-yes decision for the first dispatch in a repository.
+
+**One-time per-repo consent.** Before the FIRST Codex dispatch of the run, read
+the persisted choice:
+
+\`\`\`bash
+eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)"
+_CODEX_CONSENT_FILE="\${GSTACK_HOME:-$HOME/.gstack}/projects/\${PROJECT_ID:-unknown}/codex-consent"
+_CODEX_CONSENT=$(cat "$_CODEX_CONSENT_FILE" 2>/dev/null || echo unset)
+\`\`\`
+
+If it prints \`yes\`, proceed without re-asking. If \`no\`, run Claude-only voices
+(same degradation path as a missing Codex binary) and do not re-pitch. If
+\`unset\`, ask once via AskUserQuestion — "Autoplan can get a second opinion from
+OpenAI Codex. That sends this repository's plan and relevant diff content to
+OpenAI using your own Codex login. OK for this repository?" with options
+**Yes, for this repo** / **No, Claude-only voices** — persist the answer
+(\`mkdir -p "$(dirname "$_CODEX_CONSENT_FILE")" && printf 'yes\\n' > "$_CODEX_CONSENT_FILE"\`,
+or \`no\`), and honor it for every later phase and session. The global
+\`codex_reviews\` config still wins when set to \`disabled\`.
+
+**Redaction scan at the sink.** Before EVERY Codex dispatch, write the exact
+bytes the CLI will carry off-machine (plan content, diff, instructions) to a
+temp file and scan that file — never scan a string then re-render it:
+
+\`\`\`bash
+REDACT_VIS=$($GSTACK_BIN/gstack-config get redact_repo_visibility 2>/dev/null)
+[ -z "$REDACT_VIS" ] && REDACT_VIS=$(gh repo view --json visibility -q .visibility 2>/dev/null | tr 'A-Z' 'a-z')
+REDACT_VIS="\${REDACT_VIS:-unknown}"
+REDACT_FILE=$(mktemp)
+# write the exact dispatch bytes to "$REDACT_FILE" first
+$GSTACK_BIN/gstack-redact --from-file "$REDACT_FILE" --repo-visibility "$REDACT_VIS" --self-email "$(git config user.email 2>/dev/null)" --json
+\`\`\`
+
+Exit 3 (HIGH): do not dispatch this voice — record the degradation ("codex
+skipped: redaction HIGH finding"), tell the user to rotate + redact at source,
+and continue Claude-only. HIGH has no skip flag. Exit 2 (MEDIUM):
+AskUserQuestion per finding before dispatch (sterner on public repos, no
+batch-acknowledge). Exit 0: dispatch, passing the SAME scanned file (or its
+verbatim bytes) to the CLI so the bytes scanned are the bytes sent. Delete
+\`$REDACT_FILE\` afterwards.`,
+    regression: {
+      input: { repo_consent_recorded: false, codex_cli_authenticated: true, scan_exit_code: 3 },
+      expected: {
+        first_dispatch_asks_user: true,
+        auth_presence_is_consent: false,
+        consent_scope: 'repo',
+        redact_scan_at_sink: true,
+        dispatch_allowed: false,
+      },
+    },
+  },
+  {
+    // Audit-finding port (egress-audit-2026-07-28 finding 9) — 9109 is an
+    // audit-scoped identifier, not an upstream PR/issue number.
+    pr: 9109,
+    url: 'https://github.com/time-attack/gstack/blob/main/evals/privacy/egress-audit-2026-07-28.md',
+    title: 'Outside-voice review dispatches scan the diff before it leaves the machine',
+    targets: ['codex', 'claude'],
+    anchor: 'GSTACK2_FIX_9109_OUTSIDE_VOICE_REDACT_SCAN',
+    body: `### Redaction scan before outside-voice dispatch
+
+Every dispatch in this module ships repository content to an external model:
+the branch diff, any files the CLI reads for context, and the composed prompt.
+Before EACH such dispatch (\`codex review\`, \`codex exec\`, or \`claude -p\` with
+repo content), run the standard scan-at-sink procedure /spec, /ship, and /cso
+already apply to their external sinks:
+
+1. **Materialize what will leave the machine.** For prompt-file dispatches
+   (\`cat "$PROMPT_FILE" | claude -p …\`), the prompt file IS the sink bytes —
+   scan \`$PROMPT_FILE\` itself and pipe the SAME file after a clean scan. For
+   \`codex review\`, the CLI reads the branch diff itself; materialize those
+   bytes first (\`git diff origin/<base>...HEAD 2>/dev/null || git diff <base>...HEAD\`,
+   plus your prompt text, into a temp file) and scan them before dispatching.
+2. **Scan.** Resolve \`$REDACT_VIS\` once (local config \`redact_repo_visibility\`
+   → gh → glab → unknown=public-strict), then run
+   \`$GSTACK_BIN/gstack-redact --from-file "$REDACT_FILE" --repo-visibility "$REDACT_VIS" --self-email "$(git config user.email 2>/dev/null)" --json\`.
+3. **Exit 3 (HIGH):** do NOT dispatch. Print the findings, tell the user to
+   rotate + redact at source, and stop this outside voice with a typed
+   degradation note. HIGH has no skip flag.
+4. **Exit 2 (MEDIUM):** AskUserQuestion per finding before dispatching
+   (sterner on public repos, no batch-acknowledge, no silent-proceed).
+5. **Exit 0 (clean):** dispatch; surface WARN (tool-fence degrades) + LOW as a
+   one-line FYI. Delete the temp file afterwards.
+
+A secret in the diff must not reach OpenAI or Anthropic unscanned. Guardrail,
+not airtight enforcement — it catches accidents and carelessness.`,
+    regression: {
+      input: { sink: 'codex-review-branch-diff', scan_exit_code: 3 },
+      expected: {
+        scan_before_dispatch: true,
+        scanned_bytes_are_sent_bytes: true,
+        dispatch_allowed: false,
+        high_skip_flag_exists: false,
+      },
+    },
+  },
 ];
 
 export function overlaysForSource(source: string): BugFixOverlay[] {
@@ -628,6 +737,26 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
         skip_is_silent: optedOut,
         never_again_option_when_shown: true,
         opt_out_persisted_via: 'gstack-config set founder_resources false',
+      };
+    }
+    case 9108: {
+      const consented = input.repo_consent_recorded === true;
+      const exitCode = Number(input.scan_exit_code ?? 0);
+      return {
+        first_dispatch_asks_user: !consented,
+        auth_presence_is_consent: false,
+        consent_scope: 'repo',
+        redact_scan_at_sink: true,
+        dispatch_allowed: consented && exitCode === 0,
+      };
+    }
+    case 9109: {
+      const exitCode = Number(input.scan_exit_code ?? 0);
+      return {
+        scan_before_dispatch: true,
+        scanned_bytes_are_sent_bytes: true,
+        dispatch_allowed: exitCode === 0,
+        high_skip_flag_exists: false,
       };
     }
     default:

@@ -126,7 +126,7 @@ function assertInventory(): void {
   }
   if (legacySections().length !== 14) throw new Error(`Expected 14 section templates, found ${legacySections().length}`);
   if (SCENARIOS.length !== 19) throw new Error(`Expected 19 parity scenarios, found ${SCENARIOS.length}`);
-  if (BUG_FIX_OVERLAYS.length !== 26) throw new Error(`Expected 26 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
+  if (BUG_FIX_OVERLAYS.length !== 28) throw new Error(`Expected 28 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
 }
 
 function toc(body: string): string {
@@ -930,7 +930,7 @@ function parityDoc(assetCount: number): string {
 
 Parity is executable, not a prose claim. Run \`bun run scripts/gstack2/run-parity.ts\` or the dedicated Bun tests.
 
-The pinned release inventory passes **${EXPECTED_PARITY_CHECKS.toLocaleString('en-US')} checks** across 47 specialist sources, 14 carved sections, 19 routing scenarios, 24 regression ports, and **${assetCount} assets**.
+The pinned release inventory passes **${EXPECTED_PARITY_CHECKS.toLocaleString('en-US')} checks** across 47 specialist sources, 14 carved sections, 19 routing scenarios, ${BUG_FIX_OVERLAYS.length} regression ports, and **${assetCount} assets**.
 
 The suite verifies:
 

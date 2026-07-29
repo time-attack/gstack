@@ -40,8 +40,11 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // asset checks), recomputing the inventory to the value below. Emitting the
 // make-pdf tool skill into skills/make-pdf/ (six discoverable skills) added 6
 // more (SKILL.md exists, frontmatter name, description, canonical-render
-// freshness, runtime handoff reference, references/RUNTIME.md exists).
-export const EXPECTED_PARITY_CHECKS = 4367;
+// freshness, runtime handoff reference, references/RUNTIME.md exists). The two
+// privacy-audit redact/consent overlays (26 -> 28; #9108 autoplan-only, #9109
+// codex+claude) added 12 more (2 per targeted module + 3 regression checks
+// each; see evals/privacy/egress-audit-2026-07-28.md findings 8-9).
+export const EXPECTED_PARITY_CHECKS = 4379;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -330,8 +333,8 @@ export function runParity(): ParityResult {
     check(JSON.stringify(json(path.join(ROOT, 'evals', 'parity', 'scenarios', `${scenario.id}.json`))) === JSON.stringify(scenario), `${scenario.id} generated fixture drift`);
   }
 
-  check(BUG_FIX_OVERLAYS.length === 26, `Expected 26 regression definitions; got ${BUG_FIX_OVERLAYS.length}`);
-  check(files(path.join(ROOT, 'evals', 'parity', 'regressions'), '.json').length === 26, 'Generated regression fixture count is not 26');
+  check(BUG_FIX_OVERLAYS.length === 28, `Expected 28 regression definitions; got ${BUG_FIX_OVERLAYS.length}`);
+  check(files(path.join(ROOT, 'evals', 'parity', 'regressions'), '.json').length === 28, 'Generated regression fixture count is not 28');
   for (const overlay of BUG_FIX_OVERLAYS) {
     const fixture = json(path.join(ROOT, 'evals', 'parity', 'regressions', `pr-${overlay.pr}.json`));
     check(JSON.stringify(fixture) === JSON.stringify(overlay), `PR #${overlay.pr} regression fixture drift`);

@@ -27,7 +27,7 @@ describe('GStack 2 skill parity', () => {
     const result = runParity();
     expect(result.sources).toBe(47);
     expect(result.sections).toBe(14);
-    expect(result.regressions).toBe(26);
+    expect(result.regressions).toBe(28);
   }, 30_000);
 
   test('ships make-pdf as a sixth discoverable tool skill in the canonical tree', () => {
