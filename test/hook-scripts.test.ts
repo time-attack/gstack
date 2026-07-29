@@ -99,12 +99,26 @@ describe('check-careful.sh', () => {
   });
 
   // --- SQL destructive commands ---
-  // Note: SQL commands that contain embedded double quotes (e.g., psql -c "DROP TABLE")
-  // get their command value truncated by the grep-based JSON extractor because \"
-  // terminates the [^"]* match. We use commands WITHOUT embedded quotes so the grep
-  // extraction works and the SQL keywords are visible to the pattern matcher.
+  // The extractor JSON-parses the input (python3 first, ERE+awk fallback), so
+  // embedded quotes no longer truncate the command value. SQL keywords are
+  // matched against quote-preserved segment text because SQL payloads ride
+  // inside quoted arguments (psql -c "DROP TABLE ...").
 
   describe('SQL destructive commands', () => {
+    test('psql -c "DROP TABLE users;" (double-quoted) warns', () => {
+      const { exitCode, output } = runHook(CAREFUL_SCRIPT, carefulInput('psql -c "DROP TABLE users;"'));
+      expect(exitCode).toBe(0);
+      expect(output.permissionDecision).toBe('ask');
+      expect(output.message).toContain('DROP');
+    });
+
+    test("psql -c 'TRUNCATE orders;' (single-quoted) warns", () => {
+      const { exitCode, output } = runHook(CAREFUL_SCRIPT, carefulInput("psql -c 'TRUNCATE orders;'"));
+      expect(exitCode).toBe(0);
+      expect(output.permissionDecision).toBe('ask');
+      expect(output.message).toContain('TRUNCATE');
+    });
+
     test('psql DROP TABLE warns with DROP in message', () => {
       const { exitCode, output } = runHook(CAREFUL_SCRIPT, carefulInput('psql -c DROP TABLE users;'));
       expect(exitCode).toBe(0);
@@ -242,6 +256,177 @@ describe('check-careful.sh', () => {
       expect(exitCode).toBe(0);
       expect(output.permissionDecision).toBe('ask');
       expect(output.message).toContain('recursive delete');
+    });
+  });
+
+  // ============================================================
+  // #2039: compound commands must fail CLOSED — the hook splits the
+  // command into segments on unquoted ; & | ( ) newlines and command
+  // substitutions, and checks every segment. A destructive segment
+  // hiding behind a benign one (or behind a safe-exception one) warns.
+  // ============================================================
+
+  describe('compound commands fail closed (#2039)', () => {
+    const destructive: Array<[string, string]> = [
+      // chained
+      ['cd /tmp && rm -rf ./data', 'recursive delete'],
+      ['echo done; rm -rf /var/data', 'recursive delete'],
+      ['true || rm -rf /var/data', 'recursive delete'],
+      ['git commit -m "done" && git push -f origin main', 'force-push'],
+      ['cd /srv && docker system prune -a', 'Docker'],
+      // piped
+      ['true | rm -rf /var/data', 'recursive delete'],
+      ['cat list.txt | xargs rm -rf', 'recursive delete'], // pipe-fed targets are unverifiable
+      // newline-separated
+      ['ls\nrm -rf /var/data', 'recursive delete'],
+      // backgrounded
+      ['rm -rf /var/data &', 'recursive delete'],
+      ['sleep 1 & rm -rf /var/data', 'recursive delete'],
+      // subshells and command substitution
+      ['echo $(rm -rf /var/data)', 'recursive delete'],
+      ['echo "$(rm -rf /var/data)"', 'recursive delete'],
+      ['echo `rm -rf /var/data`', 'recursive delete'],
+      ['(cd /tmp && rm -rf ./x)', 'recursive delete'],
+      // reordered: safe-exception segment must not launder a destructive one,
+      // in either order, and flag position must not matter
+      ['rm -rf /precious && rm -rf node_modules', 'recursive delete'],
+      ['rm -rf node_modules; rm -rf /var/data', 'recursive delete'],
+      ['rm -f -r /var/data', 'recursive delete'],
+      // embedded double quotes no longer truncate JSON extraction
+      ['echo "x" && rm -rf /var/data', 'recursive delete'],
+      ['echo "a; b"; rm -rf /var/data', 'recursive delete'],
+    ];
+
+    for (const [cmd, msg] of destructive) {
+      test(`${JSON.stringify(cmd)} warns`, () => {
+        const { exitCode, output } = runHook(CAREFUL_SCRIPT, carefulInput(cmd));
+        expect(exitCode).toBe(0);
+        expect(output.permissionDecision).toBe('ask');
+        expect(output.message).toContain(msg);
+      });
+    }
+
+    // Quote-aware splitting: destructive text INSIDE a quoted string is data,
+    // not a command. These must NOT trigger.
+    const safeLookalikes: string[] = [
+      'echo "a && b"',
+      'echo "rm -rf /"',
+      'grep "rm -rf" deploy.log',
+      "grep 'rm -rf' deploy.log",
+      'git commit -m "fix: remove rm -rf call"',
+      'printf "%s" "drop table users"',
+      'echo one \\&\\& two', // escaped separators are literal text
+      'VAR=$(cat file.txt)',
+      'perform -r cleanup', // "rm" inside a word is not the rm command
+      'docker run --rm -it img sh',
+      'rm -rf node_modules && rm -rf dist', // chained safe exceptions stay safe
+    ];
+
+    for (const cmd of safeLookalikes) {
+      test(`${JSON.stringify(cmd)} allows`, () => {
+        const { exitCode, output } = runHook(CAREFUL_SCRIPT, carefulInput(cmd));
+        expect(exitCode).toBe(0);
+        expect(output.permissionDecision).toBeUndefined();
+      });
+    }
+  });
+
+  // Shell executors run their quoted argument as a command, so the quoted
+  // text gets the full destructive-pattern scan there (and only there).
+  describe('shell executors scan their quoted argument', () => {
+    const executorDestructive: string[] = [
+      'bash -c "rm -rf /var/data"',
+      "sh -c 'rm -rf /var/data'",
+      'sudo bash -c "rm -rf /var/data"',
+      'eval "rm -rf /var/data"',
+      'ssh host "rm -rf /var/data"',
+    ];
+    for (const cmd of executorDestructive) {
+      test(`${JSON.stringify(cmd)} warns`, () => {
+        const { exitCode, output } = runHook(CAREFUL_SCRIPT, carefulInput(cmd));
+        expect(exitCode).toBe(0);
+        expect(output.permissionDecision).toBe('ask');
+        expect(output.message).toContain('recursive delete');
+      });
+    }
+
+    test('bash -c "ls -la" allows', () => {
+      const { output } = runHook(CAREFUL_SCRIPT, carefulInput('bash -c "ls -la"'));
+      expect(output.permissionDecision).toBeUndefined();
+    });
+
+    test('ssh host "git status" allows', () => {
+      const { output } = runHook(CAREFUL_SCRIPT, carefulInput('ssh host "git status"'));
+      expect(output.permissionDecision).toBeUndefined();
+    });
+  });
+
+  // JSON escapes must decode before tokenizing: an encoded separator
+  // (; = ";") must still create a segment boundary.
+  describe('JSON escape decoding', () => {
+    test('\\u003b-encoded semicolon still splits segments', () => {
+      const rawJson = '{"tool_input":{"command":"echo hi\\u003brm -rf /var/data"}}';
+      const { exitCode, output } = runHookRaw(CAREFUL_SCRIPT, rawJson);
+      expect(exitCode).toBe(0);
+      expect(output.permissionDecision).toBe('ask');
+      expect(output.message).toContain('recursive delete');
+    });
+  });
+
+  // The grep+awk fallback extractor (used when python3 is unavailable) must
+  // uphold the same guarantees: decode escaped quotes instead of truncating,
+  // split segments, and stay quiet on quoted lookalikes.
+  describe('no-python3 fallback extractor', () => {
+    let noPyDir = '';
+
+    function makeNoPythonPath(): string {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'careful-nopy-'));
+      for (const tool of ['grep', 'sed', 'tr', 'awk', 'head', 'cat', 'mkdir', 'date', 'basename']) {
+        const p = spawnSync('/bin/bash', ['-c', `command -v ${tool}`]).stdout.toString().trim();
+        if (p) fs.symlinkSync(p, path.join(dir, tool));
+      }
+      return dir;
+    }
+
+    function runHookNoPython(command: string): { exitCode: number; output: any } {
+      if (!noPyDir) noPyDir = makeNoPythonPath();
+      const result = spawnSync('/bin/bash', [CAREFUL_SCRIPT], {
+        input: JSON.stringify({ tool_input: { command } }),
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { PATH: noPyDir, HOME: os.homedir() },
+        timeout: 5000,
+      });
+      let output: any = {};
+      try {
+        output = JSON.parse(result.stdout.toString().trim());
+      } catch {}
+      return { exitCode: result.status ?? 1, output };
+    }
+
+    test('chained destructive command warns without python3', () => {
+      const { exitCode, output } = runHookNoPython('echo done; rm -rf /var/data');
+      expect(exitCode).toBe(0);
+      expect(output.permissionDecision).toBe('ask');
+      expect(output.message).toContain('recursive delete');
+    });
+
+    test('embedded escaped quotes no longer truncate extraction', () => {
+      const { exitCode, output } = runHookNoPython('echo "x" && rm -rf /var/data');
+      expect(exitCode).toBe(0);
+      expect(output.permissionDecision).toBe('ask');
+      expect(output.message).toContain('recursive delete');
+    });
+
+    test('quoted lookalike allows without python3', () => {
+      const { exitCode, output } = runHookNoPython('grep "rm -rf" deploy.log');
+      expect(exitCode).toBe(0);
+      expect(output.permissionDecision).toBeUndefined();
+    });
+
+    test('safe rm exception still allows without python3', () => {
+      const { exitCode, output } = runHookNoPython('rm -rf node_modules');
+      expect(exitCode).toBe(0);
+      expect(output.permissionDecision).toBeUndefined();
     });
   });
 });
