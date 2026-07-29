@@ -28,7 +28,7 @@ for arg in "$@"; do
         '               [--browser managed|installed [--browser-path <absolute-path>]]' \
         '               [--home <path>] [--version <version>] [--json] [--quiet]' \
         '' \
-        'Optional capabilities: browser, design, pdf, diagram, ios (iOS is macOS-only).' \
+        'Optional capabilities: browser, ios (iOS is macOS-only).' \
         'Without --install-now, non-interactive use previews and installs nothing.' \
         '--dry-run and --install-later never modify runtime state or host setup.' \
         'Installs only the optional host-neutral runtime and selected local capabilities.' \
