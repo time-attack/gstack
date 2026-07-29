@@ -11,8 +11,8 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 | Legacy invocation | Replacement | Visibility | Mandatory | Judgment overlays |
 |---|---|---|---|---|
 | `/gstack` | `$plan --mode Discovery --module gstack` | internal (internal) | no | #679, #879 |
-| `/office-hours` | `$plan --mode Discovery --module office-hours` | internal (primary) | yes | #679, #2030, #1049, #1116, #886, #703, #2000, #879, #538 |
-| `/plan-ceo-review` | `$plan --mode Product --module plan-ceo-review` | internal (primary) | yes | #679, #2030, #886, #703, #879 |
+| `/office-hours` | `$plan --mode Discovery --module office-hours` | internal (primary) | yes | #679, #2030, #1049, #1116, #886, #703, #2000, #879, #538, #1777, #2189 |
+| `/plan-ceo-review` | `$plan --mode Product --module plan-ceo-review` | internal (primary) | yes | #679, #2030, #886, #703, #879, #2189 |
 | `/plan-eng-review` | `$plan --mode Engineering --module plan-eng-review` | internal (primary) | yes | #679, #1071, #2030, #592, #886, #703, #879 |
 | `/plan-devex-review` | `$plan --mode DX --module plan-devex-review` | internal (primary) | yes | #679, #2030, #886, #703, #879 |
 | `/autoplan` | `$plan --mode Full chain --module autoplan` | internal (primary) | yes | #679, #2014, #2023, #886, #703, #879, #9108 |
@@ -24,8 +24,8 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 | `/retro` | `$plan --mode Discovery --module retro` | internal (internal) | no | #679, #1636, #2037, #879 |
 | `/setup-gbrain` | `$plan --mode Discovery --module setup-gbrain` | internal (internal) | no | #679, #879 |
 | `/sync-gbrain` | `$plan --mode Discovery --module sync-gbrain` | internal (internal) | no | #679, #879 |
-| `/qa` | `$qa --mode Fix --module qa` | internal (primary) | yes | #679, #1484, #2030, #2186, #879 |
-| `/qa-only` | `$qa --mode Report --module qa-only` | internal (primary) | yes | #679, #1484, #2030, #879 |
+| `/qa` | `$qa --mode Fix --module qa` | internal (primary) | yes | #679, #1484, #2030, #2186, #879, #1920 |
+| `/qa-only` | `$qa --mode Report --module qa-only` | internal (primary) | yes | #679, #1484, #2030, #879, #1920 |
 | `/ios-qa` | `$qa --mode Report --module ios-qa` | internal (primary) | yes | #679, #879 |
 | `/devex-review` | `$qa --mode Report --module devex-review` | internal (primary) | yes | #679, #2030, #879 |
 | `/benchmark` | `$qa --mode Report --module benchmark` | internal (primary) | yes | #679, #879 |
@@ -67,5 +67,5 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 ## Mechanical versus judgment changes
 
 - `JUDGMENT_PRESERVING_CARVE`: pinned specialist workflow with the retired shared onboarding wrapper excluded, retired invocations resolved to five public routes, host/runtime paths normalized, and large carved phases loaded lazily from package-local pinned references.
-- `BUG_FIX`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 31 upstream PRs, issues, and audit findings and its regression fixture.
+- `BUG_FIX`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 34 upstream PRs, issues, and audit findings and its regression fixture.
 - Asset relocation is byte-for-byte from the pinned Git blob and is indexed per tree.

@@ -33,7 +33,9 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // Removing the /design skill and its design-review offerings then dropped
 // design source modules, routing scenarios, carved sections, and design-only
 // overlays (#696, #1777, #1920, #2189) while keeping #538, which recomputes
-// the inventory to the value below. The ship-tree Apple App Store release
+// the inventory to the value below. (#1777/#1920/#2189 were REQUIRED ports
+// whose judgment outlives /design; they are restored further down,
+// retargeted at the surviving dispatched modules. #696 remains retired.) The ship-tree Apple App Store release
 // adapter added 3 more (adapter exists, preserved gate content, dispatcher
 // load). Removing the remaining design-review footprint then dropped the
 // review/design-checklist.md asset from the review and ship trees (18 fewer
@@ -54,8 +56,11 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // bash-block lint added 1,214: 2 fence/plausibility invariants plus 2 per
 // fenced bash block (606 blocks: `bash -n` syntax + portability lint) — this
 // component scales with the emitted block inventory, so content changes that
-// add or remove bash blocks move the pin by 2 per block.
-export const EXPECTED_PARITY_CHECKS = 5631;
+// add or remove bash blocks move the pin by 2 per block. Restoring the three
+// required ports silently dropped with the /design retirement (31 -> 34;
+// #1777 -> office-hours, #1920 -> qa+qa-only, #2189 ->
+// plan-ceo-review+office-hours) added 19 more.
+export const EXPECTED_PARITY_CHECKS = 5650;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -437,8 +442,8 @@ export function runParity(): ParityResult {
     check(JSON.stringify(json(path.join(ROOT, 'evals', 'parity', 'scenarios', `${scenario.id}.json`))) === JSON.stringify(scenario), `${scenario.id} generated fixture drift`);
   }
 
-  check(BUG_FIX_OVERLAYS.length === 31, `Expected 31 regression definitions; got ${BUG_FIX_OVERLAYS.length}`);
-  check(files(path.join(ROOT, 'evals', 'parity', 'regressions'), '.json').length === 31, 'Generated regression fixture count is not 31');
+  check(BUG_FIX_OVERLAYS.length === 34, `Expected 34 regression definitions; got ${BUG_FIX_OVERLAYS.length}`);
+  check(files(path.join(ROOT, 'evals', 'parity', 'regressions'), '.json').length === 34, 'Generated regression fixture count is not 34');
   for (const overlay of BUG_FIX_OVERLAYS) {
     const fixture = json(path.join(ROOT, 'evals', 'parity', 'regressions', `pr-${overlay.pr}.json`));
     check(JSON.stringify(fixture) === JSON.stringify(overlay), `PR #${overlay.pr} regression fixture drift`);

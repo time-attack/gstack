@@ -401,6 +401,63 @@ Before sharing any founder resources (Paul Graham essays, Garry Tan or YC videos
     },
   },
   {
+    // Restored port: originally targeted design-shotgun, which retired with
+    // the /design skill. The judgment — rejection strength is part of the
+    // feedback record — is portable; office-hours is the surviving
+    // visual-exploration surface (design sketch, outside design voices,
+    // developer-profile feedback).
+    pr: 1777,
+    url: 'https://github.com/garrytan/gstack/pull/1777',
+    title: 'Retain rejection confidence in design exploration',
+    targets: ['office-hours'],
+    anchor: 'GSTACK2_FIX_1777_REJECTION_CONFIDENCE',
+    body: `### Rejection-strength memory
+
+When recording design feedback, preserve how explicit and confident a rejection was. A hard rejection becomes a strong negative constraint; tentative dislike remains a weak signal that can be revisited. Never flatten rejected directions into evidence equivalent to approved directions.`,
+    regression: {
+      input: { feedback: 'Absolutely no glassmorphism', explicitness: 'strong' },
+      expected: { constraint: 'negative', confidence: 'strong', treated_as_approval: false },
+    },
+  },
+  {
+    // Restored port: originally targeted design-review, which retired with
+    // the /design skill. The judgment — audit against the product's inferred
+    // design system, not a generic house style — is portable; qa/qa-only are
+    // the surviving live-surface audit specialists.
+    pr: 1920,
+    url: 'https://github.com/garrytan/gstack/pull/1920',
+    title: 'Infer the design system before auditing deviations',
+    targets: ['qa', 'qa-only'],
+    anchor: 'GSTACK2_FIX_1920_INFER_DESIGN_SYSTEM',
+    body: `### Design-system-first audit
+
+Infer the product's existing design thesis, typography, color, spacing, component language, and motion before scoring inconsistencies. Audit the implementation against that inferred system and the product domain, not against a generic house style. Include domain-appropriate trust, registration, empty-state, and user-facing copy checks before declaring the surface complete.`,
+    regression: {
+      input: { surface: 'financial registration flow', explicit_design_doc: false },
+      expected: { infer_system_first: true, domain_copy_checks: true, generic_style_substitution: false },
+    },
+  },
+  {
+    // Restored port: originally targeted design-consultation,
+    // plan-design-review, and design-review — all retired with the /design
+    // skill. The judgment — award design-thesis credit for coherent
+    // equivalent framing, never require a literal heading — is portable;
+    // plan-ceo-review (Section 11 design intentionality) and office-hours
+    // (the design-doc producer) are the surviving evaluation surfaces.
+    pr: 2189,
+    url: 'https://github.com/garrytan/gstack/pull/2189',
+    title: 'Accept coherent design-thesis framing',
+    targets: ['plan-ceo-review', 'office-hours'],
+    anchor: 'GSTACK2_FIX_2189_DESIGN_THESIS_EQUIVALENCE',
+    body: `### Design-thesis equivalence
+
+Accept a coherent design thesis expressed through product principles, visual rationale, interaction philosophy, or equivalent framing. Evaluate substance and consistency; do not require a literal “design thesis” heading or one exact vocabulary to award credit.`,
+    regression: {
+      input: { heading: 'Experience principles', content: 'calm, high-trust, data-dense rationale' },
+      expected: { thesis_recognized: true, literal_heading_required: false },
+    },
+  },
+  {
     pr: 1078,
     url: 'https://github.com/garrytan/gstack/issues/1078',
     title: 'Verify deploy credentials without echoing any key bytes',
@@ -835,6 +892,23 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
         never_again_option_when_shown: true,
         opt_out_persisted_via: 'gstack-config set founder_resources false',
       };
+    }
+    case 1777: {
+      const strong = input.explicitness === 'strong' || /absolutely|never|hard no/i.test(String(input.feedback ?? ''));
+      return { constraint: 'negative', confidence: strong ? 'strong' : 'weak', treated_as_approval: false };
+    }
+    case 1920: {
+      const surface = String(input.surface ?? '');
+      return {
+        infer_system_first: input.explicit_design_doc !== true,
+        domain_copy_checks: /financial|registration|health|legal|trust/i.test(surface),
+        generic_style_substitution: false,
+      };
+    }
+    case 2189: {
+      const framing = `${input.heading ?? ''} ${input.content ?? ''}`;
+      const coherent = /principles|thesis|rationale|philosophy|calm|trust|hierarchy|interaction/i.test(framing);
+      return { thesis_recognized: coherent, literal_heading_required: false };
     }
     case 1078:
       return { key_bytes_printed: 0, presence_check: '[ -n "$VAR" ]', partial_display_allowed: false };

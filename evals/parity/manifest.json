@@ -20,7 +20,7 @@
     "packaged_section_copies": 14,
     "internal_execution_adapters": 1,
     "scenarios": 19,
-    "bug_fix_ports": 31,
+    "bug_fix_ports": 34,
     "assets": 70,
     "dependency_copies": 3,
     "runtime_helpers": 39
@@ -99,7 +99,9 @@
         703,
         2000,
         879,
-        538
+        538,
+        1777,
+        2189
       ],
       "original_source_file": "office-hours/SKILL.md.tmpl",
       "original_line_range": "1-526",
@@ -215,7 +217,8 @@
         2030,
         886,
         703,
-        879
+        879,
+        2189
       ],
       "original_source_file": "plan-ceo-review/SKILL.md.tmpl",
       "original_line_range": "1-427",
@@ -1456,7 +1459,8 @@
         1484,
         2030,
         2186,
-        879
+        879,
+        1920
       ],
       "original_source_file": "qa/SKILL.md.tmpl",
       "original_line_range": "1-355",
@@ -1582,7 +1586,8 @@
         679,
         1484,
         2030,
-        879
+        879,
+        1920
       ],
       "original_source_file": "qa-only/SKILL.md.tmpl",
       "original_line_range": "1-115",
@@ -6438,6 +6443,35 @@
         "office-hours"
       ],
       "anchor": "GSTACK2_FIX_538_FOUNDER_RESOURCES_OPTOUT"
+    },
+    {
+      "pr": 1777,
+      "url": "https://github.com/garrytan/gstack/pull/1777",
+      "title": "Retain rejection confidence in design exploration",
+      "targets": [
+        "office-hours"
+      ],
+      "anchor": "GSTACK2_FIX_1777_REJECTION_CONFIDENCE"
+    },
+    {
+      "pr": 1920,
+      "url": "https://github.com/garrytan/gstack/pull/1920",
+      "title": "Infer the design system before auditing deviations",
+      "targets": [
+        "qa",
+        "qa-only"
+      ],
+      "anchor": "GSTACK2_FIX_1920_INFER_DESIGN_SYSTEM"
+    },
+    {
+      "pr": 2189,
+      "url": "https://github.com/garrytan/gstack/pull/2189",
+      "title": "Accept coherent design-thesis framing",
+      "targets": [
+        "plan-ceo-review",
+        "office-hours"
+      ],
+      "anchor": "GSTACK2_FIX_2189_DESIGN_THESIS_EQUIVALENCE"
     },
     {
       "pr": 1078,

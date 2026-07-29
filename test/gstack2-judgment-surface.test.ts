@@ -17,6 +17,8 @@
  *   #4 Question-format class (#1208/#1066/#2035): one packaged
  *      QUESTION-FORMAT reference, no dangling preamble-format pointers, and
  *      hooks emit only documented permissionDecision values.
+ *   #6 Restored required ports #1777/#1920/#2189 (silently dropped with the
+ *      /design retirement) anchored at their surviving dispatched modules.
  */
 import { describe, expect, test } from 'bun:test';
 import * as fs from 'fs';
@@ -237,6 +239,32 @@ describe('question-format class (#1208, #1066, #2035)', () => {
       for (const match of source.matchAll(/permissionDecision:\s*'([^']+)'/g)) {
         expect(['allow', 'deny', 'ask']).toContain(match[1]);
       }
+    }
+  });
+});
+
+describe('restored design-judgment ports (#1777, #1920, #2189)', () => {
+  test('each restored port is anchored in its surviving dispatched modules', () => {
+    const anchors: Array<[string, string, string]> = [
+      ['plan', 'office-hours', 'anchor=GSTACK2_FIX_1777_REJECTION_CONFIDENCE'],
+      ['qa', 'qa', 'anchor=GSTACK2_FIX_1920_INFER_DESIGN_SYSTEM'],
+      ['qa', 'qa-only', 'anchor=GSTACK2_FIX_1920_INFER_DESIGN_SYSTEM'],
+      ['plan', 'plan-ceo-review', 'anchor=GSTACK2_FIX_2189_DESIGN_THESIS_EQUIVALENCE'],
+      ['plan', 'office-hours', 'anchor=GSTACK2_FIX_2189_DESIGN_THESIS_EQUIVALENCE'],
+    ];
+    for (const [tree, module, anchor] of anchors) {
+      const rendered = fs.readFileSync(
+        path.join(ROOT, 'skills', tree, 'references', 'legacy', `${module}.md`),
+        'utf8',
+      );
+      expect(rendered).toContain(anchor);
+    }
+  });
+
+  test('each restored port ships an executable regression fixture', () => {
+    for (const pr of [1777, 1920, 2189]) {
+      const fixture = path.join(ROOT, 'evals', 'parity', 'regressions', `pr-${pr}.json`);
+      expect(fs.existsSync(fixture)).toBe(true);
     }
   });
 });

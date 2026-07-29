@@ -759,3 +759,23 @@ A question is only answerable if the user can see what it refers to. Before any 
 
 Before sharing any founder resources (Paul Graham essays, Garry Tan or YC videos, or similar motivational recommendations), check the persistent opt-out with `"$GSTACK_BIN/gstack-config" get founder_resources`. If it prints `false`, skip the entire resources phase silently — no resources, no mention that they were skipped — and continue with the rest of the handoff, which is unaffected. When resources are shown, the offer-to-open question must include a **"Never show me these again"** option alongside the open/skip options. Choosing it runs `"$GSTACK_BIN/gstack-config" set founder_resources false`, confirms in one line that resources will not be recommended again and that `gstack-config set founder_resources true` re-enables them, then continues. The opt-out is a durable user decision: never re-pitch the resources, never ask the user to reconsider, and never let a session's context override the stored `false`.
 <!-- GSTACK2_BUG_FIX_END pr=538 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=1777 anchor=GSTACK2_FIX_1777_REJECTION_CONFIDENCE -->
+## Upstream judgment port: PR #1777
+
+[Retain rejection confidence in design exploration](https://github.com/garrytan/gstack/pull/1777)
+
+### Rejection-strength memory
+
+When recording design feedback, preserve how explicit and confident a rejection was. A hard rejection becomes a strong negative constraint; tentative dislike remains a weak signal that can be revisited. Never flatten rejected directions into evidence equivalent to approved directions.
+<!-- GSTACK2_BUG_FIX_END pr=1777 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=2189 anchor=GSTACK2_FIX_2189_DESIGN_THESIS_EQUIVALENCE -->
+## Upstream judgment port: PR #2189
+
+[Accept coherent design-thesis framing](https://github.com/garrytan/gstack/pull/2189)
+
+### Design-thesis equivalence
+
+Accept a coherent design thesis expressed through product principles, visual rationale, interaction philosophy, or equivalent framing. Evaluate substance and consistency; do not require a literal “design thesis” heading or one exact vocabulary to award credit.
+<!-- GSTACK2_BUG_FIX_END pr=2189 -->
