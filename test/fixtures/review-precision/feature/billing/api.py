@@ -19,35 +19,21 @@ class IsSiteManager(permissions.BasePermission):
 
 
 class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
-    # Read-only: no create/update/destroy surface. The only mutation is the
-    # reissue action below, which routes through get_object() so
-    # has_object_permission runs before the body executes.
+    # Read-only: no create/update/destroy surface. Native list/retrieve
+    # serialize through serializer_class. The only mutation is the reissue
+    # action, which routes through get_object() so has_object_permission
+    # runs before the body executes.
     serializer_class = InvoiceSerializer
     permission_classes = [permissions.IsAuthenticated, IsSiteManager]
 
     def get_queryset(self):
-        # Scoped to the requesting manager's own sites, so list() never
-        # leaks other managers' invoices. select_related joins rental + site
-        # up front so the list loop issues no per-row queries.
+        # Scoped to the requesting manager's own sites so list never leaks
+        # other managers' invoices.
         return (
             Invoice.objects.select_related("rental", "rental__site")
             .filter(rental__site__manager_id=self.request.user.id)
             .order_by("-id")
         )
-
-    def list(self, request):
-        rows = []
-        for invoice in self.get_queryset()[:50]:
-            rows.append(
-                {
-                    "id": invoice.id,
-                    "site": invoice.rental.site.name,
-                    "equipment": invoice.rental.equipment_name,
-                    "amount_cents": invoice.amount_cents,
-                    "issued": invoice.issued,
-                }
-            )
-        return Response(rows)
 
     @action(detail=True, methods=["post"])
     def reissue(self, request, pk=None):

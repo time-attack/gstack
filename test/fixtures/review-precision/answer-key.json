@@ -7,6 +7,7 @@
     "billing/services.py",
     "billing/forms.py",
     "billing/api.py",
+    "billing/views.py",
     "billing/serializers.py",
     "billing/admin.py"
   ],
@@ -77,16 +78,16 @@
     {
       "id": "FP-10",
       "class": "bounded-queryset",
-      "file": "billing/api.py",
-      "trap": "list() iterates a queryset, 'unbounded / missing pagination'",
-      "why_correct": "The iteration is sliced [:50] at the loop site."
+      "file": "billing/views.py",
+      "trap": "site_invoice_feed iterates a queryset, 'unbounded / missing pagination'",
+      "why_correct": "The queryset is sliced [:50] before iteration."
     },
     {
       "id": "FP-11",
       "class": "select_related-no-n-plus-one",
-      "file": "billing/api.py",
+      "file": "billing/views.py",
       "trap": "invoice.rental.site.name inside a loop looks like N+1",
-      "why_correct": "get_queryset() select_related('rental', 'rental__site') joins both relations in the initial query."
+      "why_correct": "select_related('rental', 'rental__site') joins both relations in the initial query, so the loop issues no per-row queries."
     }
   ],
   "planted_bugs": [
