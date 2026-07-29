@@ -188,6 +188,64 @@ export function recordE2E(
 }
 
 /**
+ * Hard-require a report artifact from an E2E run.
+ *
+ * The old pattern — `if (fs.existsSync(reportPath)) { ...content asserts... }` —
+ * let an agent that wrote NOTHING pass every content assertion: zero review
+ * output was a green test. This helper makes the artifact itself the
+ * assertion: missing or near-empty report = test failure, and callers get the
+ * content back for their own checks.
+ */
+export function requireReportArtifact(filePath: string, minLength = 50): string {
+  expect(
+    fs.existsSync(filePath),
+    `report artifact missing: ${filePath} — the agent produced no report. Zero output is a FAILURE, not a skip.`,
+  ).toBe(true);
+  const content = fs.readFileSync(filePath, 'utf-8');
+  expect(
+    content.trim().length,
+    `report artifact nearly empty (<${minLength} chars): ${filePath}`,
+  ).toBeGreaterThanOrEqual(minLength);
+  return content;
+}
+
+/** One finding parsed from the canonical calibrated review format. */
+export interface ReviewFinding {
+  severity: string;
+  confidence: number;
+  file: string;
+  line: number;
+  description: string;
+  raw: string;
+}
+
+/**
+ * Parse findings in the canonical format the preserved review module mandates
+ * (skills/review/references/legacy/review.md, "Finding format"):
+ *
+ *   [P1] (confidence: 9/10) app/models/user.rb:42 — SQL injection via ...
+ *
+ * Liberal on the severity token and dash flavor, strict on `(confidence: N/10)`
+ * and `file:line` — those two are the contract ("calibrated findings with
+ * file-and-line evidence"). Findings without them do not parse and do not count.
+ */
+export function parseReviewFindings(report: string): ReviewFinding[] {
+  const findings: ReviewFinding[] = [];
+  const re = /\[([A-Za-z][\w -]{0,15})\]\s*\(confidence:\s*(\d{1,2})\s*\/\s*10\)\s*`?([\w@./\\-]+\.\w{1,8}):(\d+)(?:-\d+)?`?\s*(?:—|–|--|-|:)\s*(.+)/g;
+  for (const m of report.matchAll(re)) {
+    findings.push({
+      severity: m[1].trim(),
+      confidence: parseInt(m[2], 10),
+      file: m[3].replace(/^\.\//, ''),
+      line: parseInt(m[4], 10),
+      description: m[5].trim(),
+      raw: m[0],
+    });
+  }
+  return findings;
+}
+
+/**
  * Threshold for `reason_substance` (1-5 rubric) above which a recommendation
  * is considered substantive enough to ship. 4 = "concrete and option-specific";
  * 3 = generic ("because it's faster"). We want to catch generic. If Haiku
