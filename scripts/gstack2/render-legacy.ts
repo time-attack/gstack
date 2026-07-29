@@ -142,6 +142,17 @@ function resolvePlaceholders(
  */
 export const CANONICAL_EXCLUDED_RESOLVERS = ['PREAMBLE'] as const;
 
+/**
+ * One canonical REST form for every GitHub PR mutation (upstream #1079). The
+ * gh CLI's high-level PR-edit subcommand rides a GraphQL mutation that
+ * hard-errors under fine-grained tokens and several permission setups, so the
+ * generator substitutes this exact PATCH shape at every PR edit site and
+ * documents it once in ship's EXTERNAL-EFFECTS contract.
+ */
+export function canonicalPrPatch(fieldArgs: string): string {
+  return `gh api -X PATCH "repos/:owner/:repo/pulls/$(gh pr view --json number -q .number)" ${fieldArgs}`;
+}
+
 const RETIRED_ASSIGNMENTS = [...SOURCE_ASSIGNMENTS]
   .filter((entry) => !['plan', 'design', 'qa', 'debug', 'review', 'ship'].includes(entry.source))
   .sort((a, b) => b.source.length - a.source.length);
@@ -538,6 +549,30 @@ function portLegacyText(value: string, source: string): string {
   // #1081): the standard Agent Skills installer owns updates, so no rendered
   // module may name or invoke the passive release check.
   body = body.replaceAll('`gstack-config`, `gstack-update-check`,', '`gstack-config`,');
+
+  // PR mutations go through the canonical REST form (upstream #1079, overlay
+  // 1079): the gh CLI's PR-edit subcommand hard-errors on its GraphQL path.
+  // Argument-bearing invocations first, then the residual prose mentions, so
+  // no rendered text recommends the retired subcommand.
+  // split/join, not replaceAll: replacement strings here contain `$$`, which
+  // String.prototype.replaceAll would collapse to a single `$`.
+  body = body
+    .split('gh pr edit --body-file "$PR_BODY_FILE"').join(canonicalPrPatch('-F body=@"$PR_BODY_FILE"'))
+    .split('gh pr edit --body-file /tmp/gstack-pr-body-$$.md').join(canonicalPrPatch('-F body=@/tmp/gstack-pr-body-$$.md'))
+    .split('gh pr edit --title "$NEW_TITLE"').join(canonicalPrPatch('-f title="$NEW_TITLE"'));
+  body = body
+    .replaceAll(
+      'scan the temp file, then `gh pr edit --body-file` from it.',
+      'scan the temp file, then run the canonical REST body update (see `references/EXTERNAL-EFFECTS.md`) from that SAME file.',
+    )
+    .replaceAll(
+      'Same scan runs before the `gh pr edit --body` path (Step 17).',
+      'Same scan runs before the REST body-update path (Step 17).',
+    )
+    .replaceAll(
+      'If `gh pr edit` / `glab mr update` fails:',
+      'If the REST PR update / `glab mr update` fails:',
+    );
 
   // Portable outside-voice dispatch (upstream #2370/#2372, overlay 2370).
   // BSD/BusyBox mktemp require trailing Xs: strip any suffix after a XXXXXX

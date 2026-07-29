@@ -13,7 +13,8 @@
   "target": "skills/ship/references/legacy/document-release.md",
   "overlays": [
     679,
-    879
+    879,
+    1079
   ],
   "contract": {
     "question_order": "Preserve the source workflow order; gather prerequisites before consequential questions.",

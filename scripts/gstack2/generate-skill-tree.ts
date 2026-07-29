@@ -13,6 +13,7 @@ import { EXPECTED_PARITY_CHECKS } from './run-parity';
 import {
   ROOT,
   blobShaForPath,
+  canonicalPrPatch,
   legacyRelativePath,
   legacySections,
   normalizeRepositoryPath,
@@ -126,7 +127,7 @@ function assertInventory(): void {
   }
   if (legacySections().length !== 14) throw new Error(`Expected 14 section templates, found ${legacySections().length}`);
   if (SCENARIOS.length !== 19) throw new Error(`Expected 19 parity scenarios, found ${SCENARIOS.length}`);
-  if (BUG_FIX_OVERLAYS.length !== 30) throw new Error(`Expected 30 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
+  if (BUG_FIX_OVERLAYS.length !== 31) throw new Error(`Expected 31 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
 }
 
 function toc(body: string): string {
@@ -676,6 +677,25 @@ Ship, land, deploy, monitor, and resume retain their preserved judgment. This ru
 6. A not-applied effect remains unresolved until its retry completes. Finish only when every effect is completed: \`gstack state complete "$RUN_ID"\`.
 
 Do not put secrets in run IDs, effect keys, or command arguments. Existing approval gates remain binding before merge, deploy, destructive mutation, spending, or messages.
+
+## PR mutations use the REST API
+
+The gh CLI's high-level PR-edit subcommand rides a GraphQL mutation that hard-errors under fine-grained tokens and several permission setups. Every PR title/body/base mutation in these workflows uses this one canonical REST form, substituted at every edit site by the generator:
+
+\`\`\`bash
+${canonicalPrPatch('-f title="$NEW_TITLE"')}
+${canonicalPrPatch('-F body=@"$PR_BODY_FILE"')}
+\`\`\`
+
+Creating a PR may use \`gh pr create\`; when it fails, the REST fallback is \`gh api -X POST "repos/:owner/:repo/pulls" -f head="$(git branch --show-current)" -f base="<base>" -f title="$TITLE" -F body=@"$BODY_FILE"\`. Run each mutation through the durable state wrapper like any other external effect.
+
+## Second-opinion passes must prove they ran
+
+A Codex review pass on a Linux host without user namespaces silently no-ops: the bwrap sandbox cannot start, and the empty result masquerades as a clean review. Before crediting any Codex pass as review evidence, source \`$GSTACK_BIN/gstack-codex-probe\` and run \`_gstack_codex_sandbox_canary\` once per session; on \`CODEX_SANDBOX_UNAVAILABLE\` (typed, fail-closed) record the degradation ("codex skipped: sandbox unavailable") and continue without that voice. An empty or failed pass is never a clean review.
+
+## No-runtime fallback
+
+When the optional runtime is not installed (\`$GSTACK_BIN/gstack\` missing), the durable ledger is unavailable but the discipline still binds: before each external effect, print the effect key and the exact command as assistant text; execute it directly; after an interruption or ambiguous outcome, STOP and inspect the external system first. Never retry automatically, and never re-run an effect whose outcome is unknown. Runtime absence changes the bookkeeping, not the authority gates or the no-blind-retry rule.
 `;
 }
 

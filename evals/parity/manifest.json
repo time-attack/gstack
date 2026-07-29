@@ -20,7 +20,7 @@
     "packaged_section_copies": 14,
     "internal_execution_adapters": 1,
     "scenarios": 19,
-    "bug_fix_ports": 30,
+    "bug_fix_ports": 31,
     "assets": 70,
     "dependency_copies": 3,
     "runtime_helpers": 39
@@ -3161,6 +3161,7 @@
       "overlays": [
         679,
         879,
+        1079,
         2370,
         9109
       ],
@@ -3329,7 +3330,8 @@
         2030,
         2186,
         1102,
-        879
+        879,
+        1079
       ],
       "original_source_file": "ship/SKILL.md.tmpl",
       "original_line_range": "1-538",
@@ -3462,7 +3464,8 @@
       "overlays": [
         679,
         884,
-        879
+        879,
+        1079
       ],
       "original_source_file": "land-and-deploy/SKILL.md.tmpl",
       "original_line_range": "1-1009",
@@ -3645,7 +3648,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        879
+        879,
+        1079
       ],
       "original_source_file": "document-release/SKILL.md.tmpl",
       "original_line_range": "1-161",
@@ -4136,7 +4140,7 @@
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "475e8b258ae06c1ddc2269275a5d85e2dc09eddf",
       "normalized_render_sha256": "68c4d42fce344fc9d834e1cd2bbe21dea119d416668ebb32ebe9e7c52b130f32",
-      "ported_render_sha256": "83c9315922fc6cef23701f720fa7eeff0cfccc000c05db0570a6483326857b08",
+      "ported_render_sha256": "664f1ac79edf148fe76334e0c4ae1db72488b07eed30edd03cc2c0e11687ce9f",
       "target": "skills/ship/references/sections/document-release/release-body.md",
       "lazy_reference_module_target": "skills/ship/references/legacy/document-release.md",
       "packaged_targets": [
@@ -4645,7 +4649,7 @@
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "22ac0d668ba8f2a15c7f9416508d81727c5114e0",
       "normalized_render_sha256": "813c4c75f1cc8c85ab3121f0a76966673118cf759d283c3ef5f6aa1ba64dd764",
-      "ported_render_sha256": "609f895f1aaacc495c2be353061ab53d346b75101d767d98477d8c0f5de924a2",
+      "ported_render_sha256": "ad8b03d31e0e4809c0b7b712a425ed93c13409dfa18012fb0bba4878d3ac8e97",
       "target": "skills/ship/references/sections/ship/pr-body.md",
       "lazy_reference_module_target": "skills/ship/references/legacy/ship.md",
       "packaged_targets": [
@@ -4869,7 +4873,7 @@
       "source_path": "document-release/sections/release-body.md.tmpl",
       "target_path": "skills/ship/references/sections/document-release/release-body.md",
       "blob_sha": "475e8b258ae06c1ddc2269275a5d85e2dc09eddf",
-      "sha256": "83c9315922fc6cef23701f720fa7eeff0cfccc000c05db0570a6483326857b08"
+      "sha256": "664f1ac79edf148fe76334e0c4ae1db72488b07eed30edd03cc2c0e11687ce9f"
     },
     {
       "tree": "ship",
@@ -4909,7 +4913,7 @@
       "source_path": "ship/sections/pr-body.md.tmpl",
       "target_path": "skills/ship/references/sections/ship/pr-body.md",
       "blob_sha": "22ac0d668ba8f2a15c7f9416508d81727c5114e0",
-      "sha256": "609f895f1aaacc495c2be353061ab53d346b75101d767d98477d8c0f5de924a2"
+      "sha256": "ad8b03d31e0e4809c0b7b712a425ed93c13409dfa18012fb0bba4878d3ac8e97"
     },
     {
       "tree": "ship",
@@ -5736,7 +5740,10 @@
       "source_path": "bin/gstack-codex-probe",
       "consumer_modules": [
         "autoplan",
-        "codex"
+        "codex",
+        "document-release",
+        "land-and-deploy",
+        "ship"
       ],
       "stable_path": "${GSTACK_HOME:-$HOME/.gstack}/bin/gstack-codex-probe"
     },
@@ -6440,6 +6447,18 @@
         "setup-deploy"
       ],
       "anchor": "GSTACK2_FIX_1078_NO_KEY_ECHO"
+    },
+    {
+      "pr": 1079,
+      "url": "https://github.com/garrytan/gstack/issues/1079",
+      "title": "External effects must not fail or lie: REST PR mutations, sandbox canary, no-runtime discipline",
+      "targets": [
+        "ship",
+        "land-and-deploy",
+        "document-release",
+        "codex"
+      ],
+      "anchor": "GSTACK2_FIX_1079_EXTERNAL_EFFECTS"
     },
     {
       "pr": 2370,

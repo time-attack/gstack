@@ -104,3 +104,40 @@ _gstack_codex_log_hang() {
   "$_log_bin" "$(printf '{"skill":"codex","type":"operational","key":"%s","insight":"Codex timed out after 600s during [%s] invocation. Prompt size: %s. Consider splitting prompt or checking network.","confidence":8,"source":"observed","files":["codex/SKILL.md.tmpl","autoplan/SKILL.md.tmpl"]}' "$_key" "$_mode" "$_prompt_size")" \
     >/dev/null 2>&1 || true
 }
+
+# --- Sandbox canary ---------------------------------------------------------
+
+_gstack_codex_sandbox_canary() {
+  # One-shot probe that proves the Codex sandbox can actually start (#1892).
+  # On Linux hosts without user namespaces (containers, hardened kernels),
+  # Codex's bwrap sandbox fails to launch and an exec/review pass silently
+  # no-ops — an unwitting caller then reports a non-review as clean. Fail
+  # closed with a typed code so callers degrade loudly instead.
+  #
+  # Output (stdout, exactly one line):
+  #   CODEX_SANDBOX_OK            — sandbox launched; exit 0
+  #   CODEX_SANDBOX_UNAVAILABLE   — bwrap/no-userns signature; exit 3
+  #   CODEX_CANARY_FAILED:<code>  — probe failed for another reason; exit 1
+  # No --model flag: the host's configured default model applies.
+  local _canary_err _canary_status
+  _canary_err=$(mktemp "${TMPDIR:-/tmp}/codex-canary-err-XXXXXX") || {
+    echo "CODEX_CANARY_FAILED:mktemp"
+    return 1
+  }
+  printf 'Reply with the single word ok.\n' \
+    | _gstack_codex_timeout_wrapper 60 codex exec -s read-only - \
+      >/dev/null 2>"$_canary_err"
+  _canary_status=$?
+  if grep -Eqi 'bwrap|bubblewrap|user[ _-]?namespace|unshare|landlock' "$_canary_err" 2>/dev/null; then
+    rm -f "$_canary_err"
+    echo "CODEX_SANDBOX_UNAVAILABLE"
+    return 3
+  fi
+  rm -f "$_canary_err"
+  if [ "$_canary_status" != "0" ]; then
+    echo "CODEX_CANARY_FAILED:$_canary_status"
+    return 1
+  fi
+  echo "CODEX_SANDBOX_OK"
+  return 0
+}

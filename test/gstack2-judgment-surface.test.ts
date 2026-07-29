@@ -10,6 +10,10 @@
  *   #2 setup-deploy key echo (#1078/#1096) + update-check retirement (#1081):
  *      no rendered module echoes credential bytes; the 2.0 runtime ships no
  *      passive release-check helper.
+ *   #3 Ship external effects (#1079/#1892): PR mutations use the canonical
+ *      REST PATCH, never the GraphQL PR-edit subcommand; codex passes prove
+ *      they ran via the sandbox canary; effects discipline defined without
+ *      the runtime.
  */
 import { describe, expect, test } from 'bun:test';
 import * as fs from 'fs';
@@ -116,5 +120,69 @@ describe('credential echo + update-check retirement (#1078, #1081)', () => {
       fs.readFileSync(path.join(ROOT, 'evals', 'parity', 'runtime-helper-closure.json'), 'utf8'),
     );
     expect(closure.helpers.map((entry: { name: string }) => entry.name)).not.toContain('gstack-update-check');
+  });
+});
+
+describe('ship external effects (#1079, #1892)', () => {
+  test('zero GraphQL PR-edit invocations anywhere in the rendered tree', () => {
+    const bad = findings((line) => /gh pr edit/.test(line));
+    expect(bad).toEqual([]);
+  });
+
+  test('EXTERNAL-EFFECTS carries the canonical REST block, canary, and no-runtime fallback', () => {
+    const effects = fs.readFileSync(
+      path.join(ROOT, 'skills', 'ship', 'references', 'EXTERNAL-EFFECTS.md'),
+      'utf8',
+    );
+    expect(effects).toContain('gh api -X PATCH "repos/:owner/:repo/pulls/$(gh pr view --json number -q .number)"');
+    expect(effects).toContain('gh api -X POST "repos/:owner/:repo/pulls"');
+    expect(effects).toContain('_gstack_codex_sandbox_canary');
+    expect(effects).toContain('CODEX_SANDBOX_UNAVAILABLE');
+    expect(effects).toContain('## No-runtime fallback');
+    expect(effects).toContain('Never retry automatically');
+  });
+
+  test('every rewritten PR-edit site uses the canonical REST PATCH form', () => {
+    const canonical = 'gh api -X PATCH "repos/:owner/:repo/pulls/$(gh pr view --json number -q .number)"';
+    const prBody = fs.readFileSync(
+      path.join(ROOT, 'skills', 'ship', 'references', 'sections', 'ship', 'pr-body.md'),
+      'utf8',
+    );
+    const releaseBody = fs.readFileSync(
+      path.join(ROOT, 'skills', 'ship', 'references', 'sections', 'document-release', 'release-body.md'),
+      'utf8',
+    );
+    expect(prBody).toContain(`${canonical} -F body=@"$PR_BODY_FILE"`);
+    expect(prBody).toContain(`${canonical} -f title="$NEW_TITLE"`);
+    expect(releaseBody).toContain(`${canonical} -F body=@/tmp/gstack-pr-body-$$.md`);
+    expect(releaseBody).toContain(`${canonical} -f title="$NEW_TITLE"`);
+  });
+
+  test('the sandbox canary fails closed with a typed code and no model literal', () => {
+    const probe = fs.readFileSync(path.join(ROOT, 'bin', 'gstack-codex-probe'), 'utf8');
+    expect(probe).toContain('_gstack_codex_sandbox_canary()');
+    expect(probe).toContain('CODEX_SANDBOX_UNAVAILABLE');
+    expect(probe).toMatch(/bwrap\|bubblewrap\|user\[ _-\]\?namespace/);
+    // Host-neutral: the canary invocation must not pin a model.
+    const invocations = probe.split('\n').filter((line) => /codex exec/.test(line));
+    expect(invocations.length).toBeGreaterThan(0);
+    for (const line of invocations) expect(line).not.toContain('--model');
+    const syntax = Bun.spawnSync({ cmd: ['bash', '-n', path.join(ROOT, 'bin', 'gstack-codex-probe')] });
+    expect(syntax.exitCode).toBe(0);
+  });
+
+  test('the external-effects judgment port is anchored in all four targets', () => {
+    for (const [tree, module] of [
+      ['ship', 'ship'],
+      ['ship', 'land-and-deploy'],
+      ['ship', 'document-release'],
+      ['review', 'codex'],
+    ] as const) {
+      const rendered = fs.readFileSync(
+        path.join(ROOT, 'skills', tree, 'references', 'legacy', `${module}.md`),
+        'utf8',
+      );
+      expect(rendered).toContain('anchor=GSTACK2_FIX_1079_EXTERNAL_EFFECTS');
+    }
   });
 });

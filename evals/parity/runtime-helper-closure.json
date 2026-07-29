@@ -144,7 +144,10 @@
       "source_path": "bin/gstack-codex-probe",
       "consumer_modules": [
         "autoplan",
-        "codex"
+        "codex",
+        "document-release",
+        "land-and-deploy",
+        "ship"
       ],
       "stable_path": "${GSTACK_HOME:-$HOME/.gstack}/bin/gstack-codex-probe"
     },

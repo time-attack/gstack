@@ -46,8 +46,10 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // each; see evals/privacy/egress-audit-2026-07-28.md findings 8-9). The
 // portable-dispatch overlay for upstream #2370 (28 -> 29, codex+claude)
 // added 7 more (2 per targeted module + 3 regression checks). The no-key-echo
-// overlay for upstream #1078 (29 -> 30, setup-deploy only) added 5 more.
-export const EXPECTED_PARITY_CHECKS = 4391;
+// overlay for upstream #1078 (29 -> 30, setup-deploy only) added 5 more. The
+// external-effects overlay for upstream #1079/#1892 (30 -> 31; ship,
+// land-and-deploy, document-release, codex) added 11 more.
+export const EXPECTED_PARITY_CHECKS = 4402;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -336,8 +338,8 @@ export function runParity(): ParityResult {
     check(JSON.stringify(json(path.join(ROOT, 'evals', 'parity', 'scenarios', `${scenario.id}.json`))) === JSON.stringify(scenario), `${scenario.id} generated fixture drift`);
   }
 
-  check(BUG_FIX_OVERLAYS.length === 30, `Expected 30 regression definitions; got ${BUG_FIX_OVERLAYS.length}`);
-  check(files(path.join(ROOT, 'evals', 'parity', 'regressions'), '.json').length === 30, 'Generated regression fixture count is not 30');
+  check(BUG_FIX_OVERLAYS.length === 31, `Expected 31 regression definitions; got ${BUG_FIX_OVERLAYS.length}`);
+  check(files(path.join(ROOT, 'evals', 'parity', 'regressions'), '.json').length === 31, 'Generated regression fixture count is not 31');
   for (const overlay of BUG_FIX_OVERLAYS) {
     const fixture = json(path.join(ROOT, 'evals', 'parity', 'regressions', `pr-${overlay.pr}.json`));
     check(JSON.stringify(fixture) === JSON.stringify(overlay), `PR #${overlay.pr} regression fixture drift`);

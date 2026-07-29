@@ -684,3 +684,30 @@ Resolve the test command from the project, never from a hardcoded stack assumpti
 
 A question is only answerable if the user can see what it refers to. Before any AskUserQuestion or prose decision brief that asks the user to confirm, approve, rank, or choose among content this session produced — premises, findings, plans, approaches, scores, summaries — render that content in full as direct assistant text immediately before the question, or restate it inside the question and option descriptions. Internal reasoning is invisible to the user, and collapsed tool output (Bash cat, Read) does not count as shown. Never ask "do you agree with the N premises?" when the premises exist only in your reasoning: print them, then ask. This generalizes the inline design-doc approval rule from PR #1116 to every question in every workflow.
 <!-- GSTACK2_BUG_FIX_END pr=879 -->
+
+<!-- GSTACK2_BUG_FIX_START pr=1079 anchor=GSTACK2_FIX_1079_EXTERNAL_EFFECTS -->
+## Upstream judgment port: issue #1079
+
+[External effects must not fail or lie: REST PR mutations, sandbox canary, no-runtime discipline](https://github.com/garrytan/gstack/issues/1079)
+
+### External effects that fail or lie
+
+1. **PR mutations use the REST API.** The gh CLI's high-level PR-edit
+   subcommand rides a GraphQL mutation that hard-errors under fine-grained
+   tokens and several permission setups. Every PR title/body/base mutation
+   uses the one canonical form:
+   `gh api -X PATCH "repos/:owner/:repo/pulls/$(gh pr view --json number -q .number)" -f title=… | -F body=@<file>`
+   (full block in `references/EXTERNAL-EFFECTS.md`).
+2. **A second-opinion pass must prove it ran.** On a Linux host without user
+   namespaces, Codex's bwrap sandbox cannot start and the pass silently
+   no-ops. Before crediting any Codex pass as review evidence, source
+   `$GSTACK_BIN/gstack-codex-probe` and run `_gstack_codex_sandbox_canary`
+   once per session; `CODEX_SANDBOX_UNAVAILABLE` is a typed, fail-closed
+   result — record "codex skipped: sandbox unavailable" and continue without
+   that voice. An empty or failed pass is never reported as a clean review.
+3. **The effects discipline binds without the runtime.** When the optional
+   runtime is absent, print each effect key and exact command as assistant
+   text before executing it directly; on interruption or ambiguity, STOP and
+   inspect the external system. Never retry automatically; never re-run an
+   effect whose outcome is unknown.
+<!-- GSTACK2_BUG_FIX_END pr=1079 -->
