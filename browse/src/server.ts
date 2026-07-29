@@ -52,6 +52,10 @@ import {
   mintSseSessionToken, validateSseSessionToken, extractSseCookie,
   buildSseSetCookie, SSE_COOKIE_NAME,
 } from './sse-session-cookie';
+import {
+  isSessionPersistEnabled, persistSessionState, restoreSessionState,
+  sessionPersistIntervalMs, SESSION_STATE_FILE,
+} from './session-persist';
 import * as fs from 'fs';
 import * as net from 'net';
 import * as path from 'path';
@@ -1415,6 +1419,16 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
     clearInterval(idleCheckInterval);
     await flushBuffers();
 
+    // Final session snapshot before the browser goes away (#778). Best
+    // effort: shutdown must never hang on a wedged page.evaluate.
+    if (isSessionPersistEnabled()) {
+      try {
+        await persistSessionState(cfgBrowserManager, path.join(cfg.config.stateDir, SESSION_STATE_FILE));
+      } catch (err: any) {
+        console.warn(`[browse] SESSION_PERSIST_FAILED at shutdown: ${err?.message ?? err}`);
+      }
+    }
+
     await cfgBrowserManager.close();
 
     cleanSingletonLocks(resolveChromiumProfile());
@@ -2454,6 +2468,27 @@ export async function start() {
       console.log(`[browse] Launched headed Chromium with extension`);
     } else {
       await browserManager.launch();
+    }
+
+    // ─── Opt-in session persistence (#778 class) ─────────────────
+    // BROWSE_PERSIST_STATE=1: restore cookies/storage/tabs from the last
+    // snapshot, then keep snapshotting on an interval. Launched mode only —
+    // the headed persistent profile owns its own state. The final snapshot
+    // at clean shutdown lives in buildFetchHandler's shutdown().
+    if (isSessionPersistEnabled() && browserManager.getConnectionMode() === 'launched') {
+      const sessionStatePath = path.join(config.stateDir, SESSION_STATE_FILE);
+      try {
+        if (await restoreSessionState(browserManager, sessionStatePath)) {
+          console.log(`[browse] Session state restored from ${sessionStatePath} (BROWSE_PERSIST_STATE=1)`);
+        }
+      } catch (err: any) {
+        console.warn(`[browse] SESSION_RESTORE_FAILED: ${err?.message ?? err}`);
+      }
+      setInterval(() => {
+        persistSessionState(browserManager, sessionStatePath).catch((err: any) => {
+          console.warn(`[browse] SESSION_PERSIST_FAILED: ${err?.message ?? err}`);
+        });
+      }, sessionPersistIntervalMs()).unref();
     }
   }
 

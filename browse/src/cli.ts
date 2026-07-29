@@ -380,15 +380,45 @@ async function startServer(extraEnv?: Record<string, string>): Promise<ServerSta
   } catch (e: any) {
     if (e.code !== 'ENOENT') throw e;
   }
-  throw new Error(`Server failed to start within ${MAX_START_WAIT / 1000}s`);
+  // No startup error log — the daemon died before it could write one (or
+  // never spawned). Name the log path so real crash causes aren't masked
+  // behind a bare timeout (#2085).
+  throw new Error(
+    `Server failed to start within ${MAX_START_WAIT / 1000}s. ` +
+    `No startup error was written to ${errorLogPath} — the daemon may have crashed before logging. ` +
+    `Run the server in the foreground to capture stderr (bun run <browse>/src/server.ts).`,
+  );
+}
+
+/**
+ * Typed failure for lock acquisition errors that are NOT contention (#1084).
+ * EACCES/EPERM/EIO/ENOSPC on the lockfile used to be swallowed and reported
+ * as "another instance is starting" — a phantom-contention 15s timeout that
+ * masked the real errno. Callers (main's catch) print `.message` and exit 1.
+ */
+export class ServerLockError extends Error {
+  code: string;
+  constructor(code: string, lockPath: string, cause: string) {
+    super(`E_SERVER_LOCK (${code}): cannot acquire ${lockPath} — ${cause}`);
+    this.name = 'ServerLockError';
+    this.code = code;
+  }
 }
 
 /**
  * Acquire an exclusive lockfile to prevent concurrent ensureServer() races (TOCTOU).
- * Returns a cleanup function that releases the lock.
+ * Returns a cleanup function that releases the lock, or null when another
+ * LIVE process genuinely holds the lock (real contention).
+ *
+ * Error honesty (#1084): only EEXIST is contention. ENOENT (state dir
+ * missing) creates the dir and retries once. Anything else (EACCES, EIO,
+ * ENOSPC, ...) throws ServerLockError with the real errno instead of
+ * pretending another daemon is starting.
  */
-function acquireServerLock(): (() => void) | null {
-  const lockPath = `${config.stateFile}.lock`;
+export function acquireServerLock(
+  lockPath: string = `${config.stateFile}.lock`,
+  depth = 0,
+): (() => void) | null {
   try {
     // 'wx' — create exclusively, fails if file already exists (atomic check-and-create)
     // Using string flag instead of numeric constants for Bun Windows compatibility
@@ -396,8 +426,18 @@ function acquireServerLock(): (() => void) | null {
     fs.writeSync(fd, `${process.pid}\n`);
     fs.closeSync(fd);
     return () => { safeUnlink(lockPath); };
-  } catch {
-    // Lock already held — check if the holder is still alive
+  } catch (err: any) {
+    if (err?.code === 'ENOENT') {
+      // Lock dir missing — create it and retry once.
+      if (depth >= 1) throw new ServerLockError('ENOENT', lockPath, 'lock directory could not be created');
+      mkdirSecure(path.dirname(lockPath));
+      return acquireServerLock(lockPath, depth + 1);
+    }
+    if (err?.code !== 'EEXIST') {
+      throw new ServerLockError(err?.code || 'UNKNOWN', lockPath, err?.message || String(err));
+    }
+    // EEXIST — real contention. Check if the holder is still alive.
+    // ponytail: depth cap 5 bounds the stale-lock unlink/retry livelock.
     try {
       const holderPid = parseInt(fs.readFileSync(lockPath, 'utf8').trim(), 10);
       if (holderPid && isProcessAlive(holderPid)) {
@@ -405,9 +445,15 @@ function acquireServerLock(): (() => void) | null {
       }
       // Stale lock — remove and retry
       fs.unlinkSync(lockPath);
-      return acquireServerLock();
-    } catch {
-      return null;
+      if (depth >= 5) return null;
+      return acquireServerLock(lockPath, depth + 1);
+    } catch (readErr: any) {
+      if (readErr?.code === 'ENOENT') {
+        // Lock vanished between open and read (holder released) — retry.
+        if (depth >= 5) return null;
+        return acquireServerLock(lockPath, depth + 1);
+      }
+      throw new ServerLockError(readErr?.code || 'UNKNOWN', lockPath, readErr?.message || String(readErr));
     }
   }
 }

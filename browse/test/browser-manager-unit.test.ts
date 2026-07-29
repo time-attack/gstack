@@ -118,6 +118,94 @@ describe('shouldEnableChromiumSandbox', () => {
     const { shouldEnableChromiumSandbox } = await import('../src/browser-manager');
     expect(shouldEnableChromiumSandbox()).toBe(true);
   });
+
+  // ─── #2157/#2101: userns sysctl detection, not a manual env opt-in ──
+  // Old code only honored GSTACK_CHROMIUM_NO_SANDBOX=1; a plain user on
+  // Ubuntu 23.10+ (AppArmor userns restriction) got the zygote "No usable
+  // sandbox" fatal and a dead daemon. These fail on the old code.
+
+  it('linux + apparmor_restrict_unprivileged_userns=1 → false (detected, #2157)', async () => {
+    setPlatform('linux');
+    process.getuid = (() => 1000) as typeof process.getuid;
+    const { shouldEnableChromiumSandbox } = await import('../src/browser-manager');
+    const readSysctl = (p: string) => {
+      if (p === '/proc/sys/kernel/apparmor_restrict_unprivileged_userns') return '1\n';
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    };
+    expect(shouldEnableChromiumSandbox(readSysctl)).toBe(false);
+  });
+
+  it('linux + unprivileged_userns_clone=0 → false (detected, #2101 class)', async () => {
+    setPlatform('linux');
+    process.getuid = (() => 1000) as typeof process.getuid;
+    const { shouldEnableChromiumSandbox } = await import('../src/browser-manager');
+    const readSysctl = (p: string) => {
+      if (p === '/proc/sys/kernel/unprivileged_userns_clone') return '0\n';
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    };
+    expect(shouldEnableChromiumSandbox(readSysctl)).toBe(false);
+  });
+
+  it('linux + permissive sysctls → true (sandbox stays on)', async () => {
+    setPlatform('linux');
+    process.getuid = (() => 1000) as typeof process.getuid;
+    const { shouldEnableChromiumSandbox } = await import('../src/browser-manager');
+    const readSysctl = (p: string) => {
+      if (p === '/proc/sys/kernel/apparmor_restrict_unprivileged_userns') return '0\n';
+      if (p === '/proc/sys/kernel/unprivileged_userns_clone') return '1\n';
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    };
+    expect(shouldEnableChromiumSandbox(readSysctl)).toBe(true);
+  });
+
+  it('darwin ignores sysctl probe entirely', async () => {
+    setPlatform('darwin');
+    process.getuid = (() => 501) as typeof process.getuid;
+    const { shouldEnableChromiumSandbox } = await import('../src/browser-manager');
+    const readSysctl = () => '1'; // would report blocked if consulted
+    expect(shouldEnableChromiumSandbox(readSysctl)).toBe(true);
+  });
+});
+
+describe('linuxUsernsSandboxBlockReason', () => {
+  it('absent sysctls (non-hardened kernel) → null', async () => {
+    const { linuxUsernsSandboxBlockReason } = await import('../src/browser-manager');
+    const enoent = () => { throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); };
+    expect(linuxUsernsSandboxBlockReason(enoent)).toBeNull();
+  });
+
+  it('apparmor knob = 1 → names the knob in the reason', async () => {
+    const { linuxUsernsSandboxBlockReason } = await import('../src/browser-manager');
+    const reason = linuxUsernsSandboxBlockReason((p) =>
+      p.includes('apparmor') ? '1' : '1');
+    expect(reason).toContain('apparmor_restrict_unprivileged_userns=1');
+  });
+});
+
+describe('isNoUsableSandboxError (#2157 zygote-fatal fallback)', () => {
+  it('matches the Chromium zygote fatal', async () => {
+    const { isNoUsableSandboxError } = await import('../src/browser-manager');
+    expect(isNoUsableSandboxError(new Error(
+      'browserType.launch: Target page, context or browser has been closed\n' +
+      '[pid=123][err] FATAL:zygote_host_impl_linux.cc(128)] No usable sandbox! Update your kernel',
+    ))).toBe(true);
+  });
+
+  it('does not match unrelated launch failures', async () => {
+    const { isNoUsableSandboxError } = await import('../src/browser-manager');
+    expect(isNoUsableSandboxError(new Error('browserType.launch: spawn ENOENT'))).toBe(false);
+  });
+
+  it('launch() wires the relaunch-once fallback (static tripwire)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const src = readFileSync(join(import.meta.dir, '..', 'src', 'browser-manager.ts'), 'utf-8');
+    const launchStart = src.indexOf('async launch()');
+    const launchEnd = src.indexOf('async launchHeaded(');
+    const launchBody = src.slice(launchStart, launchEnd);
+    expect(launchBody).toContain('isNoUsableSandboxError(');
+    expect(launchBody).toContain('chromiumSandbox: false');
+  });
 });
 
 // ─── resolveDisconnectCause ──────────────────────────────────────
@@ -189,6 +277,21 @@ describe('resolveDisconnectCause', () => {
   it('crash: null browser returns crash (defensive default)', async () => {
     const { resolveDisconnectCause } = await import('../src/browser-manager');
     expect(await resolveDisconnectCause(null)).toBe('crash');
+  });
+
+  // #2085/#1659: a browser object WITHOUT a process() method (persistent
+  // context / connect-over-CDP surfaces) used to throw "browser?.process is
+  // not a function" inside the disconnect handler, killing the daemon with
+  // no log and masking the real launch failure as a CLI timeout. Both fail
+  // on the unguarded code.
+  it('crash: browser object without process() does not throw (#2085)', async () => {
+    const { resolveDisconnectCause } = await import('../src/browser-manager');
+    expect(await resolveDisconnectCause({} as never)).toBe('crash');
+  });
+
+  it('crash: browser with non-function process property does not throw', async () => {
+    const { resolveDisconnectCause } = await import('../src/browser-manager');
+    expect(await resolveDisconnectCause({ process: null } as never)).toBe('crash');
   });
 });
 

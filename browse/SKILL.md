@@ -279,10 +279,12 @@ Key routing rules:
 - Product ideas/brainstorming → invoke /office-hours
 - Strategy/scope → invoke /plan-ceo-review
 - Architecture → invoke /plan-eng-review
+- Design system/plan review → invoke /design-consultation or /plan-design-review
 - Full review pipeline → invoke /autoplan
 - Bugs/errors → invoke /investigate
 - QA/testing site behavior → invoke /qa or /qa-only
 - Code review/diff check → invoke /review
+- Visual polish → invoke /design-review
 - Ship/deploy/PR → invoke /ship or /land-and-deploy
 - Save progress → invoke /context-save
 - Resume context → invoke /context-restore
@@ -822,6 +824,16 @@ browse --headed --proxy socks5://user:pass@host:1080 \
 **Container support.** `--headed` on Linux without `DISPLAY` automatically picks a free X display (`:99`, `:100`, ...) and spawns Xvfb. Cleanup on `browse disconnect` validates the recorded PID's `/proc/<pid>/cmdline` matches `Xvfb` AND start-time matches before sending any signal — no PID-reuse footguns. Standard Debian/Ubuntu containers work out of the box; minimal images (alpine, distroless) may also need fonts/dbus/gtk libs for headed Chromium to render.
 
 **Failure modes.** SOCKS5 upstream rejected or unreachable → fail-fast at startup with a redacted error after 3 retries (5s budget). Mid-stream upstream drop → browse kills the affected client connection only; no transport retries (which could corrupt browser traffic). Mismatched daemon config → exit 1 with a `browse disconnect` hint.
+
+## Session Persistence (opt-in)
+
+By default the headless daemon keeps cookies and storage in memory only — a crash, idle shutdown, or binary-update auto-restart logs you out of everything. Set `BROWSE_PERSIST_STATE=1` in the daemon's environment to opt in to session persistence: cookies, per-tab URLs, localStorage, and sessionStorage are snapshotted to `.gstack/session-state.json` (mode 0600) every 30 seconds and at clean shutdown, then restored on the next launch.
+
+```bash
+BROWSE_PERSIST_STATE=1 browse goto https://example.com   # daemon persists sessions
+```
+
+Off by default because cookies on disk are a real cost — enable it only when losing logins across daemon restarts hurts more. Headed mode ignores the flag: the visible browser's persistent Chromium profile already owns that state. Delete `.gstack/session-state.json` to forget everything.
 
 ## Snapshot Flags
 

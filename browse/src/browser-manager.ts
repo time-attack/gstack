@@ -16,7 +16,7 @@
  */
 
 import { chromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page, type Locator, type Cookie } from 'playwright';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { addConsoleEntry, addNetworkEntry, addDialogEntry, networkBuffer, type DialogEntry } from './buffers';
 import { emitActivity } from './activity';
 import { validateNavigationUrl } from './url-validation';
@@ -84,17 +84,78 @@ export function assertHeadedBrowserProvider(
  * when CI/CONTAINER/root is set; that push is now defensively redundant
  * (Playwright will add it anyway when this returns false) and harmless.
  */
-export function shouldEnableChromiumSandbox(): boolean {
+export function shouldEnableChromiumSandbox(readSysctl?: (p: string) => string): boolean {
   if (process.platform === 'win32') return false;
-  // Explicit user override for Ubuntu/AppArmor and similar environments where
-  // unprivileged Chromium sandboxing is blocked even for normal users (the
-  // sandbox needs unprivileged user namespaces that the host policy denies,
-  // so /qa hangs without --no-sandbox). Setting GSTACK_CHROMIUM_NO_SANDBOX=1
-  // forces the sandbox off without changing the default for everyone else.
-  // See #1562.
+  // Explicit user override for environments the detection below can't see.
+  // Setting GSTACK_CHROMIUM_NO_SANDBOX=1 forces the sandbox off without
+  // changing the default for everyone else. See #1562. Kept as an escape
+  // hatch now that the userns sysctl probe handles the common cases.
   if (process.env.GSTACK_CHROMIUM_NO_SANDBOX === '1') return false;
   const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
-  return !(process.env.CI || process.env.CONTAINER || isRoot);
+  if (process.env.CI || process.env.CONTAINER || isRoot) return false;
+  // #2157/#2101: probe kernel capability instead of enumerating environments.
+  // Ubuntu 23.10+/24.04+ (AppArmor userns restriction) and hardened
+  // Debian/Arch kernels block the unprivileged user namespaces Chromium's
+  // sandbox needs; requesting the sandbox there dies with the zygote
+  // "No usable sandbox!" fatal. Detect it and auto-disable, with a typed
+  // one-line warning, instead of requiring users to discover the env var.
+  if (process.platform === 'linux') {
+    const reason = linuxUsernsSandboxBlockReason(readSysctl);
+    if (reason) {
+      warnSandboxUnavailableOnce(reason);
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Linux only: return WHY the kernel blocks the unprivileged user namespaces
+ * Chromium's sandbox needs, or null when it doesn't (or can't be determined
+ * — unknown defaults to sandbox ON). Sysctls checked (#2157/#2101):
+ *   - kernel.apparmor_restrict_unprivileged_userns=1  (Ubuntu 23.10+ default)
+ *   - kernel.unprivileged_userns_clone=0              (hardened Debian/Arch)
+ * `readSysctl` is injectable for tests; a missing knob means "not blocked
+ * by this knob" on that kernel.
+ */
+export function linuxUsernsSandboxBlockReason(
+  readSysctl: (p: string) => string = (p) => readFileSync(p, 'utf-8'),
+): string | null {
+  const knobs: Array<[file: string, blockedValue: string, reason: string]> = [
+    ['/proc/sys/kernel/apparmor_restrict_unprivileged_userns', '1',
+      'kernel.apparmor_restrict_unprivileged_userns=1 (Ubuntu 23.10+ AppArmor default)'],
+    ['/proc/sys/kernel/unprivileged_userns_clone', '0',
+      'kernel.unprivileged_userns_clone=0'],
+  ];
+  for (const [file, blockedValue, reason] of knobs) {
+    try {
+      if (readSysctl(file).trim() === blockedValue) return reason;
+    } catch {
+      // Sysctl absent on this kernel — not blocked by this knob.
+    }
+  }
+  return null;
+}
+
+let sandboxWarned = false;
+/** Typed, once-per-process warning so every launch path shares one line of noise. */
+function warnSandboxUnavailableOnce(reason: string): void {
+  if (sandboxWarned) return;
+  sandboxWarned = true;
+  console.warn(
+    `[browse] SANDBOX_UNAVAILABLE: ${reason} — the kernel blocks the unprivileged ` +
+    `user namespaces Chromium's sandbox needs, launching with --no-sandbox (#2157).`,
+  );
+}
+
+/**
+ * Did Chromium's zygote die with the "No usable sandbox!" fatal? Fallback
+ * detection for kernels/policies the sysctl probe can't see. The string is
+ * Chromium's own decade-stable fatal message, matched deliberately.
+ */
+export function isNoUsableSandboxError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /no usable sandbox/i.test(msg);
 }
 
 /** Select full Chromium only when a managed visible-only cache has no shell. */
@@ -130,7 +191,12 @@ export function managedHeadlessChannel(env: NodeJS.ProcessEnv = process.env): 'c
  * restarts on backoff.
  */
 export async function resolveDisconnectCause(browser: Browser | null): Promise<'clean' | 'crash'> {
-  const proc = browser?.process();
+  // #2085/#1659: browser objects without a process() method exist (persistent
+  // contexts on some Playwright surfaces, connect-over-CDP). Calling it blind
+  // threw "browser?.process is not a function" INSIDE the disconnect handler,
+  // killing the daemon without a startup log and masking the real launch
+  // failure as a CLI timeout. No process handle → treat as crash.
+  const proc = typeof browser?.process === 'function' ? browser.process() : null;
   if (proc && proc.exitCode === null && proc.signalCode === null) {
     await new Promise<void>((resolve) => {
       const timer = setTimeout(resolve, 1000);
@@ -359,7 +425,7 @@ export class BrowserManager {
       launchArgs.push('--no-sandbox');
     }
 
-    this.browser = await chromium.launch({
+    const launchOptions = {
       headless: useHeadless,
       ...(executablePath
         ? { executablePath }
@@ -369,12 +435,25 @@ export class BrowserManager {
       // On Windows, Chromium's sandbox fails when the server is spawned through
       // the Bun→Node process chain (GitHub #276). Disable it — local daemon
       // browsing user-specified URLs has marginal sandbox benefit. Also disabled
-      // on Linux root/CI/container, where the sandbox requires unprivileged user
-      // namespaces that aren't available.
+      // on Linux root/CI/container and on kernels that block unprivileged user
+      // namespaces (sysctl probe, #2157/#2101).
       chromiumSandbox: shouldEnableChromiumSandbox(),
       ...(launchArgs.length > 0 ? { args: launchArgs } : {}),
       ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
-    });
+    };
+    try {
+      this.browser = await chromium.launch(launchOptions);
+    } catch (err) {
+      // #2157/#2101 fallback for policies the sysctl probe can't see: the
+      // zygote "No usable sandbox!" fatal. Relaunch exactly once without the
+      // sandbox instead of leaving the daemon dead behind a 15s CLI timeout.
+      if (!launchOptions.chromiumSandbox || !isNoUsableSandboxError(err)) throw err;
+      console.warn(
+        '[browse] SANDBOX_UNAVAILABLE: Chromium reported "No usable sandbox" — ' +
+        'relaunching with --no-sandbox (#2157).',
+      );
+      this.browser = await chromium.launch({ ...launchOptions, chromiumSandbox: false });
+    }
 
     // Chromium disconnect → distinguish clean user-quit from crash. Both
     // events look identical to Playwright (one 'disconnected' fires), but
@@ -446,7 +525,6 @@ export class BrowserManager {
     // Launch headed Chromium via Playwright's persistent context so the
     // profile (cookies, storage) persists across runs.
     const fs = require('fs');
-    const path = require('path');
     const userDataDir = resolveChromiumProfile();
     fs.mkdirSync(userDataDir, { recursive: true });
 
@@ -462,47 +540,17 @@ export class BrowserManager {
     // Used by GStack Browser.app to point at the bundled Chromium.
     const executablePath = configuredChromiumExecutable();
 
-    // Rebrand Chromium → GStack Browser in macOS menu bar / Dock / Cmd+Tab.
-    // Patch the Chromium .app's Info.plist so macOS shows our name.
-    // This works for both dev mode (system Playwright cache) and .app bundle.
-    const chromePath = executablePath || chromium.executablePath();
-    try {
-      // Walk up from binary to the .app's Info.plist
-      // e.g. .../Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
-      //   → .../Google Chrome for Testing.app/Contents/Info.plist
-      const chromeContentsDir = path.resolve(path.dirname(chromePath), '..');
-      const chromePlist = path.join(chromeContentsDir, 'Info.plist');
-      if (fs.existsSync(chromePlist)) {
-        const plistContent = fs.readFileSync(chromePlist, 'utf-8');
-        if (plistContent.includes('Google Chrome for Testing')) {
-          const patched = plistContent
-            .replace(/Google Chrome for Testing/g, 'GStack Browser');
-          fs.writeFileSync(chromePlist, patched);
-        }
-        // Replace Chromium's Dock icon with ours (Chromium's process owns the Dock icon)
-        const iconCandidates = [
-          path.join(__dirname, '..', '..', 'scripts', 'app', 'icon.icns'),       // repo dev mode
-          path.join(process.env.HOME || '', '.claude', 'skills', 'gstack', 'scripts', 'app', 'icon.icns'), // global install
-        ];
-        const iconSrc = iconCandidates.find(p => fs.existsSync(p));
-        if (iconSrc) {
-          const chromeResources = path.join(chromeContentsDir, 'Resources');
-          // Read original icon name from plist
-          const iconMatch = plistContent.match(/<key>CFBundleIconFile<\/key>\s*<string>([^<]+)<\/string>/);
-          let origIcon = iconMatch ? iconMatch[1] : 'app';
-          if (!origIcon.endsWith('.icns')) origIcon += '.icns';
-          const destIcon = path.join(chromeResources, origIcon);
-          try {
-            fs.copyFileSync(iconSrc, destIcon);
-          } catch (err: any) {
-            if (err?.code !== 'ENOENT' && err?.code !== 'EACCES') throw err;
-          }
-        }
-      }
-    } catch (err: any) {
-      // Non-fatal: app name stays as Chrome for Testing (ENOENT/EACCES expected)
-      if (err?.code !== 'ENOENT' && err?.code !== 'EACCES') throw err;
-    }
+    // NOTE (#2242): the in-place "rebrand" that patched the Chromium .app's
+    // Info.plist (global "Google Chrome for Testing" → "GStack Browser"
+    // replace) and overwrote its Resources/*.icns is deliberately GONE.
+    // Chrome for Testing is a code-signed bundle: the global replace renamed
+    // CFBundleExecutable to a binary that doesn't exist and the plist/icon
+    // writes broke the codesign seal — GPU process exit_code=5, headed mode
+    // dead on macOS 26 (#2242, #2138, #2139). Branding belongs in the
+    // wrapper .app / custom GBrowser build (which bakes it in), never in a
+    // mutation of the signed bundle. Do not reintroduce writes into the
+    // Chromium bundle here — browse/test/rebrand-signed-bundle.test.ts
+    // fails CI if you do.
 
     // Build custom user agent: report as stock Chrome with the version
     // matching the underlying Chromium binary. D6 (codex #18 correction):
