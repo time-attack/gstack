@@ -97,7 +97,9 @@ struct GenAccessors {
 
     static func render(specs: [AccessorSpec], buildId: String, accessorHash: String) -> String {
         var out = "// AUTO-GENERATED — DO NOT EDIT. Regenerate with /ios-sync.\n"
-        out += "#if DEBUG\nimport Foundation\nimport DebugBridge\n\n"
+        // StateServer lives in the DebugBridgeCore module (there is no module
+        // named plain "DebugBridge" — the package name is not importable).
+        out += "#if DEBUG\nimport Foundation\nimport DebugBridgeCore\n\n"
         for spec in specs {
             out += "@MainActor\npublic enum \(spec.className)Accessor {\n"
             out += "    public static func register(_ state: \(spec.className)) {\n"

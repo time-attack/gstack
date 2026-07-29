@@ -1,4 +1,8 @@
+// swift-tools-version:5.9
+//
 // AUTO-GENERATED from gstack/ios-qa/templates/Package.swift.template
+// (The tools-version directive above MUST stay on line 1 — SwiftPM rejects
+// the manifest otherwise.)
 //
 // Drop-in SPM package definition for the DebugBridge stack. Three targets:
 //
@@ -18,7 +22,6 @@
 // CI invariant: `swift build -c release` + `nm -j build/Release/<binary>
 // | grep -q DebugBridge && exit 1`.
 
-// swift-tools-version:5.9
 import PackageDescription
 
 let package = Package(
@@ -58,10 +61,10 @@ let package = Package(
                 .define("DEBUG", .when(configuration: .debug)),
             ]
         ),
-        .testTarget(
-            name: "DebugBridgeCoreTests",
-            dependencies: ["DebugBridgeCore"],
-            path: "Tests/DebugBridgeCoreTests"
-        ),
+        // No testTarget here: the rendered consumer package ships no Tests/
+        // directory, and SwiftPM validates every declared target path before
+        // building anything (a phantom testTarget bricks the whole build —
+        // gstack#1735). The DebugBridgeCore test suite lives in the gstack
+        // repo's fixture app, not in consumer renders.
     ]
 )

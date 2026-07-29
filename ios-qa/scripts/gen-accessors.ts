@@ -168,7 +168,9 @@ export function computeCacheKey(inputs: {
 
 export function render(specs: AccessorSpec[], buildId: string, accessorHash: string): string {
   let out = '// AUTO-GENERATED — DO NOT EDIT. Regenerate with /ios-sync.\n';
-  out += '#if DEBUG\nimport Foundation\nimport DebugBridge\n\n';
+  // StateServer lives in the DebugBridgeCore module (there is no module named
+  // plain "DebugBridge" — the package name is not an importable module).
+  out += '#if DEBUG\nimport Foundation\nimport DebugBridgeCore\n\n';
   for (const spec of specs) {
     out += `@MainActor\npublic enum ${spec.className}Accessor {\n`;
     out += `    public static func register(_ state: ${spec.className}) {\n`;
