@@ -62,8 +62,12 @@ These patterns are allowed without warning:
 
 ## How it works
 
-The hook reads the command from the tool input JSON, checks it against the
-patterns above, and returns `permissionDecision: "ask"` with a warning message
-if a match is found. You can always override the warning and proceed.
+The hook reads the command from the tool input JSON, splits compound commands
+into segments (`&&`, `||`, `;`), and drops text-only segments (`echo`,
+`printf`, `git commit -m`) whose arguments may mention dangerous strings
+without executing them. Each remaining segment is checked against the
+patterns above; if any segment matches, the hook returns
+`permissionDecision: "ask"` with a warning message. You can always override
+the warning and proceed.
 
 To deactivate, end the conversation or start a new one. Hooks are session-scoped.
