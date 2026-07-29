@@ -21,9 +21,9 @@
     {
       "id": "FP-2",
       "class": "unsaved-instance-save (#1539 FP-2)",
-      "file": "billing/admin.py",
-      "trap": "obj.save() in save_model 'might lose fields'",
-      "why_correct": "obj is an unsaved in-memory instance; save() performs a plain INSERT of every assigned field. Standard Django ORM behavior."
+      "file": "billing/services.py",
+      "trap": "copy.save() in clone_for_period 'might lose fields'",
+      "why_correct": "copy is an unsaved in-memory instance; save() performs a plain INSERT of every assigned field. Standard Django ORM behavior for a new instance."
     },
     {
       "id": "FP-3",
@@ -51,7 +51,7 @@
       "class": "hook-layer-authorization (before_action-equivalent)",
       "file": "billing/api.py",
       "trap": "reissue action body has no inline permission check",
-      "why_correct": "permission_classes = [IsAuthenticated, IsSiteManager] on the ViewSet; DRF's get_object() runs check_object_permissions before the action body executes. The guard lives at the hook layer, like a Rails before_action."
+      "why_correct": "permission_classes = [IsAuthenticated, IsSiteManager] on the ViewSet; DRF's get_object() runs check_object_permissions before the action body executes. IsSiteManager guards BOTH surfaces (has_permission = authenticated for the collection, has_object_permission = manager identity per object), and get_queryset() is scoped to the requesting manager's sites, so list() cannot leak. The guard lives at the hook layer, like a Rails before_action."
     },
     {
       "id": "FP-7",

@@ -9,12 +9,6 @@ class InvoiceAdmin(admin.ModelAdmin):
     list_filter = ("issued",)
     ordering = ("-id",)
 
-    def save_model(self, request, obj, form, change):
-        if not change:
-            obj.save()
-        else:
-            super().save_model(request, obj, form, change)
-
 
 @admin.register(LedgerEntry)
 class LedgerEntryAdmin(admin.ModelAdmin):

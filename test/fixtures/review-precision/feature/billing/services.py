@@ -25,6 +25,22 @@ def ensure_invoice(rental, period_start, period_end):
         )
 
 
+def clone_for_period(invoice, period_start, period_end):
+    """Copy an invoice's rental into a fresh unissued invoice for a new period.
+
+    `copy` is an unsaved in-memory instance; save() performs a plain INSERT of
+    every assigned field. Standard Django ORM behavior for a new instance, not
+    a partial/field-losing save.
+    """
+    copy = Invoice(
+        rental=invoice.rental,
+        period_start=period_start,
+        period_end=period_end,
+    )
+    copy.save()
+    return copy
+
+
 @transaction.atomic
 def issue_invoice(invoice, amount_cents):
     invoice.amount_cents = amount_cents
