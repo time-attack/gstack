@@ -67,6 +67,9 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'review-enum-completeness': ['review/**', 'test/fixtures/review-eval-enum*.rb'],
   'review-base-branch':       ['review/**'],
   'review-design-lite':       ['review/**', 'test/fixtures/review-eval-design-slop.*'],
+  // Precision contract (judgment.review.precision-contract): seeded FP corpus +
+  // planted TPs against the INSTALLED GStack 2 dispatcher (skills/review tree).
+  'review-precision':         ['skills/review/**', 'test/fixtures/review-precision/**', 'test/skill-e2e-review-precision.test.ts'],
 
   // Review Army (specialist dispatch)
   'review-army-migration-safety': ['review/**', 'scripts/resolvers/review-army.ts', 'bin/gstack-diff-scope'],
@@ -472,6 +475,9 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'review-enum-completeness': 'gate',
   'review-base-branch': 'gate',
   'review-design-lite': 'periodic',   // 4/7 threshold is subjective
+  // Precision contract benchmark — quality benchmark, non-deterministic model
+  // judgment (FP calibration + recall thresholds), full dispatcher run ~$2-4.
+  'review-precision': 'periodic',
   'review-coverage-audit': 'gate',
   'review-plan-completion': 'gate',
   'review-dashboard-via': 'gate',

@@ -1,0 +1,120 @@
+{
+  "description": "Answer key for the review-precision E2E corpus. base/ is committed on main; feature/ is overlaid on a feature branch. billing/ files are seeded FALSE POSITIVES: code that looks suspicious to a naive reviewer but is correct (the guard is visible by reading 1-2 files). rentals/ files carry the planted TRUE-POSITIVE bugs. A calibrated /review must report zero confidence>=7 findings against billing/ and catch >= recall_threshold of the planted bugs with file:line evidence.",
+  "fp_confidence_bar": 7,
+  "recall_threshold": 3,
+  "fp_files": [
+    "billing/models.py",
+    "billing/services.py",
+    "billing/forms.py",
+    "billing/api.py",
+    "billing/serializers.py",
+    "billing/admin.py"
+  ],
+  "fp_seeds": [
+    {
+      "id": "FP-1",
+      "class": "cleaned_data-none-safety (#1539 FP-1)",
+      "file": "billing/forms.py",
+      "trap": "cleaned.get('period_start') looks None-unsafe",
+      "why_correct": "Django's full_clean initializes cleaned_data to {} and .get() returns None for fields that failed validation; the `if start and end` guard handles it. Visible by reading the form."
+    },
+    {
+      "id": "FP-2",
+      "class": "unsaved-instance-save (#1539 FP-2)",
+      "file": "billing/services.py",
+      "trap": "copy.save() in clone_for_period 'might lose fields'",
+      "why_correct": "copy is an unsaved in-memory instance; save() performs a plain INSERT of every assigned field. Standard Django ORM behavior for a new instance."
+    },
+    {
+      "id": "FP-3",
+      "class": "update_fields-missing-updated_at (#1539 FP-3)",
+      "file": "billing/services.py",
+      "trap": "save(update_fields=[...]) 'might skip updated_at'",
+      "why_correct": "Invoice has no updated_at / auto_now field at all — grep the model. There is nothing to skip."
+    },
+    {
+      "id": "FP-4",
+      "class": "symmetric-classes (#1539 FP-4)",
+      "file": "billing/serializers.py",
+      "trap": "three serializer classes 'might be asymmetric'",
+      "why_correct": "Mechanical comparison shows all three follow the identical Meta structure (model / fields / read_only_fields)."
+    },
+    {
+      "id": "FP-5",
+      "class": "db-constraint-backed-race",
+      "file": "billing/services.py",
+      "trap": "ensure_invoice check-then-insert looks like a TOCTOU race",
+      "why_correct": "uniq_invoice_per_rental_period (billing/models.py Meta) makes the insert race safe; the IntegrityError catch re-fetches the winner. This is the standard constraint-backed get-or-create pattern."
+    },
+    {
+      "id": "FP-6",
+      "class": "hook-layer-authorization (before_action-equivalent)",
+      "file": "billing/api.py",
+      "trap": "reissue action body has no inline permission check",
+      "why_correct": "permission_classes = [IsAuthenticated, IsSiteManager] on the ViewSet; DRF's get_object() runs check_object_permissions before the action body executes. IsSiteManager guards BOTH surfaces (has_permission = authenticated for the collection, has_object_permission = manager identity per object), and get_queryset() is scoped to the requesting manager's sites, so list() cannot leak. The guard lives at the hook layer, like a Rails before_action."
+    },
+    {
+      "id": "FP-7",
+      "class": "membership-guarded-dict-access",
+      "file": "billing/forms.py",
+      "trap": "payload['discount_percent'] looks like an unguarded KeyError",
+      "why_correct": "The `if 'discount_percent' not in payload: raise ValueError` check three lines above guarantees the key exists."
+    },
+    {
+      "id": "FP-8",
+      "class": "parameterized-raw-sql",
+      "file": "billing/services.py",
+      "trap": "raw cursor.execute() looks like SQL injection",
+      "why_correct": "The query uses %s placeholders with a bound params list — parameterized, not interpolated. Contrast with the genuine f-string injection in rentals/views.py."
+    },
+    {
+      "id": "FP-9",
+      "class": "atomic-decorated-multi-write",
+      "file": "billing/services.py",
+      "trap": "issue_invoice writes Invoice + LedgerEntry, 'missing a transaction'",
+      "why_correct": "The function is decorated @transaction.atomic; both writes commit or roll back together."
+    },
+    {
+      "id": "FP-10",
+      "class": "bounded-list-response",
+      "file": "billing/api.py",
+      "trap": "InvoiceViewSet returns a list, 'unbounded / missing pagination'",
+      "why_correct": "ReadOnlyModelViewSet list is DRF-native; get_queryset is scoped to the manager's sites and the queryset is a lazy slice, not a full-table load."
+    }
+  ],
+  "planted_bugs": [
+    {
+      "id": "TP-1",
+      "class": "sql-injection",
+      "files": [
+        { "file": "rentals/views.py", "anchor": "LIKE '%{q}%'" }
+      ],
+      "match": "sql|inject|interpolat|f-string|fstring|parameter|sanitiz|escap"
+    },
+    {
+      "id": "TP-2",
+      "class": "enum-completeness",
+      "files": [
+        { "file": "rentals/models.py", "anchor": "(\"returned\", \"Returned\")" },
+        { "file": "rentals/status.py", "anchor": "BADGE_CLASSES = {" }
+      ],
+      "match": "returned|badge|transition|keyerror|unhandled|enum|status.py|consumer"
+    },
+    {
+      "id": "TP-3",
+      "class": "none-crash-optional-param",
+      "files": [
+        { "file": "rentals/reports.py", "anchor": "count = int(limit)" }
+      ],
+      "match": "none|typeerror|int\\(|limit|missing|default|crash|500"
+    },
+    {
+      "id": "TP-4",
+      "class": "race-condition-lost-update",
+      "files": [
+        { "file": "rentals/deposits.py", "anchor": "remaining = rental.deposit_cents - charge_cents" }
+      ],
+      "match": "race|concurren|select_for_update|lost.?update|read.modify.write|f\\(|atomic|lock"
+    }
+  ]
+}
