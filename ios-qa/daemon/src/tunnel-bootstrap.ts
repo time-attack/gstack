@@ -119,19 +119,15 @@ export async function bootstrapTunnel(opts: BootstrapOptions): Promise<Bootstrap
   }
 
   // Step 3: resolve tunnel IPv6. Try devicectl `info details` first (most
-  // reliable on macOS 26.x), fall through to mDNS via dns.lookup, then
-  // dns.resolve6 as a last-ditch fallback. See devicectl.ts:resolveTunnelIPv6
-  // for the rationale.
-  // When tests inject `resolve`, use it for both the mDNS-lookup path AND the
-  // legacy resolve6 path — otherwise the legacy path would make a real DNS
-  // call. In production, only `resolve` is set (to the dns.lookup-based
-  // default) and the legacy path uses the real dns.resolve6.
+  // reliable on macOS 26.x), fall through to mDNS via dns.lookup. There is
+  // deliberately no dns.resolve6 fallback — it would send the device name
+  // as unicast DNS to the configured resolver. See
+  // devicectl.ts:resolveTunnelIPv6 for the rationale.
   const ipv6 = await resolveTunnelIPv6({
     udid: target.identifier,
     deviceName: target.name,
     spawn,
     resolve,
-    legacyResolve: resolve,
   });
   if (!ipv6) {
     return { ok: false, error: 'resolve_failed', detail: target.name };

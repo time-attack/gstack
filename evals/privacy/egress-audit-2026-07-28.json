@@ -1,0 +1,731 @@
+{
+ "auditDate": "2026-07-28",
+ "gateVerdict": "PASS",
+ "surfaces": [
+  {
+   "surface": "browse-server-and-tunnel (browse/src/: server.ts, ngrok tunnel, pair-agent, SSE endpoints, token registry, telemetry \u2014 plus the bin/gstack-telemetry-* scripts this surface spawns)",
+   "verdict": "GATED_OK",
+   "egressPoints": [
+    {
+     "endpoint": "ngrok edge service (outbound TLS via @ngrok/ngrok forward())",
+     "trigger": "User runs `$B pair-agent` (CLI POSTs to local /tunnel/start), or starts the daemon with BROWSE_TUNNEL=1",
+     "gating": "Fail-closed opt-in: requires `gstack-config set pair_agent on` (config.ts:178-188, any read/parse failure resolves OFF); /tunnel/start additionally requires the root bearer token (server.ts:1793) and returns 403 when pair_agent is off (server.ts:1800-1805); the BROWSE_TUNNEL=1 boot path is gated by the same isPairAgentEnabled() check (server.ts:2549-2551); also requires a user-provisioned ngrok authtoken (server.ts:1828-1834). Dual-listener design forwards only a locked-down tunnel port, never the local command surface. PRIVACY.md explicitly sanctions this legacy tunnel path (\"explicit legacy tunnels if separately enabled\").",
+     "verdict": "COMPLIANT",
+     "citation": "browse/src/server.ts:1860 (on-demand), browse/src/server.ts:2571 (BROWSE_TUNNEL boot), browse/src/config.ts:178"
+    },
+    {
+     "endpoint": "https://<tunnel>.ngrok.io/connect and /health (self-probe round-trip through ngrok edge)",
+     "trigger": "POST /pair or POST /tunnel/start while a tunnel is already active (server-side probes); `$B pair-agent` CLI double-checks the reported tunnel URL",
+     "gating": "Only reachable after the pair_agent opt-in above \u2014 tunnelActive/tunnelUrl cannot be set otherwise. Probes send no user data (GET + ngrok-skip-browser-warning header, 5s timeout); dead tunnels are torn down.",
+     "verdict": "COMPLIANT",
+     "citation": "browse/src/server.ts:1751, browse/src/server.ts:1811, browse/src/cli.ts:899"
+    },
+    {
+     "endpoint": "Arbitrary user-directed web sites (Playwright page.goto / newtab / navigate-download)",
+     "trigger": "Explicit commands: goto <url>, newtab, download --navigate \u2014 always a user/agent-supplied URL",
+     "gating": "Contract-sanctioned class (\"navigation requests to sites the user directs it to\"). Every navigation passes validateNavigationUrl, which blocks cloud-metadata hosts, IPv4-mapped/IPv6 link-local and ULA forms, and dangerous schemes (url-validation.ts:11-40, 228). Mutating commands require bearer auth; tunnel surface has a separate 26-command allowlist.",
+     "verdict": "COMPLIANT",
+     "citation": "browse/src/url-validation.ts:228, browse/src/write-commands.ts:1226"
+    },
+    {
+     "endpoint": "Arbitrary user-supplied URL via page.request.fetch (download and scrape commands)",
+     "trigger": "Explicit `download <url>` / scrape command from an authenticated caller with write scope",
+     "gating": "Same SSRF gate as goto: validateNavigationUrl runs before the fetch (comment at write-commands.ts:1277-1285 documents the IMDS bypass this prevents); 200MB cap; write scope required and --out/write invocations are never allowed over the tunnel (commands.ts js/eval descriptions).",
+     "verdict": "COMPLIANT",
+     "citation": "browse/src/write-commands.ts:1286, browse/src/write-commands.ts:1387"
+    },
+    {
+     "endpoint": "User-configured upstream proxy (SOCKS5/HTTP) via SocksClient.createConnection",
+     "trigger": "User sets BROWSE_PROXY_URL (plus optional BROWSE_PROXY_USER/PASS); all browser traffic then relays through the local 127.0.0.1 SOCKS bridge to that upstream",
+     "gating": "Off by default \u2014 the bridge only exists when a proxy URL is explicitly configured; cred-mixing between URL and env is refused (proxy-config.ts:8-11); proxy URL is redacted in logs (redactProxyUrl). The bridge itself listens on 127.0.0.1 only.",
+     "verdict": "COMPLIANT",
+     "citation": "browse/src/socks-bridge.ts:185, browse/src/socks-bridge.ts:291, browse/src/proxy-config.ts:40"
+    },
+    {
+     "endpoint": "https://frugpmstpnojnhfyimgv.supabase.co/functions/v1/telemetry-ingest (curl POST, batched JSONL)",
+     "trigger": "browse/src/security.ts logAttempt() fire-and-forget spawns bin/gstack-telemetry-log on prompt-injection attack_attempt events; that script background-spawns bin/gstack-telemetry-sync which uploads",
+     "gating": "Off by default and consent-gated at two layers: gstack-telemetry-log exits 0 when `gstack-config get telemetry` is off (default \"off\", bin/gstack-config:35; invalid values coerce to off), and gstack-telemetry-sync re-checks the tier and exits when off. Uploads strip _repo_slug/_branch/repo fields; error_message is redaction-engine-scrubbed fail-closed before it ever touches disk. HOWEVER two semantics need review: (1) security.ts:471 comment claims \"anonymous \u2192 local only\" but gstack-telemetry-sync uploads for the anonymous tier too (it only strips installation_id) \u2014 behavior/doc mismatch on what the user consented to; (2) security_url_domain uploads the RAW domain of the visited page where an attack was detected (payloadHash is salted, urlDomain is not), which is browsing data leaving the machine under an opt-in that PRIVACY.md frames as \"minimal legacy telemetry\".",
+     "verdict": "NEEDS_REVIEW",
+     "fix": "Either make the anonymous tier genuinely local-only (add `[ \"$TIER\" = \"anonymous\" ] && exit 0` to gstack-telemetry-sync) or fix the stale comment in security.ts:471 and the user-facing tier docs so consent matches behavior; consider hashing or eTLD+1-truncating security_url_domain before upload.",
+     "citation": "bin/gstack-telemetry-sync:117, browse/src/security.ts:490, bin/gstack-telemetry-log:265"
+    },
+    {
+     "endpoint": "fonts.googleapis.com and api.fontshare.com (font CSS + woff fetched by the built-in welcome page)",
+     "trigger": "Starting the daemon in headed mode auto-navigates the browser to http://127.0.0.1:<port>/welcome (server.ts:2503-2510); the served page then loads third-party fonts",
+     "gating": "NOT gated \u2014 fires by default on every headed start with no user direction or consent. Only leaks IP/User-Agent to two font CDNs (no user data, cookies, or page content), but it is a network call the user did not direct, which sits outside the contract's \"navigation requests to sites the user directs it to\" carve-out.",
+     "verdict": "NEEDS_REVIEW",
+     "fix": "Inline/self-host the DM Sans, JetBrains Mono, and Satoshi fonts in welcome.html (or fall back to a system font stack) so headed startup makes zero third-party requests.",
+     "citation": "browse/src/welcome.html:7, browse/src/server.ts:2509"
+    },
+    {
+     "endpoint": "none \u2014 local file ~/.gstack/analytics/browse-telemetry.jsonl (browse in-process telemetry)",
+     "trigger": "Domain-skill and CDP command events inside the daemon",
+     "gating": "Pure local JSONL append, zero network code in the module; GSTACK_TELEMETRY_OFF=1 disables even the local write. Note the local-write default is ON (telemetry.ts:53-56), but nothing in this module or its consumers uploads the file (gstack-telemetry-sync reads skill-usage.jsonl, not browse-telemetry.jsonl), so no egress.",
+     "verdict": "COMPLIANT",
+     "citation": "browse/src/telemetry.ts:65"
+    }
+   ],
+   "notes": "Greps run over browse/src (all *.ts, *.cjs, *.html): `fetch(`; `https?://` (loopback-excluded); `ngrok|tunnel`; `WebSocket|EventSource|net\\.connect|tls\\.connect|dgram|axios|node-fetch|got\\(|undici`; `spawn|execFile|exec\\(|child_process|Bun\\.spawn`; `curl |wget |https\\.get|http\\.get|http\\.request|net\\.connect|createConnection`; analytics SDKs (`posthog|sentry|segment|amplitude|mixpanel|statsig|datadog|googletagmanager`) \u2014 zero hits; API-key names (`api\\.anthropic|api\\.openai|ANTHROPIC_API|OPENAI_API`) \u2014 comment-only hits; `postinstall|preinstall` \u2014 none (browse/ has no own package.json, root package.json has no install hooks); `update.check|checkForUpdate|latest.version|playwright install` \u2014 none (no auto-update ping; gstack-config default update_check=false). Listener bind audit: every Bun.serve/net.createServer in scope binds 127.0.0.1 (server.ts:2476 main, 1842 + 2560 + 2601 tunnel listeners, socks-bridge local server, bun-polyfill default) \u2014 no beyond-loopback binds; internet exposure happens only through ngrok forwarding the dedicated tunnel port after the pair_agent opt-in, and tunnel-surface denials are logged locally (tunnel-denial-log.ts \u2192 ~/.gstack/security/attempts.jsonl). Non-findings verified: cookie-import-browser.ts CDP WebSocket targets 127.0.0.1:<debugPort> only (it does launch the user's real Chrome briefly, whose own background traffic is inherent to Chrome, not gstack code); cookie-picker-ui fetch is same-origin to the local daemon; write-commands.ts:1200 fetch is an in-page blob: URL read; cli.ts curl occurrences (694/704/715) are printed pairing instructions, not executed; claude-bin.ts resolveClaudeCommand has no importer inside browse/src (referenced only in security.ts comments) so no claude-CLI spawn from this surface; the L4 ONNX ML classifier and its downloads were removed per CLAUDE.md and no model-weight download code remains; @ngrok/ngrok is dynamically imported only inside the two gated tunnel-start paths, so no ngrok connection can occur at ordinary daemon boot. BROWSE_TUNNEL_LOCAL_ONLY=1 (server.ts:2593) binds the tunnel surface on loopback with NO ngrok \u2014 test-only, no egress. The two NEEDS_REVIEW items are narrow: welcome-page font CDNs (IP/UA only, headed mode only) and telemetry anonymous-tier semantics + raw visited-domain field (both behind the default-off telemetry opt-in). No hidden endpoints, no consent bypasses, no auto-update pings, no default-on network egress found."
+  },
+  {
+   "surface": "design-cli (design/src/ \u2014 DELETED at HEAD in 9053324a; audited historical source at 9053324a^, leftover binary design/dist/design, and residual wiring)",
+   "verdict": "GATED_OK",
+   "egressPoints": [
+    {
+     "endpoint": "https://api.openai.com/v1/responses (GPT Image generation)",
+     "trigger": "User ran `design generate|variants|iterate|evolve` from the design CLI \u2014 surface DELETED at HEAD in commit 9053324a; no source, no build script, no runtime capability remains",
+     "gating": "Historically: user-invoked CLI only, required a deliberately provided key (~/.gstack/openai.json 0600 or OPENAI_API_KEY), hard-errored without one, and disclosed a billing warning when the env key matched a project .env (auth.ts:87-92 at 9053324a^). No passive/background calls. At HEAD the code no longer exists, which is the compliant state per PRIVACY.md 'Models, images, and documents'.",
+     "verdict": "COMPLIANT",
+     "citation": "design/src/generate.ts:43, variants.ts:64, iterate.ts:88+136, evolve.ts:58 (all at 9053324a^; deleted at HEAD)",
+     "fix": "None needed at HEAD \u2014 source removed."
+    },
+    {
+     "endpoint": "https://api.openai.com/v1/chat/completions (vision quality gate, design-to-code, diff, memory)",
+     "trigger": "User ran `design check|evolve` / design-to-code / diff / memory subcommands \u2014 same DELETED surface",
+     "gating": "Same as above: user-invoked, key-gated, deleted at HEAD in 9053324a.",
+     "verdict": "COMPLIANT",
+     "citation": "design/src/check.ts:25, design-to-code.ts:40, diff.ts:31, evolve.ts:116, memory.ts:37 (all at 9053324a^; deleted at HEAD)",
+     "fix": "None needed at HEAD \u2014 source removed."
+    },
+    {
+     "endpoint": "https://api.openai.com/* via stale leftover binary design/dist/design (63MB, built Jul 21, embeds api.openai.com x10 + v1/responses + v1/chat/completions; zero tracker strings)",
+     "trigger": "Only if an operator or agent executes the stale untracked binary directly; still key-gated and user-invoked exactly like the deleted source it was compiled from",
+     "gating": "Untracked + gitignored (.gitignore:3 dist/), not shipped, not referenced by runtime/install.js, not referenced by any generated skill in skills/ or compat/. But the dead resolver below would mark it DESIGN_READY if a stale template regenerated.",
+     "verdict": "NEEDS_REVIEW",
+     "citation": "design/dist/design (untracked artifact); .gitignore:3",
+     "fix": "Delete design/dist/ locally and add a gstack-upgrade/migrations/ cleanup step so existing installs remove the orphaned binary (removal commit de-wired it but left the artifact on disk)."
+    },
+    {
+     "endpoint": "Indirect: skill text emitted by generateDesignSetup/generateDesignMockup instructs agents to probe for design/dist/design and run `$D generate` (OpenAI egress) if found",
+     "trigger": "Would fire only if a template used the {{DESIGN_SETUP}}/{{DESIGN_MOCKUP}} tokens AND the stale binary exists. No tracked .tmpl at HEAD uses either token (only an untracked worktree artifact .claude/worktrees/agent-adf86e2bc2bd7e729/office-hours/SKILL.md.tmpl does); office-hours/SKILL.md.tmpl and generated skills/ + compat/ trees are clean.",
+     "gating": "Dead code at HEAD \u2014 registered in scripts/resolvers/index.ts:66-67 but unreferenced by any tracked template. Probe itself degrades to DESIGN_NOT_AVAILABLE when the binary is absent.",
+     "verdict": "NEEDS_REVIEW",
+     "citation": "scripts/resolvers/design.ts:729, scripts/resolvers/design.ts:774, scripts/resolvers/index.ts:66",
+     "fix": "Delete generateDesignSetup/generateDesignMockup from scripts/resolvers/design.ts and their DESIGN_SETUP/DESIGN_MOCKUP registrations in scripts/resolvers/index.ts (the removal commit de-wired templates but left the resolvers). Also fix stale setup help text at setup:31 which still advertises 'design, pdf, diagram' capabilities the installer no longer provides."
+    },
+    {
+     "endpoint": "LOCAL (not egress): Bun.serve comparison-board server and board daemon, loopback fetches, browser-open spawn",
+     "trigger": "User ran `design serve|compare --serve` or daemon commands (historical, deleted surface)",
+     "gating": "daemon.ts:535 bound hostname '127.0.0.1' explicitly; serve.ts:56 defaulted hostname to '127.0.0.1' and cli.ts:164/277 never passed an override \u2014 no listener beyond loopback. daemon-client.ts:194/317, daemon-state.ts:128, and board JS (compare.ts:480/537) fetch only http://127.0.0.1:<port> or relative paths. spawn() calls: git rev-parse and open-browser, both local.",
+     "verdict": "COMPLIANT",
+     "citation": "design/src/serve.ts:56+72, design/src/daemon.ts:535 (at 9053324a^; deleted at HEAD)",
+     "fix": "None \u2014 loopback-only, and deleted anyway."
+    }
+   ],
+   "notes": "Scope caveat: design/src/ does not exist at HEAD \u2014 it was deleted in 9053324a 'refactor: remove design/PDF/diagram runtime binaries and wiring' (2026-07-23), which also de-wired runtime/install.js, doctor.js, scripts/gstack2, package.json (dev:design), and office-hours templates. The audit therefore covers (a) the deleted source at 9053324a^ (which the leftover on-disk binary embodies) and (b) residual wiring at HEAD. All external egress in the historical surface went to api.openai.com only; no telemetry, analytics, update pings, tunnels, or postinstall hooks existed (grep for telemetry|posthog|sentry|analytics|track(|update.check|version.check across every deleted file: only a comment about local stderr log lines). Greps run: fetch(|https?://|.listen(|createServer|serve(|WebSocket|EventSource|execSync|spawn(|curl|wget over all 20 deleted design/src files at 9053324a^; dist/design|gstack-design|GPT Image|gpt-image over skills/ bin/ scripts/ hosts/ lib/ compat/; {{DESIGN_SETUP}}|{{DESIGN_MOCKUP}} over all *.tmpl; DESIGN_READY|dist/design over skills/, compat/, and every SKILL.md; 'design' over runtime/install.js (0 hits); strings scan of design/dist/design binary (api.openai.com x10, posthog/sentry/segment/amplitude/mixpanel x0). Historical gating note: the CLI predates the GStack 2 typed-consent flow (key-presence enabled calls on explicit user command; PRIVACY.md says 'a key present in the environment is not consent' for Context.dev) \u2014 moot because the surface is removed, which PRIVACY.md's 'Models, images, and documents' section codifies as the contract state. Hygiene follow-ups (no live egress, so not violations): (1) dead resolver functions scripts/resolvers/design.ts:723-766/768+ and their index registrations should be deleted; (2) stale setup:31 help text still lists 'design, pdf, diagram' capabilities; (3) orphaned 63MB binary design/dist/design should be removed locally and via an upgrade migration; (4) untracked worktree artifact .claude/worktrees/agent-adf86e2bc2bd7e729/office-hours/SKILL.md(.tmpl) still carries the old DESIGN_READY block (local-only, not shipped)."
+  },
+  {
+   "surface": "runtime-installer (runtime/, ./setup, scripts/gstack2/ensure-runtime-payloads.ts)",
+   "verdict": "GATED_OK",
+   "egressPoints": [
+    {
+     "endpoint": "npm registry (via `bun install --production --frozen-lockfile`)",
+     "trigger": "User approves runtime install: interactive 'yes' answer or `--install-now --yes` to ./setup / runtime/install.js",
+     "gating": "Runs only after the explicit approval block (install.js:1009-1027); non-interactive without --yes throws typed INSTALL_CONSENT_REQUIRED; --dry-run/--install-later return before it; skipped entirely for --prepared artifacts. No postinstall/lifecycle scripts: package.json has no trustedDependencies and Bun blocks lifecycle scripts by default",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/install.js:1029"
+    },
+    {
+     "endpoint": "Playwright CDN (Chromium download via `node_modules/playwright/cli.js install`)",
+     "trigger": "User selects a browser-backed capability AND explicitly chooses `--browser managed` (or interactive menu), then approves install",
+     "gating": "No default browser choice: non-interactive without a choice throws typed INSTALL_BROWSER_CHOICE_REQUIRED (install.js:984-989); `--browser installed` path performs no download; headless-only shell unless browser-visible was separately approved (install.js:1259-1264); failure is typed INSTALL_BROWSER_DOWNLOAD_FAILED with no runtime activation",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/install.js:1267"
+    },
+    {
+     "endpoint": "https://github.com/time-attack/gstack/releases/download/v2.0.0-rc.6/gstack-runtime-manifest.json (manifest fetch)",
+     "trigger": "User runs bootstrap `preview` or `install` action (runtime-bootstrap.mjs); the `options` action is explicitly no-network",
+     "gating": "User-invoked only; manifest host pinned to github.com official release (assertOfficialUrl, lines 646-652); redirect final URL re-validated. Note: `preview` fetches the manifest before install consent \u2014 it is metadata-only (no user data sent) and the doctor/consent flow treats invoking preview as that consent",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/runtime-bootstrap.mjs:167"
+    },
+    {
+     "endpoint": "github.com / objects.githubusercontent.com / release-assets.githubusercontent.com (runtime component tar.gz downloads)",
+     "trigger": "Bootstrap `install` after the exact component plan (bytes, components) is printed",
+     "gating": "Requires explicit `--yes` or fails with typed BOOTSTRAP_CONSENT_REQUIRED (lines 147, 193); URLs pinned to the official versioned release path prefix (assertOfficialReleaseAssetUrl, lines 654-660); SHA-256 + exact byte-size verification, 2 GiB cap, redirect-final-URL host allowlist re-check (downloadVerified, lines 481-520)",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/runtime-bootstrap.mjs:202"
+    },
+    {
+     "endpoint": "GitHub release host (cosign.bundle attestation download)",
+     "trigger": "Same approved bootstrap install loop, only when the manifest declares a cosign bundle and local cosign exists",
+     "gating": "Inside the --yes-approved install; URL passes assertOfficialReleaseAssetUrl (line 305) and final-URL allowlist (line 534); certificate identity/OIDC issuer pinned to the official release workflow (lines 62-64, 306-309); typed BOOTSTRAP_ATTESTATION_FAILED",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/runtime-bootstrap.mjs:533"
+    },
+    {
+     "endpoint": "https://api.context.dev/v1 (scrape-markdown/scrape-html/crawl/sitemap/screenshot)",
+     "trigger": "User runs `gstack context scrape-*|crawl|sitemap|screenshot|smoke`",
+     "gating": "Off by default. Every request requires persisted selection=context AND mode=context AND consent=true (context.js:523-525, enforced at #gateTarget:374-376 and #request:405-408, both throwing typed CONTEXT_BLOCKED); public-URL lexical gate + DNS resolution rejecting localhost/private/link-local/metadata (lines 369-386, PRIVACY gate list); baseUrl pinned to exactly https://api.context.dev/v1 (config.js:214); only the public URL + operation params are sent; key never accepted via argv; `context select host|local-browser|none` persists with consent:false (cli.js:597-601)",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/context.js:425"
+    },
+    {
+     "endpoint": "https://api.context.dev/v1/web/scrape/markdown verifying https://www.context.dev (one-shot key verification)",
+     "trigger": "User runs `gstack context setup` and explicitly consents (interactive 'yes' or --consent flag)",
+     "gating": "Without consent: typed CONSENT_REQUIRED and network stays off (cli.js:613-620); `--offline` skips the call and leaves the key unverified/blocked; keys rejected from argv (KEY_ON_COMMAND_LINE, cli.js:606-608), read via hidden stdin; consent + selection persisted only after success",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/cli.js:644"
+    },
+    {
+     "endpoint": "raw.githubusercontent.com/garrytan/gstack (VERSION) + git ls-remote https://github.com/garrytan/gstack.git (installed gstack-update-check launcher)",
+     "trigger": "Only an explicit operator invocation with `--force`; skill preambles calling it without --force get exit 0",
+     "gating": "Fail-closed before any state or network access unless --force (bin/gstack-update-check:30-32), matching the PRIVACY.md claim; no passive release ping exists in the runtime surface (grep-verified)",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-update-check:30"
+    },
+    {
+     "endpoint": "https://frugpmstpnojnhfyimgv.supabase.co/functions/v1/telemetry-ingest (installed gstack-telemetry-sync internal helper)",
+     "trigger": "Spawned in background by gstack-telemetry-log after a local JSONL event append",
+     "gating": "Exits 0 before any curl when telemetry config tier is unset or 'off' \u2014 the default is 'off' (bin/gstack-telemetry-sync:43-45: TIER defaults to off); independent opt-in via `gstack-config set telemetry`, per the PRIVACY legacy-telemetry clause; rate-limited to once per 5 minutes; gstack-telemetry-log itself makes no network calls (grep-verified)",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-telemetry-sync:117"
+    }
+   ],
+   "notes": "Read docs/gstack-2/PRIVACY.md in full before auditing. Greps run across runtime/ (excluding node_modules): (1) fetch(|http://|https://|axios|WebSocket|EventSource|.request(|net.connect|tls.connect|dns.|curl|wget|createConnection; (2) spawn|execFile|exec(|child_process; (3) import/require of node:http|https|net|tls|dgram, undici, XMLHttpRequest, got(; (4) listen|createServer|telemetry|analytics|track(|ping|update.check|bun.sh|checkForUpdate; (5) package.json checked for postinstall/preinstall/prepare/trustedDependencies (none \u2014 Bun blocks dependency lifecycle scripts by default, so `bun install` cannot run hidden postinstall downloads for @ngrok/ngrok or sharp; their native payloads arrive as npm optional packages inside the same approved frozen-lockfile install); (6) scripts/build.sh (build:runtime, invoked by defaultBunBuilder) has no curl/wget/fetch/npx/download \u2014 local compile only. Non-egress findings: ./setup makes no network calls (spawns node runtime/install.js; nodejs.org appears only in an error message); scripts/gstack2/ensure-runtime-payloads.ts is local fs checks + local bun builds; runtime/identity.js runs only local `git rev-parse` (no fetch/push/ls-remote in runtime/); runtime/doctor.js does local --version probes only and correctly reports network-off state; runtime/browser-provider-smoke.mjs binds a listener on 127.0.0.1 only (line 6) \u2014 no listener beyond loopback anywhere in this surface; managed-Bun materialization copies the locally installed bun binary (probeBunExecutable), never downloads one; @ngrok/ngrok is bundled as files for the explicit legacy pair-agent tunnel but nothing in runtime/ starts ngrok. Caveats: (a) `gstack state effect -- <cmd>` (runtime/cli.js:486) executes an arbitrary user-supplied command that may reach the network \u2014 user-directed execution, not gstack-initiated egress; (b) install.js places launchers for retained bin/ helpers with their own egress (gstack-gbrain-*, gstack-artifacts-url, etc.) \u2014 I verified the three PRIVACY.md names it makes claims about (update-check, telemetry-log/sync, all gated off-by-default); the full retained-bin-tool surface belongs to the separate retained-tool egress audit (task #6), not this runtime-installer surface; (c) bootstrap `preview` performs the manifest GET (github.com, metadata only) before install consent \u2014 user-invoked and data-free, judged compliant, but worth stating in PRIVACY.md explicitly if not already."
+  },
+  {
+   "surface": "context-dev-client \u2014 the Context.dev integration (runtime/context.js client, runtime/cli.js `gstack context` commands, runtime/config.js network/consent persistence, runtime/doctor.js status line, generated skill guidance under skills/*/references/WEB-CONTEXT.md)",
+   "verdict": "GATED_OK",
+   "egressPoints": [
+    {
+     "endpoint": "https://api.context.dev/v1/{web/scrape/markdown | web/scrape/html | web/crawl | web/scrape/sitemap | screenshot} (single fetch site, Bearer key)",
+     "trigger": "User runs `gstack context scrape-markdown|scrape-html|crawl|sitemap|screenshot <public-url>` or `gstack context smoke`; all five ContextClient operations funnel into ContextClient.#request",
+     "gating": "OFF by default (DEFAULT_CONFIG network = {mode:'off', consent:false, selection:null}, runtime/config.js:9). #request re-checks hasContextNetworkConsent: selection==='context' AND mode==='context' AND consent===true AND validation!=='unverified' (runtime/context.js:405-408, 522-527), else typed CONTEXT_BLOCKED. Target gated by assertPublicUrl (scheme, userinfo, localhost/.localhost, private/test/single-label suffixes, metadata hosts, non-public IPs, credential-shaped path/query/fragment material; runtime/context.js:174-234) plus resolved-address check (every DNS record must be public, runtime/context.js:244-260). Base URL pinned to the official origin at three layers (validateBaseUrl always returns OFFICIAL_BASE_URL, context.js:572-584; config validation, config.js:212-218; redirect:'error', context.js:434). Request options allowlisted per-endpoint with credential scanning; free-form headers/tags deliberately excluded (context.js:42-113, 472-514). Errors use typed CONTEXT_* codes with key redaction.",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/context.js:425"
+    },
+    {
+     "endpoint": "OS DNS resolver (dns.lookup of the target hostname only)",
+     "trigger": "Any of the five provider operations above, as part of the public-URL gate before the HTTPS request",
+     "gating": "Runs only inside #gateTarget AFTER the lexical public-URL check and AFTER the persisted-consent check pass (runtime/context.js:369-384: 'DNS is only reached after #networkSettings confirms explicit persisted consent'). Leaks only the already-consented public hostname; result must be all-public or the request is CONTEXT_BLOCKED.",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/context.js:377-384"
+    },
+    {
+     "endpoint": "https://api.context.dev/v1/web/scrape/markdown with url=https://www.context.dev (key-verification smoke during setup)",
+     "trigger": "User runs `gstack context setup` and gives explicit consent (interactive 'yes' at TTY, or --consent flag; non-TTY without --consent throws CONSENT_REQUIRED)",
+     "gating": "Explicit live consent required before any request (runtime/cli.js:611-620); `--offline` skips the network call entirely and leaves the key 'unverified' so provider ops stay blocked (cli.js:632-633, 659-660). Uses an ephemeral in-memory consent config only for this one call after the user said yes (cli.js:635-647). Key comes from hidden stdin or CONTEXT_DEV_API_KEY env; key-looking argv is rejected (cli.js:606-608). Sends only the fixed public URL, never repo content.",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/cli.js:644"
+    },
+    {
+     "endpoint": "https://api.context.dev/v1/web/scrape/markdown via `gstack context smoke [--url]` (default url https://www.context.dev)",
+     "trigger": "User explicitly runs `gstack context smoke`",
+     "gating": "Uses clientFactory({home, env}) with the persisted config, so the full four-condition consent gate applies; without prior `context setup --consent` it fails with CONTEXT_BLOCKED before DNS or fetch. --url still passes the full public-URL gate.",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/cli.js:667-669"
+    },
+    {
+     "endpoint": "NONE \u2014 `gstack context status|options|select` and `gstack doctor` network check",
+     "trigger": "User runs status/options/select or doctor",
+     "gating": "Pure local config reads/writes. `context select host|local-browser|none` persists the fallback with consent:false and prints 'Context.dev network export remains off' (runtime/cli.js:590-603); config.js enforces the only consent:true tuple is context/context/true (COHERENT_NETWORK_CHOICES, config.js:19-24). doctor only reads config flags (runtime/doctor.js:64-66). Matches PRIVACY.md: selection persists without granting consent.",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/cli.js:597-602"
+    },
+    {
+     "endpoint": "NONE \u2014 CONTEXT_DEV_API_KEY / CONTEXT_API_KEY environment key path",
+     "trigger": "Key present in environment (readContextKey)",
+     "gating": "Key presence is NOT consent: #request reads network settings and throws CONTEXT_BLOCKED before the key is ever read (runtime/context.js:405-412); readContextKey itself performs no I/O beyond secrets.json (0600-enforced, config.js:76-93). Matches PRIVACY.md line 'A key present in the environment is not consent.'",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/context.js:145-156"
+    }
+   ],
+   "notes": "Contract source: docs/gstack-2/PRIVACY.md (read fully). Every egress in this surface is optional, off by default, consent-gated with typed CONTEXT_* failure codes, and public-URL-only; the lexical gate matches PRIVACY.md's rejection list item-for-item (schemes, userinfo, localhost/.localhost, private/test/single-label suffixes, loopback/private/link-local/multicast/mapped IPs, metadata hosts, non-public resolved addresses). Deprecated Search API is hard-blocked (context.js:361-367). Greps run to prove coverage: (1) grep -rin \"context.dev|context-dev|contextdev\" over lib/ bin/ runtime/ skills/ scripts/ \u2014 lib/ and bin/ have ZERO hits; skills/ hits are prose-only WEB-CONTEXT.md guidance (no executable egress); scripts/gstack2 hits are generators/backlog metadata (no network code). (2) grep -rn \"fetch(|http://|https://|axios|WebSocket|EventSource|curl |wget |dns.|net.connect|createConnection\" over runtime/*.js runtime/*.mjs \u2014 the only Context egress is the single fetch at context.js:425. (3) repo-wide caller grep for ContextClient/scrapeMarkdown/assertPublicUrlResolved/readContextKey excluding tests \u2014 only runtime/cli.js and runtime/context.js (plus .claude/worktrees copies, out of scope). (4) clientFactory default confirmed as `new ContextClient(opts)` (cli.js:91). No curl/wget, no child processes reaching the network, no postinstall hooks, no auto-update pings, no telemetry in this surface. Local listeners: runtime/browser-provider-smoke.mjs binds 127.0.0.1 only (browser-provider surface, LOCAL, not egress). Out-of-scope observation for other audit surfaces: runtime/runtime-bootstrap.mjs fetches GitHub release manifests/cosign bundles (installer surface) \u2014 flag it for the installer egress audit, not a Context.dev finding. Secrets hygiene supporting the contract: secrets.json forced 0600 with fail-closed permission check (config.js:76-93), secret-shaped keys rejected from public config.json (config.js:101-112), key redaction in all error paths including nested-encoding fail-closed scanning (context.js:586-641)."
+  },
+  {
+   "surface": "pdf-diagram: make-pdf/ (1.x runtime source: src/{cli,orchestrator,render,print-css,diagram-prepass,browseClient,pdftotext,setup,image-policy,image-size,smartypants,types}.ts, SKILL.md(.tmpl), test/), canonical GStack 2 tree skills/make-pdf/ (SKILL.md + references/{RUNTIME.md,BROWSER-PROVIDERS.md,support/*.mjs}), diagram capability (make-pdf/src/diagram-prepass.ts, lib/diagram-render bundle [worktree], host-generated gstack-diagram/gstack-make-pdf skills under .hermes/.cursor/etc.), plus the preamble-invoked helpers bin/gstack-update-check, bin/gstack-telemetry-log, bin/gstack-telemetry-sync",
+   "verdict": "GATED_OK",
+   "egressPoints": [
+    {
+     "endpoint": "Arbitrary http(s) image URLs referenced in the user's markdown (fetched by local Chromium at print time)",
+     "trigger": "User runs `$P generate <file.md>` on markdown containing remote <img>/image refs AND explicitly passes `--allow-network`",
+     "gating": "OFF by default (offline posture): without the flag, remote images are replaced with a visible '[remote image blocked (use --allow-network)]' placeholder so Chromium never fetches them; `--strict` turns the block into a typed StrictModeError. Flag wired as `allowNetwork: f[\"allow-network\"] === true` (default false).",
+     "verdict": "COMPLIANT",
+     "citation": "make-pdf/src/diagram-prepass.ts:604-611 (gate + placeholder), make-pdf/src/cli.ts:156, skills/make-pdf/SKILL.md:192-194"
+    },
+    {
+     "endpoint": "https://github.com/time-attack/gstack/releases/download/v2.0.0-rc.6/gstack-runtime-manifest.json + objects.githubusercontent.com / release-assets.githubusercontent.com artifact + cosign-bundle downloads",
+     "trigger": "User explicitly approves a capability metadata preview, then separately approves install (`node references/support/runtime-bootstrap.mjs preview|install --yes`) after the pdf/diagram capability is first needed",
+     "gating": "Consent-first per RUNTIME.md: 'Before any network preview, ask... then STOP'; 'Preview consent is not install consent'; install requires a second explicit approval + `--yes`. HTTPS-only host allowlist (github.com + GitHub object hosts, manifest pinned to official release path), SHA-256 + Cosign verification, typed BOOTSTRAP_* failure codes. `options` action is local-only (no network). Never auto-invoked by skill invocation.",
+     "verdict": "COMPLIANT",
+     "citation": "skills/make-pdf/references/support/runtime-bootstrap.mjs:27-28,56-64,646-658; skills/make-pdf/references/RUNTIME.md"
+    },
+    {
+     "endpoint": "Linux distro package mirrors (apt/dnf/pacman/apk) for fonts-noto-color-emoji",
+     "trigger": "Explicitly approved `pdf` runtime-capability install on Linux (emoji font for correct PDF rendering)",
+     "gating": "Runs only inside the consented capability install; `GSTACK_SKIP_FONTS=1` opt-out. Current GStack 2 root `setup` is runtime-only and contains no font helper (test/setup-emoji-font.test.ts skips via GSTACK2_RUNTIME_ONLY); render-legacy.ts rewrites the legacy './setup auto-installs' wording to the consent-scoped claim.",
+     "verdict": "COMPLIANT",
+     "citation": "skills/make-pdf/SKILL.md:38-40; scripts/gstack2/render-legacy.ts:573-574"
+    },
+    {
+     "endpoint": "${GSTACK_SUPABASE_URL}/functions/v1/telemetry-ingest (Supabase edge function, curl POST)",
+     "trigger": "Skill-run epilogue in the legacy 1.x-generated make-pdf/diagram SKILL.md preambles calls gstack-telemetry-log, which backgrounds gstack-telemetry-sync",
+     "gating": "Double-gated and OFF by default: telemetry tier defaults to `off` when unset (`TIER=\"${TIER:-off}\"` in both log and sync scripts \u2192 exit 0 before any write/POST); tier becomes community/anonymous only via the explicit AskUserQuestion opt-in flow; sync additionally exits silently if no Supabase URL is configured. Payload is skill/duration/outcome/version/IDs; repo names stripped, no code/paths per the consent text. Matches PRIVACY.md 'minimal legacy telemetry only after its independent opt-in'.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-telemetry-sync:31,44-45,117-118; bin/gstack-telemetry-log:82-96; make-pdf/SKILL.md:233-256"
+    },
+    {
+     "endpoint": "https://raw.githubusercontent.com/garrytan/gstack/main/VERSION + git ls-remote https://github.com/garrytan/gstack.git",
+     "trigger": "Skill preambles call `gstack-update-check` on every 1.x skill invocation",
+     "gating": "Fails closed: without `--force` the script exits 0 before any state or network access; preambles in make-pdf/SKILL.md:35 and .hermes/skills/gstack-diagram/SKILL.md:26 call it WITHOUT --force. Only an operator-typed `gstack-update-check --force` reaches the network, exactly as PRIVACY.md specifies.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-update-check:24-34"
+    },
+    {
+     "endpoint": "User's own configured git remote for ~/.gstack brain artifacts (git fetch origin + ff-merge + gstack-brain-sync push)",
+     "trigger": "Invoking a legacy host-generated diagram/make-pdf skill; rate-limited to once per 24h",
+     "gating": "Requires BOTH a user-created git repo at $GSTACK_HOME AND `artifacts_sync_mode != off`; the config read defaults to `off` (`|| echo off`), so fresh installs never fetch/push. Remote is user-chosen, not a GStack service. Legacy 1.x lane only \u2014 absent from the canonical skills/make-pdf tree.",
+     "verdict": "COMPLIANT",
+     "citation": ".hermes/skills/gstack-diagram/SKILL.md:506,529-543"
+    },
+    {
+     "endpoint": "https://garryslist.org/posts/boil-the-ocean (opened in user's default browser via `open`)",
+     "trigger": "One-time first-run 'Boil the Ocean' intro in the legacy 1.x preamble; agent offers to open the post",
+     "gating": "The `open` command runs only if the user answers yes ('Only run `open` if yes. Always run `touch`.'); marker file prevents re-prompting. Sends nothing but the page request from the user's own browser.",
+     "verdict": "COMPLIANT",
+     "citation": "make-pdf/SKILL.md:224-231"
+    },
+    {
+     "endpoint": "User's own git remote (checkpoint auto-push)",
+     "trigger": "Checkpoint flow pushing checkpoint commits, only when the user has set `checkpoint_push`",
+     "gating": "Config read defaults to false (`|| echo \"false\"`); off unless the user opts in via gstack-config. Target is the repo's existing remote, no third-party service.",
+     "verdict": "COMPLIANT",
+     "citation": "make-pdf/SKILL.md:127"
+    },
+    {
+     "endpoint": "npm registry (bun install of exact-pinned mermaid 11.16.0, @excalidraw/excalidraw 0.18.1, @excalidraw/mermaid-to-excalidraw 2.2.2, react 18.3.1)",
+     "trigger": "Contributor-only `bun run build:diagram-render` when building the offline diagram bundle; never runs on a user machine",
+     "gating": "Build-time/dev-only; the runtime artifact is a single self-contained HTML page loaded from disk by the local browse daemon ('No CDN, no network'). Runtime resolution (env override \u2192 repo lib/ \u2192 global install) throws a typed error telling the user to build/re-run setup rather than fetching anything. Bundle source currently lives in worktree .claude/worktrees/agent-adf86e2bc2bd7e729/lib/diagram-render (not yet on main).",
+     "verdict": "COMPLIANT",
+     "citation": "make-pdf/src/diagram-prepass.ts:434-455; .hermes/skills/gstack-diagram/SKILL.md:814-818"
+    }
+   ],
+   "notes": "No VIOLATIONS found. Rendering is genuinely local: mermaid/excalidraw render inside a local self-contained HTML bundle in the loopback browse daemon (no CDN), matching PRIVACY.md 'PDF and Mermaid/Excalidraw rendering remain local internal capabilities. No hosted PDF or diagram service was introduced.' The rumored paid diagram provider lane does NOT exist \u2014 greps for paid|provider|gpt|openai|gemini|nano.banana|imagen|dall across make-pdf and diagram skills found nothing; the only 'paid' reference in BROWSER-PROVIDERS.md is the user's own Claude-in-Chrome plan (host-native, never installed by GStack). LOCAL-ONLY (not egress): browser-provider-smoke.mjs binds 127.0.0.1 with a per-run random token (skills/make-pdf/references/support/browser-provider-smoke.mjs:6,67) \u2014 no listener bound beyond loopback anywhere in this surface; browseClient drives the local browse binary via execFileSync (make-pdf/src/browseClient.ts:175); tryOpen spawns open/xdg-open on the local PDF path (make-pdf/src/orchestrator.ts:384-396); pdftotext is a local execFileSync (make-pdf/src/pdftotext.ts:159,188); make-pdf has no package.json and therefore no postinstall hooks. Minor doc drift worth a follow-up (no egress impact): legacy make-pdf/SKILL.md:589 still claims './setup auto-installs fonts-noto-color-emoji' but the current GStack 2 root setup contains no ensure_emoji_font helper (test/setup-emoji-font.test.ts skips via GSTACK2_RUNTIME_ONLY); the canonical skills/make-pdf/SKILL.md:38 already carries the corrected consent-scoped wording. Greps run (all excluding dist/node_modules/.git, on make-pdf/, skills/make-pdf/, host gstack-diagram/gstack-make-pdf trees, bin/gstack-telemetry-*, bin/gstack-update-check): 'fetch(|https?://|axios|WebSocket|EventSource|.connect(|curl |wget |ngrok|upload|api[_-]?key|API_KEY|postinstall', 'ws://|wss://|XMLHttpRequest|net.connect|createConnection|dgram|dns.|node:https|node:http', 'spawn|execSync|exec(|execFile|child_process|Bun.spawn', '@import|url(|fonts.googleapis|fonts.gstatic', 'telemetry|git fetch|git push|update-check|BRAIN_SYNC|checkpoint_push', 'paid|provider|gpt|openai|anthropic|gemini|nano.banana|imagen|dall', 'allow-network|allowNetwork', 'ALLOWED_DOWNLOAD_HOSTS|hostname', 'emoji|apt-get|noto|GSTACK_SKIP_FONTS', plus repo-wide 'diagram-render' and 'fonts-noto-color-emoji' file searches. Read fully: docs/gstack-2/PRIVACY.md, skills/make-pdf/references/RUNTIME.md, skills/make-pdf/references/BROWSER-PROVIDERS.md, runtime-bootstrap.mjs gating/allowlist, telemetry log+sync scripts, update-check gate."
+  },
+  {
+   "surface": "ios-daemon (ios-qa/daemon/ \u2014 12 src files, 10 test files, no package.json)",
+   "verdict": "GATED_OK",
+   "egressPoints": [
+    {
+     "endpoint": "http://[<CoreDevice tunnel IPv6>]:9999/healthz and /auth/rotate on the paired iPhone's in-app StateServer",
+     "trigger": "Agent sends a command to the daemon; tunnelProvider bootstraps the device tunnel (requires GSTACK_IOS_TARGET_UDID or a connected paired device)",
+     "gating": "Only fires against a devicectl-listed paired device's RFC 4193 ULA tunnel address (link-local CoreDevice path, not internet). Boot token is scraped from the app sandbox via devicectl and immediately rotated to an in-memory token. Typed failure codes (state_server_unreachable, rotate_failed, etc.)",
+     "verdict": "COMPLIANT",
+     "citation": "ios-qa/daemon/src/tunnel-bootstrap.ts:137 and :161"
+    },
+    {
+     "endpoint": "http://[tunnel.ipv6Addr]:port/* \u2014 proxy of agent requests to the iPhone StateServer",
+     "trigger": "Any non-auth endpoint hit on the daemon's loopback or tailnet listener is forwarded to the device",
+     "gating": "Destination is always the CoreDevice tunnel IPv6 of the bootstrapped device; 1MB body cap; rotated bearer injected; coordinate mutations carry x-gstack-expected-bundle-id (matches the PRIVACY.md bundle-check requirement); typed errors (device_disconnected, upstream_timeout, upstream_error)",
+     "verdict": "COMPLIANT",
+     "citation": "ios-qa/daemon/src/proxy.ts:69 (URL built at proxy.ts:61)"
+    },
+    {
+     "endpoint": "xcrun devicectl (list devices, info details, process launch/list, install app, copy from container) \u2014 Apple CoreDevice tooling child processes",
+     "trigger": "Device discovery, app launch, tunnel keepalive poke every few seconds after a successful bootstrap, boot-token scrape",
+     "gating": "Local Apple tooling talking USB/local-pairing to an already-paired device; exactly the DebugBridge/CoreDevice backend PRIVACY.md mandates; keepalive stops on SIGINT/SIGTERM/exit",
+     "verdict": "COMPLIANT",
+     "citation": "ios-qa/daemon/src/devicectl.ts:83,157,205,294,315,341,367; keepalive wiring index.ts:439"
+    },
+    {
+     "endpoint": "tailscaled LocalAPI /localapi/v0/whois over unix socket /var/run/tailscale.sock",
+     "trigger": "Daemon started with explicit --tailnet CLI flag (probe at startup, WhoIs per /auth/mint request)",
+     "gating": "Unix-socket-local, not network egress. Fail-closed: tailnet listener refuses to open if the probe fails (socket_missing / permission_denied / whois_unparseable / unreachable \u2014 typed reasons). Never runs without --tailnet",
+     "verdict": "COMPLIANT",
+     "citation": "ios-qa/daemon/src/tailscale-localapi.ts:53; probe gate index.ts:78-85,114"
+    },
+    {
+     "endpoint": "dns.lookup / dns.resolve6 of '<device-name>.coredevice.local'",
+     "trigger": "Tunnel IPv6 resolution fallback when devicectl info details yields no address during bootstrap",
+     "gating": "Primary path (dns.lookup/getaddrinfo) resolves via local mDNSResponder. The last-resort legacyResolve6 path uses c-ares, which sends the .local query as unicast DNS to the configured resolver \u2014 a device-name-derived hostname can leave the machine to the LAN/upstream DNS server. No user content, no consent gate on this specific fallback; code comments say it ESERVFAILs on recent macOS and is kept for backwards compat",
+     "verdict": "NEEDS_REVIEW",
+     "fix": "Delete the legacyResolve6 fallback (devicectl.ts:61-73, resolveTunnelIPv6 step 3) or gate it behind an explicit env opt-in; the dns.lookup mDNS path already covers real hardware",
+     "citation": "ios-qa/daemon/src/devicectl.ts:67-73,279-281; call site tunnel-bootstrap.ts:120-126"
+    },
+    {
+     "endpoint": "LISTENERS (not egress): loopback HTTP on 127.0.0.1 + ::1; optional tailnet listener",
+     "trigger": "Daemon start; tailnet listener only with --tailnet flag AND successful tailscaled probe",
+     "gating": "Tailnet bind address defaults to 127.0.0.1 and only goes beyond loopback via explicit GSTACK_IOS_TAILNET_BIND env override (index.ts:127) \u2014 double opt-in. Tailnet surface is allowlist+capability-tiered (classifyRoute), bearer-token authed via SessionTokenStore, identity-checked via Tailscale WhoIs, with audit/attempts JSONL under ~/.gstack/security/. Matches PRIVACY.md 'optional pre-existing Tailscale path only when explicitly configured'",
+     "verdict": "COMPLIANT",
+     "citation": "ios-qa/daemon/src/index.ts:93,104,127-131"
+    }
+   ],
+   "notes": "Read every src file (index, proxy, tunnel-bootstrap, devicectl, tailscale-localapi, audit, allowlist, auth-mint, cli-mint, session-tokens, single-instance, types). Greps run over the whole daemon dir (src+test): (1) fetch(/http:///https:///axios/WebSocket/EventSource/net.connect/createConnection/.listen(/curl/wget/ngrok/spawn/execFile/child_process/Bun.serve/dgram/postinstall/telemetry/api-key/upload/tunnel; (2) standalone https:// \u2014 ZERO hits anywhere; (3) http:// excluding 127.0.0.1/localhost/device-ipv6 \u2014 zero external hits; (4) curl/wget/ngrok/ws:///wss:///websocket/eventsource/dgram/tls/telemetry/analytics/sentry/posthog/upload/download/npx/bun install/git push/api key/ANTHROPIC/OPENAI \u2014 only false positives (ttlSeconds matching 'tls', comments); (5) dns/resolve6/lookup + full import audit per file (audit/allowlist/mint/token/single-instance import only fs/path/os/crypto \u2014 no network); (6) package.json + postinstall search across ios-qa \u2014 no package.json exists, so no install hooks. No auto-update ping, no telemetry, no cloud endpoint, no new iOS driver. All device traffic rides Apple devicectl/CoreDevice exactly as PRIVACY.md's Physical-iPhone boundary requires; Tailscale exposure is triple-gated (--tailnet flag + fail-closed tailscaled probe + loopback-default bind needing GSTACK_IOS_TAILNET_BIND to widen). The single NEEDS_REVIEW is a low-severity metadata leak: the legacy dns.resolve6 fallback can send '<device-name>.coredevice.local' as a unicast DNS query to the configured resolver; one-line fix is to drop that dead fallback. Tests use injected spawn/resolve/fetch stubs and pin the safe 127.0.0.1 test bind."
+  },
+  {
+   "surface": "chrome-extension (extension/)",
+   "verdict": "CLEAN",
+   "egressPoints": [],
+   "notes": "The Chrome extension (side panel, activity feed, CSS inspector) no longer exists in the codebase: commit ab4e9ae5 \"refactor: remove browser sidebar extension\" (2026-07-21) deleted all 6,423 lines of it (background.js, content.js, sidepanel*.js/html/css, inspector.js/css, popup.*, manifest.json, icons) plus its wiring in browse/src/browser-manager.ts, runtime/install.js, and the build scripts. `git ls-files extension/` returns zero tracked files. What remains on disk are three untracked, explicitly gitignored (.gitignore:24-26) vendored xterm library leftovers: extension/lib/xterm.js (283KB), xterm.css, xterm-addon-fit.js \u2014 a terminal renderer and a layout addon, no extension code, no manifest, no scripts, no listeners.\n\nGreps run (recursive over extension/), proving the empty egress list:\n1. `fetch(|XMLHttpRequest|WebSocket|EventSource|navigator\\.sendBeacon|axios|ws://|wss://` \u2014 0 matches.\n2. `https?://` \u2014 2 matches, both license/attribution comments in xterm.css lines 4 and 27 (github.com/chjj/term.js, bellard.org/jslinux); comments, not code.\n3. case-insensitive `telemetry|analytics|sendBeacon|importScripts|socket|tunnel|upload|ngrok|api[_-]?key|curl|wget` \u2014 0 matches.\n4. `connect` in xterm.js \u2014 1 match, `IntersectionObserver.disconnect()` (DOM API, verified in context).\n\nNo fetch/HTTP/WebSocket/EventSource code, no shell scripts, no package.json or install hooks, no auto-update pings, no telemetry, no bound listeners of any kind (there is no executable extension entry point left). CLEAN with an empty egress list.\n\nHousekeeping observations (no action taken \u2014 audit is read-only): (a) the three leftover lib files are dead weight on disk and could be deleted; (b) the project CLAUDE.md project-structure section still describes `extension/ # Chrome extension (side panel + activity feed + CSS inspector)`, which is stale relative to the removal commit and could mislead future audits."
+  },
+  {
+   "surface": "cli-utilities-and-code-intel (bin/ CLI utilities + gstack-code-intelligence provider contract: lib/code-intelligence/*, gbrain/sourcebot/graphify adapters, telemetry/update/brain-sync/supabase helpers)",
+   "verdict": "GATED_OK",
+   "egressPoints": [
+    {
+     "endpoint": "user's GBrain DB (gbrain CLI -> DATABASE_URL, possibly remote Supabase Postgres) \u2014 register_source/refresh/add",
+     "trigger": "user runs `gstack-code-intelligence index` (or a caller invokes the provider contract) after selecting gbrain",
+     "gating": "Triple-gated: provider default null (lib/code-intelligence/selection.ts:27, callers degrade to grep/file-only); CLI refuses non-local index without per-repo consent (bin/gstack-code-intelligence:139-141); adapter enforces assertEgressConsent on registerSource/refresh/add (lib/code-intelligence/gbrain-adapter.ts:75,92,146; contract.ts:179-187) with typed PROVIDER_NOT_CONSENTED failure. Consent is per-repo keyed by absolute path (selection.ts:67-76).",
+     "verdict": "COMPLIANT",
+     "citation": "lib/code-intelligence/contract.ts:179"
+    },
+    {
+     "endpoint": "user's GBrain DB \u2014 search query only (`gbrain search <query>`)",
+     "trigger": "user runs `gstack-code-intelligence search <query>` (or gstack-decision-search --semantic)",
+     "gating": "Requires explicit provider selection (default none). No per-repo consent check on search, but only the user-supplied query string leaves the machine, not repo content; consent contract is scoped to repo-content egress. Typed failures, silent degrade when gbrain is off.",
+     "verdict": "COMPLIANT",
+     "citation": "lib/code-intelligence/gbrain-adapter.ts:105",
+     "fix": "None required; optionally document that agent-composed queries should not embed code snippets for unconsented repos."
+    },
+    {
+     "endpoint": "Sourcebot server at SOURCEBOT_URL (default http://localhost:3000) \u2014 POST /api/search + liveness probe",
+     "trigger": "user runs `gstack-code-intelligence search/options/status/suggest` with sourcebot reachable",
+     "gating": "local=true iff base URL is loopback (sourcebot-adapter.ts:61-68,86); non-loopback registerSource requires assertEgressConsent (line 105). Default URL is loopback; a remote URL exists only if the user set SOURCEBOT_URL. Status probe sends a fixed body with no user data; search sends only the query. API key sent only if user sets SOURCEBOT_API_KEY.",
+     "verdict": "COMPLIANT",
+     "citation": "lib/code-intelligence/sourcebot-adapter.ts:104"
+    },
+    {
+     "endpoint": "none (Graphify) \u2014 local tree-sitter graph via spawnSync(\"graphify\"), no network, never auto-installed",
+     "trigger": "user selects graphify and runs index/search",
+     "gating": "local=true; nothing leaves the machine; CLI must be user-installed (pip install graphifyy)",
+     "verdict": "COMPLIANT",
+     "citation": "lib/code-intelligence/graphify-adapter.ts:28"
+    },
+    {
+     "endpoint": "${GSTACK_SUPABASE_URL}/functions/v1/telemetry-ingest (POST, skill-usage events)",
+     "trigger": "backgrounded by gstack-telemetry-log after skill runs (bin/gstack-telemetry-log:264-266)",
+     "gating": "OFF by default: telemetry config tier defaults to \"off\" and both log (bin/gstack-telemetry-log:79-89) and sync (bin/gstack-telemetry-sync:43-45) exit before any network. Also exits if no Supabase URL configured (line 31). Strips local-only fields _repo_slug/_branch/repo before send (lines 82-85); anonymous tier strips installation_id (line 89). Rate-limited to once/5min.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-telemetry-sync:117"
+    },
+    {
+     "endpoint": "raw.githubusercontent.com/garrytan/gstack VERSION + git ls-remote https://github.com/garrytan/gstack.git",
+     "trigger": "operator explicitly runs `gstack-update-check --force`",
+     "gating": "Exits 0 before ANY state or network access unless --force is passed (bin/gstack-update-check:30-32), exactly as PRIVACY.md line 22-24 requires; skill preambles calling it without --force get a silent no-op. 5s timeouts, no credentials sent (GIT_TERMINAL_PROMPT=0).",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-update-check:30"
+    },
+    {
+     "endpoint": "${GSTACK_SUPABASE_URL}/functions/v1/update-check (install ping: version + os only)",
+     "trigger": "inside the --force update check slow path",
+     "gating": "Requires --force AND Supabase configured AND telemetry tier != off (bin/gstack-update-check:174) \u2014 double opt-in. Payload is {version, os} only.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-update-check:176"
+    },
+    {
+     "endpoint": "${GSTACK_SUPABASE_URL}/functions/v1/community-pulse (GET aggregated stats)",
+     "trigger": "user runs `gstack-security-dashboard` or `gstack-community-dashboard`",
+     "gating": "User-invoked read-only fetch; exits with local-only guidance if Supabase not configured (gstack-security-dashboard:30-42); sends only the anon apikey header, no user data in request.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-security-dashboard:49"
+    },
+    {
+     "endpoint": "user-registered consumer <ingest_url>/ingest-repo (POST {repo_url})",
+     "trigger": "user runs `gstack-brain-consumer test <name>`",
+     "gating": "Consumer URL + token must be explicitly registered by the user via `add`; token read from local config; only the git remote URL is sent; no-op if url/token missing (lines 153-156).",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-brain-consumer:161"
+    },
+    {
+     "endpoint": "Supabase Management API (default https://api.supabase.com) \u2014 project provisioning",
+     "trigger": "user chooses the Supabase path in /setup-gbrain and runs the provisioner",
+     "gating": "Dies immediately without the user's own SUPABASE_ACCESS_TOKEN (line 91, typed die_auth); typed failure codes for 401/402; endpoint overridable only via env for tests.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-gbrain-supabase-provision:142"
+    },
+    {
+     "endpoint": "user-supplied remote gbrain MCP URL (initialize + tools/list probe)",
+     "trigger": "user/skill runs `gstack-gbrain-mcp-verify <url>` while wiring a remote gbrain",
+     "gating": "URL is an explicit argument; bearer consumed from GBRAIN_MCP_TOKEN env only (never argv, no ps/history exposure); typed NETWORK/AUTH/MALFORMED classes; probe body contains no repo content.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-gbrain-mcp-verify:77"
+    },
+    {
+     "endpoint": "github.com (curl --head reachability + git clone garrytan/gbrain)",
+     "trigger": "user runs the gbrain installer (`gstack-gbrain-install`, /setup-gbrain path)",
+     "gating": "Explicit user install action; sends nothing but the clone request.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-gbrain-install:87"
+    },
+    {
+     "endpoint": "user-configured git remote of ~/.gstack (curated brain memory push)",
+     "trigger": "preamble at skill start/end runs `gstack-brain-sync --once` (automatic)",
+     "gating": "OFF by default: artifacts_sync_mode defaults to off and both enqueue (bin/gstack-brain-enqueue:37-39) and sync (bin/gstack-brain-sync:73) no-op; also requires a user-created ~/.gstack git repo with origin (brain setup/restore). Pushes only allowlisted ~/.gstack paths (.brain-allowlist), never project repo content.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-brain-sync:73"
+    },
+    {
+     "endpoint": "user-supplied brain remote URL (git clone to staging)",
+     "trigger": "user runs `gstack-brain-restore <url>`",
+     "gating": "Explicit URL argument; refuses to overwrite a mismatched existing remote; validates repo shape before adoption.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-brain-restore:81"
+    },
+    {
+     "endpoint": "GitHub via gh CLI (repo create) + git ls-remote/push of the artifacts repo",
+     "trigger": "user runs the interactive `gstack-artifacts-init` setup",
+     "gating": "Fully interactive, user picks host and confirms; creates a PRIVATE repo (--private, line 134); pushes only the artifacts repo scaffold the user just approved.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-artifacts-init:134"
+    },
+    {
+     "endpoint": "GitHub/GitLab API via gh/glab + git fetch origin (PR queue + VERSION lookups on the user's own repo)",
+     "trigger": "/ship version resolution (`gstack-next-version`), user-initiated",
+     "gating": "Standard authenticated dev tooling against the repo's own origin; reads PR metadata only, writes nothing.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-next-version:154"
+    },
+    {
+     "endpoint": "Claude/GPT/Gemini provider CLIs (prompt content) via model benchmark adapters",
+     "trigger": "user runs `gstack-model-benchmark --models ... --prompt ...`",
+     "gating": "Explicit user invocation naming both providers and the exact prompt content sent \u2014 the invocation IS the approval; --dry-run resolves auth without invoking providers.",
+     "verdict": "COMPLIANT",
+     "citation": "bin/gstack-model-benchmark:14"
+    },
+    {
+     "endpoint": "Braintrust cloud dashboard (benchmark prompts, outputs, scores uploaded by the braintrust SDK)",
+     "trigger": "user runs `gstack-model-benchmark` while BRAINTRUST_API_KEY happens to be in the environment",
+     "gating": "noSendLogs = !process.env.BRAINTRUST_API_KEY \u2014 key PRESENCE alone flips upload on. Disclosed in output (`upload: ON \u2014 BRAINTRUST_API_KEY set`, bin/gstack-model-benchmark:165) and local-by-default without the key, but PRIVACY.md's own principle is \"A key present in the environment is not consent\" (PRIVACY.md:28). A user with an ambient Braintrust key for unrelated work uploads benchmark content without an affirmative choice.",
+     "verdict": "NEEDS_REVIEW",
+     "citation": "lib/model-benchmark/braintrust-eval.ts:114",
+     "fix": "Require an explicit opt-in in addition to the key: an `--upload` flag or persisted `gstack-config get braintrust_upload` check; keep noSendLogs=true when the key is present but the opt-in is absent, and print how to enable."
+    },
+    {
+     "endpoint": "Context.dev provider (via bin/gstack -> runtime/cli.js)",
+     "trigger": "user runs `gstack context ...` operations",
+     "gating": "Blocked unless persisted selection=context AND network.consent===true (runtime/context.js:371-407,525); typed CONTEXT_BLOCKED failure; public-URL-only gate per PRIVACY.md. `context select host|local-browser|none` persists with consent false.",
+     "verdict": "COMPLIANT",
+     "citation": "runtime/context.js:375"
+    },
+    {
+     "endpoint": "LOCAL listeners (not egress): chrome-cdp binds 127.0.0.1 only; gstack-ios-qa-daemon is loopback-only by default, tailnet listener requires explicit --tailnet flag",
+     "trigger": "user launches chrome-cdp or the iOS QA daemon",
+     "gating": "chrome-cdp: --remote-allow-origins=http://127.0.0.1 (bin/chrome-cdp:54). iOS daemon: loopback default, beyond-loopback only via explicit --tailnet, matching PRIVACY.md's pre-existing-Tailscale-only rule (bin/gstack-ios-qa-daemon:6-8).",
+     "verdict": "COMPLIANT",
+     "citation": "bin/chrome-cdp:54"
+    }
+   ],
+   "notes": "Greps run to prove coverage: (1) `grep -rnE \"fetch\\(|https?://|curl |wget |axios|WebSocket|EventSource|net\\.connect|tls\\.connect|http\\.request|https\\.request\" bin/` \u2014 17 files hit, every hit triaged above (gstack-team-init and gstack-artifacts-url hits are heredoc/doc text or pure string parsing, not executed network calls; gstack-gbrain-detect hit is a comment). (2) `grep -rnE \"git push|git clone|git fetch|ls-remote|gh |npx |bun install|npm install|ngrok|tailscale|open \" bin/` \u2014 network-reaching child processes triaged (bin/dev-setup runs `bun install` but is contributor-only dev tooling, user-invoked). (3) `grep -rnE \"fetch\\(|net\\.connect|axios|WebSocket|EventSource|dns\\.|\\.request\\(\" bin/*.ts lib/gbrain-exec.ts lib/gstack-decision-semantic.ts` \u2014 zero hits (all bin TS files are local spawn/file work). (4) `grep -n \"postinstall|preinstall|prepare\" package.json` \u2014 no install hooks. (5) Listener sweep `listen|0.0.0.0|Bun.serve|createServer` across bin/ \u2014 only chrome-cdp (127.0.0.1) and the ios-qa-daemon launcher (loopback default, --tailnet explicit). (6) Full read of lib/code-intelligence/{contract,selection,picker,suggest}.ts and all three adapters. The core P0 requirement holds: no code-intelligence provider is selected by default (selection.ts EMPTY has provider:null), callers degrade to grep/file-only, and non-local providers throw typed PROVIDER_NOT_CONSENTED without per-repo consent, enforced both in the CLI (bin/gstack-code-intelligence:139-141) and in the adapters (assertEgressConsent). The single flag is Braintrust upload in the new model-benchmark path, where env-key presence alone enables cloud upload \u2014 disclosed in output but at odds with PRIVACY.md's \"a key present in the environment is not consent\" principle; small fix (explicit --upload or config key). gstack-open-url merely hands a URL to the user's own default browser (local action). No auto-update pings (update-check is --force-gated), no ngrok in this surface, no telemetry on by default."
+  },
+  {
+   "surface": "generated-skills-instructions (skills/*/SKILL.md, skills/*/references/**, skills/.compat/, compat/)",
+   "verdict": "GATED_OK",
+   "egressPoints": [
+    {
+     "endpoint": "github.com / objects.githubusercontent.com / release-assets.githubusercontent.com (signed runtime manifest + component tarballs)",
+     "trigger": "User approves an optional-capability setup; agent runs `node references/support/runtime-bootstrap.mjs preview|install` per RUNTIME.md",
+     "gating": "Strong: `options` is local-only; RUNTIME.md requires disclosure + STOP before the one uncached manifest GET (skills/plan/references/RUNTIME.md:8), preview consent is explicitly not install consent (:12), install requires `--yes` after reprinting the exact plan (runtime-bootstrap.mjs:193, code BOOTSTRAP_CONSENT_REQUIRED); download hosts hard-allowlisted (:56-60), https-only + SHA-256 + optional Cosign verify (:648, :202-204); typed BOOTSTRAP_* failure codes. Identical copy in all 6 skills.",
+     "verdict": "COMPLIANT",
+     "citation": "skills/plan/references/support/runtime-bootstrap.mjs:27"
+    },
+    {
+     "endpoint": "Context.dev (public URL scrape/extraction)",
+     "trigger": "Public-web research when the user selects Context.dev in the WEB-CONTEXT choice flow",
+     "gating": "Off by default; explicit selection via `gstack context setup` with hidden key prompt; public URLs only; never cookies/tokens/repo content; `host|local-browser|none` persist without granting consent; skill text explicitly forbids inferring choice or consent",
+     "verdict": "COMPLIANT",
+     "citation": "skills/plan/references/WEB-CONTEXT.md:4"
+    },
+    {
+     "endpoint": "OpenAI (plan/diff content via user's Codex CLI) \u2014 autoplan dual-voice",
+     "trigger": "User invokes `$plan --mode Full chain --module autoplan`; Codex voices then run automatically",
+     "gating": "WEAK: 'run codex (always yes)' is classified Mechanical and auto-decided SILENTLY (autoplan.md:149); the only gates are codex binary present, auth present, and `codex_reviews` config which DEFAULTS TO ENABLED (`|| echo enabled`, autoplan.md:317). No per-run consent, no first-run notice, no redact scan before plan/diff content leaves the machine. PRIVACY.md's own stance is 'a key present in the environment is not consent'; here CLI-auth presence is treated as standing consent.",
+     "verdict": "NEEDS_REVIEW",
+     "fix": "Add a persisted one-time consent (AskUserQuestion, decision-store) before the first Codex dispatch per repo, or flip `codex_reviews` default to disabled-until-selected; run gstack-redact scan-at-sink on the prompt file before dispatch.",
+     "citation": "skills/plan/references/legacy/autoplan.md:149"
+    },
+    {
+     "endpoint": "OpenAI (branch diff + prompt via `codex review`) \u2014 /review Deep outside voice",
+     "trigger": "User requests deep review / `/codex`; module dispatches the full branch diff to the Codex CLI",
+     "gating": "User-invoked module; stops without binary/auth (typed stops, codex.md:76,103); filesystem boundary prefix keeps Codex out of skill dirs (:173); auto-detect mode asks the user what Codex should do (:144). BUT no `gstack-redact` scan-at-sink before the diff leaves the machine \u2014 spec/ship/cso/document-release all scan before their external sinks; codex.md has zero redact invocations, so a secret in the diff ships to OpenAI unscanned.",
+     "verdict": "NEEDS_REVIEW",
+     "fix": "Insert the standard {{REDACT_INVOCATION_BLOCK:codex}} scan on the exact prompt/diff bytes before `codex review`/`codex exec` in Steps 2A/2B/2C.",
+     "citation": "skills/review/references/legacy/codex.md:194"
+    },
+    {
+     "endpoint": "Anthropic (branch diff via `claude -p`) \u2014 /review Deep outside voice on non-Claude hosts",
+     "trigger": "User requests deep review / `/claude`; module pipes the diff to the user's Claude CLI",
+     "gating": "User-invoked; stops without CLI/auth; nested Claude is tool-less (`--tools \"\"`, `--disable-slash-commands`) or read-only in consult mode. Same gap as codex.md: no redact scan on the diff before dispatch.",
+     "verdict": "NEEDS_REVIEW",
+     "fix": "Same scan-at-sink redact step on the prompt file before `claude -p`.",
+     "citation": "skills/review/references/legacy/claude.md:201"
+    },
+    {
+     "endpoint": "Anthropic/OpenAI/Google model APIs (benchmark prompts) \u2014 eval/benchmark backend",
+     "trigger": "User invokes `$qa --module benchmark-models`",
+     "gating": "Mandatory dry-run showing adapter auth status before any real call; explicit provider choice via AskUserQuestion; STOP if zero providers authed; per-provider cost shown every run; uses only the user's own existing auth",
+     "verdict": "COMPLIANT",
+     "citation": "skills/qa/references/legacy/benchmark-models.md:137"
+    },
+    {
+     "endpoint": "User's GBrain database (repo content; Supabase or local PGLite) + supabase.com Management API",
+     "trigger": "User invokes setup-gbrain / sync-gbrain memory modules",
+     "gating": "Interactive wizard: engine choice via AskUserQuestion, explicit full-account-token warning with revocation URL (setup-gbrain.md:244-250), cloud-visibility trade-off named (:167); sync requires prior setup, URL-managed reclone needs explicit `--allow-reclone` (sync-gbrain.md:376). CODE-INTELLIGENCE.md adds per-repo egress consent before indexing (plan/references/CODE-INTELLIGENCE.md:15).",
+     "verdict": "COMPLIANT",
+     "citation": "skills/plan/references/legacy/setup-gbrain.md:244"
+    },
+    {
+     "endpoint": "GBrain/Sourcebot/Graphify code-intelligence providers",
+     "trigger": "One-time indexing offer for large repos before specialist work",
+     "gating": "No provider by default; grep/file-store fallback always valid; explicit `select` + separate per-repo `consent` command before any off-machine indexing; decline persisted, never re-asked, never auto-installed",
+     "verdict": "COMPLIANT",
+     "citation": "skills/plan/references/CODE-INTELLIGENCE.md:15"
+    },
+    {
+     "endpoint": "ngrok tunnel (exposes local browse daemon) \u2014 legacy pair-agent",
+     "trigger": "User explicitly invokes pair-agent and selects the different-machine option",
+     "gating": "Explicit pairing action = consent; if ngrok missing/unauthed the module STOPs and walks the user through their own install/auth (pair-agent.md:171-203); tunnel listener is the deny-default scoped-token surface per PRIVACY.md's retained legacy-tunnel allowance",
+     "verdict": "COMPLIANT",
+     "citation": "skills/qa/references/legacy/pair-agent.md:148"
+    },
+    {
+     "endpoint": "Host-native WebSearch (landscape/competitor/error research)",
+     "trigger": "Planning/review/investigate phases that research best practices or error patterns",
+     "gating": "Host-provided tool under host authority; dispatchers require reading WEB-CONTEXT.md (stored public-web choice A/B/C/D) before public-web work; graceful skip when unavailable; investigate.md mandates sanitizing hostnames/IPs/paths/identifiers from error text before searching (investigate.md:137)",
+     "verdict": "COMPLIANT",
+     "citation": "skills/plan/references/legacy/office-hours.md:390"
+    },
+    {
+     "endpoint": "GitHub/GitLab (git push, gh pr/issue create, releases) via user's authenticated gh/glab",
+     "trigger": "Ship/spec/document-release workflows after user authorization",
+     "gating": "Dispatcher rule: pushes/PRs/merges/deploys 'require affirmative authority from the user' in all 5 dispatchers (e.g. skills/ship/SKILL.md:32); spec.md and pr-body/release-body scan the exact byte file with gstack-redact before `gh issue create`/PR body (spec.md:222,352; sections/document-release/release-body.md:248); EXTERNAL-EFFECTS.md wraps each push/PR/deploy in durable idempotent effects with no auto-retry",
+     "verdict": "COMPLIANT",
+     "citation": "skills/plan/references/legacy/spec.md:352"
+    },
+    {
+     "endpoint": "User's own production URL (curl health checks + local-browser monitoring)",
+     "trigger": "canary / land-and-deploy / setup-deploy post-deploy verification the user requested",
+     "gating": "URL supplied by the user; deploy itself authority-gated; monitoring is read-only GETs against the user's own site via the local browser",
+     "verdict": "COMPLIANT",
+     "citation": "skills/ship/references/legacy/land-and-deploy.md:912"
+    },
+    {
+     "endpoint": "Apple (App Store Connect uploads, API-key mint at appstoreconnect.apple.com) + brew (fastlane install) + optional npx snapai / image-gen API with user's own key",
+     "trigger": "User authorizes an Apple release in the up-front authorization moment",
+     "gating": "Single explicit authorization question covers the journey; sign-in is user-typed `fastlane spaceauth` (password/2FA go directly to Apple); credentials 0600, never argv/echoed; upload/submit are durable external effects; store-asset generation asked once via AskUserQuestion. Note: `brew install fastlane` proceeds on a one-line announcement, not a question \u2014 disclosed and covered by the blanket release authorization, but it is a network install without a dedicated prompt.",
+     "verdict": "COMPLIANT",
+     "citation": "skills/ship/references/APPLE-RELEASE.md:6"
+    },
+    {
+     "endpoint": "npm registry via `npx skills add time-attack/gstack/skills` (standard installer)",
+     "trigger": "User-invoked skill update/upgrade or a compat stub pointing at a missing dispatcher",
+     "gating": "User-invoked, Markdown-only, matches PRIVACY.md's installer row; gstack-upgrade module explicitly never enrolls a host or infers Context consent",
+     "verdict": "COMPLIANT",
+     "citation": "skills/ship/references/legacy/gstack-upgrade.md:10"
+    },
+    {
+     "endpoint": "Remote images referenced by user Markdown (make-pdf)",
+     "trigger": "User passes `--allow-network` to make-pdf",
+     "gating": "Off by default (offline posture, visible placeholder, 'no tracking pixels fetch at print time'); explicit flag is the consent",
+     "verdict": "COMPLIANT",
+     "citation": "skills/make-pdf/SKILL.md:192"
+    },
+    {
+     "endpoint": "GitHub (swift-syntax package fetch) during first SwiftPM build of gen-accessors-tool",
+     "trigger": "ios-qa accessor generation inside the consented `ios` capability workflow",
+     "gating": "Pinned public dependency fetched by the user's own Swift toolchain during a user-selected iOS QA flow; sends no user data",
+     "verdict": "COMPLIANT",
+     "citation": "skills/qa/assets/ios-qa/scripts/gen-accessors-tool/Package.swift:24"
+    },
+    {
+     "endpoint": "LOCAL listeners (noted, not egress): browser-provider-smoke.mjs readiness fixture; ios-qa StateServer; ios-qa daemon tailnet mode",
+     "trigger": "Browser readiness journey; ios-qa device bridge; explicit `--tailnet` flag",
+     "gating": "Smoke fixture binds 127.0.0.1 only with per-run random token (browser-provider-smoke.mjs:6,67); StateServer is loopback dual-stack with an explicit 'Never bind 0.0.0.0 or ::' invariant (StateServer.swift.template:104); the ONLY beyond-loopback bind is the ios-qa daemon's Tailscale-interface listener, opt-in via `--tailnet`, identity-checked against tailscaled, fails closed (ios-qa.md:143-149) \u2014 matches PRIVACY.md's pre-existing-Tailscale allowance",
+     "verdict": "COMPLIANT",
+     "citation": "skills/plan/references/support/browser-provider-smoke.mjs:6"
+    },
+    {
+     "endpoint": "Telemetry / auto-update pings",
+     "trigger": "None",
+     "gating": "No egress telemetry exists in the surface: every dispatch site is pinned with `_TEL=off # Canonical execution does not emit GStack telemetry`; analytics/eureka files are local `~/.gstack/*.jsonl` reads; office-hours states 'Canonical execution does not write engagement analytics or telemetry'; no passive release/update check anywhere in skills/ or compat/",
+     "verdict": "COMPLIANT",
+     "citation": "skills/review/references/legacy/codex.md:80"
+    }
+   ],
+   "notes": "Greps run (all over skills/ + compat/, 274 + 49 files): `https?://`; `curl|wget|fetch(|axios|WebSocket|EventSource|ngrok|tunnel`; `ws://|wss://`; `telemetry|update.check|phone.home|analytics|posthog|sentry|track`; `npx|npm install|brew install|pip install|bun add|go install`; `WebSearch|WebFetch|web_fetch`; `api.openai|api.anthropic|generativelanguage|googleapis`; `gstack-redact`; `0.0.0.0|bind|listen|NWListener`; `consent|approve|STOP` per hot module; `gh release|git push|gh pr|gh issue`; `send|upload|post`; find for package.json/lockfiles (none \u2014 so no postinstall hooks) and all executable scripts (.mjs/.sh/.ts/.js). Support scripts (runtime-bootstrap.mjs, browser-provider-smoke.mjs, browser-choice.mjs, question-registry.ts, redact-patterns.ts) are byte-identical across all 6 skill trees (md5-verified), so one audit covers all copies; browser-choice.mjs and question-registry.ts and redact-patterns.ts contain no network calls (redact-patterns' https strings are detection regexes). Top-level reference contracts (RUNTIME, WEB-CONTEXT, CODE-INTELLIGENCE, BROWSER-PROVIDERS, THIRD-PARTY-ACTIONS, AUTHORITY-POLICY, EXTERNAL-EFFECTS) are identical across trees and uniformly consent-first. compat/ (47 aliases + README) and skills/.compat/ stubs are routing-only, zero judgment, zero network beyond suggesting the standard installer. No hardcoded model-API endpoints, no cloud browser, no alternate iOS driver, no auto-update ping found. The three NEEDS_REVIEW items share one root cause: the retained outside-voice paths (codex.md, claude.md, autoplan dual-voice) ship repo diffs/plan content to OpenAI/Anthropic with CLI-auth-presence as the effective consent and no gstack-redact scan-at-sink \u2014 inconsistent with both PRIVACY.md's 'a key present in the environment is not consent' stance and the repo's own redaction doctrine that names codex dispatch as a guarded sink. Worst is autoplan's silent 'run codex (always yes)' with codex_reviews defaulting to enabled. Recommended single fix: a persisted per-repo first-dispatch consent + the standard redact invocation block at all three sinks."
+  }
+ ],
+ "needsReview": [
+  {
+   "surface": "browse-server-and-tunnel (browse/src/: server.ts, ngrok tunn",
+   "endpoint": "https://frugpmstpnojnhfyimgv.supabase.co/functions/v1/telemetry-ingest (curl POST, batched JSONL)",
+   "trigger": "browse/src/security.ts logAttempt() fire-and-forget spawns bin/gstack-telemetry-log on prompt-injection attack_attempt events; that script background-spawns bin/gstack-telemetry-sync which uploads",
+   "gating": "Off by default and consent-gated at two layers: gstack-telemetry-log exits 0 when `gstack-config get telemetry` is off (default \"off\", bin/gstack-config:35; invalid values coerce to off), and gstack-telemetry-sync re-checks the tier and exits when off. Uploads strip _repo_slug/_branch/repo fields; error_message is redaction-engine-scrubbed fail-closed before it ever touches disk. HOWEVER two semantics need review: (1) security.ts:471 comment claims \"anonymous \u2192 local only\" but gstack-telemetry-sync uploads for the anonymous tier too (it only strips installation_id) \u2014 behavior/doc mismatch on what the user consented to; (2) security_url_domain uploads the RAW domain of the visited page where an attack was detected (payloadHash is salted, urlDomain is not), which is browsing data leaving the machine under an opt-in that PRIVACY.md frames as \"minimal legacy telemetry\".",
+   "verdict": "NEEDS_REVIEW",
+   "citation": "bin/gstack-telemetry-sync:117, browse/src/security.ts:490, bin/gstack-telemetry-log:265",
+   "fix": "Either make the anonymous tier genuinely local-only (add `[ \"$TIER\" = \"anonymous\" ] && exit 0` to gstack-telemetry-sync) or fix the stale comment in security.ts:471 and the user-facing tier docs so consent matches behavior; consider hashing or eTLD+1-truncating security_url_domain before upload."
+  },
+  {
+   "surface": "browse-server-and-tunnel (browse/src/: server.ts, ngrok tunn",
+   "endpoint": "fonts.googleapis.com and api.fontshare.com (font CSS + woff fetched by the built-in welcome page)",
+   "trigger": "Starting the daemon in headed mode auto-navigates the browser to http://127.0.0.1:<port>/welcome (server.ts:2503-2510); the served page then loads third-party fonts",
+   "gating": "NOT gated \u2014 fires by default on every headed start with no user direction or consent. Only leaks IP/User-Agent to two font CDNs (no user data, cookies, or page content), but it is a network call the user did not direct, which sits outside the contract's \"navigation requests to sites the user directs it to\" carve-out.",
+   "verdict": "NEEDS_REVIEW",
+   "citation": "browse/src/welcome.html:7, browse/src/server.ts:2509",
+   "fix": "Inline/self-host the DM Sans, JetBrains Mono, and Satoshi fonts in welcome.html (or fall back to a system font stack) so headed startup makes zero third-party requests."
+  },
+  {
+   "surface": "design-cli (design/src/ \u2014 DELETED at HEAD in 9053324a; audit",
+   "endpoint": "https://api.openai.com/* via stale leftover binary design/dist/design (63MB, built Jul 21, embeds api.openai.com x10 + v1/responses + v1/chat/completions; zero tracker strings)",
+   "trigger": "Only if an operator or agent executes the stale untracked binary directly; still key-gated and user-invoked exactly like the deleted source it was compiled from",
+   "gating": "Untracked + gitignored (.gitignore:3 dist/), not shipped, not referenced by runtime/install.js, not referenced by any generated skill in skills/ or compat/. But the dead resolver below would mark it DESIGN_READY if a stale template regenerated.",
+   "verdict": "NEEDS_REVIEW",
+   "citation": "design/dist/design (untracked artifact); .gitignore:3",
+   "fix": "Delete design/dist/ locally and add a gstack-upgrade/migrations/ cleanup step so existing installs remove the orphaned binary (removal commit de-wired it but left the artifact on disk)."
+  },
+  {
+   "surface": "design-cli (design/src/ \u2014 DELETED at HEAD in 9053324a; audit",
+   "endpoint": "Indirect: skill text emitted by generateDesignSetup/generateDesignMockup instructs agents to probe for design/dist/design and run `$D generate` (OpenAI egress) if found",
+   "trigger": "Would fire only if a template used the {{DESIGN_SETUP}}/{{DESIGN_MOCKUP}} tokens AND the stale binary exists. No tracked .tmpl at HEAD uses either token (only an untracked worktree artifact .claude/worktrees/agent-adf86e2bc2bd7e729/office-hours/SKILL.md.tmpl does); office-hours/SKILL.md.tmpl and generated skills/ + compat/ trees are clean.",
+   "gating": "Dead code at HEAD \u2014 registered in scripts/resolvers/index.ts:66-67 but unreferenced by any tracked template. Probe itself degrades to DESIGN_NOT_AVAILABLE when the binary is absent.",
+   "verdict": "NEEDS_REVIEW",
+   "citation": "scripts/resolvers/design.ts:729, scripts/resolvers/design.ts:774, scripts/resolvers/index.ts:66",
+   "fix": "Delete generateDesignSetup/generateDesignMockup from scripts/resolvers/design.ts and their DESIGN_SETUP/DESIGN_MOCKUP registrations in scripts/resolvers/index.ts (the removal commit de-wired templates but left the resolvers). Also fix stale setup help text at setup:31 which still advertises 'design, pdf, diagram' capabilities the installer no longer provides."
+  },
+  {
+   "surface": "ios-daemon (ios-qa/daemon/ \u2014 12 src files, 10 test files, no",
+   "endpoint": "dns.lookup / dns.resolve6 of '<device-name>.coredevice.local'",
+   "trigger": "Tunnel IPv6 resolution fallback when devicectl info details yields no address during bootstrap",
+   "gating": "Primary path (dns.lookup/getaddrinfo) resolves via local mDNSResponder. The last-resort legacyResolve6 path uses c-ares, which sends the .local query as unicast DNS to the configured resolver \u2014 a device-name-derived hostname can leave the machine to the LAN/upstream DNS server. No user content, no consent gate on this specific fallback; code comments say it ESERVFAILs on recent macOS and is kept for backwards compat",
+   "verdict": "NEEDS_REVIEW",
+   "citation": "ios-qa/daemon/src/devicectl.ts:67-73,279-281; call site tunnel-bootstrap.ts:120-126",
+   "fix": "Delete the legacyResolve6 fallback (devicectl.ts:61-73, resolveTunnelIPv6 step 3) or gate it behind an explicit env opt-in; the dns.lookup mDNS path already covers real hardware"
+  },
+  {
+   "surface": "cli-utilities-and-code-intel (bin/ CLI utilities + gstack-co",
+   "endpoint": "Braintrust cloud dashboard (benchmark prompts, outputs, scores uploaded by the braintrust SDK)",
+   "trigger": "user runs `gstack-model-benchmark` while BRAINTRUST_API_KEY happens to be in the environment",
+   "gating": "noSendLogs = !process.env.BRAINTRUST_API_KEY \u2014 key PRESENCE alone flips upload on. Disclosed in output (`upload: ON \u2014 BRAINTRUST_API_KEY set`, bin/gstack-model-benchmark:165) and local-by-default without the key, but PRIVACY.md's own principle is \"A key present in the environment is not consent\" (PRIVACY.md:28). A user with an ambient Braintrust key for unrelated work uploads benchmark content without an affirmative choice.",
+   "verdict": "NEEDS_REVIEW",
+   "citation": "lib/model-benchmark/braintrust-eval.ts:114",
+   "fix": "Require an explicit opt-in in addition to the key: an `--upload` flag or persisted `gstack-config get braintrust_upload` check; keep noSendLogs=true when the key is present but the opt-in is absent, and print how to enable."
+  },
+  {
+   "surface": "generated-skills-instructions (skills/*/SKILL.md, skills/*/r",
+   "endpoint": "OpenAI (plan/diff content via user's Codex CLI) \u2014 autoplan dual-voice",
+   "trigger": "User invokes `$plan --mode Full chain --module autoplan`; Codex voices then run automatically",
+   "gating": "WEAK: 'run codex (always yes)' is classified Mechanical and auto-decided SILENTLY (autoplan.md:149); the only gates are codex binary present, auth present, and `codex_reviews` config which DEFAULTS TO ENABLED (`|| echo enabled`, autoplan.md:317). No per-run consent, no first-run notice, no redact scan before plan/diff content leaves the machine. PRIVACY.md's own stance is 'a key present in the environment is not consent'; here CLI-auth presence is treated as standing consent.",
+   "verdict": "NEEDS_REVIEW",
+   "citation": "skills/plan/references/legacy/autoplan.md:149",
+   "fix": "Add a persisted one-time consent (AskUserQuestion, decision-store) before the first Codex dispatch per repo, or flip `codex_reviews` default to disabled-until-selected; run gstack-redact scan-at-sink on the prompt file before dispatch."
+  },
+  {
+   "surface": "generated-skills-instructions (skills/*/SKILL.md, skills/*/r",
+   "endpoint": "OpenAI (branch diff + prompt via `codex review`) \u2014 /review Deep outside voice",
+   "trigger": "User requests deep review / `/codex`; module dispatches the full branch diff to the Codex CLI",
+   "gating": "User-invoked module; stops without binary/auth (typed stops, codex.md:76,103); filesystem boundary prefix keeps Codex out of skill dirs (:173); auto-detect mode asks the user what Codex should do (:144). BUT no `gstack-redact` scan-at-sink before the diff leaves the machine \u2014 spec/ship/cso/document-release all scan before their external sinks; codex.md has zero redact invocations, so a secret in the diff ships to OpenAI unscanned.",
+   "verdict": "NEEDS_REVIEW",
+   "citation": "skills/review/references/legacy/codex.md:194",
+   "fix": "Insert the standard {{REDACT_INVOCATION_BLOCK:codex}} scan on the exact prompt/diff bytes before `codex review`/`codex exec` in Steps 2A/2B/2C."
+  },
+  {
+   "surface": "generated-skills-instructions (skills/*/SKILL.md, skills/*/r",
+   "endpoint": "Anthropic (branch diff via `claude -p`) \u2014 /review Deep outside voice on non-Claude hosts",
+   "trigger": "User requests deep review / `/claude`; module pipes the diff to the user's Claude CLI",
+   "gating": "User-invoked; stops without CLI/auth; nested Claude is tool-less (`--tools \"\"`, `--disable-slash-commands`) or read-only in consult mode. Same gap as codex.md: no redact scan on the diff before dispatch.",
+   "verdict": "NEEDS_REVIEW",
+   "citation": "skills/review/references/legacy/claude.md:201",
+   "fix": "Same scan-at-sink redact step on the prompt file before `claude -p`."
+  }
+ ]
+}

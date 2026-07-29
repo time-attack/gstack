@@ -6,8 +6,11 @@
  * plus operational metrics (latency/tokens/cost) the CLIs report and Braintrust
  * doesn't measure for us.
  *
- * Local by default: with no BRAINTRUST_API_KEY, runs with `noSendLogs` and ships
- * nothing. Setting the key opts into the cloud dashboard (the consent boundary).
+ * Local by default: runs with `noSendLogs` and ships nothing. Uploading to the
+ * Braintrust cloud dashboard requires BOTH the BRAINTRUST_API_KEY and an
+ * explicit opt-in (`opts.upload`, set by the CLI via --upload or the
+ * `braintrust_upload` config key). A key present in the environment is not
+ * consent (docs/gstack-2/PRIVACY.md).
  * Runs under bun (the adapters use Bun.which), so invoke via `bun run`, never the
  * node-based `braintrust eval` CLI.
  */
@@ -38,6 +41,12 @@ export interface BenchOpts {
   timeoutMs?: number;
   /** Add an autoevals LLM judge (ClosedQA). Needs OPENAI_API_KEY. */
   judge?: boolean;
+  /**
+   * Explicit opt-in to upload results to the Braintrust cloud dashboard.
+   * Default false: key presence alone never uploads (PRIVACY.md — a key in
+   * the environment is not consent). Requires BRAINTRUST_API_KEY too.
+   */
+  upload?: boolean;
 }
 
 /** Per-case operational metric Braintrust doesn't capture for a CLI subprocess: wall-clock. */
@@ -111,7 +120,9 @@ export async function runProviderBenchmark(
     });
   }
 
-  const noSendLogs = !process.env.BRAINTRUST_API_KEY;
+  // Upload requires the key AND the explicit opt-in — key presence alone is
+  // not consent (docs/gstack-2/PRIVACY.md; egress-audit-2026-07-28 finding 7).
+  const noSendLogs = !(opts.upload === true && process.env.BRAINTRUST_API_KEY);
 
   const result = await Eval(
     `gstack-model-benchmark:${provider}`,

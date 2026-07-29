@@ -57,21 +57,11 @@ const defaultResolve: ResolveImpl = async (hostname) => {
   });
 };
 
-/**
- * Last-resort resolver using `dns.resolve6`. Kept for backwards compatibility
- * and for environments where mDNSResponder is not in the resolver chain. On
- * macOS 26.x (Darwin 25.x) this typically fails with ESERVFAIL — see comment
- * on `defaultResolve` above.
- */
-const legacyResolve6: ResolveImpl = async (hostname) => {
-  const dns = await import('dns');
-  return new Promise((resolve, reject) => {
-    dns.resolve6(hostname, (err, addrs) => {
-      if (err) reject(err);
-      else resolve(addrs);
-    });
-  });
-};
+// NOTE: there is deliberately no dns.resolve6 fallback. resolve6 goes through
+// c-ares, which sends the `<device-name>.coredevice.local` query as UNICAST
+// DNS to the configured resolver — device-name metadata leaving the machine
+// (privacy egress audit 2026-07-28, finding 6). The dns.lookup/mDNS path above
+// covers real hardware; on recent macOS resolve6 ESERVFAILed anyway.
 
 /**
  * List devices currently known to CoreDevice. Includes connected, paired,
@@ -251,9 +241,7 @@ export async function getDeviceTunnelIPv6(
  *   1. `devicectl device info details --json-output` (most reliable on
  *      macOS 26.x; also has the useful side-effect of bumping the tunnel).
  *   2. mDNS via `dns.lookup` (getaddrinfo path — does consult mDNSResponder
- *      on macOS, unlike `dns.resolve6`).
- *   3. mDNS via `dns.resolve6` (legacy path — kept for backwards
- *      compatibility; will ESERVFAIL on recent macOS).
+ *      on macOS, and never sends the .local name off-machine as unicast DNS).
  *
  * Returns the first address that any strategy yields, or null.
  */
@@ -262,23 +250,16 @@ export async function resolveTunnelIPv6(opts: {
   deviceName: string;
   spawn?: SpawnImpl;
   resolve?: ResolveImpl;
-  legacyResolve?: ResolveImpl;
 }): Promise<string | null> {
   const spawn = opts.spawn ?? defaultSpawn;
   const resolveLookup = opts.resolve ?? defaultResolve;
-  const resolveLegacy = opts.legacyResolve ?? legacyResolve6;
 
   // 1. devicectl-based
   const fromDevicectl = getDeviceTunnelIPv6FromDevicectl(opts.udid, spawn);
   if (fromDevicectl) return fromDevicectl;
 
   // 2. mDNS via dns.lookup
-  const fromLookup = await getDeviceTunnelIPv6(opts.deviceName, resolveLookup);
-  if (fromLookup) return fromLookup;
-
-  // 3. last-resort: legacy dns.resolve6
-  const fromLegacy = await getDeviceTunnelIPv6(opts.deviceName, resolveLegacy);
-  return fromLegacy;
+  return getDeviceTunnelIPv6(opts.deviceName, resolveLookup);
 }
 
 /**

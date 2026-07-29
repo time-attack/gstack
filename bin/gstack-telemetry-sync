@@ -43,6 +43,9 @@ fi
 TIER="$("$CONFIG_CMD" get telemetry 2>/dev/null || true)"
 TIER="${TIER:-off}"
 [ "$TIER" = "off" ] && exit 0
+# Anonymous tier is genuinely local-only: events stay in the local JSONL,
+# nothing is ever uploaded. Only the community tier syncs.
+[ "$TIER" = "anonymous" ] && exit 0
 
 # ─── Read cursor ─────────────────────────────────────────────
 CURSOR=0
@@ -83,11 +86,6 @@ while IFS= read -r LINE; do
     -e 's/,"_repo_slug":"[^"]*"//g' \
     -e 's/,"_branch":"[^"]*"//g' \
     -e 's/,"repo":"[^"]*"//g')"
-
-  # If anonymous tier, strip installation_id
-  if [ "$TIER" = "anonymous" ]; then
-    CLEAN="$(echo "$CLEAN" | sed 's/,"installation_id":"[^"]*"//g; s/,"installation_id":null//g')"
-  fi
 
   if [ "$FIRST" = "true" ]; then
     FIRST=false
