@@ -1,6 +1,7 @@
 import readline from "node:readline/promises";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { stdin as processStdin, stdout as processStdout, stderr as processStderr } from "node:process";
 import { assertPathInside, resolveGstackHome, resolveRuntimePaths, shellQuote } from "./paths.js";
@@ -945,4 +946,12 @@ function usage() {
     "  gstack cleanup [--dry-run] [--older-than-hours N]\n" +
     "  gstack upgrade --source <complete-gstack-package> --version <version> | --rollback\n" +
     "  gstack uninstall [--purge --yes]\n";
+}
+
+// `node runtime/cli.js <command>` must behave as the CLI itself — the Windows
+// setup lane invokes it directly. Without this guard the module loads, runs
+// nothing, and exits 0 with empty output. Importers (bin/gstack, tests) are
+// unaffected: their entry path differs from this module's URL.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  process.exitCode = await main();
 }
