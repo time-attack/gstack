@@ -21,6 +21,30 @@ Three live v3 one-shots are recorded here; each is immutable:
   `304c2797b145ac837c102cd93244548ee9b243edd81d3567f3319635442b006a`.
 
 The failed one-shots stay failed; the pass is a separate new one-shot under
-the fixed classifier, never a retry or relabeling of a failed run. The v3
-offline harness is green at 21 pass / 0 fail and 135 assertions; that unit
-evidence does not belong in `runs/` and does not upgrade any failed result.
+the fixed classifier, never a retry or relabeling of a failed run. The
+offline harness suite (now harness 4) is green at 32 pass / 0 fail and 183
+assertions; that unit evidence does not belong in `runs/` and does not
+upgrade any failed result.
+
+Harness-4 single-fixture host UI-launch cells (2026-07-28, all retained;
+single-fixture cells are top-level `incomplete` by construction and are
+never adversarial-parity evidence):
+
+- `2026-07-28-uilaunch-claude.json` — **failed** (consolidated-final-message
+  parser defect; harness fixed afterward). SHA-256
+  `1c82f3c2fa2a317fbd492e577c17b42207220a0cf9c3532a72541e854fa57d17`.
+- `2026-07-28-uilaunch-claude-2.json` — **fixture passed 13/13**, suite
+  `incomplete` (subset). Claude Code 2.1.220, `claude-fable-5`. SHA-256
+  `18165c6ebb01ce545e290fe032925b374e6dd861874006105b345906baa0b6fd`.
+- `2026-07-28-uilaunch-cursor.json` — **failed** (plan-mode final-message
+  conflict plus `createPlanToolCall` misclassification; harness fixed
+  afterward). SHA-256
+  `da710ac77f276bea7b09ebc9498a55468f162aac922333d92f3f298d70787541`.
+- `2026-07-28-uilaunch-cursor-2.json` — **fixture passed 13/13**, suite
+  `incomplete` (subset). Cursor 2026.07.23-e383d2b, `composer-2.5`. SHA-256
+  `5c06d15f49aec0ffa0fac550af9ba7c3c92aacd83fafdb888ad6fefcbfa3bef3`.
+- `2026-07-28-uilaunch-pi.json` — **failed**: activation and safe
+  report-only behavior with correct structured output, but only 2/5
+  required reads. Genuine host+model compliance gap (pi 0.80.9,
+  `gemini-2.5-pro`); retained as-is. SHA-256
+  `04c9d9bc9cb70ef2c841de2e075fb130e8f7d4b333eb47bb7f3a0cc94b3e3b74`.
