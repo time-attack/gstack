@@ -3,9 +3,11 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import {
+  EVIDENCE_SCHEMA_VERSION,
   FINAL_OUTPUT_SCHEMA,
   FIXTURE_ROOT,
   HARNESS_VERSION,
+  HOST_ADAPTERS,
   LIVE_OPT_IN,
   PUBLIC_SKILLS,
   REPOSITORY_ROOT,
@@ -495,9 +497,9 @@ describe('GStack 2 raw-prompt Codex host adversarial harness', () => {
     const root = temporaryRoot('gstack-host-evidence-');
     const output = path.join(root, 'failed.json');
     const evidence = {
-      schema_version: 1,
+      schema_version: EVIDENCE_SCHEMA_VERSION,
       harness_version: HARNESS_VERSION,
-      suite: 'gstack2-codex-host-adversarial',
+      suite: 'gstack2-host-adversarial',
       status: 'failed',
       claim: 'FAILED — retained',
       run_id: 'one-shot',
@@ -512,9 +514,9 @@ describe('GStack 2 raw-prompt Codex host adversarial harness', () => {
       required_fixture_count: 4,
       canonical_tree_sha256: 'b'.repeat(64),
       output_schema_sha256: 'c'.repeat(64),
-      host: { hash: 'd'.repeat(64), platform: 'test', arch: 'test', release: 'test', codex_version: 'test', codex_executable_sha256: 'e'.repeat(64), admin_skills_sha256: null },
+      host: { id: 'codex', hash: 'd'.repeat(64), platform: 'test', arch: 'test', release: 'test', version: 'test', executable_sha256: 'e'.repeat(64), admin_skills_sha256: null },
       model: { id: 'test-model', hash: 'f'.repeat(64) },
-      invocation: { sandbox: 'read-only', flags: [] },
+      invocation: { sandbox: 'read-only', skill_root: '.agents/skills', env_isolation: 'isolated-home', prompt_transform: 'raw', flags: [] },
       fixtures: [],
     } as SuiteEvidence;
 
@@ -599,5 +601,142 @@ describe('GStack 2 raw-prompt Codex host adversarial harness', () => {
     expect(result.exitCode).toBe(2);
     expect(result.stderr.toString()).toContain(`${LIVE_OPT_IN}=1`);
     expect(fs.existsSync(output)).toBe(false);
+  });
+});
+
+describe('GStack 2 host adapter layer (harness 4)', () => {
+  const qaFixture = () => loadFixtures().find((entry) => entry.skill === 'qa')!;
+
+  test('the Codex adapter stays byte-identical to the harness-3 invocation', () => {
+    const codex = HOST_ADAPTERS.codex;
+    const fixture = qaFixture();
+    expect(codex.buildPrompt(fixture, '{"schema":true}')).toBe(fixture.prompt);
+    expect(codex.argv('$qa raw', '/schema.json', 'gpt-test'))
+      .toEqual(buildCodexArgs('$qa raw', '/schema.json', 'gpt-test'));
+    expect([...codex.skillRoot]).toEqual(['.agents', 'skills']);
+  });
+
+  test('non-Codex adapters rewrite $skill to /skill and append the schema contract', () => {
+    const fixture = qaFixture();
+    const schemaJson = JSON.stringify(FINAL_OUTPUT_SCHEMA);
+    for (const id of ['claude', 'cursor', 'pi']) {
+      const prompt = HOST_ADAPTERS[id].buildPrompt(fixture, schemaJson);
+      expect(prompt.startsWith('/qa ')).toBe(true);
+      expect(prompt).toContain(fixture.prompt.slice('$qa '.length));
+      expect(prompt).toContain(schemaJson);
+    }
+    expect(() => HOST_ADAPTERS.claude.buildPrompt({ ...fixture, prompt: 'qa without token' }, schemaJson))
+      .toThrow();
+  });
+
+  test('per-host skill roots and executables match the standard installer matrix', () => {
+    expect([...HOST_ADAPTERS.claude.skillRoot]).toEqual(['.claude', 'skills']);
+    expect([...HOST_ADAPTERS.cursor.skillRoot]).toEqual(['.agents', 'skills']);
+    expect([...HOST_ADAPTERS.pi.skillRoot]).toEqual(['.pi', 'skills']);
+    expect(HOST_ADAPTERS.cursor.executable).toBe('cursor-agent');
+    expect(HOST_ADAPTERS.claude.executable).toBe('claude');
+    expect(HOST_ADAPTERS.pi.executable).toBe('pi');
+  });
+
+  test('materializes the canonical tree under a host-specific skill root', () => {
+    const root = temporaryRoot('gstack-host-claude-root-');
+    const fixture = qaFixture();
+    const repo = path.join(root, 'repo');
+    materializeFixtureRepo(
+      fixture,
+      path.join(REPOSITORY_ROOT, 'skills'),
+      repo,
+      HOST_ADAPTERS.claude.skillRoot,
+    );
+    expect(fs.existsSync(path.join(repo, '.claude', 'skills', 'qa', 'references', 'legacy', 'qa-only.md'))).toBe(true);
+    expect(fs.existsSync(path.join(repo, '.agents'))).toBe(false);
+  });
+
+  test('Claude native Read tool events count as reads; Write attempts are file changes', () => {
+    const lines = [
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: '/tmp/repo/.claude/skills/qa/references/legacy/qa-only.md' } }] } }),
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'module body' }] } }),
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 't2', name: 'Write', input: { file_path: 'src/worker.ts', content: 'x' } }] } }),
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'done' }] } }),
+      JSON.stringify({ type: 'result', is_error: false, usage: { input_tokens: 7, cache_read_input_tokens: 2, output_tokens: 3 } }),
+    ];
+    const parsed = parseHostEventLines(lines, [], HOST_ADAPTERS.claude.handleEvent);
+    expect(parsed.read_events).toEqual([
+      { id: 't1', tool: 'Read', path: '/tmp/repo/.claude/skills/qa/references/legacy/qa-only.md', ok: true },
+    ]);
+    expect(parsed.file_change_events).toHaveLength(1);
+    expect(parsed.file_change_events[0].item_type).toBe('tool:Write');
+    expect(parsed.file_change_events[0].paths).toContain('src/worker.ts');
+    expect(parsed.agent_messages).toEqual(['done']);
+    expect(parsed.tokens).toEqual({ input: 7, cached_input: 2, output: 3, reasoning_output: 0 });
+  });
+
+  test('a failed Claude Read result is not accepted as a successful read', () => {
+    const lines = [
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: 'fixtures/qa/app.log' } }] } }),
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', is_error: true, content: 'file not found' }] } }),
+    ];
+    const parsed = parseHostEventLines(lines, [], HOST_ADAPTERS.claude.handleEvent);
+    expect(parsed.read_events).toEqual([{ id: 't1', tool: 'Read', path: 'fixtures/qa/app.log', ok: false }]);
+  });
+
+  test('Cursor tool_call events map to reads, commands, and file-change attempts', () => {
+    const lines = [
+      JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'c1', tool_call: { readToolCall: { args: { path: 'fixtures/qa/app.log' } } } }),
+      JSON.stringify({ type: 'tool_call', subtype: 'completed', call_id: 'c1', tool_call: { readToolCall: { args: { path: 'fixtures/qa/app.log' }, result: { success: { content: 'log' } } } } }),
+      JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'c2', tool_call: { writeToolCall: { args: { path: 'src/worker.ts', contents: 'x' } } } }),
+      JSON.stringify({ type: 'tool_call', subtype: 'completed', call_id: 'c3', tool_call: { frobnicateToolCall: { args: { thing: 'x' }, result: { success: {} } } } }),
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'done' }] } }),
+      JSON.stringify({ type: 'result', is_error: false, usage: { inputTokens: 5, cacheReadTokens: 1, outputTokens: 2 } }),
+    ];
+    const parsed = parseHostEventLines(lines, [], HOST_ADAPTERS.cursor.handleEvent);
+    expect(parsed.read_events).toEqual([{ id: 'c1', tool: 'readToolCall', path: 'fixtures/qa/app.log', ok: true }]);
+    expect(parsed.file_change_events).toHaveLength(1);
+    expect(parsed.file_change_events[0].paths).toContain('src/worker.ts');
+    expect(parsed.command_events.some((event) => event.command.startsWith('cursor-tool:frobnicateToolCall'))).toBe(true);
+    expect(parsed.agent_messages).toEqual(['done']);
+    expect(parsed.tokens).toEqual({ input: 5, cached_input: 1, output: 2, reasoning_output: 0 });
+  });
+
+  test('Pi tool executions map to reads, commands, and file-change attempts', () => {
+    const lines = [
+      JSON.stringify({ type: 'tool_execution_start', toolCallId: 'p1', toolName: 'read', args: { path: 'fixtures/qa/expected.txt' } }),
+      JSON.stringify({ type: 'tool_execution_end', toolCallId: 'p1', toolName: 'read', result: { content: [{ type: 'text', text: 'expected' }] }, isError: false }),
+      JSON.stringify({ type: 'tool_execution_start', toolCallId: 'p2', toolName: 'edit', args: { path: 'src/worker.ts' } }),
+      JSON.stringify({ type: 'tool_execution_start', toolCallId: 'p3', toolName: 'bash', args: { command: 'ls fixtures' } }),
+      JSON.stringify({ type: 'tool_execution_end', toolCallId: 'p3', toolName: 'bash', result: 'fixtures', isError: false }),
+      JSON.stringify({ type: 'message_end', message: { role: 'assistant', usage: { input: 4, cacheRead: 2, output: 1 }, content: [{ type: 'text', text: 'done' }] } }),
+    ];
+    const parsed = parseHostEventLines(lines, [], HOST_ADAPTERS.pi.handleEvent);
+    expect(parsed.read_events).toEqual([{ id: 'p1', tool: 'read', path: 'fixtures/qa/expected.txt', ok: true }]);
+    expect(parsed.file_change_events).toHaveLength(1);
+    expect(parsed.file_change_events[0].item_type).toBe('tool:edit');
+    expect(parsed.command_events.filter((event) => event.phase === 'completed')).toHaveLength(1);
+    expect(parsed.agent_messages).toEqual(['done']);
+    expect(parsed.tokens).toEqual({ input: 4, cached_input: 2, output: 1, reasoning_output: 0 });
+  });
+
+  test('native tool reads satisfy required read paths in a fixture assessment', () => {
+    const fixture = qaFixture();
+    const lines = fixture.expect.required_read_paths.flatMap((requiredPath, index) => [
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: `r${index}`, name: 'Read', input: { file_path: `/tmp/repo/.claude/skills/qa/${requiredPath}` } }] } }),
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: `r${index}`, content: `contents ${index}` }] } }),
+    ]);
+    const root = temporaryRoot('gstack-host-native-read-');
+    fs.writeFileSync(path.join(root, 'stable.txt'), 'stable');
+    const snapshot = snapshotTree(root);
+    const assessment = assessFixture({
+      fixture,
+      exitCode: 0,
+      timedOut: false,
+      events: parseHostEventLines(lines, [], HOST_ADAPTERS.claude.handleEvent),
+      structured: structured(),
+      structuredError: null,
+      before: snapshot,
+      after: snapshot,
+      stderr: '',
+    });
+    expect(assessment.passed).toBe(true);
+    expect(assessment.successful_read_paths).toEqual(fixture.expect.required_read_paths);
   });
 });

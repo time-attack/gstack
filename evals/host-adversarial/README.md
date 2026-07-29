@@ -77,9 +77,33 @@ There are no automatic retries. The evidence file is created before the first mo
 Run all four one-shot fixtures only after explicitly authorizing live model use:
 
 ```bash
-GSTACK_RUN_CODEX_HOST_ADVERSARIAL=1 \
+GSTACK_RUN_HOST_ADVERSARIAL=1 \
   bun run scripts/gstack2/host-adversarial.ts \
-  --model <exact-codex-model-id>
+  --model <exact-model-id> [--host codex|claude|cursor|pi]
 ```
 
-Use `--output <new-file>` to choose the evidence path or `--fixture <id>` for a deliberately scoped one-shot probe. A subset run remains top-level `incomplete` even when its selected fixture passes. A file under `evals/host-adversarial/runs/` is a full-suite pass only when its top-level status is `passed`, all four fixture IDs are present, and every recorded assertion passed.
+(Before harness 4 the opt-in variable was `GSTACK_RUN_CODEX_HOST_ADVERSARIAL`;
+retained artifacts produced under that name are unchanged.)
+
+Use `--output <new-file>` to choose the evidence path or `--fixture <id>` for a deliberately scoped one-shot probe. A subset run remains top-level `incomplete` even when its selected fixture passes — it is a host UI-launch/activation cell, not adversarial-parity evidence. A file under `evals/host-adversarial/runs/` is a full-suite pass only when its top-level status is `passed`, all four fixture IDs are present, and every recorded assertion passed.
+
+## Harness 4: per-host adapters
+
+Harness 4 generalizes the Codex-only harness behind a `HostAdapter` layer
+(`--host codex|claude|cursor|pi`). The Codex adapter is byte-identical to
+harness 3 (same argv, environment allowlist, raw `$skill` prompt, and event
+classification), so the retained passing artifact stays reproducible. The
+other adapters:
+
+- rewrite the activation token from Codex's `$skill` to the slash form the
+  probed hosts activate on (`/qa`, `/debug`, ...), and append the final-output
+  JSON Schema to the prompt because only Codex supports `--output-schema`;
+  evidence records both the effective and canonical prompt hashes;
+- map each host's native tool events (Claude `Read`, Cursor `readToolCall`,
+  Pi `read`, plus their write/edit and shell tools) onto the same
+  read/command/file-change evidence contract; a filename mention is still not
+  a read — only a completed, non-error tool event with output counts;
+- record the host's sandbox posture, skill-root placement, and environment
+  isolation in the evidence file (`cursor-agent` keeps the operator HOME
+  because its local login cannot be staged; Claude and Pi run with isolated
+  homes and key passthrough).

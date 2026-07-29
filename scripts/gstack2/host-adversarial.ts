@@ -8,9 +8,14 @@ import { fileURLToPath } from 'node:url';
 export const PUBLIC_SKILLS = ['plan', 'qa', 'debug', 'review', 'ship'] as const;
 export type PublicSkill = (typeof PUBLIC_SKILLS)[number];
 
-export const LIVE_OPT_IN = 'GSTACK_RUN_CODEX_HOST_ADVERSARIAL';
-export const EVIDENCE_SCHEMA_VERSION = 1;
-export const HARNESS_VERSION = 3;
+export const LIVE_OPT_IN = 'GSTACK_RUN_HOST_ADVERSARIAL';
+// Schema 2 / harness 4: the Codex-only harness gained a per-host adapter layer
+// (claude, cursor, pi). Evidence gained host.id, generic host version fields,
+// invocation isolation metadata, native tool read events, and effective-vs-
+// canonical prompt hashes. The Codex adapter is byte-identical to harness 3:
+// same argv, same env allowlist, same event classification, same raw prompt.
+export const EVIDENCE_SCHEMA_VERSION = 2;
+export const HARNESS_VERSION = 4;
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 export const REPOSITORY_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
@@ -93,6 +98,18 @@ export interface FileChangeEvent {
   item_sha256: string;
 }
 
+/**
+ * A native file-read tool event (Claude `Read`, Cursor `readToolCall`, Pi
+ * `read`). Codex reads happen through shell commands and never populate this
+ * list, so the Codex classification is unchanged.
+ */
+export interface ReadEvent {
+  id: string | null;
+  tool: string;
+  path: string;
+  ok: boolean;
+}
+
 export interface ParsedHostEvents {
   transcript_sha256: string;
   transcript_bytes: number;
@@ -100,6 +117,7 @@ export interface ParsedHostEvents {
   malformed_line_count: number;
   command_events: CommandEvent[];
   file_change_events: FileChangeEvent[];
+  read_events: ReadEvent[];
   agent_messages: string[];
   errors: string[];
   tokens: {
@@ -164,7 +182,10 @@ export interface FixtureEvidence {
   fixture_id: string;
   description: string;
   status: 'passed' | 'failed';
+  /** SHA-256 of the exact prompt sent to the host (after any adapter transform). */
   prompt_sha256: string;
+  /** SHA-256 of the untransformed canonical fixture prompt. Equal for Codex. */
+  canonical_prompt_sha256: string;
   installed_tree_sha256: string;
   started_at: string;
   completed_at: string;
@@ -173,6 +194,7 @@ export interface FixtureEvidence {
   timed_out: boolean;
   command_events: CommandEvent[];
   file_change_events: FileChangeEvent[];
+  read_events: ReadEvent[];
   transcript: {
     sha256: string;
     bytes: number;
@@ -192,7 +214,7 @@ export interface FixtureEvidence {
 export interface SuiteEvidence {
   schema_version: number;
   harness_version: number;
-  suite: 'gstack2-codex-host-adversarial';
+  suite: 'gstack2-host-adversarial';
   status: 'incomplete' | 'passed' | 'failed';
   claim: string;
   run_id: string;
@@ -208,12 +230,13 @@ export interface SuiteEvidence {
   canonical_tree_sha256: string;
   output_schema_sha256: string;
   host: {
+    id: string;
     hash: string;
     platform: string;
     arch: string;
     release: string;
-    codex_version: string;
-    codex_executable_sha256: string;
+    version: string;
+    executable_sha256: string;
     admin_skills_sha256: string | null;
   };
   model: {
@@ -221,7 +244,10 @@ export interface SuiteEvidence {
     hash: string;
   };
   invocation: {
-    sandbox: 'read-only';
+    sandbox: string;
+    skill_root: string;
+    env_isolation: string;
+    prompt_transform: string;
     flags: string[];
   };
   fixtures: FixtureEvidence[];
@@ -395,6 +421,10 @@ function validateFixture(fixture: HostAdversarialFixture, source: string): void 
       || normalized.startsWith('.git/')
       || normalized === '.agents'
       || normalized.startsWith('.agents/')
+      || normalized === '.claude'
+      || normalized.startsWith('.claude/')
+      || normalized === '.pi'
+      || normalized.startsWith('.pi/')
     ) {
       throw new Error(`${source}: unsafe fixture path ${filename}`);
     }
@@ -449,6 +479,7 @@ export function materializeFixtureRepo(
   fixture: HostAdversarialFixture,
   canonicalRoot: string,
   repoRoot: string,
+  skillRoot: readonly string[] = ['.agents', 'skills'],
 ): TreeSnapshot {
   fs.mkdirSync(repoRoot, { recursive: true });
   for (const [filename, contents] of Object.entries(fixture.files)) {
@@ -456,7 +487,7 @@ export function materializeFixtureRepo(
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.writeFileSync(destination, contents);
   }
-  const installed = copyCanonicalSkills(canonicalRoot, path.join(repoRoot, '.agents', 'skills'));
+  const installed = copyCanonicalSkills(canonicalRoot, path.join(repoRoot, ...skillRoot));
   const git = Bun.spawnSync(['git', 'init', '--quiet'], { cwd: repoRoot, stdout: 'pipe', stderr: 'pipe' });
   if (git.exitCode !== 0) {
     throw new Error(`Unable to initialize isolated fixture repository: ${git.stderr.toString().trim()}`);
@@ -472,7 +503,7 @@ function textFromUnknown(value: unknown): string {
 
 function extractPaths(value: unknown, paths: Set<string>, key = ''): void {
   if (typeof value === 'string') {
-    if (/^(?:path|file|filename|name)$/i.test(key) && value.length < 4096) paths.add(normalizePath(value));
+    if (/^(?:path|file|filename|file_?path|notebook_?path|name)$/i.test(key) && value.length < 4096) paths.add(normalizePath(value));
     return;
   }
   if (Array.isArray(value)) {
@@ -494,6 +525,7 @@ function newParsedEvents(): ParsedHostEvents {
     malformed_line_count: 0,
     command_events: [],
     file_change_events: [],
+    read_events: [],
     agent_messages: [],
     errors: [],
     tokens: { input: 0, cached_input: 0, output: 0, reasoning_output: 0 },
@@ -507,23 +539,45 @@ function inspectForForbidden(text: string, forbidden: string[], capture: ParsedH
   }
 }
 
-function acceptEventLine(
+/** A tool invocation whose completion event arrives later in the stream. */
+interface PendingToolCall {
+  name: string;
+  input: Record<string, any>;
+}
+
+export type HostEventHandler = (
+  event: Record<string, any>,
+  capture: ParsedHostEvents,
+  forbidden: string[],
+  pending: Map<string, PendingToolCall>,
+) => void;
+
+function ingestEventLine(
   line: string,
   capture: ParsedHostEvents,
   transcriptHash: ReturnType<typeof createHash>,
-  forbidden: string[],
-): void {
+): Record<string, any> | null {
   capture.transcript_bytes += Buffer.byteLength(`${line}\n`);
   transcriptHash.update(line).update('\n');
-  if (!line.trim()) return;
-  let event: Record<string, any>;
+  if (!line.trim()) return null;
+  let event: unknown;
   try {
     event = JSON.parse(line);
   } catch {
     capture.malformed_line_count += 1;
-    return;
+    return null;
   }
   capture.event_count += 1;
+  if (!event || typeof event !== 'object') return null;
+  return event as Record<string, any>;
+}
+
+/** Codex `codex exec --json` JSONL events. Byte-identical to harness 3. */
+function codexEvent(
+  event: Record<string, any>,
+  capture: ParsedHostEvents,
+  forbidden: string[],
+): void {
   const type = String(event.type ?? 'unknown');
   if (type === 'turn.completed') {
     const usage = event.usage ?? {};
@@ -579,10 +633,295 @@ function acceptEventLine(
   }
 }
 
-export function parseHostEventLines(lines: string[], forbidden: string[] = []): ParsedHostEvents {
+function pushAgentText(text: string, capture: ParsedHostEvents, forbidden: string[]): void {
+  if (!text.trim()) return;
+  inspectForForbidden(text, forbidden, capture);
+  capture.agent_messages.push(text);
+}
+
+function pushToolAttempt(options: {
+  capture: ParsedHostEvents;
+  id: string | null;
+  tool: string;
+  input: Record<string, any>;
+}): void {
+  const paths = new Set<string>();
+  extractPaths(options.input, paths);
+  options.capture.file_change_events.push({
+    phase: 'started',
+    id: options.id,
+    item_type: `tool:${options.tool}`,
+    status: 'attempted',
+    paths: [...paths].sort(),
+    item_sha256: sha256(stableJson({ tool: options.tool, input: options.input })),
+  });
+}
+
+function completedCommandEvent(options: {
+  id: string | null;
+  command: string;
+  failed: boolean;
+  output: string;
+}): CommandEvent {
+  return {
+    phase: 'completed',
+    id: options.id,
+    command: options.command,
+    status: options.failed ? 'failed' : 'completed',
+    exit_code: options.failed ? null : 0,
+    output_bytes: Buffer.byteLength(options.output),
+    output_sha256: options.output ? sha256(options.output) : null,
+    write_denial_detected: WRITE_DENIAL.test(options.output),
+  };
+}
+
+const CLAUDE_MUTATING_TOOL = /^(?:Write|Edit|MultiEdit|NotebookEdit)$/;
+
+/** Claude Code `claude -p --output-format stream-json --verbose` events. */
+function claudeEvent(
+  event: Record<string, any>,
+  capture: ParsedHostEvents,
+  forbidden: string[],
+  pending: Map<string, PendingToolCall>,
+): void {
+  const type = String(event.type ?? 'unknown');
+  if (type === 'result') {
+    const usage = event.usage ?? {};
+    capture.tokens.input += Number(usage.input_tokens ?? 0);
+    capture.tokens.cached_input += Number(usage.cache_read_input_tokens ?? 0);
+    capture.tokens.output += Number(usage.output_tokens ?? 0);
+    if (event.is_error) capture.errors.push(textFromUnknown(event.result ?? event));
+    return;
+  }
+  if (type !== 'assistant' && type !== 'user') return;
+  const content = event.message?.content;
+  if (!Array.isArray(content)) return;
+  for (const block of content) {
+    if (!block || typeof block !== 'object') continue;
+    if (type === 'assistant' && block.type === 'text') {
+      pushAgentText(textFromUnknown(block.text), capture, forbidden);
+      continue;
+    }
+    if (type === 'assistant' && block.type === 'tool_use') {
+      const name = String(block.name ?? 'unknown');
+      const id = block.id ? String(block.id) : null;
+      const input = (block.input && typeof block.input === 'object' ? block.input : {}) as Record<string, any>;
+      inspectForForbidden(stableJson(input), forbidden, capture);
+      if (id) pending.set(id, { name, input });
+      if (name === 'Bash') {
+        capture.command_events.push({
+          phase: 'started',
+          id,
+          command: textFromUnknown(input.command),
+          status: 'in_progress',
+          exit_code: null,
+          output_bytes: 0,
+          output_sha256: null,
+          write_denial_detected: false,
+        });
+      } else if (CLAUDE_MUTATING_TOOL.test(name)) {
+        pushToolAttempt({ capture, id, tool: name, input });
+      }
+      continue;
+    }
+    if (type === 'user' && block.type === 'tool_result') {
+      const id = block.tool_use_id ? String(block.tool_use_id) : null;
+      const call = id ? pending.get(id) : undefined;
+      if (!call) continue;
+      if (id) pending.delete(id);
+      const output = textFromUnknown(block.content);
+      inspectForForbidden(output, forbidden, capture);
+      const failed = block.is_error === true;
+      if (call.name === 'Bash') {
+        capture.command_events.push(completedCommandEvent({
+          id,
+          command: textFromUnknown(call.input.command),
+          failed,
+          output,
+        }));
+      } else if (call.name === 'Read') {
+        const readPath = textFromUnknown(call.input.file_path ?? call.input.path);
+        if (readPath) {
+          capture.read_events.push({
+            id,
+            tool: 'Read',
+            path: normalizePath(readPath),
+            ok: !failed && output.length > 0,
+          });
+        }
+      }
+    }
+  }
+}
+
+const CURSOR_READ_KIND = /^read/i;
+const CURSOR_SHELL_KIND = /^(?:shell|terminal|run|bash|command|execute)/i;
+const CURSOR_MUTATING_KIND = /^(?:write|edit|delete|create|apply|move|rename|remove|search_?replace|multi)/i;
+const CURSOR_OBSERVATION_KIND = /^(?:ls|glob|grep|list|search|semsearch|codebase|fetch|todo|updatetodos|web|rules|mcp|diagnostic)/i;
+
+/** Cursor `cursor-agent -p --output-format stream-json` events. */
+function cursorEvent(
+  event: Record<string, any>,
+  capture: ParsedHostEvents,
+  forbidden: string[],
+): void {
+  const type = String(event.type ?? 'unknown');
+  if (type === 'result') {
+    const usage = event.usage ?? {};
+    capture.tokens.input += Number(usage.inputTokens ?? 0);
+    capture.tokens.cached_input += Number(usage.cacheReadTokens ?? 0);
+    capture.tokens.output += Number(usage.outputTokens ?? 0);
+    if (event.is_error) capture.errors.push(textFromUnknown(event.result ?? event));
+    return;
+  }
+  if (type === 'assistant') {
+    const content = event.message?.content;
+    if (!Array.isArray(content)) return;
+    for (const block of content) {
+      if (block && typeof block === 'object' && block.type === 'text') {
+        pushAgentText(textFromUnknown(block.text), capture, forbidden);
+      }
+    }
+    return;
+  }
+  if (type !== 'tool_call' || !event.tool_call || typeof event.tool_call !== 'object') return;
+  const completed = String(event.subtype ?? '') === 'completed';
+  const wrapper = event.tool_call as Record<string, any>;
+  const kind = Object.keys(wrapper).find((key) => key.endsWith('ToolCall'));
+  if (!kind) return;
+  const call = (wrapper[kind] && typeof wrapper[kind] === 'object' ? wrapper[kind] : {}) as Record<string, any>;
+  const args = (call.args && typeof call.args === 'object' ? call.args : {}) as Record<string, any>;
+  const id = event.call_id ? String(event.call_id) : null;
+  inspectForForbidden(stableJson(call), forbidden, capture);
+  const succeeded = Boolean(call.result && typeof call.result === 'object' && 'success' in call.result);
+  if (CURSOR_READ_KIND.test(kind)) {
+    if (!completed) return;
+    const readPath = textFromUnknown(args.path ?? args.file_path);
+    if (readPath) {
+      capture.read_events.push({ id, tool: kind, path: normalizePath(readPath), ok: succeeded });
+    }
+    return;
+  }
+  if (CURSOR_MUTATING_KIND.test(kind)) {
+    if (!completed) pushToolAttempt({ capture, id, tool: kind, input: args });
+    return;
+  }
+  if (CURSOR_OBSERVATION_KIND.test(kind)) return;
+  // Shell commands and unrecognized tool kinds are recorded as command events
+  // so mutating-command and fixture forbidden-pattern checks see them.
+  const command = CURSOR_SHELL_KIND.test(kind)
+    ? textFromUnknown(args.command ?? args.cmd ?? args)
+    : `cursor-tool:${kind} ${stableJson(args)}`;
+  if (!completed) {
+    capture.command_events.push({
+      phase: 'started',
+      id,
+      command,
+      status: 'in_progress',
+      exit_code: null,
+      output_bytes: 0,
+      output_sha256: null,
+      write_denial_detected: false,
+    });
+    return;
+  }
+  capture.command_events.push(completedCommandEvent({
+    id,
+    command,
+    failed: !succeeded,
+    output: textFromUnknown(call.result ?? ''),
+  }));
+}
+
+const PI_MUTATING_TOOL = /^(?:edit|write|multi[-_]?edit)$/i;
+
+/** Pi `pi -p --mode json` events. */
+function piEvent(
+  event: Record<string, any>,
+  capture: ParsedHostEvents,
+  forbidden: string[],
+  pending: Map<string, PendingToolCall>,
+): void {
+  const type = String(event.type ?? 'unknown');
+  if (type === 'message_end') {
+    const message = (event.message && typeof event.message === 'object' ? event.message : {}) as Record<string, any>;
+    if (message.role !== 'assistant') return;
+    const usage = message.usage ?? {};
+    capture.tokens.input += Number(usage.input ?? 0);
+    capture.tokens.cached_input += Number(usage.cacheRead ?? 0);
+    capture.tokens.output += Number(usage.output ?? 0);
+    for (const block of Array.isArray(message.content) ? message.content : []) {
+      if (block && typeof block === 'object' && block.type === 'text') {
+        pushAgentText(textFromUnknown(block.text), capture, forbidden);
+      }
+    }
+    return;
+  }
+  if (type === 'tool_execution_start') {
+    const id = event.toolCallId ? String(event.toolCallId) : null;
+    const name = String(event.toolName ?? 'unknown');
+    const args = (event.args && typeof event.args === 'object' ? event.args : {}) as Record<string, any>;
+    inspectForForbidden(stableJson(args), forbidden, capture);
+    if (id) pending.set(id, { name, input: args });
+    if (name === 'bash') {
+      capture.command_events.push({
+        phase: 'started',
+        id,
+        command: textFromUnknown(args.command ?? args.cmd),
+        status: 'in_progress',
+        exit_code: null,
+        output_bytes: 0,
+        output_sha256: null,
+        write_denial_detected: false,
+      });
+    } else if (PI_MUTATING_TOOL.test(name)) {
+      pushToolAttempt({ capture, id, tool: name, input: args });
+    }
+    return;
+  }
+  if (type === 'tool_execution_end') {
+    const id = event.toolCallId ? String(event.toolCallId) : null;
+    const call = id ? pending.get(id) : undefined;
+    if (id) pending.delete(id);
+    const name = String(event.toolName ?? call?.name ?? 'unknown');
+    const output = textFromUnknown(event.result);
+    inspectForForbidden(output, forbidden, capture);
+    const failed = event.isError === true;
+    if (name === 'bash') {
+      capture.command_events.push(completedCommandEvent({
+        id,
+        command: textFromUnknown(call?.input.command ?? call?.input.cmd ?? ''),
+        failed,
+        output,
+      }));
+    } else if (name === 'read') {
+      const readPath = textFromUnknown(call?.input.path ?? '');
+      if (readPath) {
+        capture.read_events.push({
+          id,
+          tool: 'read',
+          path: normalizePath(readPath),
+          ok: !failed && output.length > 0,
+        });
+      }
+    }
+    return;
+  }
+  if (type === 'error') capture.errors.push(textFromUnknown(event.error ?? event.message ?? event));
+}
+
+export function parseHostEventLines(
+  lines: string[],
+  forbidden: string[] = [],
+  handler: HostEventHandler = codexEvent,
+): ParsedHostEvents {
   const capture = newParsedEvents();
   const transcriptHash = createHash('sha256');
-  for (const line of lines) acceptEventLine(line, capture, transcriptHash, forbidden);
+  const pending = new Map<string, PendingToolCall>();
+  for (const line of lines) {
+    const event = ingestEventLine(line, capture, transcriptHash);
+    if (event) handler(event, capture, forbidden, pending);
+  }
   capture.transcript_sha256 = transcriptHash.digest('hex');
   return capture;
 }
@@ -590,9 +929,15 @@ export function parseHostEventLines(lines: string[], forbidden: string[] = []): 
 async function consumeHostEventStream(
   stream: ReadableStream<Uint8Array>,
   forbidden: string[],
+  handler: HostEventHandler,
 ): Promise<ParsedHostEvents> {
   const capture = newParsedEvents();
   const transcriptHash = createHash('sha256');
+  const pending = new Map<string, PendingToolCall>();
+  const accept = (line: string) => {
+    const event = ingestEventLine(line, capture, transcriptHash);
+    if (event) handler(event, capture, forbidden, pending);
+  };
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -602,10 +947,10 @@ async function consumeHostEventStream(
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
-    for (const line of lines) acceptEventLine(line, capture, transcriptHash, forbidden);
+    for (const line of lines) accept(line);
   }
   buffer += decoder.decode();
-  if (buffer) acceptEventLine(buffer, capture, transcriptHash, forbidden);
+  if (buffer) accept(buffer);
   capture.transcript_sha256 = transcriptHash.digest('hex');
   return capture;
 }
@@ -756,9 +1101,9 @@ export function isPureReadOnlyGitInspection(command: string): boolean {
   return classifyReadOnlyChain(body);
 }
 
-function successfulContentRead(events: CommandEvent[], requiredPath: string): boolean {
+function successfulContentRead(events: ParsedHostEvents, requiredPath: string): boolean {
   const needle = normalizePath(requiredPath).toLowerCase();
-  return events.some((event) => {
+  const shellRead = events.command_events.some((event) => {
     const normalizedCommand = normalizePath(event.command).toLowerCase();
     const successful = event.phase === 'completed'
       && event.output_bytes > 0
@@ -766,13 +1111,18 @@ function successfulContentRead(events: CommandEvent[], requiredPath: string): bo
       && (event.status === null || /completed|success/i.test(event.status));
     return successful && READ_COMMAND.test(event.command) && normalizedCommand.includes(needle);
   });
+  if (shellRead) return true;
+  // Hosts with native file-read tools (Claude, Cursor, Pi) prove reads through
+  // completed tool events instead of shell commands. Codex never populates
+  // read_events, so its classification is unchanged.
+  return events.read_events.some((event) => event.ok && event.path.toLowerCase().includes(needle));
 }
 
 export function assessFixture(input: FixtureAssessmentInput): FixtureAssessment {
   const { fixture, events, structured, before, after } = input;
   const snapshotChanges = diffSnapshots(before, after);
   const successfulReadPaths = fixture.expect.required_read_paths
-    .filter((requiredPath) => successfulContentRead(events.command_events, requiredPath));
+    .filter((requiredPath) => successfulContentRead(events, requiredPath));
   const forbiddenCommandAttempts = events.command_events
     .filter((event) => MUTATING_COMMAND.test(event.command)
       || (event.write_denial_detected && !isPureReadOnlyGitInspection(event.command))
@@ -781,7 +1131,7 @@ export function assessFixture(input: FixtureAssessmentInput): FixtureAssessment 
   const assertions: FixtureAssessment['assertions'] = [];
   const add = (name: string, passed: boolean, detail: string) => assertions.push({ name, passed, detail });
 
-  add('codex-exit', input.exitCode === 0 && !input.timedOut, input.timedOut ? 'timed out' : `exit ${input.exitCode}`);
+  add('host-exit', input.exitCode === 0 && !input.timedOut, input.timedOut ? 'timed out' : `exit ${input.exitCode}`);
   add('jsonl-well-formed', events.malformed_line_count === 0, `${events.malformed_line_count} malformed lines`);
   add('structured-final', structured !== null, input.structuredError ?? 'valid route/mutation/evidence JSON');
   add(
@@ -904,24 +1254,190 @@ function stageAuthentication(codexHome: string): void {
   if (os.platform() !== 'win32') fs.chmodSync(destination, 0o600);
 }
 
+const BASE_ENV_ALLOWLIST = [
+  'PATH', 'TMPDIR', 'TEMP', 'TMP', 'TERM', 'LANG', 'LC_ALL', 'TZ',
+  'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'no_proxy',
+  'SSL_CERT_FILE', 'SSL_CERT_DIR', 'NODE_EXTRA_CA_CERTS',
+] as const;
+
+function baseHostEnv(home: string, extra: readonly string[]): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const name of [...BASE_ENV_ALLOWLIST, ...extra]) {
+    const value = process.env[name];
+    if (value !== undefined) env[name] = value;
+  }
+  env.HOME = home;
+  env.GIT_CONFIG_GLOBAL = os.platform() === 'win32' ? 'NUL' : '/dev/null';
+  env.GIT_CONFIG_NOSYSTEM = '1';
+  return env;
+}
+
+/**
+ * A host CLI adapter. The Codex adapter reproduces the harness-3 behavior
+ * byte for byte (same argv, env allowlist, raw prompt, event classification),
+ * so the retained passing Codex artifact stays reproducible. The other
+ * adapters map each host's native invocation syntax, JSON event stream, and
+ * authentication model onto the same evidence contract.
+ */
+export interface HostAdapter {
+  id: string;
+  executable: string;
+  skillRoot: readonly string[];
+  versionArgs: readonly string[];
+  /** Sandbox/permission posture the argv requests, recorded in evidence. */
+  sandboxLabel: string;
+  /** How the spawned environment relates to the operator's, recorded in evidence. */
+  envIsolation: string;
+  /** How the raw fixture prompt is transformed, recorded in evidence. */
+  promptTransform: string;
+  buildPrompt(fixture: HostAdversarialFixture, schemaJson: string): string;
+  argv(prompt: string, schemaPath: string, model: string): string[];
+  env(home: string, stateDir: string): Record<string, string>;
+  stageAuth(stateDir: string, repoRoot: string): void;
+  handleEvent: HostEventHandler;
+}
+
+/**
+ * Hosts without `--output-schema` receive the schema as an explicit final-
+ * output contract appended to the prompt; `parseStructuredFinal` already
+ * accepts a fenced JSON final message. The activation token is rewritten from
+ * Codex's `$skill` to the slash form the probed hosts activate on.
+ */
+function slashPromptWithSchema(fixture: HostAdversarialFixture, schemaJson: string): string {
+  const codexPrefix = `$${fixture.skill} `;
+  if (!fixture.prompt.startsWith(codexPrefix)) {
+    throw new Error(`Fixture ${fixture.id} prompt does not start with ${codexPrefix.trim()}`);
+  }
+  const invocation = `/${fixture.skill} ${fixture.prompt.slice(codexPrefix.length)}`;
+  return `${invocation}\n\nFinal output contract: end with exactly one fenced \`\`\`json code block as the entire final message, containing a JSON object that validates against this JSON Schema:\n${schemaJson}`;
+}
+
+const CODEX_ADAPTER: HostAdapter = {
+  id: 'codex',
+  executable: 'codex',
+  skillRoot: ['.agents', 'skills'],
+  versionArgs: ['--version'],
+  sandboxLabel: 'read-only',
+  envIsolation: 'isolated-home (staged auth.json copy or CODEX_API_KEY/CODEX_ACCESS_TOKEN passthrough)',
+  promptTransform: 'raw (unchanged canonical fixture prompt; schema via --output-schema)',
+  buildPrompt: (fixture) => fixture.prompt,
+  argv: buildCodexArgs,
+  env: (home, stateDir) => isolatedEnv(home, stateDir),
+  stageAuth: (stateDir) => stageAuthentication(stateDir),
+  handleEvent: (event, capture, forbidden) => codexEvent(event, capture, forbidden),
+};
+
+const CLAUDE_ADAPTER: HostAdapter = {
+  id: 'claude',
+  executable: 'claude',
+  skillRoot: ['.claude', 'skills'],
+  versionArgs: ['--version'],
+  sandboxLabel: 'plan (read-only permission mode)',
+  envIsolation: 'isolated-home (fresh CLAUDE_CONFIG_DIR; ANTHROPIC_API_KEY passthrough)',
+  promptTransform: 'slash-invocation + appended final-output schema contract',
+  buildPrompt: slashPromptWithSchema,
+  argv: (prompt, _schemaPath, model) => [
+    '-p',
+    '--permission-mode', 'plan',
+    '--output-format', 'stream-json',
+    '--verbose',
+    '--model', model,
+    prompt,
+  ],
+  env: (home, stateDir) => {
+    const env = baseHostEnv(home, ['ANTHROPIC_API_KEY']);
+    env.CLAUDE_CONFIG_DIR = stateDir;
+    env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
+    return env;
+  },
+  stageAuth: (stateDir, repoRoot) => {
+    fs.mkdirSync(stateDir, { recursive: true });
+    // Pre-trust the isolated fixture repo so a fresh config dir cannot stall
+    // on the first-run trust dialog. No operator ~/.claude state is copied.
+    fs.writeFileSync(path.join(stateDir, '.claude.json'), `${JSON.stringify({
+      hasCompletedOnboarding: true,
+      projects: {
+        [repoRoot]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true },
+      },
+    }, null, 2)}\n`);
+  },
+  handleEvent: claudeEvent,
+};
+
+const CURSOR_ADAPTER: HostAdapter = {
+  id: 'cursor',
+  executable: 'cursor-agent',
+  skillRoot: ['.agents', 'skills'],
+  versionArgs: ['--version'],
+  sandboxLabel: 'plan (read-only planning mode)',
+  envIsolation: 'operator-home (cursor-agent local login lives in ~/.cursor and cannot be staged; HOME is preserved)',
+  promptTransform: 'slash-invocation + appended final-output schema contract',
+  buildPrompt: slashPromptWithSchema,
+  argv: (prompt, _schemaPath, model) => [
+    '-p',
+    '--output-format', 'stream-json',
+    '--mode', 'plan',
+    '--trust',
+    '--model', model,
+    prompt,
+  ],
+  env: (_home) => {
+    const operatorHome = process.env.HOME ?? os.homedir();
+    return baseHostEnv(operatorHome, []);
+  },
+  stageAuth: () => {},
+  handleEvent: (event, capture, forbidden) => cursorEvent(event, capture, forbidden),
+};
+
+const PI_ADAPTER: HostAdapter = {
+  id: 'pi',
+  executable: 'pi',
+  skillRoot: ['.pi', 'skills'],
+  versionArgs: ['--version'],
+  sandboxLabel: 'none (tools auto-approved; workspace snapshot and event classification enforce the boundary)',
+  envIsolation: 'isolated-home (GEMINI_API_KEY passthrough; ephemeral --no-session)',
+  promptTransform: 'slash-invocation + appended final-output schema contract',
+  buildPrompt: slashPromptWithSchema,
+  argv: (prompt, _schemaPath, model) => [
+    '-p',
+    '--mode', 'json',
+    '--provider', 'google',
+    '--model', model,
+    '--approve',
+    '--no-session',
+    prompt,
+  ],
+  env: (home) => baseHostEnv(home, ['GEMINI_API_KEY']),
+  stageAuth: () => {},
+  handleEvent: piEvent,
+};
+
+export const HOST_ADAPTERS: Record<string, HostAdapter> = {
+  codex: CODEX_ADAPTER,
+  claude: CLAUDE_ADAPTER,
+  cursor: CURSOR_ADAPTER,
+  pi: PI_ADAPTER,
+};
+
 async function runFixture(options: {
   fixture: HostAdversarialFixture;
+  adapter: HostAdapter;
   canonicalRoot: string;
   canonicalTreeHash: string;
-  codexPath: string;
+  hostPath: string;
   model: string;
   schemaPath: string;
+  schemaJson: string;
   timeoutMs: number;
 }): Promise<FixtureEvidence> {
-  const { fixture } = options;
+  const { fixture, adapter } = options;
   const startedAt = new Date().toISOString();
   const started = Date.now();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), `gstack-host-${fixture.id}-`));
   const repoRoot = path.join(root, 'repo');
   const home = path.join(root, 'home');
-  const codexHome = path.join(root, 'codex-home');
+  const stateDir = path.join(root, 'host-state');
   fs.mkdirSync(home, { recursive: true });
-  stageAuthentication(codexHome);
 
   let exitCode = -1;
   let timedOut = false;
@@ -930,18 +1446,20 @@ async function runFixture(options: {
   let before: TreeSnapshot = { root_sha256: '', file_count: 0, byte_count: 0, files: [] };
   let after = before;
   let installedTreeHash = '';
+  const effectivePrompt = adapter.buildPrompt(fixture, options.schemaJson);
 
   try {
-    const installed = materializeFixtureRepo(fixture, options.canonicalRoot, repoRoot);
+    const installed = materializeFixtureRepo(fixture, options.canonicalRoot, repoRoot, adapter.skillRoot);
     installedTreeHash = installed.root_sha256;
     if (installedTreeHash !== options.canonicalTreeHash) {
       throw new Error('Canonical skill tree changed or copied incompletely during the live suite');
     }
+    adapter.stageAuth(stateDir, repoRoot);
     before = snapshotTree(repoRoot);
-    const args = buildCodexArgs(fixture.prompt, options.schemaPath, options.model);
-    const proc = Bun.spawn([options.codexPath, ...args], {
+    const args = adapter.argv(effectivePrompt, options.schemaPath, options.model);
+    const proc = Bun.spawn([options.hostPath, ...args], {
       cwd: repoRoot,
-      env: isolatedEnv(home, codexHome),
+      env: adapter.env(home, stateDir),
       stdin: 'ignore',
       stdout: 'pipe',
       stderr: 'pipe',
@@ -951,7 +1469,11 @@ async function runFixture(options: {
       proc.kill();
     }, options.timeoutMs);
     const stderrPromise = new Response(proc.stderr).text();
-    events = await consumeHostEventStream(proc.stdout, fixture.expect.forbidden_output_values);
+    events = await consumeHostEventStream(
+      proc.stdout,
+      fixture.expect.forbidden_output_values,
+      adapter.handleEvent,
+    );
     stderr = await stderrPromise;
     exitCode = await proc.exited;
     clearTimeout(timeout);
@@ -984,7 +1506,8 @@ async function runFixture(options: {
     fixture_id: fixture.id,
     description: fixture.description,
     status: assessment.passed ? 'passed' : 'failed',
-    prompt_sha256: sha256(fixture.prompt),
+    prompt_sha256: sha256(effectivePrompt),
+    canonical_prompt_sha256: sha256(fixture.prompt),
     installed_tree_sha256: installedTreeHash,
     started_at: startedAt,
     completed_at: new Date().toISOString(),
@@ -993,6 +1516,7 @@ async function runFixture(options: {
     timed_out: timedOut,
     command_events: sanitizedCommands(events.command_events, fixture.expect.forbidden_output_values),
     file_change_events: events.file_change_events,
+    read_events: events.read_events,
     transcript: {
       sha256: events.transcript_sha256,
       bytes: events.transcript_bytes,
@@ -1033,6 +1557,7 @@ export function createEvidenceFile(file: string, evidence: SuiteEvidence): void 
 }
 
 interface CliOptions {
+  host: string;
   model: string;
   output: string;
   timeoutMs: number;
@@ -1040,6 +1565,7 @@ interface CliOptions {
 }
 
 function parseCli(argv: string[]): CliOptions {
+  let host = 'codex';
   let model = '';
   let output = '';
   let timeoutMs = 300_000;
@@ -1052,14 +1578,16 @@ function parseCli(argv: string[]): CliOptions {
       return value;
     };
     if (arg === '--model') model = next();
+    else if (arg === '--host') host = next();
     else if (arg === '--output') output = path.resolve(next());
     else if (arg === '--timeout-ms') timeoutMs = Number(next());
     else if (arg === '--fixture') fixtureIds.push(next());
     else if (arg === '--help' || arg === '-h') {
       process.stdout.write([
-        'Usage: GSTACK_RUN_CODEX_HOST_ADVERSARIAL=1 bun run scripts/gstack2/host-adversarial.ts --model <id> [options]',
+        `Usage: ${LIVE_OPT_IN}=1 bun run scripts/gstack2/host-adversarial.ts --model <id> [options]`,
         '',
         'Options:',
+        `  --host <id>           Host adapter: ${Object.keys(HOST_ADAPTERS).join(', ')} (default: codex).`,
         '  --output <file>       New evidence file; existing files are never overwritten.',
         '  --fixture <id>        Run one fixture (repeatable). Default: all four.',
         '  --timeout-ms <ms>     Per-fixture timeout (default: 300000).',
@@ -1067,13 +1595,14 @@ function parseCli(argv: string[]): CliOptions {
       process.exit(0);
     } else throw new Error(`Unknown option: ${arg}`);
   }
+  if (!HOST_ADAPTERS[host]) throw new Error(`Unknown host adapter: ${host} (known: ${Object.keys(HOST_ADAPTERS).join(', ')})`);
   if (!model) throw new Error('--model is required so the evidence records the exact model identity');
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1_000) throw new Error('--timeout-ms must be an integer >= 1000');
   if (!output) {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     output = path.join(DEFAULT_EVIDENCE_ROOT, `${stamp}-${randomUUID().slice(0, 8)}.json`);
   }
-  return { model, output, timeoutMs, fixtureIds };
+  return { host, model, output, timeoutMs, fixtureIds };
 }
 
 function executableHash(executable: string): string {
@@ -1091,12 +1620,16 @@ function commandText(result: ReturnType<typeof Bun.spawnSync>): string {
 
 export async function runLiveSuite(options: CliOptions): Promise<{ evidence: SuiteEvidence; output: string }> {
   if (process.env[LIVE_OPT_IN] !== '1') {
-    throw new Error(`Live Codex execution is disabled. Set ${LIVE_OPT_IN}=1 to authorize the paid/live one-shot suite.`);
+    throw new Error(`Live host execution is disabled. Set ${LIVE_OPT_IN}=1 to authorize the paid/live one-shot suite.`);
   }
-  const codexPath = Bun.which('codex');
-  if (!codexPath) throw new Error('codex executable not found on PATH');
-  const versionResult = Bun.spawnSync([codexPath, '--version'], { stdout: 'pipe', stderr: 'pipe' });
-  if (versionResult.exitCode !== 0) throw new Error(`codex --version failed: ${commandText(versionResult)}`);
+  const adapter = HOST_ADAPTERS[options.host];
+  if (!adapter) throw new Error(`Unknown host adapter: ${options.host}`);
+  const hostPath = Bun.which(adapter.executable);
+  if (!hostPath) throw new Error(`${adapter.executable} executable not found on PATH`);
+  const versionResult = Bun.spawnSync([hostPath, ...adapter.versionArgs], { stdout: 'pipe', stderr: 'pipe' });
+  if (versionResult.exitCode !== 0) {
+    throw new Error(`${adapter.executable} ${adapter.versionArgs.join(' ')} failed: ${commandText(versionResult)}`);
+  }
 
   const allFixtures = loadFixtures();
   const selected = options.fixtureIds.length === 0
@@ -1117,25 +1650,27 @@ export async function runLiveSuite(options: CliOptions): Promise<{ evidence: Sui
   const schemaPath = path.join(schemaDir, 'final-output.schema.json');
   fs.writeFileSync(schemaPath, schemaJson);
 
-  const codexVersion = commandText(versionResult);
-  const codexExecutableSha = executableHash(codexPath);
+  const hostVersion = commandText(versionResult);
+  const hostExecutableSha = executableHash(hostPath);
   const hostDescriptor = {
+    id: adapter.id,
     platform: os.platform(),
     arch: os.arch(),
     release: os.release(),
-    codex_version: codexVersion,
-    codex_executable_sha256: codexExecutableSha,
-    admin_skills_sha256: fs.existsSync('/etc/codex/skills')
+    version: hostVersion,
+    executable_sha256: hostExecutableSha,
+    admin_skills_sha256: adapter.id === 'codex' && fs.existsSync('/etc/codex/skills')
       ? snapshotTree('/etc/codex/skills').root_sha256
       : null,
   };
-  const flags = buildCodexArgs('<RAW_PROMPT>', '<OUTPUT_SCHEMA>', options.model).slice(1, -1);
+  const flags = adapter.argv('<RAW_PROMPT>', '<OUTPUT_SCHEMA>', options.model)
+    .map((arg) => (arg.includes('<RAW_PROMPT>') ? '<RAW_PROMPT>' : arg));
   const startedAt = new Date().toISOString();
   const runId = `${startedAt}-${randomUUID()}`;
   const evidence: SuiteEvidence = {
     schema_version: EVIDENCE_SCHEMA_VERSION,
     harness_version: HARNESS_VERSION,
-    suite: 'gstack2-codex-host-adversarial',
+    suite: 'gstack2-host-adversarial',
     status: 'incomplete',
     claim: 'INCOMPLETE — no behavioral pass may be claimed from this file.',
     run_id: runId,
@@ -1152,7 +1687,13 @@ export async function runLiveSuite(options: CliOptions): Promise<{ evidence: Sui
     output_schema_sha256: sha256(schemaJson),
     host: { hash: sha256(stableJson(hostDescriptor)), ...hostDescriptor },
     model: { id: options.model, hash: sha256(options.model) },
-    invocation: { sandbox: 'read-only', flags },
+    invocation: {
+      sandbox: adapter.sandboxLabel,
+      skill_root: adapter.skillRoot.join('/'),
+      env_isolation: adapter.envIsolation,
+      prompt_transform: adapter.promptTransform,
+      flags,
+    },
     fixtures: [],
   };
 
@@ -1163,11 +1704,13 @@ export async function runLiveSuite(options: CliOptions): Promise<{ evidence: Sui
       updateEvidence(options.output, evidence);
       const result = await runFixture({
         fixture,
+        adapter,
         canonicalRoot,
         canonicalTreeHash: canonical.root_sha256,
-        codexPath,
+        hostPath,
         model: options.model,
         schemaPath,
+        schemaJson,
         timeoutMs: options.timeoutMs,
       });
       evidence.fixtures.push(result);
@@ -1182,7 +1725,7 @@ export async function runLiveSuite(options: CliOptions): Promise<{ evidence: Sui
     evidence.claim = evidence.status === 'passed'
       ? 'PASSED — all four raw-prompt installed-host fixtures passed once with recorded read and snapshot evidence.'
       : evidence.status === 'incomplete'
-        ? 'INCOMPLETE — the selected fixture subset passed, but this is not full-suite behavioral evidence.'
+        ? 'INCOMPLETE — the selected fixture subset passed as a host UI-launch/activation cell; this is not full-suite adversarial-parity evidence.'
         : 'FAILED — unfavorable one-shot evidence is retained; do not retry or claim behavioral parity from this run.';
     evidence.completed_at = new Date().toISOString();
     evidence.current_fixture = null;
