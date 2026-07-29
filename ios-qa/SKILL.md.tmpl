@@ -102,13 +102,29 @@ fi
 2. Run `swift run --package-path $GSTACK_HOME/ios-qa/scripts/gen-accessors-tool gen-accessors --input <source-dir>`.
    First invocation builds the swift-syntax dependency tree (cold: 2-5 min).
    Subsequent runs are content-hash-cached and finish in ~50ms.
-3. Show the user the accessor list and ask whether to install the DebugBridge
-   SPM dependency into their `Package.swift` (one AskUserQuestion).
+3. Show the user the accessor list and ask whether to generate the local
+   DebugBridge package and wire it into their `Package.swift` (one
+   AskUserQuestion).
 
 ## Phase 2: Bootstrap the device bridge
 
-1. Add the `DebugBridge` SPM dependency to the app's `Package.swift`. The package
-   ships three Debug-config-only library products:
+1. Generate the local `DebugBridge` package from the shipped templates. There
+   is NO published DebugBridge package to depend on — the package is rendered
+   into the app's repo (e.g. `<app-repo>/DebugBridge/`). Copy each file from
+   `$GSTACK_ROOT/ios-qa/templates/`, dropping the `.template` suffix:
+   - `Package.swift.template` → `DebugBridge/Package.swift`
+   - `StateServer.swift.template`, `DebugBridgeManager.swift.template`
+     → `DebugBridge/Sources/DebugBridgeCore/`
+   - `DebugBridgeTouch.h.template`
+     → `DebugBridge/Sources/DebugBridgeTouch/include/DebugBridgeTouch.h`
+   - `DebugBridgeTouch.m.template`
+     → `DebugBridge/Sources/DebugBridgeTouch/DebugBridgeTouch.m`
+   - `Bridges.swift.template`, `DebugOverlay.swift.template`
+     → `DebugBridge/Sources/DebugBridgeUI/`
+   Then add it to the app as a LOCAL package dependency:
+   `.package(path: "DebugBridge")` in the app's `Package.swift` (or Xcode →
+   File → Add Package Dependencies → Add Local). The package ships three
+   Debug-config-only library products:
    - `DebugBridgeCore` (Swift, cross-platform) — StateServer + bridge protocols.
    - `DebugBridgeTouch` (Objective-C, iOS-only) — KIF-derived in-process touch
      synthesis with iOS 18+ `_UIHitTestContext` SwiftUI hit-testing.
@@ -215,7 +231,8 @@ live.
 
 ## Cleanup
 
-Use `/ios-clean` to remove the DebugBridge SPM dependency and all `#if DEBUG`
+Use `/ios-clean` to remove the generated local `DebugBridge` package, its
+`.package(path: "DebugBridge")` dependency entry, and all `#if DEBUG`
 wiring before a Release build. This is a convenience flow; the structural
 Release-build guard (Package.swift `.when(configuration: .debug)` + CI
 `swift build -c release` check) is the safety-critical path.
