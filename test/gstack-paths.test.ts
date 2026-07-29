@@ -16,12 +16,40 @@ const BIN = path.join(ROOT, 'bin', 'gstack-paths');
 // HOME from USERPROFILE at shell startup if HOME is unset/empty, which
 // silently breaks the "HOME unset" test scenarios. Clearing USERPROFILE
 // alongside HOME prevents that auto-population on Windows runners.
+//
+// bin/gstack-paths execs the node runtime (`bin/gstack paths --shell`), so the
+// scrubbed env needs two Windows-only repairs:
+//   1. node.exe cannot start without SYSTEMROOT/SYSTEMDRIVE/WINDIR/COMSPEC/
+//      PATHEXT (winsock + DLL resolution). Without them the inner node dies,
+//      `$(...)` captures nothing, and every value evals to "".
+//   2. os.homedir() on win32 reads USERPROFILE, never HOME — mirror the
+//      test's HOME into USERPROFILE so HOME-derived scenarios exercise the
+//      same fallback the POSIX lanes do.
+function spawnEnv(env: Record<string, string | undefined>): Record<string, string> {
+  const base: Record<string, string | undefined> = { PATH: process.env.PATH, USERPROFILE: '' };
+  if (process.platform === 'win32') {
+    for (const key of Object.keys(process.env)) {
+      if (/^(SYSTEMROOT|SYSTEMDRIVE|WINDIR|COMSPEC|PATHEXT)$/i.test(key)) base[key] = process.env[key];
+    }
+  }
+  const merged = { ...base, ...env };
+  if (process.platform === 'win32' && merged.HOME !== undefined) merged.USERPROFILE = merged.HOME;
+  return merged as Record<string, string>;
+}
+
+// Path decisions live in runtime/paths.js (node path semantics): a POSIX
+// literal like '/tmp/home' comes back drive-prefixed and backslashed on
+// win32. Compute expectations through the same resolver; identity on POSIX.
+function resolved(posixPath: string): string {
+  return path.resolve(posixPath);
+}
+
 function run(env: Record<string, string | undefined>): Record<string, string> {
   const result = spawnSync('bash', ['-c', [
     'eval "$("$1")"',
     'printf "GSTACK_STATE_ROOT=%s\\nPLAN_ROOT=%s\\nTMP_ROOT=%s\\n" "$GSTACK_STATE_ROOT" "$PLAN_ROOT" "$TMP_ROOT"',
   ].join('\n'), 'gstack-paths-test', BIN], {
-    env: { PATH: process.env.PATH, USERPROFILE: '', ...env } as Record<string, string>,
+    env: spawnEnv(env),
     encoding: 'utf-8',
   });
   if (result.status !== 0) {
@@ -42,13 +70,13 @@ describe('gstack-paths', () => {
       CLAUDE_PLUGIN_DATA: '/tmp/plugin-data',
       HOME: '/tmp/home',
     });
-    expect(got.GSTACK_STATE_ROOT).toBe('/tmp/explicit-state');
+    expect(got.GSTACK_STATE_ROOT).toBe(resolved('/tmp/explicit-state'));
   });
 
   test('CLAUDE_PLUGIN_DATA ignored when CLAUDE_PLUGIN_ROOT is absent or non-gstack', () => {
     // Without CLAUDE_PLUGIN_ROOT, falls through to HOME path.
     const noRoot = run({ CLAUDE_PLUGIN_DATA: '/tmp/plugin-data', HOME: '/tmp/home' });
-    expect(noRoot.GSTACK_STATE_ROOT).toBe('/tmp/home/.gstack');
+    expect(noRoot.GSTACK_STATE_ROOT).toBe(resolved('/tmp/home/.gstack'));
 
     // With a CLAUDE_PLUGIN_ROOT that doesn't contain "gstack" (e.g. the codex plugin),
     // still falls through to HOME path — this is the cross-plugin contamination scenario.
@@ -57,7 +85,7 @@ describe('gstack-paths', () => {
       CLAUDE_PLUGIN_ROOT: '/tmp/openai-codex',
       HOME: '/tmp/home',
     });
-    expect(wrongRoot.GSTACK_STATE_ROOT).toBe('/tmp/home/.gstack');
+    expect(wrongRoot.GSTACK_STATE_ROOT).toBe(resolved('/tmp/home/.gstack'));
   });
 
   test('host-specific plugin paths never override the canonical runtime home', () => {
@@ -66,18 +94,18 @@ describe('gstack-paths', () => {
       CLAUDE_PLUGIN_ROOT: '/tmp/gstack-garrytan',
       HOME: '/tmp/home',
     });
-    expect(got.GSTACK_STATE_ROOT).toBe('/tmp/home/.gstack');
+    expect(got.GSTACK_STATE_ROOT).toBe(resolved('/tmp/home/.gstack'));
   });
 
   test('HOME-derived state root when GSTACK_HOME and CLAUDE_PLUGIN_DATA unset', () => {
     const got = run({ HOME: '/tmp/myhome' });
-    expect(got.GSTACK_STATE_ROOT).toBe('/tmp/myhome/.gstack');
+    expect(got.GSTACK_STATE_ROOT).toBe(resolved('/tmp/myhome/.gstack'));
   });
 
   test('plans and temporary files stay under the one canonical runtime home', () => {
     expect(run({ GSTACK_PLAN_DIR: '/tmp/ignored', CLAUDE_PLANS_DIR: '/tmp/ignored-too', HOME: '/tmp/myhome' }).PLAN_ROOT)
-      .toBe('/tmp/myhome/.gstack/plans');
-    expect(run({ GSTACK_HOME: '/tmp/state', TMPDIR: '/tmp/ignored' }).TMP_ROOT).toBe('/tmp/state/tmp');
+      .toBe(resolved('/tmp/myhome/.gstack/plans'));
+    expect(run({ GSTACK_HOME: '/tmp/state', TMPDIR: '/tmp/ignored' }).TMP_ROOT).toBe(resolved('/tmp/state/tmp'));
   });
 
   test('shell-looking path values remain literal when output is evaled', () => {
@@ -96,10 +124,11 @@ describe('gstack-paths', () => {
 
   test('output is shell-evalable: only KEY=VALUE lines, no extra prose', () => {
     const result = spawnSync('bash', [BIN], {
-      env: { PATH: process.env.PATH, USERPROFILE: '', HOME: '/tmp/h' } as Record<string, string>,
+      env: spawnEnv({ HOME: '/tmp/h' }),
       encoding: 'utf-8',
     });
     const lines = result.stdout.split('\n').filter(Boolean);
+    expect(lines.length).toBeGreaterThan(0); // empty output must fail, not pass vacuously
     for (const line of lines) expect(line).toMatch(/^[A-Z_]+='.*'$/);
   });
 });
