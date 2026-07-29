@@ -18,8 +18,9 @@
  *   - `@page :first` suppresses running header/footer but does NOT override
  *     the 1in margin.
  *   - No <link>, no external CSS/fonts — everything inlined.
- *   - CJK fallback: Helvetica, Liberation Sans, Arial, Hiragino Kaku Gothic
- *     ProN, Noto Sans CJK JP, Microsoft YaHei, sans-serif.
+ *   - CJK fallback: script-aware (detectCjkVariant). SC priority for
+ *     Han-only content, JP when kana is present, KR when hangul is present;
+ *     all three family groups stay in the stack as fallbacks.
  *   - Emoji fallback: the body and @top-center running-header stacks end in an
  *     emoji family group ("Apple Color Emoji", "Segoe UI Emoji", "Noto Color
  *     Emoji"), placed BEFORE the generic `sans-serif` so Chromium has a glyph
@@ -35,8 +36,36 @@
 // Metric-compatible sans stack: Helvetica (macOS), Liberation Sans (Linux,
 // ships via fonts-liberation), Arial (Windows). Shared by every text surface.
 const SANS_STACK = `Helvetica, "Liberation Sans", Arial`;
-// CJK fallback families, appended to the body stack only.
-const CJK_STACK = `"Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Microsoft YaHei"`;
+// CJK fallback families, appended to the body stack only. Script-aware
+// (#2012): Han ideographs share code points across SC/JP, so whichever family
+// comes first wins glyph selection — a JP-first stack renders Simplified
+// Chinese text with Japanese glyph variants. detectCjkVariant orders the
+// stack by the script the content actually uses; Han-only content gets SC
+// priority, kana promotes JP, hangul promotes KR.
+const CJK_SC = `"PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei"`;
+const CJK_JP = `"Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Yu Gothic"`;
+const CJK_KR = `"Apple SD Gothic Neo", "Noto Sans CJK KR", "Malgun Gothic"`;
+
+export type CjkVariant = "sc" | "jp" | "kr";
+
+/**
+ * Pick the CJK stack priority from content: kana ⇒ Japanese, hangul ⇒ Korean,
+ * anything else (including Han-only text) ⇒ Simplified Chinese priority.
+ * JP text virtually always contains kana, so Han-without-kana is SC.
+ */
+export function detectCjkVariant(text: string): CjkVariant {
+  if (/[぀-ヿ]/.test(text)) return "jp";           // hiragana + katakana
+  if (/[가-힯ᄀ-ᇿ]/.test(text)) return "kr"; // hangul syllables + jamo
+  return "sc";
+}
+
+function cjkStack(variant: CjkVariant = "sc"): string {
+  switch (variant) {
+    case "jp": return `${CJK_JP}, ${CJK_SC}, ${CJK_KR}`;
+    case "kr": return `${CJK_KR}, ${CJK_SC}, ${CJK_JP}`;
+    default:   return `${CJK_SC}, ${CJK_JP}, ${CJK_KR}`;
+  }
+}
 // Color-emoji families: Apple (macOS), Segoe (Windows), Noto (Linux).
 const EMOJI_FAMILIES = `"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"`;
 
@@ -63,6 +92,9 @@ export interface PrintCssOptions {
   // Default true. Set false to suppress CSS numbering (used when the caller
   // supplies a custom Chromium footerTemplate, or when --no-page-numbers).
   pageNumbers?: boolean;
+
+  // CJK stack priority (see detectCjkVariant). Default "sc".
+  cjkVariant?: CjkVariant;
 }
 
 /**
@@ -75,7 +107,7 @@ export function printCss(opts: PrintCssOptions = {}): string {
 
   return [
     pageRules(size, margin, opts),
-    rootTypography(),
+    rootTypography(opts.cjkVariant),
     coverRules(opts.cover === true),
     tocRules(opts.toc === true),
     chapterRules(opts.noChapterBreaks === true),
@@ -168,7 +200,7 @@ export function screenCss(): string {
   ].join("\n");
 }
 
-function rootTypography(): string {
+function rootTypography(cjkVariant?: CjkVariant): string {
   return [
     `html { lang: en; }`,
     // Zero image truncation, ever: every image caps at the content box,
@@ -178,7 +210,7 @@ function rootTypography(): string {
     // box — still bounded, never clipped.
     `img { max-width: 100%; height: auto; }`,
     `body {`,
-    `  font-family: ${SANS_STACK}, ${CJK_STACK}, ${EMOJI_FAMILIES}, sans-serif;`,
+    `  font-family: ${SANS_STACK}, ${cjkStack(cjkVariant)}, ${EMOJI_FAMILIES}, sans-serif;`,
     `  font-size: 12pt;`,
     `  line-height: 1.5;`,
     `  color: #111;`,

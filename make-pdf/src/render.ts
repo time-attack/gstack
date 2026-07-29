@@ -13,7 +13,7 @@
 
 import { marked } from "marked";
 import { smartypants } from "./smartypants";
-import { printCss, type PrintCssOptions } from "./print-css";
+import { printCss, detectCjkVariant, type PrintCssOptions } from "./print-css";
 import { applyImageDirectives } from "./image-policy";
 
 export interface RenderOptions {
@@ -66,8 +66,19 @@ export interface RenderResult {
  * Pure renderer. No side effects.
  */
 export function render(opts: RenderOptions): RenderResult {
+  // 0. Pipeline-entry normalization.
+  //    - U+0000 is never legitimate in markdown (HTML forbids it) and it is
+  //      the smartypants placeholder sentinel — strip it so hostile input can
+  //      never forge or collide with a placeholder token.
+  //    - YAML frontmatter: marked has no frontmatter awareness, so a leading
+  //      `--- ... ---` block otherwise renders as an <hr> + garbage heading
+  //      that becomes its own first chapter (#1904).
+  const markdown = opts.markdown
+    .replace(/\u0000/g, "")
+    .replace(/^---[ \t]*\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)[ \t]*\r?\n?/, "");
+
   // 1. Markdown → HTML
-  const rawHtml = marked.parse(opts.markdown, { async: false }) as string;
+  const rawHtml = marked.parse(markdown, { async: false }) as string;
 
   // 1.5. Image directive suffixes: `![a](x.png){width=50%}` → data-gstack-*
   // attributes. Before the sanitizer (which keeps data- attrs) so the brace
@@ -109,6 +120,9 @@ export function render(opts: RenderOptions): RenderResult {
     // single source of truth even under preferCSSPageSize.
     margins: composeMargins(opts),
     pageNumbers: showPageNumbers,
+    // Script-aware CJK stack priority (#2012): derived from the content, so
+    // Simplified Chinese text never renders with Japanese glyph variants.
+    cjkVariant: detectCjkVariant(markdown),
   };
   const css = printCss(cssOptions);
 
@@ -162,6 +176,20 @@ export function render(opts: RenderOptions): RenderResult {
     `</body>`,
     `</html>`,
   ].filter(Boolean).join("\n");
+
+  // Egress invariant (runtime.artifact-render-contract): no smartypants
+  // sentinel may survive into the final document. U+0000 is stripped at
+  // pipeline entry, so any U+0000 here is a leaked placeholder delimiter.
+  // (Checking the placeholder NAME instead would false-positive on
+  // legitimate prose that merely mentions it; the U+0000 delimiter is the
+  // unforgeable part.) If this ever fires, a new carve pattern reintroduced
+  // the placeholder-swallow class (#2108).
+  if (fullHtml.includes("\u0000")) {
+    throw new Error(
+      "render: smartypants placeholder sentinel leaked into rendered output " +
+      "(runtime.artifact-render-contract violation)",
+    );
+  }
 
   return {
     html: fullHtml,
@@ -355,13 +383,13 @@ function wrapChaptersByH1(html: string): string {
   if (matches.length === 0) {
     return `<section class="chapter">${html}</section>`;
   }
+  // Pre-H1 preamble folds INTO the first H1 chapter — never its own chapter.
+  // A preamble-only first chapter steals `.chapter:first-of-type` (the one
+  // chapter without break-before: page), so the first real chapter inherits
+  // the page break and page 1 renders blank or near-blank (#1904).
   const chunks: string[] = [];
-  const preamble = html.slice(0, matches[0]);
-  if (preamble.trim().length > 0) {
-    chunks.push(`<section class="chapter">${preamble}</section>`);
-  }
   for (let i = 0; i < matches.length; i++) {
-    const start = matches[i];
+    const start = i === 0 ? 0 : matches[i];
     const end = i + 1 < matches.length ? matches[i + 1] : html.length;
     chunks.push(`<section class="chapter">${html.slice(start, end)}</section>`);
   }

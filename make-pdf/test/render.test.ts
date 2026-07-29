@@ -61,6 +61,19 @@ describe("smartypants", () => {
     expect(out).toContain(`href="it's-a-test.html"`);
   });
 
+  test("URL adjacent to a carved tag does not swallow the restore placeholder (#2108)", () => {
+    // The tag carve replaces </a> with a U+0000-delimited placeholder; a URL
+    // regex whose class includes U+0000 then swallows that placeholder into
+    // the preserved URL, leaking the raw token and eating the closing tag.
+    const input = `<p>See <a href="https://example.com">https://example.com</a> for "details".</p>`;
+    const out = smartypants(input);
+    expect(out).not.toContain("SMARTPANTS_PRESERVED");
+    expect(out).not.toContain("\u0000");
+    expect(out).toContain("</a>");
+    expect(out).toContain("https://example.com");
+    expect(out).toContain("“details”");
+  });
+
   test("does NOT convert -- in CLI flags", () => {
     // Prose like "try --verbose mode" should not turn -- into em dash
     const out = smartypants(`<p>Try --verbose mode.</p>`);
@@ -206,6 +219,39 @@ describe("render (end-to-end)", () => {
     if (chapterMatches) expect(chapterMatches.length).toBe(2);
   });
 
+  test("pre-H1 content folds into the first H1 chapter, never its own chapter (#1904)", () => {
+    // A preamble-only first chapter steals .chapter:first-of-type (the only
+    // chapter without break-before: page) and page 1 renders blank.
+    const result = render({
+      markdown: `Intro before any heading.\n\n# One\n\nbody 1\n\n# Two\n\nbody 2\n`,
+    });
+    const chapters = result.html.match(/<section class="chapter">[\s\S]*?<\/section>/g) ?? [];
+    expect(chapters.length).toBe(2);
+    expect(chapters[0]).toContain("Intro before any heading.");
+    expect(chapters[0]).toContain("<h1");
+  });
+
+  test("YAML frontmatter is stripped at pipeline entry (#1904)", () => {
+    const result = render({
+      markdown: `---\ntitle: Meta Junk\nauthor: Ghost\n---\n\n# Real Title\n\nBody.\n`,
+    });
+    expect(result.meta.title).toBe("Real Title");
+    expect(result.html).not.toContain("Meta Junk");
+    expect(result.html).not.toContain("Ghost");
+    const chapters = result.html.match(/class="chapter"/g) ?? [];
+    expect(chapters.length).toBe(1);
+  });
+
+  test("U+0000 in source markdown is stripped, never rendered or sentinel-confused", () => {
+    const result = render({
+      markdown: `# T\n\nhostile \u0000SMARTPANTS_PRESERVED_0\u0000 injection attempt\n`,
+    });
+    expect(result.html).not.toContain("\u0000");
+    // The literal token text (minus stripped NULs) may render as plain prose;
+    // what must never happen is placeholder restoration splicing content in.
+    expect(result.html).toContain("injection attempt");
+  });
+
   test("does NOT create chapter sections when noChapterBreaks=true", () => {
     const result = render({
       markdown: `# One\n\nbody\n\n# Two\n\nbody\n`,
@@ -244,10 +290,37 @@ describe("render (end-to-end)", () => {
     expect(result.printCss).not.toContain("text-indent");
   });
 
-  test("includes CJK font fallback in body", () => {
-    const result = render({ markdown: `body` });
-    expect(result.printCss).toContain("Hiragino Kaku Gothic");
-    expect(result.printCss).toContain("Noto Sans CJK");
+  // Script-coverage fixtures (#2012). The retired assertion here pinned a
+  // JP-first CJK stack as expected behavior — the stack is now script-aware,
+  // so these assert priority ORDER per content script, not a fixed family.
+  test("CJK stack: SC families take priority for Han-only (Simplified Chinese) content", () => {
+    const result = render({ markdown: `# 报告\n\n这是简体中文内容，用于字体栈测试。` });
+    const css = result.printCss;
+    expect(css).toContain("PingFang SC");
+    expect(css).toContain("Noto Sans CJK SC");
+    // SC families must precede every JP family.
+    expect(css.indexOf("PingFang SC")).toBeLessThan(css.indexOf("Hiragino Kaku Gothic ProN"));
+    expect(css.indexOf("Noto Sans CJK SC")).toBeLessThan(css.indexOf("Noto Sans CJK JP"));
+  });
+
+  test("CJK stack: JP families take priority when kana is present", () => {
+    const result = render({ markdown: `# タイトル\n\n日本語のテキストです。` });
+    const css = result.printCss;
+    expect(css.indexOf("Hiragino Kaku Gothic ProN")).toBeLessThan(css.indexOf("PingFang SC"));
+    expect(css.indexOf("Noto Sans CJK JP")).toBeLessThan(css.indexOf("Noto Sans CJK SC"));
+  });
+
+  test("CJK stack: KR families take priority when hangul is present", () => {
+    const result = render({ markdown: `# 제목\n\n한국어 텍스트입니다.` });
+    const css = result.printCss;
+    expect(css.indexOf("Noto Sans CJK KR")).toBeLessThan(css.indexOf("Noto Sans CJK SC"));
+  });
+
+  test("CJK stack: all script families remain as fallbacks regardless of content", () => {
+    const result = render({ markdown: `plain latin body` });
+    for (const family of ["PingFang SC", "Hiragino Kaku Gothic ProN", "Noto Sans CJK SC", "Noto Sans CJK JP", "Noto Sans CJK KR"]) {
+      expect(result.printCss).toContain(family);
+    }
   });
 });
 

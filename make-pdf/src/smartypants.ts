@@ -18,9 +18,14 @@
  * skips them entirely.
  */
 
-const CODE_ZONE_RE = /<(pre|code|script|style)\b[^>]*>[\s\S]*?<\/\1>/gi;
-const TAG_RE = /<[^>]+>/g;
-const URL_RE = /\bhttps?:\/\/\S+/g;
+// Every carve character class excludes U+0000 — the placeholder sentinel.
+// Carves run sequentially, so a later pattern that can match U+0000 swallows
+// an earlier carve's placeholder into its preserved text (e.g. a URL touching
+// a carved closing tag: `https://xU+0000SMARTPANTS_PRESERVED_1U+0000`), and the
+// single-pass restore then leaks the raw token into the output (#2108/#2280).
+const CODE_ZONE_RE = /<(pre|code|script|style)\b[^>\u0000]*>[^\u0000]*?<\/\1>/gi;
+const TAG_RE = /<[^>\u0000]+>/g;
+const URL_RE = /\bhttps?:\/\/[^\s\u0000]+/g;
 
 /**
  * Apply smartypants to an HTML string. Zones that should not be touched:
