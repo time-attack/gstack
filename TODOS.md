@@ -508,7 +508,6 @@ made opt-in. Lower priority than the gbrain-side perf issue above.
 
 ### P2: Browser-skills Phase 3 — resolver injection at session start
 
-**What:** Mirror the domain-skill resolver at `browse/src/server.ts:722-743`. When a sidebar-agent session starts on a host with matching browser-skills, inject a list block telling the agent which skills exist for that host and how to invoke them (`$B skill run <name> --arg ...`). UNTRUSTED-wrapped via the existing L1-L6 security stack. Add `gstack-config browser_skillify_prompts` knob (default `off`) controlling end-of-task nudges in `/qa`, `/design-review`, etc. when activity feed shows ≥N commands on a single host AND no skill exists yet for that host+intent.
 
 **Why:** Without the resolver, browser-skills only work when the user explicitly types `$B skill run <name>`. With the resolver, agents auto-discover existing skills for the current host and reach for them instead of re-exploring. Same compounding pattern as domain-skills.
 
@@ -558,7 +557,6 @@ made opt-in. Lower priority than the gbrain-side perf issue above.
 
 ### P2: Remove plan-mode handshake from `/plan-devex-review` SKILL.md.tmpl
 
-**What:** `/plan-devex-review` has a "Plan Mode Handshake" section at the top that contradicts the preamble's "Skill Invocation During Plan Mode" contract (which says AskUserQuestion satisfies plan mode's end-of-turn requirement). The handshake forces an extra exit-plan-mode step that no other interactive review skill needs. `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review` all run fine in plan mode without it.
 
 **Why:** Found during the v1.8.0.0 DevEx review. The inconsistency cost a turn and confused the flow. Either remove the handshake from `plan-devex-review` (clean fix, recommended) OR add it to every interactive skill for consistency.
 
@@ -970,8 +968,6 @@ you remember why you built this."
 **Pros:** Screenshot-worthy. Shareable. The kind of dopamine hit that turns
 power users into evangelists.
 
-**Cons:** Product theater if the substrate isn't solid. Needs /design-shotgun
-→ /design-html for the visual direction. Requires E2 unified profile for
 narrative/vibe data.
 
 **Context:** /land-and-deploy trust/adoption is low, so passive detection is
@@ -980,8 +976,6 @@ E2E tests for squash/merge-commit/rebase/co-author/fresh-clone/dedup variants.
 
 **Effort:** M+ (human: ~1 week / CC: ~3h total)
 **Priority:** P0
-**Depends on:** E3 narrative/vibe shipped. /design-shotgun run on real PR data
-to pick a visual direction, then /design-html to finalize.
 
 ### E6 — Auto-adjustment based on declared ↔ inferred mismatch
 
@@ -1430,7 +1424,6 @@ Sidebar agent writes structured messages to `.context/sidebar-inbox/`. Workspace
 
 **What:** Two Claude sessions connect to the same browser, each operating on different tabs. No cross-contamination.
 
-**Why:** Enables parallel /qa + /design-review on different tabs in the same browser.
 
 **Context:** Requires tab ownership model for concurrent headed connections. Playwright may not cleanly support two persistent contexts. Needs investigation.
 
@@ -1792,9 +1785,7 @@ Shipped: Default model changed to Sonnet for structure tests (~30), Opus retaine
 
 ## Design Review
 
-### /plan-design-review + /qa-design-review + /design-consultation — SHIPPED
 
-Shipped as v0.5.0 on main. Includes `/plan-design-review` (report-only design audit), `/qa-design-review` (audit + fix loop), and `/design-consultation` (interactive DESIGN.md creation). `{{DESIGN_METHODOLOGY}}` resolver provides shared 80-item design audit checklist.
 
 ### Design outside voices in /plan-eng-review
 
@@ -2379,7 +2370,6 @@ op (separate TODO above).
 
 **What:** `test/skill-e2e-office-hours-brain-writeback.test.ts` covers
 the brain-writeback path for `/office-hours` only. Adding parallel
-tests for `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`,
 and `/plan-devex-review` would bring per-skill agent-obedience coverage
 to parity with the resolver unit test
 (`test/resolvers-gbrain-save-results.test.ts`, which covers wiring for

@@ -278,12 +278,10 @@ Key routing rules:
 - Product ideas/brainstorming → invoke /office-hours
 - Strategy/scope → invoke /plan-ceo-review
 - Architecture → invoke /plan-eng-review
-- Design system/plan review → invoke /design-consultation or /plan-design-review
 - Full review pipeline → invoke /autoplan
 - Bugs/errors → invoke /investigate
 - QA/testing site behavior → invoke /qa or /qa-only
 - Code review/diff check → invoke /review
-- Visual polish → invoke /design-review
 - Ship/deploy/PR → invoke /ship or /land-and-deploy
 - Save progress → invoke /context-save
 - Resume context → invoke /context-restore
@@ -938,7 +936,6 @@ Tell the user:
 > You're all set! Here's what you can do with the connected Chrome:
 >
 > **Watch Claude work in real time:**
-> - Run any gstack skill (`/qa`, `/design-review`, `/benchmark`) and watch
 >   every action happen in the visible Chrome window
 > - No cookie import needed — the Playwright browser shares its own session
 >
@@ -953,7 +950,6 @@ Tell the user:
 > **What skills look like in headed mode:**
 > - `/qa` runs its full test suite in the visible browser — you see every page
 >   load, every click, every assertion
-> - `/design-review` takes screenshots in the real browser — same pixels you see
 > - `/benchmark` measures performance in the headed browser
 
 Then proceed with whatever the user asked to do. If they didn't specify a task,

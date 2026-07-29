@@ -106,7 +106,6 @@ Write DESIGN.md and CLAUDE.md (or update it) in the working directory.`,
       model: 'claude-opus-4-7',
     });
 
-    logCost('/design-consultation core', result);
 
     const designPath = path.join(designDir, 'DESIGN.md');
     const claudePath = path.join(designDir, 'CLAUDE.md');
@@ -145,7 +144,6 @@ Write DESIGN.md and CLAUDE.md (or update it) in the working directory.`,
     }
 
     const structuralPass = designExists && claudeExists && missingSections.length === 0;
-    recordE2E(evalCollector, '/design-consultation core', 'Design Consultation E2E', result, {
       passed: structuralPass && judgeResult.passed && ['success', 'error_max_turns'].includes(result.exitReason),
     });
 
@@ -181,7 +179,6 @@ Do NOT generate a full DESIGN.md — just research notes.`,
       runId,
     });
 
-    logCost('/design-consultation research', result);
 
     const notesPath = path.join(researchDir, 'research-notes.md');
     const notesExist = fs.existsSync(notesPath);
@@ -195,7 +192,6 @@ Do NOT generate a full DESIGN.md — just research notes.`,
       console.warn('WebSearch not used — may be unavailable in test env');
     }
 
-    recordE2E(evalCollector, '/design-consultation research', 'Design Consultation E2E', result, {
       passed: notesExist && notesContent.length > 200 && ['success', 'error_max_turns'].includes(result.exitReason),
     });
 
@@ -230,7 +226,6 @@ Skip research. Skip font preview. Skip any AskUserQuestion calls — this is non
       model: 'claude-opus-4-7',
     });
 
-    logCost('/design-consultation existing', result);
 
     const designPath = path.join(designDir, 'DESIGN.md');
     const designExists = fs.existsSync(designPath);
@@ -243,7 +238,6 @@ Skip research. Skip font preview. Skip any AskUserQuestion calls — this is non
     const hasColor = designContent.toLowerCase().includes('color');
     const hasSpacing = designContent.toLowerCase().includes('spacing');
 
-    recordE2E(evalCollector, '/design-consultation existing', 'Design Consultation E2E', result, {
       passed: designExists && hasColor && hasSpacing && ['success', 'error_max_turns'].includes(result.exitReason),
     });
 
@@ -279,7 +273,6 @@ Do NOT write DESIGN.md — only the preview HTML.`,
       runId,
     });
 
-    logCost('/design-consultation preview', result);
 
     const previewPath = path.join(previewDir, 'design-preview.html');
     const previewExists = fs.existsSync(previewPath);
@@ -291,7 +284,6 @@ Do NOT write DESIGN.md — only the preview HTML.`,
     const hasHtml = previewContent.includes('<html') || previewContent.includes('<!DOCTYPE');
     const hasFontRef = previewContent.includes('font-family') || previewContent.includes('fonts.googleapis') || previewContent.includes('fonts.bunny');
 
-    recordE2E(evalCollector, '/design-consultation preview', 'Design Consultation E2E', result, {
       passed: previewExists && hasHtml && ['success', 'error_max_turns'].includes(result.exitReason),
     });
 
@@ -375,7 +367,6 @@ IMPORTANT: Do NOT try to browse any URLs or use a browse binary. This is a plan 
         runId,
       });
 
-      logCost('/plan-design-review plan-mode', result);
 
       // Check that the agent produced design ratings (0-10 scale)
       const output = result.output || '';
@@ -396,7 +387,6 @@ IMPORTANT: Do NOT try to browse any URLs or use a browse binary. This is a plan 
         planAfter.toLowerCase().includes('responsive') ||
         planAfter.toLowerCase().includes('accessibility');
 
-      recordE2E(evalCollector, '/plan-design-review plan-mode', 'Plan Design Review E2E', result, {
         passed: hasDesignContent && planWasEdited && ['success', 'error_max_turns'].includes(result.exitReason),
       });
 
@@ -449,7 +439,6 @@ IMPORTANT: Do NOT try to browse any URLs or use a browse binary. This is a plan 
         runId,
       });
 
-      logCost('/plan-design-review no-ui-scope', result);
 
       // Agent should detect no UI scope and exit early
       const output = result.output || '';
@@ -459,7 +448,6 @@ IMPORTANT: Do NOT try to browse any URLs or use a browse binary. This is a plan 
         output.toLowerCase().includes('not applicable') ||
         output.toLowerCase().includes('backend');
 
-      recordE2E(evalCollector, '/plan-design-review no-ui-scope', 'Plan Design Review E2E', result, {
         passed: detectsNoUI && ['success', 'error_max_turns'].includes(result.exitReason),
       });
 
@@ -579,7 +567,6 @@ Review the site at ${serverUrl}. Use --quick mode. Skip any AskUserQuestion call
       runId,
     });
 
-    logCost('/design-review fix', result);
 
     const reportPath = path.join(qaDesignDir, 'design-audit.md');
     const reportExists = fs.existsSync(reportPath);
@@ -591,7 +578,6 @@ Review the site at ${serverUrl}. Use --quick mode. Skip any AskUserQuestion call
     const commits = gitLog.stdout.toString().trim().split('\n');
     const designFixCommits = commits.filter((c: string) => c.includes('style(design)'));
 
-    recordE2E(evalCollector, '/design-review fix', 'Design Review E2E', result, {
       passed: ['success', 'error_max_turns'].includes(result.exitReason),
     });
 

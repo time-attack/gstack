@@ -15,8 +15,6 @@
  *
  * Scope: skills whose first AUQ is reliably reachable from a text fixture. Skills
  * that gate their first decision on external resources (a running browser for
- * /qa, the design binary + comparison boards for /design-shotgun and
- * /design-html — which by project policy use $D compare, not AUQ, for variant
  * choices) are intentionally OUT of this matrix; Layer 0 covers their format
  * spec, and a fixture can't fairly trigger their AUQ.
  *

@@ -2,7 +2,6 @@
  * plan-design-review plan-mode smoke (gate, paid, real-PTY).
  *
  * See test/skill-e2e-plan-ceo-plan-mode.test.ts for the shared assertion
- * contract. Exercises the same contract against /plan-design-review.
  *
  * Note: on no-UI-scope branches plan-design-review legitimately short-
  * circuits to plan_ready without firing AskUserQuestion. Both 'asked' and

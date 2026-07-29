@@ -753,12 +753,10 @@ describe('REVIEW_DASHBOARD resolver', () => {
   test('plan-ceo-review chaining mentions eng and design reviews', () => {
     const content = fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8');
     expect(content).toContain('/plan-eng-review');
-    expect(content).toContain('/plan-design-review');
   });
 
   test('plan-eng-review chaining mentions design and ceo reviews', () => {
     const content = readSkillUnion('plan-eng-review'); // carved: review body moved to section
-    expect(content).toContain('/plan-design-review');
     expect(content).toContain('/plan-ceo-review');
   });
 
@@ -985,7 +983,6 @@ describe('PLAN_FILE_REVIEW_REPORT resolver', () => {
     expect(content).toContain('VERDICT');
     expect(content).toContain('/plan-ceo-review');
     expect(content).toContain('/plan-eng-review');
-    expect(content).toContain('/plan-design-review');
     expect(content).toContain('/codex review');
   });
 });

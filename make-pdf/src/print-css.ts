@@ -3,7 +3,6 @@
  *
  * Source of truth: .context/designs/make-pdf-print-reference.html and siblings.
  * Mirror those CSS rules here. The HTML references were approved via
- * /plan-design-review with explicit design decisions locked in the plan:
  *
  *   - Helvetica first, with Liberation Sans as a metric-compatible Linux
  *     fallback (Helvetica and Arial aren't installed on most Linux distros;
@@ -16,7 +15,6 @@
  *     13pt meta, padding-top 1.4in for poster placement. Still no flexbox
  *     and no vertical centering; the inset is a deliberate top-third drop.
  *     (Supersedes the original "no inset padding" lock from the first
- *     /plan-design-review — the 32pt cover read as too small in print.)
  *   - `@page :first` suppresses running header/footer but does NOT override
  *     the 1in margin.
  *   - No <link>, no external CSS/fonts — everything inlined.

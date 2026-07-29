@@ -71,7 +71,6 @@ export const BRAIN_CACHE_ENTITIES: Record<string, BrainCacheEntity> = {
     file: 'brand.md',
     ttl_ms: 7 * 86_400_000,
     scope: 'per-project',
-    invalidated_by: ['/design-consultation', '/plan-design-review'],
     budget_bytes: 1024,
   },
   'competitive-intel': {

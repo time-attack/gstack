@@ -172,8 +172,6 @@ gstack/
 │   ├── skill-llm-eval.test.ts   # Tier 3: LLM-as-judge (~$0.15/run)
 │   └── skill-e2e-*.test.ts       # Tier 2: E2E via claude -p (~$3.85/run, split by category)
 ├── qa-only/         # /qa-only skill (report-only QA, no fixes)
-├── plan-design-review/  # /plan-design-review skill (report-only design audit)
-├── design-review/    # /design-review skill (design audit + fix loop)
 ├── ship/            # Ship workflow skill
 ├── review/          # PR review skill
 ├── plan-ceo-review/ # /plan-ceo-review skill
@@ -191,8 +189,6 @@ gstack/
 ├── document-release/ # /document-release skill (post-ship doc updates + Diataxis coverage map)
 ├── document-generate/ # /document-generate skill (Diataxis doc generator: tutorial/how-to/reference/explanation)
 ├── cso/             # /cso skill (OWASP Top 10 + STRIDE security audit)
-├── design-consultation/ # /design-consultation skill (design system from scratch)
-├── design-shotgun/  # /design-shotgun skill (visual design exploration)
 ├── open-gstack-browser/  # /open-gstack-browser skill (launch GStack Browser)
 ├── connect-chrome/  # symlink → open-gstack-browser (backwards compat)
 ├── design/          # Design binary CLI (GPT Image API)
