@@ -793,6 +793,10 @@ function cursorEvent(
   const args = (call.args && typeof call.args === 'object' ? call.args : {}) as Record<string, any>;
   const id = event.call_id ? String(event.call_id) : null;
   inspectForForbidden(stableJson(call), forbidden, capture);
+  // Cursor plan documents (createPlanToolCall etc.) are host-internal
+  // planning artifacts stored outside the workspace, not file mutations; the
+  // snapshot diff still catches any actual workspace write.
+  if (/planToolCall$/i.test(kind)) return;
   const succeeded = Boolean(call.result && typeof call.result === 'object' && 'success' in call.result);
   if (CURSOR_READ_KIND.test(kind)) {
     if (!completed) return;
@@ -994,8 +998,21 @@ function parseJsonCandidate(text: string): unknown {
   try {
     return JSON.parse(fenced ?? trimmed);
   } catch (error) {
-    if (error instanceof SyntaxError) throw new Error('final agent message was not JSON');
-    throw error;
+    if (!(error instanceof SyntaxError)) throw error;
+    // Hosts that emit one consolidated final message (claude -p, cursor-agent)
+    // may lead the fenced block with prose. Accept the LAST fenced JSON block
+    // in the message; validateStructuredResult still gates its contents.
+    const blocks = [...trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)\s*```/gi)];
+    const last = blocks.at(-1)?.[1];
+    if (last !== undefined) {
+      try {
+        return JSON.parse(last);
+      } catch (inner) {
+        if (inner instanceof SyntaxError) throw new Error('final agent message was not JSON');
+        throw inner;
+      }
+    }
+    throw new Error('final agent message was not JSON');
   }
 }
 
@@ -1309,7 +1326,7 @@ function slashPromptWithSchema(fixture: HostAdversarialFixture, schemaJson: stri
     throw new Error(`Fixture ${fixture.id} prompt does not start with ${codexPrefix.trim()}`);
   }
   const invocation = `/${fixture.skill} ${fixture.prompt.slice(codexPrefix.length)}`;
-  return `${invocation}\n\nFinal output contract: end with exactly one fenced \`\`\`json code block as the entire final message, containing a JSON object that validates against this JSON Schema:\n${schemaJson}`;
+  return `${invocation}\n\nFinal output contract: end with exactly one fenced \`\`\`json code block as the entire final message, containing a JSON object that validates against this JSON Schema. Use bare canonical tokens for route.mode and route.mutation exactly as the skill defines them (no parentheses or added commentary; explanations belong in evidence.findings or outcome.summary):\n${schemaJson}`;
 }
 
 const CODEX_ADAPTER: HostAdapter = {
@@ -1369,14 +1386,17 @@ const CURSOR_ADAPTER: HostAdapter = {
   executable: 'cursor-agent',
   skillRoot: ['.agents', 'skills'],
   versionArgs: ['--version'],
-  sandboxLabel: 'plan (read-only planning mode)',
+  // Ask mode keeps the read-only posture but ends with a normal final
+  // message; plan mode structurally terminates in a plan artifact, which can
+  // never satisfy the final-output JSON contract.
+  sandboxLabel: 'ask (read-only Q&A mode)',
   envIsolation: 'operator-home (cursor-agent local login lives in ~/.cursor and cannot be staged; HOME is preserved)',
   promptTransform: 'slash-invocation + appended final-output schema contract',
   buildPrompt: slashPromptWithSchema,
   argv: (prompt, _schemaPath, model) => [
     '-p',
     '--output-format', 'stream-json',
-    '--mode', 'plan',
+    '--mode', 'ask',
     '--trust',
     '--model', model,
     prompt,

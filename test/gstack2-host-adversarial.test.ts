@@ -716,6 +716,30 @@ describe('GStack 2 host adapter layer (harness 4)', () => {
     expect(parsed.tokens).toEqual({ input: 4, cached_input: 2, output: 1, reasoning_output: 0 });
   });
 
+  test('a consolidated final message with prose before the fenced JSON still parses', () => {
+    const valid = structured();
+    const message = `The inspection is complete; the structured report follows.\n\n\`\`\`json\n${JSON.stringify(valid, null, 2)}\n\`\`\``;
+    expect(parseStructuredFinal([message]).value).toEqual(valid);
+    // Prose alone, or a fenced block that is not the contract, still fails.
+    expect(parseStructuredFinal(['no json here']).value).toBeNull();
+    expect(parseStructuredFinal(['prose\n```json\n{"not":"the contract"}\n```']).value).toBeNull();
+  });
+
+  test('Cursor plan-document tool calls are host artifacts, not workspace file changes', () => {
+    const lines = [
+      JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'c1', tool_call: { createPlanToolCall: { args: { name: 'QA Log Fixture Report' } } } }),
+      JSON.stringify({ type: 'tool_call', subtype: 'completed', call_id: 'c1', tool_call: { createPlanToolCall: { args: { name: 'QA Log Fixture Report' }, result: { success: {} } } } }),
+    ];
+    const parsed = parseHostEventLines(lines, [], HOST_ADAPTERS.cursor.handleEvent);
+    expect(parsed.file_change_events).toEqual([]);
+    expect(parsed.command_events).toEqual([]);
+    // A real file-writing tool call is still a mutation attempt.
+    const write = parseHostEventLines([
+      JSON.stringify({ type: 'tool_call', subtype: 'started', call_id: 'c2', tool_call: { writeToolCall: { args: { path: 'src/worker.ts' } } } }),
+    ], [], HOST_ADAPTERS.cursor.handleEvent);
+    expect(write.file_change_events).toHaveLength(1);
+  });
+
   test('native tool reads satisfy required read paths in a fixture assessment', () => {
     const fixture = qaFixture();
     const lines = fixture.expect.required_read_paths.flatMap((requiredPath, index) => [
