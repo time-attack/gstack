@@ -401,6 +401,31 @@ Before sharing any founder resources (Paul Graham essays, Garry Tan or YC videos
     },
   },
   {
+    pr: 1078,
+    url: 'https://github.com/garrytan/gstack/issues/1078',
+    title: 'Verify deploy credentials without echoing any key bytes',
+    targets: ['setup-deploy'],
+    anchor: 'GSTACK2_FIX_1078_NO_KEY_ECHO',
+    body: `### Credential presence check without byte echo
+
+Never print any bytes of a credential to the transcript, logs, or shell
+history — not even a prefix. Echoing the key variable through \`head -c 4\`
+leaks four real key bytes into a transcript that may be shared, screenshotted,
+or persisted. Verify presence only:
+
+\`\`\`bash
+[ -n "$RENDER_API_KEY" ] && echo "RENDER_API_KEY: set" || echo "RENDER_API_KEY: missing"
+\`\`\`
+
+The same rule applies to every provider credential this workflow touches
+(Fly, Vercel, Netlify tokens): presence and validity are checked by a
+non-mutating API call, never by printing key material.`,
+    regression: {
+      input: { credential: 'RENDER_API_KEY', requested_display: 'first-4-bytes' },
+      expected: { key_bytes_printed: 0, presence_check: '[ -n "$VAR" ]', partial_display_allowed: false },
+    },
+  },
+  {
     pr: 2370,
     url: 'https://github.com/garrytan/gstack/issues/2370',
     title: 'Dispatch outside voices portably: trailing-XXXXXX mktemp and prompts via stdin',
@@ -774,6 +799,8 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
         opt_out_persisted_via: 'gstack-config set founder_resources false',
       };
     }
+    case 1078:
+      return { key_bytes_printed: 0, presence_check: '[ -n "$VAR" ]', partial_display_allowed: false };
     case 2370: {
       const template = String(input.mktemp_template ?? '');
       return {

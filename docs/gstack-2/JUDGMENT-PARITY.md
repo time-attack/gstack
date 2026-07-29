@@ -2,7 +2,7 @@
 
 Parity is executable, not a prose claim. Run `bun run scripts/gstack2/run-parity.ts` or the dedicated Bun tests.
 
-The pinned release inventory passes **4,386 checks** across 47 specialist sources, 14 carved sections, 19 routing scenarios, 29 regression ports, and **70 assets**.
+The pinned release inventory passes **4,391 checks** across 47 specialist sources, 14 carved sections, 19 routing scenarios, 30 regression ports, and **70 assets**.
 
 The suite verifies:
 
@@ -11,7 +11,7 @@ The suite verifies:
 - immutable full 1.x render hashes plus canonical specialist-render equality, with the excluded onboarding wrapper and lazy section references asserted explicitly;
 - preservation of nine behavioral contract dimensions per module;
 - 19 structured non-keyword routing fixtures with active/skipped modules, depth, mutation, and web context;
-- 29 upstream judgment-port regression fixtures and anchors;
+- 30 upstream judgment-port regression fixtures and anchors;
 - all linked asset copies against their pinned Git blobs;
 - frontmatter and `agents/openai.yaml` schema for each public skill.
 

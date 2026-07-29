@@ -52,7 +52,7 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 | `/land-and-deploy` | `$ship --mode Land --module land-and-deploy` | internal (primary) | yes | #679, #884, #879 |
 | `/landing-report` | `$ship --mode Prepare --module landing-report` | internal (primary) | yes | #679, #879 |
 | `/document-release` | `$ship --mode Prepare --module document-release` | internal (primary) | yes | #679, #879 |
-| `/setup-deploy` | `$ship --mode Deploy --module setup-deploy` | internal (primary) | yes | #679, #879 |
+| `/setup-deploy` | `$ship --mode Deploy --module setup-deploy` | internal (primary) | yes | #679, #879, #1078 |
 | `/document-generate` | `$ship --mode Prepare --module document-generate` | internal (internal) | no | #679, #879 |
 | `/gstack-upgrade` | `$ship --mode Prepare --module gstack-upgrade` | internal (internal) | no | #679, #879 |
 | `/ios-clean` | `$ship --mode Prepare --module ios-clean` | internal (internal) | no | #679, #879 |
@@ -67,5 +67,5 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 ## Mechanical versus judgment changes
 
 - `JUDGMENT_PRESERVING_CARVE`: pinned specialist workflow with the retired shared onboarding wrapper excluded, retired invocations resolved to five public routes, host/runtime paths normalized, and large carved phases loaded lazily from package-local pinned references.
-- `BUG_FIX`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 29 upstream PRs, issues, and audit findings and its regression fixture.
+- `BUG_FIX`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 30 upstream PRs, issues, and audit findings and its regression fixture.
 - Asset relocation is byte-for-byte from the pinned Git blob and is indexed per tree.

@@ -431,7 +431,6 @@ function portLegacyText(value: string, source: string): string {
       '[ -n "$_ROOT" ] && [ -d "$_ROOT/.agents/skills/gstack" ] && GSTACK_ROOT="$_ROOT/.agents/skills/gstack"',
       ': "GStack 2 runtime is user-scoped; Agent Skills placement is installer-owned"',
     )
-    .replaceAll('.agents/skills/gstack/bin/gstack-update-check', '$GSTACK_BIN/gstack-update-check')
     .replaceAll('$GSTACK_ROOT/browse/bin/remote-slug', '$GSTACK_BIN/remote-slug')
     .replaceAll('$GSTACK_ROOT/browse/dist/browse', '$GSTACK_BIN/browse')
     .replaceAll('$GSTACK_ROOT/browse/dist', '$GSTACK_BIN')
@@ -526,6 +525,19 @@ function portLegacyText(value: string, source: string): string {
   // The managed runtime installs stable launchers in one canonical user bin.
   body = body
     .replaceAll('$HOME$GSTACK_BROWSE/browse', '${GSTACK_HOME:-$HOME/.gstack}/bin/browse');
+
+  // Credential presence check without byte echo (upstream #1078/#1096,
+  // overlay 1078). The pinned setup-deploy body prints the first four bytes
+  // of the Render key into the transcript; verify presence without echoing
+  // any key material.
+  body = body.replaceAll(
+    "2. Check for Render API key: `echo $RENDER_API_KEY | head -c 4` (don't expose the full key)",
+    '2. Check for Render API key without printing any of it: `[ -n "$RENDER_API_KEY" ] && echo "RENDER_API_KEY: set" || echo "RENDER_API_KEY: missing"` (never echo key bytes, even a prefix)',
+  );
+  // gstack-update-check is retired from the 2.0 managed helper set (upstream
+  // #1081): the standard Agent Skills installer owns updates, so no rendered
+  // module may name or invoke the passive release check.
+  body = body.replaceAll('`gstack-config`, `gstack-update-check`,', '`gstack-config`,');
 
   // Portable outside-voice dispatch (upstream #2370/#2372, overlay 2370).
   // BSD/BusyBox mktemp require trailing Xs: strip any suffix after a XXXXXX
