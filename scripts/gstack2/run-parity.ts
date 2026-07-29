@@ -50,8 +50,12 @@ const ALLOWED_DISPOSITIONS = new Set(['VERBATIM_PORT', 'MECHANICAL_PORT', 'JUDGM
 // external-effects overlay for upstream #1079/#1892 (30 -> 31; ship,
 // land-and-deploy, document-release, codex) added 11 more. The packaged
 // QUESTION-FORMAT contract (#1208/#1066 class) added 15 (3 per tree:
-// exists, dispatcher load, brief/caps/fallback content).
-export const EXPECTED_PARITY_CHECKS = 4417;
+// exists, dispatcher load, brief/caps/fallback content). The emitted
+// bash-block lint added 1,214: 2 fence/plausibility invariants plus 2 per
+// fenced bash block (606 blocks: `bash -n` syntax + portability lint) — this
+// component scales with the emitted block inventory, so content changes that
+// add or remove bash blocks move the pin by 2 per block.
+export const EXPECTED_PARITY_CHECKS = 5631;
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -86,6 +90,87 @@ export interface ParityResult {
   scenarios: number;
   regressions: number;
   assets: number;
+  bashBlocks: number;
+}
+
+// --- Emitted bash-block lint --------------------------------------------
+// Every fenced bash block in the emitted tree (skills/ + compat/ markdown)
+// must parse (`bash -n`) and avoid known BSD/GNU portability traps. The
+// generator actively rewrites bash inside preserved bodies; without this
+// dimension a corrupted rewrite would be faithfully hash-pinned.
+
+interface EmittedBashBlock {
+  file: string;
+  line: number;
+  content: string;
+}
+
+function markdownFilesUnder(root: string): string[] {
+  if (!fs.existsSync(root)) return [];
+  const out: string[] = [];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const child = path.join(root, entry.name);
+    if (entry.isDirectory()) out.push(...markdownFilesUnder(child));
+    else if (entry.isFile() && entry.name.endsWith('.md')) out.push(child);
+  }
+  return out.sort();
+}
+
+export function extractEmittedBashBlocks(): { blocks: EmittedBashBlock[]; fenceErrors: string[] } {
+  const blocks: EmittedBashBlock[] = [];
+  const fenceErrors: string[] = [];
+  const files = [
+    ...markdownFilesUnder(path.join(ROOT, 'skills')),
+    ...markdownFilesUnder(path.join(ROOT, 'compat')),
+  ];
+  for (const file of files) {
+    const relative = path.relative(ROOT, file);
+    const lines = fs.readFileSync(file, 'utf8').split('\n');
+    let open: { indent: string; start: number; body: string[] } | null = null;
+    lines.forEach((line, index) => {
+      const fence = line.match(/^(\s*)```(\w*)/);
+      if (open) {
+        if (fence && fence[2] === 'bash') {
+          // A new bash fence while one is open means the previous block never
+          // closed — markdown swallows the prose in between into the block.
+          fenceErrors.push(`${relative}:${open.start} bash fence never closes before ${relative}:${index + 1}`);
+          open = { indent: fence[1], start: index + 1, body: [] };
+        } else if (fence && fence[1].length <= open.indent.length && fence[2] === '') {
+          blocks.push({ file: relative, line: open.start, content: open.body.join('\n') });
+          open = null;
+        } else {
+          open.body.push(line.startsWith(open.indent) ? line.slice(open.indent.length) : line);
+        }
+      } else if (fence && fence[2] === 'bash') {
+        open = { indent: fence[1], start: index + 1, body: [] };
+      }
+    });
+    if (open) fenceErrors.push(`${relative}:${(open as { start: number }).start} bash fence never closes before end of file`);
+  }
+  return { blocks, fenceErrors };
+}
+
+/**
+ * Prose placeholders like `<base>`, `<slug>`, `<paste the contents here>` are
+ * documentation, not shell. Replace each with a plain word so `bash -n`
+ * checks the real shell around them. Heredocs (`<<`), process substitution
+ * (`<(`), and plain redirects (`< file` — space after `<`) are untouched.
+ */
+export function normalizeBashPlaceholders(value: string): string {
+  return value.replace(/<(?![<( ])[A-Za-z0-9 _.'"/|:+,$@{}()*#=?!-]*?>/g, 'PLACEHOLDER');
+}
+
+/** Known cross-platform (BSD/GNU/BusyBox) traps in emitted shell. */
+export function bashPortabilityIssues(content: string): string[] {
+  const issues: string[] = [];
+  if (/(?<![\w-])stat\s+-[fc]\b/.test(content)) issues.push('stat -f/-c is BSD/GNU-specific; derive the value another way');
+  if (/\bsed\s+-i\b/.test(content)) issues.push("sed -i argument shape differs between BSD ('' required) and GNU; use a temp file");
+  const quotedTilde = content
+    .split('\n')
+    .some((line) => /["']~\//.test(line) && !line.includes('expanduser'));
+  if (quotedTilde) issues.push('quoted tilde path never expands; use $HOME or unquoted ~');
+  if (/^#!\/bin\/sh/.test(content) && /\[\[|(?:^|\s)local\s/.test(content)) issues.push('sh-mode block uses bashisms ([[ / local)');
+  return issues;
 }
 
 export function runParity(): ParityResult {
@@ -485,6 +570,26 @@ export function runParity(): ParityResult {
     check(fs.existsSync(path.join(ROOT, 'docs', 'gstack-2', required)), `Missing docs/gstack-2/${required}`);
   }
 
+  // Emitted bash-block lint: 2 checks per fenced block (syntax + portability)
+  // plus the fence-closure and plausibility invariants.
+  const emittedBash = extractEmittedBashBlocks();
+  check(emittedBash.fenceErrors.length === 0, `Unclosed bash fences in the emitted tree: ${emittedBash.fenceErrors.join('; ')}`);
+  check(emittedBash.blocks.length > 500, `Emitted bash-block inventory implausibly small (${emittedBash.blocks.length}); extraction is broken`);
+  for (const block of emittedBash.blocks) {
+    const syntax = Bun.spawnSync({
+      cmd: ['bash', '-n'],
+      stdin: new TextEncoder().encode(normalizeBashPlaceholders(block.content)),
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    check(
+      syntax.exitCode === 0,
+      `bash -n rejected ${block.file}:${block.line}: ${syntax.stderr.toString().trim().split('\n')[0]}`,
+    );
+    const portability = bashPortabilityIssues(block.content);
+    check(portability.length === 0, `portability lint ${block.file}:${block.line}: ${portability.join(' | ')}`);
+  }
+
   if (checks !== EXPECTED_PARITY_CHECKS) {
     failures.push(`Parity check inventory changed: expected ${EXPECTED_PARITY_CHECKS}, observed ${checks}`);
   }
@@ -498,10 +603,11 @@ export function runParity(): ParityResult {
     scenarios: SCENARIOS.length,
     regressions: BUG_FIX_OVERLAYS.length,
     assets: manifest.assets.length,
+    bashBlocks: emittedBash.blocks.length,
   };
 }
 
 if (import.meta.main) {
   const result = runParity();
-  process.stdout.write(`GStack 2 parity passed: ${result.checks} checks; ${result.sources} sources, ${result.sections} sections, ${result.scenarios} scenarios, ${result.regressions} regressions, ${result.assets} assets.\n`);
+  process.stdout.write(`GStack 2 parity passed: ${result.checks} checks; ${result.sources} sources, ${result.sections} sections, ${result.scenarios} scenarios, ${result.regressions} regressions, ${result.assets} assets, ${result.bashBlocks} linted bash blocks.\n`);
 }

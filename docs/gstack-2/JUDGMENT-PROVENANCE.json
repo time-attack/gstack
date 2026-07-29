@@ -3155,7 +3155,7 @@
       "source_path": "codex/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "333de7d8d590cc78184b0e2371171f6121408f73",
-      "normalized_render_sha256": "4d95b7f5ca42e27651d2d410d3b0619c3a740d600b6ad456d5c994dcafe4285d",
+      "normalized_render_sha256": "65c980d0b7f7a8b920970660060d8e771bc679adda96b29d696e00e17854a9f6",
       "target": "skills/review/references/legacy/codex.md",
       "disposition": "BUG_FIX",
       "overlays": [

@@ -550,6 +550,17 @@ function portLegacyText(value: string, source: string): string {
   // module may name or invoke the passive release check.
   body = body.replaceAll('`gstack-config`, `gstack-update-check`,', '`gstack-config`,');
 
+  // The pinned codex consult-resume bash block never closes its fence, so
+  // markdown renders the following prose (and the next fence) inside the
+  // code block and the emitted-tree bash lint rejects the combined content.
+  // Insert the missing closing fence (found by the run-parity bash-n lint).
+  if (source === 'codex') {
+    body = body.replace(
+      '  _gstack_codex_log_event "codex_nonzero_exit" "consult-resume:$_CODEX_EXIT"\nfi\n\n5. Capture session ID from the streamed output.',
+      '  _gstack_codex_log_event "codex_nonzero_exit" "consult-resume:$_CODEX_EXIT"\nfi\n```\n\n5. Capture session ID from the streamed output.',
+    );
+  }
+
   // The 1.x shared onboarding preamble is excluded from canonical execution,
   // so module references to "the preamble's AskUserQuestion Format section"
   // dangle. Repoint them to the packaged question-format contract, which
