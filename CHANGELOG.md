@@ -44,10 +44,15 @@ The next time a task needs web data, you get a one-time question with real optio
 - `gstack-web-data` CLI (`status`, `options`, `select`, `recommend`) with availability detection: Firecrawl/Exa env keys, Context.dev runtime consent, `aside` CLI on PATH, installed browse binary. Ships with the managed runtime.
 - Dispatch-protocol trigger in all five dispatchers: read WEB-DATA.md before designing or performing bulk web-data acquisition, whether the agent fetches directly or a plan designs the pipeline.
 
+### Fixed
+
+- `node runtime/cli.js <command>` now runs the command instead of loading the module and exiting 0 with empty output. The Windows setup lane depends on this direct invocation for doctor, runtime path, and uninstall.
+
 ### For contributors
 
 - `lib/web-data.ts`: provider registry, task rankings (bakeoff-sourced), selection store at `$GSTACK_HOME/web-data.json`, availability detection. 14 unit tests in `test/web-data.test.ts`.
 - `runtime/install.js`: `gstack-web-data` registered in `DEFAULT_RUNTIME_HELPERS`, `lib/web-data.ts` in the helper dependency closure.
+- Windows CI lanes: `test/gstack-paths.test.ts` repairs its scrubbed spawn env (node.exe needs SYSTEMROOT-class vars; os.homedir() reads USERPROFILE) and computes expectations through node path semantics; `test/gstack2-runtime-effect-cli.test.ts` uses a portable silent tool instead of a `#!/bin/sh` script.
 
 ## [1.64.20.0] - 2026-07-24
 
