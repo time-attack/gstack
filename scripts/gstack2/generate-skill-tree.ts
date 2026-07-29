@@ -305,7 +305,7 @@ Web context: <none, optional, local-browser, or production>
 1. Infer the mode from product stage, surface, requested artifact, mutation authorization, evidence needs, and deployment state. Do not route by keyword alone.
 2. Refine the public mode to the smallest applicable internal specialist set, then print the required execution header before any substantive output.
 3. Read each active module in full from the path shown in the mode/alias tables. Its specialist body, behavioral contract, STOP gates, and appended upstream judgment ports are binding. Read a lazy specialist phase in full only when the workflow reaches its package-local reference.
-4. Read \`references/EXECUTION-PROFILES.md\`, \`references/SHARED-JUDGMENT.md\`, and \`references/AUTHORITY-POLICY.md\` for every invocation. Infer Depth from structured operating conditions, then obey its mandatory modules, legal skips, artifacts, and claim limits. Read \`references/RUNTIME.md\` before capability-dependent work and \`references/WEB-CONTEXT.md\` before public-web work. When the target is a repository, read \`references/CODE-INTELLIGENCE.md\` once before substantive specialist work and follow its one-time indexing offer. Read \`references/THIRD-PARTY-ACTIONS.md\` before directing the user to act on a third-party website (API key registration, vendor accounts, dashboards).
+4. Read \`references/EXECUTION-PROFILES.md\`, \`references/SHARED-JUDGMENT.md\`, and \`references/AUTHORITY-POLICY.md\` for every invocation. Infer Depth from structured operating conditions, then obey its mandatory modules, legal skips, artifacts, and claim limits. Read \`references/RUNTIME.md\` before capability-dependent work and \`references/WEB-CONTEXT.md\` before public-web work. Read \`references/WEB-DATA.md\` before designing or performing bulk web-data acquisition (scraping, crawling, or building a dataset from web sources), whether the agent fetches directly or a plan designs the pipeline, and follow its one-time provider offer. When the target is a repository, read \`references/CODE-INTELLIGENCE.md\` once before substantive specialist work and follow its one-time indexing offer. Read \`references/THIRD-PARTY-ACTIONS.md\` before directing the user to act on a third-party website (API key registration, vendor accounts, dashboards).
 5. If an old asset path is unavailable, use \`references/ASSETS.md\`. If legacy prose invokes another retired skill, resolve it through \`references/COMPATIBILITY.md\` and stay inside these five dispatchers.
 6. Preserve report-only versus mutation boundaries. Missing mutation authorization fails closed: do not edit merely because a specialist can fix. Commits, pushes, PRs, merges, deploys, messages, and other external mutations still require affirmative authority from the user.
 7. Match the user's language. Keep code identifiers, commands, and source quotations original when translation would reduce accuracy.
@@ -562,6 +562,32 @@ function webContextContract(): string {
   ].join('\n');
 }
 
+function webDataContract(): string {
+  return [GENERATED,
+    '# Optional web-data providers (scraping and crawling)',
+    '',
+    'gstack works fully without a scraping provider: a hand-rolled fetcher or the local browser is always a valid plan and never depends on a vendor. A provider is an optional enhancement whenever a task must acquire web data at scale — whether the agent fetches it directly or a plan designs a data pipeline that will.',
+    '',
+    'Before designing or performing bulk web-data acquisition (scraping a site, crawling many pages, building a dataset from web sources), run `"${GSTACK_HOME:-$HOME/.gstack}"/bin/gstack-web-data status --json 2>/dev/null || true` once. If the helper is unavailable, continue with the hand-rolled path silently. If a provider is already selected, use it for its supported tasks without re-asking. If `declined` is true, never re-offer.',
+    '',
+    'When no choice is stored, first check whether the data source has an official API (for example MediaWiki for Wikipedia) — an official API beats every scraping provider and needs no consent question. Otherwise pause and ask via AskUserQuestion, presenting each provider with its availability, note, and setup hint from the status output. Recommend the best AVAILABLE provider for the task at hand using `gstack-web-data recommend <task>` (tasks: scrape, crawl, search, batch, hostile, authenticated). When a better-ranked provider is not set up, say so explicitly with its exact setup step (key to export, signup URL, or install), and recommend the best already-installed option for right now — never present an uninstalled provider as the working plan and never install anything yourself.',
+    '',
+    'Per-task best order, measured in the 2026-07-23 bakeoff (7 live tasks; the helper applies availability on top of this):',
+    '',
+    '- **scrape** (single public page): Firecrawl, then Exa, Context.dev, Aside, local browser.',
+    '- **crawl** (many pages from one site): Firecrawl, then Context.dev, Exa (cached subpages, freshness caveat), Aside, local browser.',
+    '- **search** (find the URLs first): Exa, then Firecrawl, Aside\'s agent. Context.dev search is deprecated upstream and the local browser has none.',
+    '- **batch** (many known URLs): Firecrawl, then Exa, Context.dev, local browser. Browsers serialize — wrong tool past a handful of pages.',
+    '- **hostile** (anti-bot sites): Firecrawl, then Aside (the user\'s real browser session), Context.dev. The plain local headless browser gets bot-walled.',
+    '- **authenticated** (logged-in/account pages): Aside only. Never send authenticated pages, private addresses, or credentials to any API provider.',
+    '',
+    'Egress rules are the Context.dev rules generalized: an off-machine provider (Firecrawl, Exa, Context.dev) may receive only public target URLs and operation parameters after explicit selection — never authenticated pages, localhost or private addresses, private repository content, prompts, user files, cookies, tokens, or credentials. Provider API keys live in the environment or the runtime secret store, never in chat, argv, project files, or version control. Browser options follow `references/BROWSER-PROVIDERS.md` for detection and readiness: confirm the `aside` CLI is callable rather than assuming, never install a browser or provider yourself, and never treat binary presence as consent.',
+    '',
+    'Persist only the explicit choice with `gstack-web-data select <firecrawl|exa|context|aside|local-browser|none>`. Context.dev consent additionally belongs to `gstack context setup` per `references/WEB-CONTEXT.md`; selecting it here never grants that consent. Never infer a choice, never treat an unavailable provider as forbidden (the user may set it up later), and never block the task on this decision: if the user declines or setup is pending, proceed with the official API, hand-rolled fetcher, or local browser and say which fallback you used.',
+    '',
+  ].join('\n');
+}
+
 function thirdPartyActionsContract(): string {
   return [GENERATED,
     '# Third-party web actions',
@@ -742,6 +768,7 @@ function writeSharedContracts(): void {
     write(path.join(ROOT, 'skills', tree, 'references', 'SHARED-JUDGMENT.md'), sharedJudgmentContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'AUTHORITY-POLICY.md'), authorityPolicyContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'WEB-CONTEXT.md'), webContextContract());
+    write(path.join(ROOT, 'skills', tree, 'references', 'WEB-DATA.md'), webDataContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'CODE-INTELLIGENCE.md'), codeIntelligenceContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'THIRD-PARTY-ACTIONS.md'), thirdPartyActionsContract());
     write(path.join(ROOT, 'skills', tree, 'references', 'RUNTIME.md'), runtimeContract());

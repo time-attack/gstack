@@ -101,10 +101,13 @@ describe('gstack state external-effect CLI', () => {
     const out = sink();
     const err = sink();
     await main(['state', 'begin', 'ship', '--run-id', 'run_empty'], { cwd, env, stdout: out, stderr: err });
-    const silent = path.join(cwd, 'silent.sh');
-    await fs.writeFile(silent, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    // A tool that exits 0 with no output, portable across platforms — a
+    // `#!/bin/sh` script is not spawnable on Windows and turns this into a
+    // spawn-failure test instead of an empty-success test. `void 0` (not '')
+    // because `bun -e ''` prints usage help while `node -e ''` stays silent.
+    const silentTool = [process.execPath, '-e', 'void 0'];
     const code = await main([
-      'state', 'effect', 'run_empty', 'silent.tool', '--', silent,
+      'state', 'effect', 'run_empty', 'silent.tool', '--', ...silentTool,
     ], { cwd, env, stdout: out, stderr: err });
     expect(code).toBe(1);
     expect(JSON.parse(err.value())).toMatchObject({
@@ -115,7 +118,7 @@ describe('gstack state external-effect CLI', () => {
     expect(out.value()).not.toContain('"status":"success"');
     const retryError = sink();
     expect(await main([
-      'state', 'effect', 'run_empty', 'silent.tool', '--', silent,
+      'state', 'effect', 'run_empty', 'silent.tool', '--', ...silentTool,
     ], { cwd, env, stdout: out, stderr: retryError })).toBe(1);
     expect(retryError.value()).toContain('was already claimed');
   });

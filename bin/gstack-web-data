@@ -1,0 +1,128 @@
+#!/usr/bin/env bun
+/**
+ * gstack-web-data — pick a web-data (scraping/crawling) provider and get the
+ * best recommendation per task. OPTIONAL: with nothing selected, gstack works
+ * fine and callers hand-roll fetches or use the local browser.
+ *
+ * Usage:
+ *   gstack-web-data status [--json]        # selection + per-provider availability
+ *   gstack-web-data options                # list providers + availability + setup hints
+ *   gstack-web-data select <firecrawl|exa|context|aside|local-browser|none>
+ *   gstack-web-data recommend <task> [--json]
+ *     tasks: scrape | crawl | search | batch | hostile | authenticated
+ *
+ * Selecting an off-machine provider records the user's explicit consent to
+ * send PUBLIC target URLs to it — never authenticated pages, private
+ * addresses, project content, cookies, tokens, or credentials.
+ */
+
+import {
+  PROVIDERS,
+  TASK_IDS,
+  TASK_RANKINGS,
+  detectAvailability,
+  readSelection,
+  recommend,
+  setProvider,
+  type WebDataProviderId,
+  type WebDataTask,
+} from "../lib/web-data";
+
+function out(s: string): void {
+  process.stdout.write(`${s}\n`);
+}
+function fail(s: string): never {
+  process.stderr.write(`gstack-web-data: ${s}\n`);
+  process.exit(1);
+}
+
+function cmdStatus(json: boolean): void {
+  const sel = readSelection();
+  const avail = detectAvailability();
+  if (json) {
+    out(JSON.stringify({
+      selected: sel.provider,
+      declined: sel.declined,
+      providers: avail.map((a) => {
+        const p = PROVIDERS.find((x) => x.id === a.id)!;
+        return { id: p.id, label: p.label, offMachine: p.offMachine, available: a.available, detail: a.detail, note: p.note, setupHint: p.setupHint };
+      }),
+      tasks: TASK_IDS,
+    }));
+    return;
+  }
+  out(`selected: ${sel.provider ?? (sel.declined ? "none (declined — do not ask again)" : "none (never asked)")}`);
+  for (const a of avail) {
+    const p = PROVIDERS.find((x) => x.id === a.id)!;
+    out(`  ${p.label.padEnd(20)} [${a.available ? "available" : "not available"}] ${a.detail}`);
+  }
+}
+
+function cmdOptions(): void {
+  out("Web-data providers (all optional; public URLs only for off-machine providers):\n");
+  const avail = new Map(detectAvailability().map((a) => [a.id, a]));
+  for (const p of PROVIDERS) {
+    const a = avail.get(p.id)!;
+    out(`  ${p.id === "firecrawl" ? "*" : " "} ${p.label.padEnd(20)} [${a.available ? "available" : "not available"}] — ${p.note}`);
+    if (!a.available) out(`      setup: ${p.setupHint}`);
+  }
+  out("\nSelect one with: gstack-web-data select <provider>");
+  out("Per-task best: gstack-web-data recommend <scrape|crawl|search|batch|hostile|authenticated>");
+}
+
+function cmdSelect(arg: string | undefined): void {
+  if (arg === "none") {
+    setProvider(null);
+    out("web-data provider declined; gstack hand-rolls fetches / uses the local browser and will not ask again");
+    return;
+  }
+  const provider = PROVIDERS.find((p) => p.id === arg);
+  if (!provider) fail("Usage: select <firecrawl|exa|context|aside|local-browser|none>");
+  setProvider(provider.id as WebDataProviderId);
+  out(`selected ${provider.label}.`);
+  if (provider.offMachine) out(`${provider.label} receives public target URLs only — never authenticated pages, private addresses, project content, or credentials.`);
+}
+
+function cmdRecommend(rest: string[]): void {
+  const json = rest.includes("--json");
+  const task = rest.find((a) => !a.startsWith("--")) as WebDataTask | undefined;
+  if (!task || !TASK_IDS.includes(task)) {
+    fail(`Usage: recommend <${TASK_IDS.join("|")}> [--json]`);
+  }
+  const r = recommend(task);
+  if (json) {
+    out(JSON.stringify(r));
+    return;
+  }
+  out(`task: ${task} — ${r.why}`);
+  if (r.best) {
+    out(`recommended (best available): ${r.best.label} (${r.best.detail})`);
+  } else {
+    out("no capable provider is set up for this task.");
+  }
+  for (const u of r.betterUnavailable) {
+    out(`  better but not set up: ${u.label} — ${u.setupHint}`);
+  }
+  if (!r.best && task === "authenticated") {
+    out("  logged-in pages must stay in the user's own browser; never send them to an API provider.");
+  }
+  out(`full ranking: ${TASK_RANKINGS[task].order.join(" > ")}`);
+}
+
+function main(): void {
+  const [action, ...rest] = process.argv.slice(2);
+  switch (action) {
+    case "status":
+      return cmdStatus(rest.includes("--json"));
+    case "options":
+      return cmdOptions();
+    case "select":
+      return cmdSelect(rest[0]);
+    case "recommend":
+      return cmdRecommend(rest);
+    default:
+      fail("Usage: status [--json] | options | select <provider|none> | recommend <task> [--json]");
+  }
+}
+
+main();
