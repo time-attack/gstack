@@ -2,8 +2,9 @@
 /**
  * gstack-model-benchmark — run the same prompt(s) across providers and compare,
  * with scoring, experiments, and reporting owned by Braintrust (local by default;
- * nothing is uploaded unless BRAINTRUST_API_KEY is set — that key is the consent
- * boundary for the cloud dashboard).
+ * nothing is uploaded unless you explicitly opt in via --upload or
+ * `gstack-config set braintrust_upload true` AND BRAINTRUST_API_KEY is set —
+ * a key present in the environment is not consent).
  *
  * Usage:
  *   gstack-model-benchmark [<prompt-file>] [options]
@@ -15,6 +16,9 @@
  *   --timeout-ms <n>             Per-provider-per-case timeout (default: 300000)
  *   --output table|json          Output format (default: table)
  *   --judge                      Add the autoevals ClosedQA LLM judge (needs OPENAI_API_KEY)
+ *   --upload                     Opt in to uploading results to the Braintrust cloud
+ *                                dashboard (also needs BRAINTRUST_API_KEY). Persistent
+ *                                alternative: gstack-config set braintrust_upload true
  *   --dry-run                    Validate flags + resolve auth, don't invoke providers
  *
  * Examples:
@@ -25,6 +29,8 @@
 
 import '../lib/conductor-env-shim';
 import * as fs from 'fs';
+import * as path from 'path';
+import { spawnSync } from 'child_process';
 import {
   loadCorpus,
   runProviderBenchmark,
@@ -90,6 +96,24 @@ function parseProviders(s: string | undefined): ProviderName[] {
   return seen.size ? Array.from(seen) : ['claude'];
 }
 
+/**
+ * Braintrust upload is opt-in: --upload flag or persisted
+ * `gstack-config get braintrust_upload` (default off). BRAINTRUST_API_KEY
+ * presence alone never uploads (docs/gstack-2/PRIVACY.md).
+ */
+function resolveUploadConsent(): boolean {
+  if (flag('--upload')) return true;
+  try {
+    const r = spawnSync(path.join(import.meta.dir, 'gstack-config'), ['get', 'braintrust_upload'], {
+      encoding: 'utf-8',
+      timeout: 5000,
+    });
+    return (r.stdout ?? '').trim().toLowerCase() === 'true';
+  } catch {
+    return false; // config unreadable → stay local
+  }
+}
+
 /** Resolve the cases: --prompt/file → single ad-hoc case; else the corpus. */
 function resolveCases(positional: string | undefined): BenchCase[] {
   const inline = arg('--prompt');
@@ -108,20 +132,27 @@ async function main(): Promise<void> {
   const output = (arg('--output', 'table') as OutputFormat);
   const doJudge = flag('--judge');
   const dryRun = flag('--dry-run');
+  const upload = resolveUploadConsent();
 
   if (dryRun) {
-    await dryRunReport({ cases: resolveCases(positional), providers, timeoutMs, output, doJudge });
+    await dryRunReport({ cases: resolveCases(positional), providers, timeoutMs, output, doJudge, upload });
     return;
   }
 
   if (doJudge && !process.env.OPENAI_API_KEY) {
     console.error('WARN: --judge needs OPENAI_API_KEY for the autoevals ClosedQA judge — running with the deterministic scorer only.');
   }
+  if (upload && !process.env.BRAINTRUST_API_KEY) {
+    console.error('WARN: upload requested but BRAINTRUST_API_KEY is not set — running local-only.');
+  }
+  if (!upload && process.env.BRAINTRUST_API_KEY) {
+    console.error('NOTE: BRAINTRUST_API_KEY is set but upload is off (local-only). Enable with --upload or `gstack-config set braintrust_upload true`.');
+  }
 
   const cases = resolveCases(positional);
   const results: ProviderBenchmark[] = [];
   for (const provider of providers) {
-    results.push(await runProviderBenchmark(provider, cases, { timeoutMs, judge: doJudge && !!process.env.OPENAI_API_KEY }));
+    results.push(await runProviderBenchmark(provider, cases, { timeoutMs, judge: doJudge && !!process.env.OPENAI_API_KEY, upload }));
   }
 
   process.stdout.write((output === 'json' ? JSON.stringify(results, null, 2) : formatTable(results)) + '\n');
@@ -148,6 +179,7 @@ async function dryRunReport(opts: {
   timeoutMs: number;
   output: OutputFormat;
   doJudge: boolean;
+  upload: boolean;
 }): Promise<void> {
   const adhoc = opts.cases.length === 1 && opts.cases[0].id === 'adhoc';
   const lines: string[] = [];
@@ -162,7 +194,13 @@ async function dryRunReport(opts: {
   lines.push(`  timeout_ms: ${opts.timeoutMs}`);
   lines.push(`  output:     ${opts.output}`);
   lines.push(`  judge:      ${opts.doJudge ? 'on (autoevals ClosedQA)' : 'off'}`);
-  lines.push(`  upload:     ${process.env.BRAINTRUST_API_KEY ? 'ON — BRAINTRUST_API_KEY set (cloud dashboard)' : 'off (local only, nothing uploaded)'}`);
+  lines.push(`  upload:     ${
+    opts.upload && process.env.BRAINTRUST_API_KEY
+      ? 'ON — opted in with BRAINTRUST_API_KEY set (cloud dashboard)'
+      : opts.upload
+        ? 'off (opted in but BRAINTRUST_API_KEY missing)'
+        : 'off (local only — opt in with --upload or `gstack-config set braintrust_upload true`)'
+  }`);
   lines.push('');
   lines.push('Adapter availability:');
   let authFailures = 0;
