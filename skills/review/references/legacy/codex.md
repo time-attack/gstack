@@ -829,8 +829,8 @@ A question is only answerable if the user can see what it refers to. Before any 
 Every dispatch in this module ships repository content to an external model:
 the branch diff, any files the CLI reads for context, and the composed prompt.
 Before EACH such dispatch (`codex review`, `codex exec`, or `claude -p` with
-repo content), run the standard scan-at-sink procedure /spec, /ship, and /cso
-already apply to their external sinks:
+repo content), run the standard scan-at-sink procedure the specification,
+ship, and security-audit workflows already apply to their external sinks:
 
 1. **Materialize what will leave the machine.** For prompt-file dispatches
    (`cat "$PROMPT_FILE" | claude -p …`), the prompt file IS the sink bytes —
@@ -840,7 +840,7 @@ already apply to their external sinks:
    plus your prompt text, into a temp file) and scan them before dispatching.
 2. **Scan.** Resolve `$REDACT_VIS` once (local config `redact_repo_visibility`
    → gh → glab → unknown=public-strict), then run
-   `$GSTACK_BIN/gstack-redact --from-file "$REDACT_FILE" --repo-visibility "$REDACT_VIS" --self-email "$(git config user.email 2>/dev/null)" --json`.
+   `"${GSTACK_HOME:-$HOME/.gstack}/bin/gstack-redact" --from-file "$REDACT_FILE" --repo-visibility "$REDACT_VIS" --self-email "$(git config user.email 2>/dev/null)" --json`.
 3. **Exit 3 (HIGH):** do NOT dispatch. Print the findings, tell the user to
    rotate + redact at source, and stop this outside voice with a typed
    degradation note. HIGH has no skip flag.
