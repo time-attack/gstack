@@ -1,0 +1,23 @@
+{
+  "pr": 2370,
+  "url": "https://github.com/garrytan/gstack/issues/2370",
+  "title": "Dispatch outside voices portably: trailing-XXXXXX mktemp and prompts via stdin",
+  "targets": [
+    "codex",
+    "claude"
+  ],
+  "anchor": "GSTACK2_FIX_2370_PORTABLE_DISPATCH",
+  "body": "### Portable outside-voice dispatch\n\nTwo dispatch-infrastructure defects masquerade as a model stall (empty output,\nno findings) on macOS from the second run and on Alpine/BusyBox from the first:\n\n1. **Temp files.** Every `mktemp` template MUST end in trailing `XXXXXX` with\n   no suffix (`mktemp \"$TMP_ROOT/codex-err-XXXXXX\"`, never\n   `codex-err-XXXXXX.txt`). BSD and BusyBox `mktemp` require the Xs at the end\n   of the template; a suffixed template errors or degrades to a fixed name that\n   collides on the next run.\n2. **Prompt dispatch.** Never inline a prompt file into argv with\n   `\"$(cat \"$PROMPT_FILE\")\"` — argv length limits and shell quoting differences\n   truncate or mangle large prompts. Send the prompt over stdin\n   (`codex exec - < \"$PROMPT_FILE\"`, or pipe the same file to `claude -p`) so\n   the bytes dispatched are exactly the bytes in the scanned file.\n\nBefore blaming a stall on the model or the network, classify the failure:\na nonzero `mktemp` exit or an argv-shaped dispatch is infrastructure, not the\nmodel. Report it as such instead of \"Codex stalled\".",
+  "regression": {
+    "input": {
+      "mktemp_template": "codex-err-XXXXXX.txt",
+      "prompt_channel": "argv-cat"
+    },
+    "expected": {
+      "template_valid": false,
+      "required_template_shape": "trailing-XXXXXX-no-suffix",
+      "prompt_channel": "stdin",
+      "stall_blamed_on_model": false
+    }
+  }
+}

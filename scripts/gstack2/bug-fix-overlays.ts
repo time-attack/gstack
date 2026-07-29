@@ -401,6 +401,41 @@ Before sharing any founder resources (Paul Graham essays, Garry Tan or YC videos
     },
   },
   {
+    pr: 2370,
+    url: 'https://github.com/garrytan/gstack/issues/2370',
+    title: 'Dispatch outside voices portably: trailing-XXXXXX mktemp and prompts via stdin',
+    targets: ['codex', 'claude'],
+    anchor: 'GSTACK2_FIX_2370_PORTABLE_DISPATCH',
+    body: `### Portable outside-voice dispatch
+
+Two dispatch-infrastructure defects masquerade as a model stall (empty output,
+no findings) on macOS from the second run and on Alpine/BusyBox from the first:
+
+1. **Temp files.** Every \`mktemp\` template MUST end in trailing \`XXXXXX\` with
+   no suffix (\`mktemp "$TMP_ROOT/codex-err-XXXXXX"\`, never
+   \`codex-err-XXXXXX.txt\`). BSD and BusyBox \`mktemp\` require the Xs at the end
+   of the template; a suffixed template errors or degrades to a fixed name that
+   collides on the next run.
+2. **Prompt dispatch.** Never inline a prompt file into argv with
+   \`"$(cat "$PROMPT_FILE")"\` — argv length limits and shell quoting differences
+   truncate or mangle large prompts. Send the prompt over stdin
+   (\`codex exec - < "$PROMPT_FILE"\`, or pipe the same file to \`claude -p\`) so
+   the bytes dispatched are exactly the bytes in the scanned file.
+
+Before blaming a stall on the model or the network, classify the failure:
+a nonzero \`mktemp\` exit or an argv-shaped dispatch is infrastructure, not the
+model. Report it as such instead of "Codex stalled".`,
+    regression: {
+      input: { mktemp_template: 'codex-err-XXXXXX.txt', prompt_channel: 'argv-cat' },
+      expected: {
+        template_valid: false,
+        required_template_shape: 'trailing-XXXXXX-no-suffix',
+        prompt_channel: 'stdin',
+        stall_blamed_on_model: false,
+      },
+    },
+  },
+  {
     // Audit-finding port (egress-audit-2026-07-28 finding 8) — 9108 is an
     // audit-scoped identifier, not an upstream PR/issue number.
     pr: 9108,
@@ -737,6 +772,15 @@ export function evaluateBugFixRegression(pr: number, rawInput: unknown): Record<
         skip_is_silent: optedOut,
         never_again_option_when_shown: true,
         opt_out_persisted_via: 'gstack-config set founder_resources false',
+      };
+    }
+    case 2370: {
+      const template = String(input.mktemp_template ?? '');
+      return {
+        template_valid: /XXXXXX$/.test(template),
+        required_template_shape: 'trailing-XXXXXX-no-suffix',
+        prompt_channel: 'stdin',
+        stall_blamed_on_model: false,
       };
     }
     case 9108: {

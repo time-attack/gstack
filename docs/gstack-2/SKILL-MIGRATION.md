@@ -46,8 +46,8 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 | `/review` | `$review --mode Normal --module review` | internal (primary) | yes | #610, #645, #679, #2030, #2141, #579, #886, #452, #879 |
 | `/cso` | `$review --mode Security --module cso` | internal (primary) | yes | #679, #2030, #1523, #1053, #879 |
 | `/health` | `$review --mode Deep --module health` | internal (primary) | yes | #679, #879 |
-| `/codex` | `$review --mode Deep --module codex` | internal (primary) | yes | #679, #879, #9109 |
-| `/claude` | `$review --mode Deep --module claude` | internal (primary) | yes | #679, #879, #9109 |
+| `/codex` | `$review --mode Deep --module codex` | internal (primary) | yes | #679, #879, #2370, #9109 |
+| `/claude` | `$review --mode Deep --module claude` | internal (primary) | yes | #679, #879, #2370, #9109 |
 | `/ship` | `$ship --mode Prepare --module ship` | internal (primary) | yes | #679, #884, #2030, #2186, #1102, #879 |
 | `/land-and-deploy` | `$ship --mode Land --module land-and-deploy` | internal (primary) | yes | #679, #884, #879 |
 | `/landing-report` | `$ship --mode Prepare --module landing-report` | internal (primary) | yes | #679, #879 |
@@ -67,5 +67,5 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 ## Mechanical versus judgment changes
 
 - `JUDGMENT_PRESERVING_CARVE`: pinned specialist workflow with the retired shared onboarding wrapper excluded, retired invocations resolved to five public routes, host/runtime paths normalized, and large carved phases loaded lazily from package-local pinned references.
-- `BUG_FIX`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 24 upstream PRs and issues and its regression fixture.
+- `BUG_FIX`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 29 upstream PRs, issues, and audit findings and its regression fixture.
 - Asset relocation is byte-for-byte from the pinned Git blob and is indexed per tree.

@@ -527,6 +527,16 @@ function portLegacyText(value: string, source: string): string {
   body = body
     .replaceAll('$HOME$GSTACK_BROWSE/browse', '${GSTACK_HOME:-$HOME/.gstack}/bin/browse');
 
+  // Portable outside-voice dispatch (upstream #2370/#2372, overlay 2370).
+  // BSD/BusyBox mktemp require trailing Xs: strip any suffix after a XXXXXX
+  // run so templates work on macOS and Alpine, not only GNU coreutils.
+  body = body.replace(/(mktemp[^\n]*?XXXXXX)\.[A-Za-z0-9]+/g, '$1');
+  // Prompt dispatch goes over stdin, never inlined into argv via "$(cat ...)".
+  body = body.replaceAll(
+    'codex exec -s read-only "$(cat "$_PROMPT_FILE")" -c \'model_reasoning_effort="high"\' --enable web_search_cached < /dev/null 2>"$TMPERR"',
+    'codex exec -s read-only -c \'model_reasoning_effort="high"\' --enable web_search_cached - < "$_PROMPT_FILE" 2>"$TMPERR"',
+  );
+
   if (source === 'careful') {
     body = body.replace(
       'Every Bash command is automatically checked against destructive patterns. When a dangerous command is detected, you MUST use AskUserQuestion to warn the user and get confirmation before proceeding.',

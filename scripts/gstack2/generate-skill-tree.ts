@@ -126,7 +126,7 @@ function assertInventory(): void {
   }
   if (legacySections().length !== 14) throw new Error(`Expected 14 section templates, found ${legacySections().length}`);
   if (SCENARIOS.length !== 19) throw new Error(`Expected 19 parity scenarios, found ${SCENARIOS.length}`);
-  if (BUG_FIX_OVERLAYS.length !== 28) throw new Error(`Expected 28 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
+  if (BUG_FIX_OVERLAYS.length !== 29) throw new Error(`Expected 29 upstream judgment overlays, found ${BUG_FIX_OVERLAYS.length}`);
 }
 
 function toc(body: string): string {
@@ -909,7 +909,7 @@ ${rows}
 ## Mechanical versus judgment changes
 
 - \`JUDGMENT_PRESERVING_CARVE\`: pinned specialist workflow with the retired shared onboarding wrapper excluded, retired invocations resolved to five public routes, host/runtime paths normalized, and large carved phases loaded lazily from package-local pinned references.
-- \`BUG_FIX\`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the 24 upstream PRs and issues and its regression fixture.
+- \`BUG_FIX\`: the canonical carved body plus a clearly delimited judgment overlay sourced from one of the ${BUG_FIX_OVERLAYS.length} upstream PRs, issues, and audit findings and its regression fixture.
 - Asset relocation is byte-for-byte from the pinned Git blob and is indexed per tree.
 `;
 }
@@ -939,7 +939,7 @@ The suite verifies:
 - immutable full 1.x render hashes plus canonical specialist-render equality, with the excluded onboarding wrapper and lazy section references asserted explicitly;
 - preservation of nine behavioral contract dimensions per module;
 - 19 structured non-keyword routing fixtures with active/skipped modules, depth, mutation, and web context;
-- 24 upstream judgment-port regression fixtures and anchors;
+- ${BUG_FIX_OVERLAYS.length} upstream judgment-port regression fixtures and anchors;
 - all linked asset copies against their pinned Git blobs;
 - frontmatter and \`agents/openai.yaml\` schema for each public skill.
 
@@ -1097,7 +1097,7 @@ function main(): void {
     base_sha: GSTACK2_BASE_SHA,
     public_skills: [...TREE_NAMES],
     tool_skills: [...TOOL_SKILLS],
-    counts: { public_skills: 5, tool_skills: TOOL_SKILLS.length, mandatory_inputs: 25, templates: 47, section_templates: 14, packaged_section_copies: sectionCopies.length, internal_execution_adapters: 1, scenarios: 19, bug_fix_ports: 24, assets: assets.length, dependency_copies: dependencyCopies.length, runtime_helpers: runtimeHelpers.length },
+    counts: { public_skills: 5, tool_skills: TOOL_SKILLS.length, mandatory_inputs: 25, templates: 47, section_templates: 14, packaged_section_copies: sectionCopies.length, internal_execution_adapters: 1, scenarios: 19, bug_fix_ports: BUG_FIX_OVERLAYS.length, assets: assets.length, dependency_copies: dependencyCopies.length, runtime_helpers: runtimeHelpers.length },
     sources: sourceRecords,
     sections: sectionRecords,
     section_copies: sectionCopies,

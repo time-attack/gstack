@@ -9,11 +9,12 @@
   "source_path": "codex/SKILL.md.tmpl",
   "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
   "blob_sha": "333de7d8d590cc78184b0e2371171f6121408f73",
-  "normalized_render_sha256": "fda5208c92025ee46cd5cffab2f56bbea4bcb563d4ccacc43768c62b0de923c6",
+  "normalized_render_sha256": "4b879d93f27b05e458c8e490b58e9717740a4f1a7d5586f7a1beadadc59e35f8",
   "target": "skills/review/references/legacy/codex.md",
   "overlays": [
     679,
     879,
+    2370,
     9109
   ],
   "contract": {
