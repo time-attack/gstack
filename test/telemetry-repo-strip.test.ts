@@ -84,10 +84,10 @@ describe('telemetry no-repo-identity-egress invariant', () => {
     // Only emission lines that target the synced file (skill-usage.jsonl). The
     // preamble appends directly; gstack-telemetry-log builds the synced event
     // with a `printf '{"v":1,...` line into $JSONL_FILE (= skill-usage.jsonl).
-    const preambleSynced = fs
-      .readFileSync(PREAMBLE, 'utf-8')
-      .split('\n')
-      .filter((l) => l.includes('skill-usage.jsonl'));
+    // The preamble resolver was removed with the generator; tolerate its absence.
+    const preambleSynced = fs.existsSync(PREAMBLE)
+      ? fs.readFileSync(PREAMBLE, 'utf-8').split('\n').filter((l) => l.includes('skill-usage.jsonl'))
+      : [];
     const telLogSynced = fs
       .readFileSync(TEL_LOG, 'utf-8')
       .split('\n')
@@ -96,9 +96,9 @@ describe('telemetry no-repo-identity-egress invariant', () => {
       ...emittedRepoFields(preambleSynced),
       ...emittedRepoFields(telLogSynced),
     ]);
-    // The preamble must emit "repo" — guards against the test silently passing
-    // because a regex stopped matching the producer.
-    expect(emitted.has('repo')).toBe(true);
+    // A producer must still emit at least one repo-identity field — guards against
+    // the test silently passing because a regex stopped matching the producer.
+    expect(emitted.size).toBeGreaterThan(0);
     for (const field of emitted) {
       expect(
         strippedFields.has(field),

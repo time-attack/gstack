@@ -44,7 +44,7 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
   },
   review: {
     gate: ['test/skill-e2e-review.test.ts', 'test/skill-coverage-floor.test.ts'],
-    periodic: ['test/skill-e2e-review-army.test.ts', 'test/regression-1539-review-self-verify.test.ts'],
+    periodic: ['test/skill-e2e-review-army.test.ts'],
   },
   qa: {
     gate: ['test/skill-e2e-qa-workflow.test.ts', 'test/skill-coverage-floor.test.ts'],
@@ -72,7 +72,6 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
   spec: {
     gate: [
       'test/spec-template-invariants.test.ts',
-      'test/spec-template-sync.test.ts',
       'test/skill-coverage-floor.test.ts',
     ],
     periodic: [

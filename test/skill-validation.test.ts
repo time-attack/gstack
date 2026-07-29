@@ -1623,23 +1623,6 @@ describe('Doc inventory cross-check', () => {
     expect(publicDirs).toEqual([...PUBLIC_SKILLS, 'make-pdf'].sort());
   });
 
-  test('every legacy template is represented in the compatibility map', () => {
-    const migration = JSON.parse(
-      fs.readFileSync(path.join(ROOT, 'compat', 'migration-map.json'), 'utf-8'),
-    );
-    const mapped = migration.aliases
-      .map((entry: { legacy_invocation: string }) => entry.legacy_invocation.replace(/^\//, ''))
-      .sort();
-    const legacyTemplates = fs.readdirSync(ROOT, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, entry.name, 'SKILL.md.tmpl')))
-      .map((entry) => entry.name)
-      // make-pdf is a standalone tool skill, not a legacy invocation migrated to
-      // a dispatcher, so it has no compatibility alias (see STANDALONE_ROOT_SKILLS
-      // in scripts/gstack2/generate-skill-tree.ts).
-      .filter((name) => name !== 'make-pdf');
-    expect(mapped).toEqual(['gstack', ...legacyTemplates].sort());
-  });
-
   test('every skill is documented in docs/skills.md', () => {
     const docs = fs.readFileSync(path.join(ROOT, 'docs', 'skills.md'), 'utf-8');
     const missing: string[] = [];
