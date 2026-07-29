@@ -31,10 +31,10 @@ let package = Package(
             ],
             path: "Sources/GenAccessors"
         ),
-        .testTarget(
-            name: "GenAccessorsTests",
-            dependencies: ["GenAccessors"],
-            path: "Tests/GenAccessorsTests"
-        ),
+        // No testTarget: this package ships no Tests/ directory, and SwiftPM
+        // validates every declared target path before building anything, so a
+        // phantom testTarget made `swift run gen-accessors` fail on first use
+        // (gstack#1735). The parser logic is covered by the TS port's tests
+        // (ios-qa/scripts/gen-accessors.test.ts).
     ]
 )

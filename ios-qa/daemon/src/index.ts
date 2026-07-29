@@ -21,6 +21,7 @@ import { mintForCaller } from './auth-mint';
 import { classifyRoute, proxyToDevice, type DeviceTunnel } from './proxy';
 import { writeAudit, writeAttempt, sanitizeReplacer } from './audit';
 import { bootstrapTunnel } from './tunnel-bootstrap';
+import { defaultSessionCachePath } from './session-cache';
 import { startTunnelKeepalive } from './devicectl';
 import type { Capability } from './types';
 
@@ -430,6 +431,10 @@ if (import.meta.main) {
     const result = await bootstrapTunnel({
       udid: targetUDID,
       bundleId,
+      // Persist + reuse the rotated bearer across bootstraps: the boot token
+      // is single-use, so without this the device is drivable exactly once
+      // per app launch (gstack#1796).
+      sessionCachePath: defaultSessionCachePath(),
     });
     if (!result.ok) {
       process.stderr.write(`bootstrap error: ${result.error}${result.detail ? ' — ' + result.detail : ''}\n`);

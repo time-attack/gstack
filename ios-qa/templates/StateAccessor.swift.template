@@ -13,6 +13,9 @@
 #if DEBUG
 
 import Foundation
+// StateServer lives in the DebugBridgeCore module (there is no module named
+// plain "DebugBridge" — the package name is not an importable module).
+import DebugBridgeCore
 
 @MainActor
 public enum {{CLASS_NAME}}Accessor {
