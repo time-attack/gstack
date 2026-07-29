@@ -74,13 +74,13 @@ does not install the optional runtime. The committed evidence artifact is
 
 | Host | Portable | Project all-five | Global all-five | Selected-skill coverage | Installer tier | Host UI/process |
 |---|---|---|---|---|---|---|
-| Claude Code | yes | pass | pass | no separate subset case | **Verified — installer** | pending |
-| OpenAI Codex | yes | pass | pass | global `qa`, `review`, `ship` pass + removal pass; actual selected `qa` runtime-absent run; opt-in alias covered | **Verified — installer**; runtime-absent invocation passed | live v3 adversarial **passed 4/4** one-shot ([artifact](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json)); v1, v2, and two earlier 3/4 live v3 one-shots retained failed |
-| Kimi Code CLI | yes | pass | pass | no separate subset case | **Verified — installer** | browser automation uses the consented GStack local-browser fallback; host skill invocation pending |
-| Cursor | yes | pass | pass | project `qa`, `review`, `ship` pass + removal pass | **Verified — installer** | pending |
-| Pi | yes | pass | pass | no separate subset case | **Verified — installer** | pending |
-| OpenClaw | yes | pass | pass | project `ship` single-skill pass | **Verified — installer** | pending |
-| GitHub Copilot | yes | pass | pass | no separate subset case | **Verified — installer** | pending |
+| Claude Code | yes | pass | pass | no separate subset case | **Verified — installer** | **UI-verified**: six-skill discovery + `/qa` activation probes passed; scored one-shot cell **passed 13/13** ([artifact](../../evals/host-adversarial/runs/2026-07-28-uilaunch-claude-2.json)); first cell retained failed on a harness parser defect ([artifact](../../evals/host-adversarial/runs/2026-07-28-uilaunch-claude.json)) |
+| OpenAI Codex | yes | pass | pass | global `qa`, `review`, `ship` pass + removal pass; actual selected `qa` runtime-absent run; opt-in alias covered | **Verified — installer**; runtime-absent invocation passed | **UI-verified**: live v3 adversarial **passed 4/4** one-shot ([artifact](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json)); v1, v2, and two earlier 3/4 live v3 one-shots retained failed |
+| Kimi Code CLI | yes | pass | pass | no separate subset case | **Verified — installer** | six-skill discovery verified from kimi's own session context record; every model call fails 401 (local OAuth grant expired 2026-07-24, refresh rejected) — scored cell pending operator `kimi login`. Browser automation uses the consented GStack local-browser fallback |
+| Cursor | yes | pass | pass | project `qa`, `review`, `ship` pass + removal pass | **Verified — installer** | **UI-verified**: six-skill discovery + `/qa` activation probes passed; scored one-shot cell **passed 13/13** in ask mode ([artifact](../../evals/host-adversarial/runs/2026-07-28-uilaunch-cursor-2.json)); first cell retained failed on plan-mode final-message conflict + a harness plan-tool misclassification ([artifact](../../evals/host-adversarial/runs/2026-07-28-uilaunch-cursor.json)) |
+| Pi | yes | pass | pass | no separate subset case | **Verified — installer** | UI launch + `/qa` activation verified by probe; scored one-shot cell **failed** — safe report-only behavior and valid structured output but only 2/5 mandated reads (pi 0.80.9, `gemini-2.5-pro`), retained as-is ([artifact](../../evals/host-adversarial/runs/2026-07-28-uilaunch-pi.json)) |
+| OpenClaw | yes | pass | pass | project `ship` single-skill pass | **Verified — installer** | pending host availability: CLI not installed here; `npm view openclaw` shows an installable CLI (`openclaw@2026.7.1-2`, `bin: openclaw`) |
+| GitHub Copilot | yes | pass | pass | no separate subset case | **Verified — installer** | pending host availability: requires a paid Copilot seat; not installed here |
 
 The representative selection cases installed exactly `qa`, `review`, and
 `ship`, independently at project scope for Cursor and global scope for Codex,
@@ -89,8 +89,15 @@ OpenClaw and explicitly selected the `office-hours` compatibility alias for
 Codex; neither alias nor unselected canonical skill was silently enrolled.
 `--copy` was advertised and used.
 
-This is filesystem/installer verification, not a claim that seven host UIs loaded
-or executed the skills. A separate actual Codex invocation installed only `qa`
+The installer matrix itself is filesystem verification. Host UI execution is
+evidenced separately, per the Host UI/process column: Codex passed the full
+4/4 live adversarial suite; Claude Code and Cursor passed scored one-shot
+UI-launch cells (single-fixture, recorded `incomplete` by construction — a
+UI-launch cell, not adversarial parity); Pi's cell is a retained honest
+failure; Kimi is blocked on an expired operator OAuth grant; OpenClaw and
+GitHub Copilot are installer-verified only, pending host availability. The
+activation token for the slash-capable hosts is `/skill` (probe-verified);
+Codex activates on `$skill`. A separate actual Codex invocation installed only `qa`
 from `time-attack/gstack/skills`, with the optional runtime absent, and passed
 the judgment/setup-gate behavior without changing its workspace or creating a
 runtime or browser. The Codex adversarial lane now has a passing live result:
@@ -100,7 +107,8 @@ the 2026-07-22 paid live v3 one-shot **passed 4/4** (Codex CLI 0.145.0,
 The retained failed history is unchanged: v1 and immutable v2 failed, and two
 earlier live v3 one-shots each failed 3/4 (review compound inspection, then
 ship `git symbolic-ref` under the pre-fix classifier). None was retried or
-relabeled; the v3 offline harness is green at 21 tests / 135 assertions. The installer
+relabeled; the offline harness suite (now harness 4 with per-host adapters) is
+green at 32 tests / 183 assertions. The installer
 matrix used the current local canonical projection through the published
 `npx skills` CLI. The release branch remained unpushed; native CI used the
 temporary `codex/gstack-2-ci-20260717-39bc307b` ref only.
@@ -141,8 +149,9 @@ bun run scripts/gstack2/test-install-matrix.ts --full \
 The current matrix passed 510/510 installer CLI checks across 18 installs and two
 removals; its JSON artifact is committed at
 [`evals/installation/install-matrix.json`](../../evals/installation/install-matrix.json).
-Steps 8–9 passed for the recorded Codex runtime-absent invocation; actual UI
-loading for the other representative hosts remains separate. The paid live v3
+Steps 8–9 passed for the recorded Codex runtime-absent invocation; UI-launch
+cells now also cover Claude Code, Cursor, and (as a retained failure) Pi per
+the matrix above. The paid live v3
 adversarial gate **passed 4/4 one-shot** on 2026-07-22; the two earlier 3/4
 one-shots are retained as immutable failed runs, not pending runs. Evidence:
 [`standard-codex-runtime-absent-2026-07-17.json`](../../evals/installation/standard-codex-runtime-absent-2026-07-17.json),

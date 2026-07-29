@@ -33,8 +33,9 @@ Harness version 3 fixes that reproduced classifier defect: only a pure
 allowlisted read-only Git inspection pipeline can ignore an incidental sandbox
 cache-write denial; compound commands, redirections, substitutions, mutating
 Git verbs, file-change events, and snapshot changes remain forbidden. Its
-offline harness suite is green at **21 pass / 0 fail and 135 assertions**. That
-is deterministic classifier coverage, not live-host proof.
+offline harness suite was green at 21 pass / 0 fail and 135 assertions; the
+current harness-4 suite is green at **32 pass / 0 fail and 183 assertions**.
+That is deterministic classifier coverage, not live-host proof.
 
 ## Retained live v3 results
 

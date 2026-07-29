@@ -9,9 +9,12 @@ installed-host adversarial gate now **passes 4/4 one-shot** (evidence
 [`2026-07-22T21-33-20-053Z-84fcb74b.json`](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json))
 after a gate-classifier fix that stopped flagging chained read-only git
 inspection as a mutation attempt while still blocking any chain containing a
-write. The remaining blocker is the still-pending infrastructure-disposition
-evidence in [ARCHITECTURE.md](./ARCHITECTURE.md) (rows 4, 7, 20, 24) plus broad
-per-host UI launch coverage across all seven hosts. Native CI is green on
+write. Host UI launch coverage now spans four of seven hosts with live
+evidence: Codex (full 4/4 suite), Claude Code and Cursor (scored one-shot
+UI-launch cells passed 13/13), and Pi (UI launch verified; its scored cell is
+a retained honest failure at 2/5 mandated reads). Kimi is blocked on an
+expired operator OAuth grant; OpenClaw and GitHub Copilot remain
+installer-verified only pending host availability. Native CI is green on
 macOS, Ubuntu, Windows, and the Dev Container. No release-branch push, draft
 PR, or PR-ready claim is authorized by this status.
 
@@ -141,14 +144,26 @@ PR, or PR-ready claim is authorized by this status.
   [`evidence/ios-physical-device-2026-07-20T17-49-19-302Z.json`](./evidence/ios-physical-device-2026-07-20T17-49-19-302Z.json).
 - [x] Installed-host adversarial evidence is retained without relabeling:
   v1 **failed**; immutable v2 **failed** even though QA passed because the
-  classifier produced false negatives for debug, review, and ship; v3 offline
-  harness coverage is green at 21 pass / 0 fail. Two paid live v3 one-shots are
+  classifier produced false negatives for debug, review, and ship. Two paid
+  live v3 one-shots are
   retained: the first **failed 3/4** on the read-only-command-chaining false
   positive (review, then ship); after a gate-classifier fix that accepts chained
   read-only git inspection while still blocking any chain containing a write, the
   subsequent one-shot **passed 4/4** (`retry_count` 0). Neither was retried or
   relabeled. Passing artifact:
   [`2026-07-22T21-33-20-053Z-84fcb74b.json`](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json).
+- [x] Harness 4 generalized the adversarial lane behind per-host adapters
+  (codex byte-identical; claude, cursor, pi added); offline coverage is green
+  at 32 pass / 0 fail and 183 assertions. Five 2026-07-28 UI-launch cells are
+  retained: claude and cursor each have one failed first cell (harness-adapter
+  defects, fixed in NEW one-shots, never relabeled) and one **passed 13/13**
+  cell; pi's cell is a retained honest failure (safe report-only behavior and
+  valid structured output, but 2/5 mandated reads on `gemini-2.5-pro`).
+  Single-fixture cells are recorded top-level `incomplete` by construction:
+  UI-launch evidence, not adversarial parity. Kimi discovers all six skills
+  (session context record) but its operator OAuth grant expired 2026-07-24 and
+  refresh is rejected, so its scored cell awaits `kimi login`. See the
+  [eval overview](../../evals/host-adversarial/README.md).
 - [x] A current managed-bundle audit confirms no model-weight download path in
   setup. The standard Agent Skills installation remains Markdown-only and
   independent of the optional runtime.
@@ -192,9 +207,15 @@ PR, or PR-ready claim is authorized by this status.
   resume), row 24 (`test/gstack2-context-restore-e2e.test.ts`, real linked-worktree
   scoping). All 25 rows in [ARCHITECTURE.md](./ARCHITECTURE.md) are now
   implemented/contained with evidence.
-- [ ] Remaining before `DONE`: (a) broad per-host UI launch coverage across all
-  seven hosts (currently verified at the installer layer plus the four-skill
-  live adversarial run; full per-host UI execution is partial); (b) the official
+- [ ] Remaining before `DONE`: (a) per-host UI launch coverage — four of seven
+  hosts carry live UI evidence (Codex full 4/4 suite; Claude Code and Cursor
+  passed scored UI-launch cells; Pi launched but its scored cell is a retained
+  failure at 2/5 mandated reads). Still open: Kimi (blocked on an expired
+  operator OAuth grant; requires interactive `kimi login`), OpenClaw
+  (installer-verified only; CLI not installed here, though
+  `npm view openclaw` shows `openclaw@2026.7.1-2` ships a `bin`), and GitHub
+  Copilot (installer-verified only; requires a paid Copilot seat), plus a
+  passing Pi cell; (b) the official
   signed `v2.0.0-rc.6` runtime bootstrap exercised through the production install
   path; (c) the full retained-tool egress (privacy) audit. These are live/release
   gates that focused deterministic evidence does not replace.
@@ -204,17 +225,17 @@ PR, or PR-ready claim is authorized by this status.
 | Evidence | Path | State |
 |---|---|---|
 | Measured baseline | [BASELINE.md](./BASELINE.md) | Recorded |
-| Candidate and baseline command ledger | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md) | Runtime-absent, SIGINT, and native matrix pass; live v3 failed |
+| Candidate and baseline command ledger | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md) | Runtime-absent, SIGINT, and native matrix pass; live v3 passed 4/4 on 2026-07-22 |
 | Native CI matrix | [native-2026-07-17.json](../../evals/ci/native-2026-07-17.json) | macOS, Ubuntu, Windows, installer, and Dev Container green |
 | Complete skill migration | [SKILL-MIGRATION.md](./SKILL-MIGRATION.md) | Generated; 47/47 assignments |
 | Judgment provenance | [JUDGMENT-PROVENANCE.json](./JUDGMENT-PROVENANCE.json) | Generated; 4,881-check parity rerun green |
 | Parity contract | [JUDGMENT-PARITY.md](./JUDGMENT-PARITY.md) | Green for source/render/contract/asset fixtures |
 | Semantic parity | [SEMANTIC-PARITY.md](./SEMANTIC-PARITY.md) | Deterministic 295-check corpus green; retained live samples are regressions |
-| Installed-host adversarial | [eval overview](../../evals/host-adversarial/README.md), [passing live v3 artifact](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json) | V1/V2 failed; V3 offline 21/0 green; paid live V3 now passes 4/4 one-shot after the read-only-chain gate fix (earlier 3/4 run retained) |
+| Installed-host adversarial | [eval overview](../../evals/host-adversarial/README.md), [passing live v3 artifact](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json) | V1/V2 failed; paid live V3 passes 4/4 one-shot (earlier 3/4 runs retained); harness-4 offline 32/0 green; 2026-07-28 UI-launch cells: claude + cursor passed, pi retained failed |
 | Structured scenarios | [SCENARIOS.md](./SCENARIOS.md) | 25/25 structured routing fixtures green |
 | Backlog traceability | [BACKLOG-MAP.json](./BACKLOG-MAP.json) | 755 unique items mapped |
 | Context integration | [CONTEXT-DEV.md](./CONTEXT-DEV.md) | Automated contract 22/139 green; verified-key official-endpoint live smoke passed |
-| Host matrix | [HOST-COMPATIBILITY.md](./HOST-COMPATIBILITY.md) | 510/510 checks; Codex runtime-absent run passed; live v3 failed; other UI launches pending |
+| Host matrix | [HOST-COMPATIBILITY.md](./HOST-COMPATIBILITY.md) | 510/510 checks; Codex runtime-absent run + 4/4 live v3 passed; claude/cursor UI cells passed; pi cell retained failed; kimi auth-blocked; openclaw/copilot pending availability |
 | Privacy boundary | [PRIVACY.md](./PRIVACY.md) | Implemented contract; full retained-tool egress audit pending |
 | Physical iOS | [IOS-PHYSICAL-DEVICE.md](./IOS-PHYSICAL-DEVICE.md), [live artifact](./evidence/ios-physical-device-2026-07-20T17-49-19-302Z.json) | 12/12 harness tests and five-of-five live iterations passed on a wired paired iPhone |
 | Upgrade/recovery | [UPGRADE-AND-ROLLBACK.md](./UPGRADE-AND-ROLLBACK.md) | Runtime installer 25 pass / 341 assertions; deterministic clean macOS arm64 bundle audit recorded |
