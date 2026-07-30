@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "purpose": "Deterministic evidence map from the frozen time-attack/gstack and garrytan/gstack open-backlog snapshots into GStack 2.0 ownership and verification contracts.",
   "baseSha": "bb57306d98c97011b0919c6132705a15b1579781",
-  "snapshotAsOf": "2026-07-16T23:19:50Z",
+  "snapshotAsOf": "2026-07-28T21:11:32Z",
   "generator": "scripts/gstack2/generate-backlog-map.ts",
   "methodology": {
     "flattening": "Recursively flatten array pages and common items/nodes/data/results/pages envelopes; never select only the first page.",
@@ -155,360 +155,360 @@
     }
   },
   "summary": {
-    "uniqueItems": 755,
-    "openEndpointRecords": 1184,
-    "reconciledEndpointOccurrences": 1184,
-    "duplicateEndpointRecords": 429,
+    "uniqueItems": 820,
+    "openEndpointRecords": 1285,
+    "reconciledEndpointOccurrences": 1285,
+    "duplicateEndpointRecords": 465,
     "requiredPortPRs": 16,
     "requiredPortPRsTraced": 16,
     "labelCatalogRecords": 18,
     "byRepo": {
-      "garrytan/gstack": 748,
-      "time-attack/gstack": 7
+      "garrytan/gstack": 819,
+      "time-attack/gstack": 1
     },
     "byKind": {
-      "issue": 326,
-      "pull-request": 429
+      "issue": 355,
+      "pull-request": 465
     },
     "byCategory": {
-      "context": 84,
-      "governance": 118,
-      "infrastructure": 300,
-      "judgment": 147,
+      "context": 96,
+      "governance": 128,
+      "infrastructure": 320,
+      "judgment": 156,
       "not-core": 3,
       "UX": 11,
-      "workflow": 92
+      "workflow": 106
     },
     "byComponent": {
-      "debug": 3,
-      "design": 39,
-      "docs-governance": 94,
-      "installation-migration": 149,
-      "plan": 33,
-      "qa": 35,
-      "review": 93,
-      "runtime-browser": 116,
-      "runtime-context-dev": 86,
+      "debug": 4,
+      "design": 40,
+      "docs-governance": 101,
+      "installation-migration": 158,
+      "plan": 35,
+      "qa": 43,
+      "review": 99,
+      "runtime-browser": 123,
+      "runtime-context-dev": 98,
       "runtime-ios": 9,
-      "runtime-paths-state": 40,
-      "runtime-pdf-diagram": 12,
-      "ship": 46
+      "runtime-paths-state": 47,
+      "runtime-pdf-diagram": 11,
+      "ship": 52
     },
     "byDisposition": {
       "DEFER_COMMUNITY": 9,
-      "FIX_IN_GSTACK_2": 96,
-      "NEEDS_EVIDENCE": 619,
+      "FIX_IN_GSTACK_2": 108,
+      "NEEDS_EVIDENCE": 678,
       "NOT_CORE": 3,
       "PORT_JUDGMENT": 16,
-      "RETAIN_INTERNAL": 7,
+      "RETAIN_INTERNAL": 1,
       "SUPERSEDED_BY_CONSOLIDATION": 5
     },
     "byRootCauseFamily": {
-      "artifact-generation-and-rendering": 12,
-      "browser-control-and-evidence": 100,
-      "context-memory-and-isolation": 80,
+      "artifact-generation-and-rendering": 11,
+      "browser-control-and-evidence": 107,
+      "context-memory-and-isolation": 91,
       "device-control-and-evidence": 9,
-      "documentation-and-discoverability": 30,
-      "host-capability-and-portability": 76,
-      "installation-and-migration": 89,
-      "judgment-quality-and-calibration": 147,
-      "out-of-scope-or-insufficient-signal": 64,
-      "path-state-and-lifecycle": 20,
-      "security-trust-and-governance": 32,
-      "verification-and-regression-coverage": 52,
-      "workflow-orchestration-and-handoffs": 44
+      "documentation-and-discoverability": 33,
+      "host-capability-and-portability": 89,
+      "installation-and-migration": 90,
+      "judgment-quality-and-calibration": 155,
+      "out-of-scope-or-insufficient-signal": 68,
+      "path-state-and-lifecycle": 19,
+      "security-trust-and-governance": 35,
+      "verification-and-regression-coverage": 62,
+      "workflow-orchestration-and-handoffs": 51
     },
     "byRelatedJudgmentModule": {
       "alternatives": 8,
       "ceo-review": 2,
       "consultation": 1,
       "core-review": 25,
-      "docs": 40,
+      "docs": 42,
       "dx-review": 2,
       "engineering-review": 8,
-      "fix-and-verify": 11,
-      "health": 10,
-      "investigation": 6,
+      "fix-and-verify": 16,
+      "health": 11,
+      "investigation": 7,
       "ios-hig-review": 1,
       "ios-qa": 8,
       "land-deploy": 10,
-      "live-review": 29,
-      "none": 423,
-      "office-hours": 17,
-      "outside-voice": 54,
-      "performance": 11,
+      "live-review": 30,
+      "none": 459,
+      "office-hours": 18,
+      "outside-voice": 61,
+      "performance": 12,
       "plan-review": 30,
-      "release": 33,
+      "release": 38,
       "report-only": 1,
-      "security-review": 9,
-      "specification": 2,
-      "web-qa": 14
+      "security-review": 11,
+      "specification": 4,
+      "web-qa": 15
     }
   },
   "sourceSnapshots": [
     {
       "id": "time-attack/open-items",
-      "path": "/tmp/gstack2-open-items-pages.json",
-      "sha256": "5def27fafc93d9ca60d5c4257e37cf9de09bc5ed3ff3f020f580b680ed87752b",
+      "path": "/tmp/gstack2-snapshots-refresh-2026-07-28/gstack2-open-items-pages.json",
+      "sha256": "a1c5fce8f8d58abd08b3bee1048d05c985000434c277c4a589aa9a1af0b69da8",
       "pageArrays": 1,
-      "flattenedRecords": 7
+      "flattenedRecords": 1
     },
     {
       "id": "time-attack/open-prs",
-      "path": "/tmp/gstack2-open-prs-pages.json",
-      "sha256": "d31378965b712987349380c9b42c847c4ecb074bef8f76ebe2de6faf4c955901",
+      "path": "/tmp/gstack2-snapshots-refresh-2026-07-28/gstack2-open-prs-pages.json",
+      "sha256": "28db33d5ed10dd8eca6b0f3a8c2a7cafb0742374822eadacf0f5abc9c3f1b500",
       "pageArrays": 1,
-      "flattenedRecords": 7
+      "flattenedRecords": 1
     },
     {
       "id": "time-attack/labels",
-      "path": "/tmp/gstack2-label-pages.json",
-      "sha256": "47172ff784c92ab83b1bfa2f00e729f8c9601f80b2df8b25d31312ea55a96179",
+      "path": "/tmp/gstack2-snapshots-refresh-2026-07-28/gstack2-label-pages.json",
+      "sha256": "043dabefa96f1da5b85866ab88d9167e8312d131fce2d0e17d59801a36172902",
       "pageArrays": 1,
       "flattenedRecords": 9
     },
     {
       "id": "garrytan/open-items",
-      "path": "/tmp/gstack2-upstream-open-items-pages.json",
-      "sha256": "fd365ce836003f6bcd6d72f5cc5f5c35b2cc7f5c8dbb3a89d8d82554fc5b7217",
-      "pageArrays": 1,
-      "flattenedRecords": 748
+      "path": "/tmp/gstack2-snapshots-refresh-2026-07-28/gstack2-upstream-open-items-pages.json",
+      "sha256": "7e7da3b5e91953a3eecfedface5dd37db300f4a289f8ca65bcb2aa5522f7d107",
+      "pageArrays": 9,
+      "flattenedRecords": 819
     },
     {
       "id": "garrytan/open-prs",
-      "path": "/tmp/gstack2-upstream-open-prs-pages.json",
-      "sha256": "461ab7c2586ca3b6230deeed1f1a3f84be2a31b910a2d3d513692f69093de5c3",
-      "pageArrays": 1,
-      "flattenedRecords": 422
+      "path": "/tmp/gstack2-snapshots-refresh-2026-07-28/gstack2-upstream-open-prs-pages.json",
+      "sha256": "4ce45ddaf284c3410d3c9c7152f56cdb43cbd00a6c369cdc34dce73c403004ff",
+      "pageArrays": 5,
+      "flattenedRecords": 464
     },
     {
       "id": "garrytan/labels",
-      "path": "/tmp/gstack2-upstream-label-pages.json",
-      "sha256": "d4e09ca5a136bffb67a27bb5e3d7a54348f1c10270f1199a0522f07ccae89748",
+      "path": "/tmp/gstack2-snapshots-refresh-2026-07-28/gstack2-upstream-label-pages.json",
+      "sha256": "b5797afc7e904ed216ade95692eede6092de6d5a8d69733d51acec446ac1ae9b",
       "pageArrays": 1,
       "flattenedRecords": 9
     },
     {
       "id": "required-port/610/detail",
       "path": "/tmp/gstack2-port-prs/610.json",
-      "sha256": "25e9b9eb3d863d42cd6571ff34b7c74b9b416ae6e7a5ba2038d3a375c3d44ea3",
+      "sha256": "4e6ece059e0f25af00f91fe65280006d85863cfb83a6c1686b0b365066f9d8d7",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/610/files",
       "path": "/tmp/gstack2-port-prs/610-files.json",
-      "sha256": "cce57a6a5bf3b573fd04fe2c78a438971abe5d1f50a1b8363f37ed2eff57c786",
+      "sha256": "e3a8a41140f41e8e31ab1925452e9641e06e437714313b8d4f640da6ea05adb1",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/645/detail",
       "path": "/tmp/gstack2-port-prs/645.json",
-      "sha256": "08e58cea7719bec07e0295500ef2e595cc326f73d08caa01085947d428a7cc23",
+      "sha256": "45f85ceaa0adc2470926da247eda8fb1505e44359b82556a641ca9a3cc7ce7a5",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/645/files",
       "path": "/tmp/gstack2-port-prs/645-files.json",
-      "sha256": "e73bdf239966f09928156541c95c48a35be9ca7e87551e219baf2ad6db78a9fa",
+      "sha256": "93a2b1aec01aefb2e71f1cfb374dfee5067e80ec9b7959fc32cc5d766af74916",
       "pageArrays": 1,
       "flattenedRecords": 7
     },
     {
       "id": "required-port/679/detail",
       "path": "/tmp/gstack2-port-prs/679.json",
-      "sha256": "3f462cd5fd5d0da4725c9c303c2a01b26e1342189932f7aa74e8406d6c0bb7a3",
+      "sha256": "b3732bd284b87c49c5d61fcac8e433e97eefa0de3c882916e282706c56863208",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/679/files",
       "path": "/tmp/gstack2-port-prs/679-files.json",
-      "sha256": "e01932be323138aa21535ed451cd24ad8b90539581f1bde2a191bca67ef37850",
+      "sha256": "ca7ac1f70638f93817dcfc33bc4ebdc44b657ec41908808507bf406e3fffeb80",
       "pageArrays": 1,
       "flattenedRecords": 29
     },
     {
       "id": "required-port/884/detail",
       "path": "/tmp/gstack2-port-prs/884.json",
-      "sha256": "7ce5ec628822806832e599e71c4306deed3fc7257ee32ce16b6f807b26040078",
+      "sha256": "f6447da189dca227737c386f4bff7e5b8d13dd0c9012f1019ed91e763ab7bcf7",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/884/files",
       "path": "/tmp/gstack2-port-prs/884-files.json",
-      "sha256": "2d9ddbf0df435b5dca5860e3b4a8b6c7c413ef1b90304272fccc55d1936189b3",
+      "sha256": "915ce6b47971fe633045f57f5d9a84a1ee8ccfa44793de6244e68295058d93ef",
       "pageArrays": 1,
       "flattenedRecords": 2
     },
     {
       "id": "required-port/1071/detail",
       "path": "/tmp/gstack2-port-prs/1071.json",
-      "sha256": "15b5faadeaa706f472b0e843573cf9a45bd1f5cb839c7b6dd7ee5b36572ba6ab",
+      "sha256": "98033a49844fa45412150c36c607077a44509ade3e2ff168e6f0bdb8a8888b4a",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/1071/files",
       "path": "/tmp/gstack2-port-prs/1071-files.json",
-      "sha256": "fb83e125514e15568f8a415250f028ba53fbf80d1ad4fcc84fd2ea19c700ae56",
+      "sha256": "37ddd9d6814befd3dae1aa6e4ba11498ffcb67cac1b551bf6bda4da69194db0a",
       "pageArrays": 1,
       "flattenedRecords": 12
     },
     {
       "id": "required-port/1484/detail",
       "path": "/tmp/gstack2-port-prs/1484.json",
-      "sha256": "03b5fa4c548708d27cf78904e65943f404694e42ccf7a91b09888266d0331784",
+      "sha256": "72cc43af4518cf451ca504fdb909bdcfd7574135547c7a86c770724d49aa37fa",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/1484/files",
       "path": "/tmp/gstack2-port-prs/1484-files.json",
-      "sha256": "b1513f02dc2994b29ce7041357ba337eb5c55a63983bb5e83af7edb7bc60a794",
+      "sha256": "a54e459dc116f9b6feedf7a4b5db42d703b4ddf9dda179251be757251d3a072d",
       "pageArrays": 1,
-      "flattenedRecords": 5
+      "flattenedRecords": 7
     },
     {
       "id": "required-port/1636/detail",
       "path": "/tmp/gstack2-port-prs/1636.json",
-      "sha256": "59298db92c4f11ae0d3bc0617a38e537753a580b81b09bfe2cf98bdbd44835af",
+      "sha256": "579b4c987e4cae09de4c6e1447fe461c5e823a2e753048b1dec368421492bf1b",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/1636/files",
       "path": "/tmp/gstack2-port-prs/1636-files.json",
-      "sha256": "37e9206405e60f522ea2b6c6c7a75b8c0f662ff54cf15da1250599c4f036ca3d",
+      "sha256": "f75c6e31b8309c9e3c2137e600f1a5f32b172feca9e33acec96d98026845222b",
       "pageArrays": 1,
       "flattenedRecords": 3
     },
     {
       "id": "required-port/1777/detail",
       "path": "/tmp/gstack2-port-prs/1777.json",
-      "sha256": "cf4bbe131ecc7b023bbd87b0d7f15f520492ddf0d0cee6af05ef43347a6eb462",
+      "sha256": "369a593cef9d8a83d68b135aeb85c33bd4f70df47d3069d38af4dcf111a3452a",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/1777/files",
       "path": "/tmp/gstack2-port-prs/1777-files.json",
-      "sha256": "4189fc84455b384d0263bf34f8653047079c46add0dd54f615c3b876874f1013",
+      "sha256": "1e81f6640645b364a29ed83f6087809959113274dd671613a8402e67b0ae05a8",
       "pageArrays": 1,
       "flattenedRecords": 2
     },
     {
       "id": "required-port/1920/detail",
       "path": "/tmp/gstack2-port-prs/1920.json",
-      "sha256": "99cbd51e94c79149474a2f67b1cf641a7431a58c3fef5429973651771212f86c",
+      "sha256": "90a46d78d8ebdbc766746de0e3c91e089bae552583f2a40803dd6280467de5da",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/1920/files",
       "path": "/tmp/gstack2-port-prs/1920-files.json",
-      "sha256": "8d7aa266c2ae5379405ee45090a57c1518e128129236539670c7deb51afb37ae",
+      "sha256": "cabdec1cdf8ed5067bd68075401a8c8926803284445c1e1432da550af1bc7b1f",
       "pageArrays": 1,
       "flattenedRecords": 3
     },
     {
       "id": "required-port/2014/detail",
       "path": "/tmp/gstack2-port-prs/2014.json",
-      "sha256": "c7d276d62e4fe30b8ea49e6c7a52430e4aa1e025a2117a4cf02b0551a9e59ab9",
+      "sha256": "870a49ccab501f9ec6739ea561f79b33b982c75603648e0d8295b576eda2bd15",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/2014/files",
       "path": "/tmp/gstack2-port-prs/2014-files.json",
-      "sha256": "2c2ac0870b7976d1d35cd844e100f0e5ce91a1d360f59fcf2ce5c40a24cee82a",
+      "sha256": "d6fb9552ac5901962a23a1fdbcd060b5101e2aba74c6e0f65c611b81c75c464a",
       "pageArrays": 1,
       "flattenedRecords": 3
     },
     {
       "id": "required-port/2023/detail",
       "path": "/tmp/gstack2-port-prs/2023.json",
-      "sha256": "27ac430fbe97ed0b2c0f9058b374ef5a67c2f23e78e861c80d48bd23d29a3afa",
+      "sha256": "345c8fd3272e9c16b3128485d8531830273bec2ff4e4ee3083755a17766dde55",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/2023/files",
       "path": "/tmp/gstack2-port-prs/2023-files.json",
-      "sha256": "0f7101c538bdbd38f4f147251f0187754c9a380af0af54cd1f845d6372c7b230",
+      "sha256": "4ddfb5b8b1b9d7cf6f95e6ace7aaa124f9637067ebbc3d6be12f9e7f0ba391cb",
       "pageArrays": 1,
       "flattenedRecords": 3
     },
     {
       "id": "required-port/2030/detail",
       "path": "/tmp/gstack2-port-prs/2030.json",
-      "sha256": "44b4831289725682a4b933a1874c6729b1d2f633b94417cda9635a6c2b1356ac",
+      "sha256": "30c6b736aa99a2417277c2574b8bf0caab9c2d29d6570670eb615f53ec8924c9",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/2030/files",
       "path": "/tmp/gstack2-port-prs/2030-files.json",
-      "sha256": "7d7a42a0dbe6421b1ffd76a02fe92be3ebbff19926d53d6c7919ac36305670b2",
+      "sha256": "ace6986ac329ad230fb4c3f4752077f052c012f372ecf1842fa5b7a70f7ee90c",
       "pageArrays": 1,
       "flattenedRecords": 31
     },
     {
       "id": "required-port/2037/detail",
       "path": "/tmp/gstack2-port-prs/2037.json",
-      "sha256": "5b3e9fb1503f9875fc539994c199da8d570363533b29c6013bbdc4f48ca10be3",
+      "sha256": "ec60ff3dbcb20f27c8abe99cc48777bc7bb2d7a4ad67763f947d2a02a3d770f2",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/2037/files",
       "path": "/tmp/gstack2-port-prs/2037-files.json",
-      "sha256": "e95c9f8a1822961132f7ee585a7f52c3874c9b4c93768befc20b87a87002ef3c",
+      "sha256": "17397974fb0877a64a586b105f4682565920d17a963d14b22d3007a8961cb438",
       "pageArrays": 1,
       "flattenedRecords": 3
     },
     {
       "id": "required-port/2141/detail",
       "path": "/tmp/gstack2-port-prs/2141.json",
-      "sha256": "577363e660fc6b2faafb9a2481a0b4ef55ebdf275baec4795241297217ebd364",
+      "sha256": "b96f87fcc0db923601e678b6504392c997a8313f21f0c794089a96cc39107961",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/2141/files",
       "path": "/tmp/gstack2-port-prs/2141-files.json",
-      "sha256": "af39402e28beac63c640bc53dfb1af62ff54e97c47a6db131600484c3357aecd",
+      "sha256": "03c0846228021530c964c3a351130793d4e595b7f2d11706b9f304b099c7e102",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/2186/detail",
       "path": "/tmp/gstack2-port-prs/2186.json",
-      "sha256": "01075bea96010c2ba31f7e0891af72a06a05925b7a5dae0366991d364e0c9d81",
+      "sha256": "407e41c1d1929bf235eabde8d456515ed3a268d5d3d8a9732814c69f6a022834",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/2186/files",
       "path": "/tmp/gstack2-port-prs/2186-files.json",
-      "sha256": "c0a4ef6cd261724e8e708816f11da6e0686daf53014d14d9cb6907f5aa7e484a",
+      "sha256": "f736dc97b52f33e22bdaed832bb4bd822239efb25298dd6da0d59bfda3a68478",
       "pageArrays": 1,
       "flattenedRecords": 16
     },
     {
       "id": "required-port/2189/detail",
       "path": "/tmp/gstack2-port-prs/2189.json",
-      "sha256": "16bedba1fe911b298e47afbaaf02b378840117f2d0e6f3f46a89a308f41ca000",
+      "sha256": "b1016b1d32efa757f4ec4db64c4eaa8eb35e8858acc7937a1fcd1bce02e3c0db",
       "pageArrays": 1,
       "flattenedRecords": 1
     },
     {
       "id": "required-port/2189/files",
       "path": "/tmp/gstack2-port-prs/2189-files.json",
-      "sha256": "270b55bcb62eadf6925d325e9fa85fba6504513a72f01d854fa23458fd4f98ec",
+      "sha256": "abdf75908d27f736048e2a3f9ac507ec691f8e09b7dd4bd40fce7b699ab0487a",
       "pageArrays": 1,
       "flattenedRecords": 1
     }
@@ -736,7 +736,7 @@
       "author": "itstimwhite",
       "dates": {
         "createdAt": "2026-05-14T03:16:52Z",
-        "updatedAt": "2026-07-15T21:42:38Z",
+        "updatedAt": "2026-07-20T21:35:56Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -745,7 +745,7 @@
       "replacementTest": "workflow.qa.evidence-contract",
       "detailSnapshot": "/tmp/gstack2-port-prs/1484.json",
       "filesSnapshot": "/tmp/gstack2-port-prs/1484-files.json",
-      "changedFileCount": 5,
+      "changedFileCount": 7,
       "traced": true
     },
     {
@@ -1644,49 +1644,6 @@
       }
     },
     {
-      "id": "garrytan/gstack#341",
-      "repo": "garrytan/gstack",
-      "number": 341,
-      "kind": "issue",
-      "title": "Claude cannot resume multi-step workflows across sessions",
-      "url": "https://github.com/garrytan/gstack/issues/341",
-      "author": "nicezic",
-      "dates": {
-        "createdAt": "2026-03-22T23:48:39Z",
-        "updatedAt": "2026-07-15T10:23:51Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": null,
-      "baseRef": null,
-      "headRef": null,
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 1888,
-      "sourceOccurrences": [
-        "garrytan/open-items"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": false,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "context-memory-and-isolation",
-      "component": "runtime-context-dev",
-      "disposition": "FIX_IN_GSTACK_2",
-      "replacementTest": "runtime.context-isolation-contract",
-      "relatedJudgmentModule": "none",
-      "category": "context",
-      "classification": {
-        "rule": "runtime-context-dev:open-bug",
-        "input": "title",
-        "note": "First matching ordered title rule selected the component; disposition remained conservative."
-      }
-    },
-    {
       "id": "garrytan/gstack#349",
       "repo": "garrytan/gstack",
       "number": 349,
@@ -2132,7 +2089,7 @@
       "author": "ridermw",
       "dates": {
         "createdAt": "2026-03-23T15:46:10Z",
-        "updatedAt": "2026-07-15T22:55:52Z",
+        "updatedAt": "2026-07-25T12:27:49Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -2219,7 +2176,7 @@
       "author": "ridermw",
       "dates": {
         "createdAt": "2026-03-23T16:27:12Z",
-        "updatedAt": "2026-07-15T12:57:22Z",
+        "updatedAt": "2026-07-22T19:35:51Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -2516,50 +2473,6 @@
       }
     },
     {
-      "id": "garrytan/gstack#418",
-      "repo": "garrytan/gstack",
-      "number": 418,
-      "kind": "pull-request",
-      "title": "feat: add Pi as native host",
-      "url": "https://github.com/garrytan/gstack/pull/418",
-      "author": "skyfallsin",
-      "dates": {
-        "createdAt": "2026-03-24T01:32:45Z",
-        "updatedAt": "2026-07-15T12:14:43Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": false,
-      "baseRef": "main",
-      "headRef": "main",
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 1402,
-      "sourceOccurrences": [
-        "garrytan/open-items",
-        "garrytan/open-prs"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": true,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "host-capability-and-portability",
-      "component": "installation-migration",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "installation.host-matrix-contract",
-      "relatedJudgmentModule": "none",
-      "category": "infrastructure",
-      "classification": {
-        "rule": "installation-migration:unvetted-community-pr",
-        "input": "title+body",
-        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
-      }
-    },
-    {
       "id": "garrytan/gstack#419",
       "repo": "garrytan/gstack",
       "number": 419,
@@ -2743,7 +2656,7 @@
       "author": "anhldbk",
       "dates": {
         "createdAt": "2026-03-24T06:51:05Z",
-        "updatedAt": "2026-07-15T12:57:25Z",
+        "updatedAt": "2026-07-20T15:26:06Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -6027,50 +5940,6 @@
       }
     },
     {
-      "id": "garrytan/gstack#737",
-      "repo": "garrytan/gstack",
-      "number": 737,
-      "kind": "pull-request",
-      "title": "feat: /adr skill — architectural decision records with decision gate",
-      "url": "https://github.com/garrytan/gstack/pull/737",
-      "author": "ljagged",
-      "dates": {
-        "createdAt": "2026-04-01T11:43:49Z",
-        "updatedAt": "2026-07-15T12:31:41Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": false,
-      "baseRef": "main",
-      "headRef": "feat-adr",
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 2080,
-      "sourceOccurrences": [
-        "garrytan/open-items",
-        "garrytan/open-prs"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": true,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "judgment-quality-and-calibration",
-      "component": "plan",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "judgment.plan.contract",
-      "relatedJudgmentModule": "plan-review",
-      "category": "judgment",
-      "classification": {
-        "rule": "plan:unvetted-community-pr",
-        "input": "title+body",
-        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
-      }
-    },
-    {
       "id": "garrytan/gstack#753",
       "repo": "garrytan/gstack",
       "number": 753,
@@ -7801,7 +7670,7 @@
       "author": "jackjin1997",
       "dates": {
         "createdAt": "2026-04-09T03:51:50Z",
-        "updatedAt": "2026-07-15T22:52:31Z",
+        "updatedAt": "2026-07-25T17:46:28Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -7812,7 +7681,7 @@
       "headRef": "feat/design-openai-base-url",
       "labels": [],
       "bodyPresent": true,
-      "bodyLength": 536,
+      "bodyLength": 1107,
       "sourceOccurrences": [
         "garrytan/open-items",
         "garrytan/open-prs"
@@ -8097,50 +7966,6 @@
       }
     },
     {
-      "id": "garrytan/gstack#956",
-      "repo": "garrytan/gstack",
-      "number": 956,
-      "kind": "pull-request",
-      "title": "feat: Antigravity IDE native host support with 800-line pagination limit safety",
-      "url": "https://github.com/garrytan/gstack/pull/956",
-      "author": "nicezic",
-      "dates": {
-        "createdAt": "2026-04-10T15:56:39Z",
-        "updatedAt": "2026-07-15T08:44:32Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": false,
-      "baseRef": "main",
-      "headRef": "feature/antigravity-support",
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 970,
-      "sourceOccurrences": [
-        "garrytan/open-items",
-        "garrytan/open-prs"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": true,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "documentation-and-discoverability",
-      "component": "docs-governance",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "docs.generated-source-contract",
-      "relatedJudgmentModule": "docs",
-      "category": "governance",
-      "classification": {
-        "rule": "docs-governance:unvetted-community-pr",
-        "input": "title+body",
-        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
-      }
-    },
-    {
       "id": "garrytan/gstack#957",
       "repo": "garrytan/gstack",
       "number": 957,
@@ -8324,7 +8149,7 @@
       "author": "Akagilnc",
       "dates": {
         "createdAt": "2026-04-11T13:40:06Z",
-        "updatedAt": "2026-07-15T21:42:00Z",
+        "updatedAt": "2026-07-18T13:17:22Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -8537,7 +8362,7 @@
       "kind": "pull-request",
       "title": "docs(SKILL.md): broaden description to match routing rules",
       "url": "https://github.com/garrytan/gstack/pull/992",
-      "author": "kafka-snowflake",
+      "author": "snowflake-rider",
       "dates": {
         "createdAt": "2026-04-14T02:00:20Z",
         "updatedAt": "2026-07-15T10:22:22Z",
@@ -8889,7 +8714,7 @@
       "author": "dgrant",
       "dates": {
         "createdAt": "2026-04-17T16:06:30Z",
-        "updatedAt": "2026-07-16T01:08:30Z",
+        "updatedAt": "2026-07-23T18:32:22Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -10009,49 +9834,6 @@
         "rule": "runtime-browser:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
-      }
-    },
-    {
-      "id": "garrytan/gstack#1091",
-      "repo": "garrytan/gstack",
-      "number": 1091,
-      "kind": "issue",
-      "title": "[Proposal] (safety): enhance /careful and /guard with structured execution judgment",
-      "url": "https://github.com/garrytan/gstack/issues/1091",
-      "author": "Jang-woo-AnnaSoft",
-      "dates": {
-        "createdAt": "2026-04-20T04:38:55Z",
-        "updatedAt": "2026-07-15T21:42:15Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": null,
-      "baseRef": null,
-      "headRef": null,
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 7607,
-      "sourceOccurrences": [
-        "garrytan/open-items"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": false,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "path-state-and-lifecycle",
-      "component": "runtime-paths-state",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "runtime.paths-state.matrix-contract",
-      "relatedJudgmentModule": "none",
-      "category": "infrastructure",
-      "classification": {
-        "rule": "runtime-paths-state:ambiguous-open-issue",
-        "input": "title+body",
-        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
       }
     },
     {
@@ -12932,7 +12714,7 @@
       "author": "Akagilnc",
       "dates": {
         "createdAt": "2026-05-04T05:17:30Z",
-        "updatedAt": "2026-07-15T22:56:42Z",
+        "updatedAt": "2026-07-22T04:22:44Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -13363,7 +13145,7 @@
       "author": "hhlqsmy",
       "dates": {
         "createdAt": "2026-05-07T13:42:00Z",
-        "updatedAt": "2026-07-15T13:08:48Z",
+        "updatedAt": "2026-07-19T01:16:48Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -13403,7 +13185,7 @@
       "kind": "issue",
       "title": "【Windows】How to run the setup script？",
       "url": "https://github.com/garrytan/gstack/issues/1375",
-      "author": "blue336697",
+      "author": "duoduo3697",
       "dates": {
         "createdAt": "2026-05-08T10:00:48Z",
         "updatedAt": "2026-07-15T10:24:53Z",
@@ -14451,7 +14233,7 @@
       "author": "itstimwhite",
       "dates": {
         "createdAt": "2026-05-14T03:16:52Z",
-        "updatedAt": "2026-07-15T21:42:38Z",
+        "updatedAt": "2026-07-20T21:35:56Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -14477,14 +14259,14 @@
         "required": true,
         "detailSnapshot": "/tmp/gstack2-port-prs/1484.json",
         "filesSnapshot": "/tmp/gstack2-port-prs/1484-files.json",
-        "changedFileCount": 5,
+        "changedFileCount": 7,
         "files": [
           {
             "filename": "qa-only/SKILL.md",
             "status": "modified",
-            "additions": 73,
+            "additions": 102,
             "deletions": 0,
-            "changes": 73
+            "changes": 102
           },
           {
             "filename": "qa-only/SKILL.md.tmpl",
@@ -14496,9 +14278,9 @@
           {
             "filename": "qa/SKILL.md",
             "status": "modified",
-            "additions": 73,
+            "additions": 102,
             "deletions": 0,
-            "changes": 73
+            "changes": 102
           },
           {
             "filename": "qa/SKILL.md.tmpl",
@@ -14510,9 +14292,23 @@
           {
             "filename": "scripts/resolvers/utility.ts",
             "status": "modified",
-            "additions": 68,
+            "additions": 97,
             "deletions": 0,
-            "changes": 68
+            "changes": 97
+          },
+          {
+            "filename": "test/gen-skill-docs.test.ts",
+            "status": "modified",
+            "additions": 95,
+            "deletions": 0,
+            "changes": 95
+          },
+          {
+            "filename": "test/skill-validation.test.ts",
+            "status": "modified",
+            "additions": 30,
+            "deletions": 0,
+            "changes": 30
           }
         ]
       },
@@ -15893,7 +15689,7 @@
       "author": "Suryakandukuri",
       "dates": {
         "createdAt": "2026-05-19T03:08:37Z",
-        "updatedAt": "2026-07-15T13:09:43Z",
+        "updatedAt": "2026-07-22T19:35:43Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -17488,7 +17284,7 @@
       "author": "BenjaminDSmithy",
       "dates": {
         "createdAt": "2026-05-25T16:12:40Z",
-        "updatedAt": "2026-07-15T19:54:50Z",
+        "updatedAt": "2026-07-19T01:38:04Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -18010,7 +17806,7 @@
       "author": "Pauniel0201",
       "dates": {
         "createdAt": "2026-05-26T06:33:27Z",
-        "updatedAt": "2026-07-15T10:22:45Z",
+        "updatedAt": "2026-07-25T13:19:19Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -18751,7 +18547,7 @@
       "author": "mvanhorn",
       "dates": {
         "createdAt": "2026-05-27T04:28:58Z",
-        "updatedAt": "2026-07-15T21:43:22Z",
+        "updatedAt": "2026-07-21T13:26:37Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -21301,7 +21097,7 @@
       "author": "harjothkhara",
       "dates": {
         "createdAt": "2026-06-03T05:21:27Z",
-        "updatedAt": "2026-07-15T22:53:14Z",
+        "updatedAt": "2026-07-24T05:50:18Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -21345,7 +21141,7 @@
       "author": "harjothkhara",
       "dates": {
         "createdAt": "2026-06-03T05:37:31Z",
-        "updatedAt": "2026-07-15T22:53:15Z",
+        "updatedAt": "2026-07-24T17:29:07Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -22296,6 +22092,49 @@
       }
     },
     {
+      "id": "garrytan/gstack#1897",
+      "repo": "garrytan/gstack",
+      "number": 1897,
+      "kind": "issue",
+      "title": "Your project is now listed on CodeGuilds",
+      "url": "https://github.com/garrytan/gstack/issues/1897",
+      "author": "xdevsapps",
+      "dates": {
+        "createdAt": "2026-06-07T13:36:08Z",
+        "updatedAt": "2026-06-07T13:36:08Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 571,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "design",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "judgment.design.contract",
+      "relatedJudgmentModule": "live-review",
+      "category": "judgment",
+      "classification": {
+        "rule": "design:ambiguous-open-issue",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
       "id": "garrytan/gstack#1898",
       "repo": "garrytan/gstack",
       "number": 1898,
@@ -22596,50 +22435,6 @@
       "category": "workflow",
       "classification": {
         "rule": "runtime-pdf-diagram:unvetted-community-pr",
-        "input": "title",
-        "note": "First matching ordered title rule selected the component; disposition remained conservative."
-      }
-    },
-    {
-      "id": "garrytan/gstack#1915",
-      "repo": "garrytan/gstack",
-      "number": 1915,
-      "kind": "pull-request",
-      "title": "feat(browse): add GSTACK_HEADED_NOGPU opt-in for headed mode on virtual displays (Xvnc/Xvfb)",
-      "url": "https://github.com/garrytan/gstack/pull/1915",
-      "author": "auroracapital",
-      "dates": {
-        "createdAt": "2026-06-08T13:01:53Z",
-        "updatedAt": "2026-07-15T21:43:59Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": false,
-      "baseRef": "main",
-      "headRef": "fix/headed-nogpu-virtual-display",
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 1505,
-      "sourceOccurrences": [
-        "garrytan/open-items",
-        "garrytan/open-prs"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": true,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "browser-control-and-evidence",
-      "component": "runtime-browser",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "runtime.browser.lifecycle-contract",
-      "relatedJudgmentModule": "none",
-      "category": "infrastructure",
-      "classification": {
-        "rule": "runtime-browser:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
@@ -23559,7 +23354,7 @@
       "author": "josuediazflores",
       "dates": {
         "createdAt": "2026-06-09T21:12:53Z",
-        "updatedAt": "2026-07-15T10:25:13Z",
+        "updatedAt": "2026-07-19T12:45:02Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -23674,50 +23469,6 @@
       "category": "workflow",
       "classification": {
         "rule": "qa:ambiguous-open-issue",
-        "input": "title",
-        "note": "First matching ordered title rule selected the component; disposition remained conservative."
-      }
-    },
-    {
-      "id": "garrytan/gstack#1949",
-      "repo": "garrytan/gstack",
-      "number": 1949,
-      "kind": "pull-request",
-      "title": "v1.60.0.0 feat(fanout): /fanout decomposes design doc into N parallel agent tasks (rebased, hardened)",
-      "url": "https://github.com/garrytan/gstack/pull/1949",
-      "author": "sohmn",
-      "dates": {
-        "createdAt": "2026-06-09T22:08:00Z",
-        "updatedAt": "2026-07-15T19:54:43Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": false,
-      "baseRef": "main",
-      "headRef": "feat/fanout-skill-v2",
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 3239,
-      "sourceOccurrences": [
-        "garrytan/open-items",
-        "garrytan/open-prs"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": true,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "judgment-quality-and-calibration",
-      "component": "design",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "judgment.design.contract",
-      "relatedJudgmentModule": "live-review",
-      "category": "judgment",
-      "classification": {
-        "rule": "design:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
@@ -25892,50 +25643,6 @@
       "category": "workflow",
       "classification": {
         "rule": "runtime-pdf-diagram:unvetted-community-pr",
-        "input": "title",
-        "note": "First matching ordered title rule selected the component; disposition remained conservative."
-      }
-    },
-    {
-      "id": "garrytan/gstack#2013",
-      "repo": "garrytan/gstack",
-      "number": 2013,
-      "kind": "pull-request",
-      "title": "fix(retro): count polyglot test files and exclude vendored dirs",
-      "url": "https://github.com/garrytan/gstack/pull/2013",
-      "author": "genisis0x",
-      "dates": {
-        "createdAt": "2026-06-15T12:17:18Z",
-        "updatedAt": "2026-07-15T12:59:47Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": false,
-      "baseRef": "main",
-      "headRef": "fix/1999-retro-test-glob-polyglot",
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 1920,
-      "sourceOccurrences": [
-        "garrytan/open-items",
-        "garrytan/open-prs"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": true,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "verification-and-regression-coverage",
-      "component": "runtime-context-dev",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "runtime.context-isolation-contract",
-      "relatedJudgmentModule": "none",
-      "category": "context",
-      "classification": {
-        "rule": "runtime-context-dev:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
@@ -28183,7 +27890,7 @@
       "author": "creatornader",
       "dates": {
         "createdAt": "2026-06-22T03:56:50Z",
-        "updatedAt": "2026-07-16T01:27:33Z",
+        "updatedAt": "2026-07-26T20:09:00Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -28227,7 +27934,7 @@
       "author": "marshaung",
       "dates": {
         "createdAt": "2026-06-22T07:11:20Z",
-        "updatedAt": "2026-07-15T22:57:23Z",
+        "updatedAt": "2026-07-28T10:44:37Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -28702,7 +28409,7 @@
       "author": "exGeni",
       "dates": {
         "createdAt": "2026-06-24T20:02:24Z",
-        "updatedAt": "2026-07-15T13:00:40Z",
+        "updatedAt": "2026-07-26T04:08:26Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -28731,50 +28438,6 @@
       "category": "context",
       "classification": {
         "rule": "runtime-context-dev:ambiguous-open-issue",
-        "input": "title",
-        "note": "First matching ordered title rule selected the component; disposition remained conservative."
-      }
-    },
-    {
-      "id": "garrytan/gstack#2108",
-      "repo": "garrytan/gstack",
-      "number": 2108,
-      "kind": "pull-request",
-      "title": "v1.59.2.0 fix(make-pdf): stop smartypants URL carve from swallowing the next placeholder (#2084)",
-      "url": "https://github.com/garrytan/gstack/pull/2108",
-      "author": "genisis0x",
-      "dates": {
-        "createdAt": "2026-06-25T08:00:48Z",
-        "updatedAt": "2026-07-15T13:00:43Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": false,
-      "baseRef": "main",
-      "headRef": "fix/2084-smartypants-url-placeholder-leak",
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 1654,
-      "sourceOccurrences": [
-        "garrytan/open-items",
-        "garrytan/open-prs"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": true,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "artifact-generation-and-rendering",
-      "component": "runtime-pdf-diagram",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "runtime.artifact-render-contract",
-      "relatedJudgmentModule": "none",
-      "category": "workflow",
-      "classification": {
-        "rule": "runtime-pdf-diagram:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
@@ -28863,49 +28526,6 @@
       "category": "infrastructure",
       "classification": {
         "rule": "runtime-paths-state:unvetted-community-pr",
-        "input": "title",
-        "note": "First matching ordered title rule selected the component; disposition remained conservative."
-      }
-    },
-    {
-      "id": "garrytan/gstack#2112",
-      "repo": "garrytan/gstack",
-      "number": 2112,
-      "kind": "issue",
-      "title": "ForgeCat profile for gstack",
-      "url": "https://github.com/garrytan/gstack/issues/2112",
-      "author": "seulch",
-      "dates": {
-        "createdAt": "2026-06-25T18:17:16Z",
-        "updatedAt": "2026-07-15T20:39:29Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": null,
-      "baseRef": null,
-      "headRef": null,
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 1546,
-      "sourceOccurrences": [
-        "garrytan/open-items"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": false,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "context-memory-and-isolation",
-      "component": "runtime-context-dev",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "runtime.context-isolation-contract",
-      "relatedJudgmentModule": "none",
-      "category": "context",
-      "classification": {
-        "rule": "runtime-context-dev:ambiguous-open-issue",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
@@ -29576,7 +29196,7 @@
       "author": "genisis0x",
       "dates": {
         "createdAt": "2026-06-29T06:56:15Z",
-        "updatedAt": "2026-07-15T22:54:07Z",
+        "updatedAt": "2026-07-17T10:54:45Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -30240,12 +29860,12 @@
       "repo": "garrytan/gstack",
       "number": 2154,
       "kind": "pull-request",
-      "title": "v1.60.0.0 feat: add /handoff multiplayer task handoff skill",
+      "title": "v1.60.1.0 feat: add /handoff multiplayer task handoff skill",
       "url": "https://github.com/garrytan/gstack/pull/2154",
       "author": "sdoan99",
       "dates": {
         "createdAt": "2026-07-03T00:35:27Z",
-        "updatedAt": "2026-07-15T08:16:47Z",
+        "updatedAt": "2026-07-19T03:34:17Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -30549,7 +30169,7 @@
       "author": "sonukapoor",
       "dates": {
         "createdAt": "2026-07-03T11:50:43Z",
-        "updatedAt": "2026-07-03T11:57:56Z",
+        "updatedAt": "2026-07-17T12:49:55Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -30623,50 +30243,6 @@
       "category": "context",
       "classification": {
         "rule": "runtime-context-dev:unvetted-community-pr",
-        "input": "title",
-        "note": "First matching ordered title rule selected the component; disposition remained conservative."
-      }
-    },
-    {
-      "id": "garrytan/gstack#2167",
-      "repo": "garrytan/gstack",
-      "number": 2167,
-      "kind": "pull-request",
-      "title": "fix(test): make chromium profile fallback path portable",
-      "url": "https://github.com/garrytan/gstack/pull/2167",
-      "author": "daehyeonxyz",
-      "dates": {
-        "createdAt": "2026-07-03T15:17:38Z",
-        "updatedAt": "2026-07-15T11:29:57Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": false,
-      "baseRef": "main",
-      "headRef": "codex/windows-chromium-profile-path-20260703",
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 251,
-      "sourceOccurrences": [
-        "garrytan/open-items",
-        "garrytan/open-prs"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": true,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "verification-and-regression-coverage",
-      "component": "runtime-browser",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "runtime.browser.lifecycle-contract",
-      "relatedJudgmentModule": "none",
-      "category": "infrastructure",
-      "classification": {
-        "rule": "runtime-browser:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
@@ -33740,7 +33316,7 @@
       "author": "fedster99",
       "dates": {
         "createdAt": "2026-07-14T21:09:14Z",
-        "updatedAt": "2026-07-15T23:46:47Z",
+        "updatedAt": "2026-07-17T12:10:13Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -34032,50 +33608,6 @@
       "category": "judgment",
       "classification": {
         "rule": "review:ambiguous-open-issue",
-        "input": "title",
-        "note": "First matching ordered title rule selected the component; disposition remained conservative."
-      }
-    },
-    {
-      "id": "garrytan/gstack#2276",
-      "repo": "garrytan/gstack",
-      "number": 2276,
-      "kind": "pull-request",
-      "title": "Add /autobuilder-loop and /plan-deliverables skills",
-      "url": "https://github.com/garrytan/gstack/pull/2276",
-      "author": "sneakygriff",
-      "dates": {
-        "createdAt": "2026-07-15T12:56:59Z",
-        "updatedAt": "2026-07-15T19:54:25Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": false,
-      "baseRef": "main",
-      "headRef": "skills/add-autobuilder-loop-and-plan-deliverables",
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 4843,
-      "sourceOccurrences": [
-        "garrytan/open-items",
-        "garrytan/open-prs"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": true,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "judgment-quality-and-calibration",
-      "component": "plan",
-      "disposition": "NEEDS_EVIDENCE",
-      "replacementTest": "judgment.plan.contract",
-      "relatedJudgmentModule": "plan-review",
-      "category": "judgment",
-      "classification": {
-        "rule": "plan:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
@@ -34519,16 +34051,16 @@
       }
     },
     {
-      "id": "time-attack/gstack#2",
-      "repo": "time-attack/gstack",
-      "number": 2,
+      "id": "garrytan/gstack#2287",
+      "repo": "garrytan/gstack",
+      "number": 2287,
       "kind": "pull-request",
-      "title": "fix(deps): pin basic-ftp to patched 5.3.1",
-      "url": "https://github.com/time-attack/gstack/pull/2",
-      "author": "time-attack",
+      "title": "Fix spaced-out terminal text on Windows (CJK-font cell sizing)",
+      "url": "https://github.com/garrytan/gstack/pull/2287",
+      "author": "tomfluff",
       "dates": {
-        "createdAt": "2026-07-14T20:45:45Z",
-        "updatedAt": "2026-07-14T20:45:45Z",
+        "createdAt": "2026-07-17T02:27:10Z",
+        "updatedAt": "2026-07-17T02:27:14Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -34536,13 +34068,13 @@
       "stateReason": null,
       "draft": false,
       "baseRef": "main",
-      "headRef": "time-attack/wave-security-isolated-review",
+      "headRef": "fix/windows-terminal-cjk-font",
       "labels": [],
       "bodyPresent": true,
-      "bodyLength": 2382,
+      "bodyLength": 1278,
       "sourceOccurrences": [
-        "time-attack/open-items",
-        "time-attack/open-prs"
+        "garrytan/open-items",
+        "garrytan/open-prs"
       ],
       "sourceReconciliation": {
         "openItems": true,
@@ -34550,73 +34082,29 @@
         "requiredDetail": false
       },
       "portTrace": null,
-      "rootCauseFamily": "installation-and-migration",
-      "component": "installation-migration",
-      "disposition": "RETAIN_INTERNAL",
-      "replacementTest": "installation.host-matrix-contract",
-      "relatedJudgmentModule": "none",
-      "category": "infrastructure",
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "design",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "judgment.design.contract",
+      "relatedJudgmentModule": "live-review",
+      "category": "judgment",
       "classification": {
-        "rule": "installation-migration:time-attack-internal",
-        "input": "title+body",
-        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
-      }
-    },
-    {
-      "id": "time-attack/gstack#3",
-      "repo": "time-attack/gstack",
-      "number": 3,
-      "kind": "pull-request",
-      "title": "fix(gen-skill-docs): preserve embedded periods in catalog leads",
-      "url": "https://github.com/time-attack/gstack/pull/3",
-      "author": "time-attack",
-      "dates": {
-        "createdAt": "2026-07-14T20:47:17Z",
-        "updatedAt": "2026-07-14T20:47:17Z",
-        "closedAt": null,
-        "mergedAt": null
-      },
-      "state": "open",
-      "stateReason": null,
-      "draft": false,
-      "baseRef": "main",
-      "headRef": "time-attack/wave-gbrain-memory-isolated-review",
-      "labels": [],
-      "bodyPresent": true,
-      "bodyLength": 1739,
-      "sourceOccurrences": [
-        "time-attack/open-items",
-        "time-attack/open-prs"
-      ],
-      "sourceReconciliation": {
-        "openItems": true,
-        "openPRs": true,
-        "requiredDetail": false
-      },
-      "portTrace": null,
-      "rootCauseFamily": "documentation-and-discoverability",
-      "component": "docs-governance",
-      "disposition": "RETAIN_INTERNAL",
-      "replacementTest": "docs.generated-source-contract",
-      "relatedJudgmentModule": "docs",
-      "category": "governance",
-      "classification": {
-        "rule": "docs-governance:time-attack-internal",
+        "rule": "design:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
     },
     {
-      "id": "time-attack/gstack#4",
-      "repo": "time-attack/gstack",
-      "number": 4,
+      "id": "garrytan/gstack#2288",
+      "repo": "garrytan/gstack",
+      "number": 2288,
       "kind": "pull-request",
-      "title": "fix: harden host-specific skill generation",
-      "url": "https://github.com/time-attack/gstack/pull/4",
-      "author": "time-attack",
+      "title": "Add a sidebar text-size selector to the terminal toolbar",
+      "url": "https://github.com/garrytan/gstack/pull/2288",
+      "author": "tomfluff",
       "dates": {
-        "createdAt": "2026-07-14T20:49:55Z",
-        "updatedAt": "2026-07-14T20:49:55Z",
+        "createdAt": "2026-07-17T03:16:56Z",
+        "updatedAt": "2026-07-17T03:17:00Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -34624,13 +34112,57 @@
       "stateReason": null,
       "draft": false,
       "baseRef": "main",
-      "headRef": "time-attack/wave-hosts-isolated-review",
+      "headRef": "feat/sidebar-font-size",
       "labels": [],
       "bodyPresent": true,
-      "bodyLength": 2684,
+      "bodyLength": 1180,
       "sourceOccurrences": [
-        "time-attack/open-items",
-        "time-attack/open-prs"
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "browser-control-and-evidence",
+      "component": "runtime-browser",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.browser.lifecycle-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-browser:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2289",
+      "repo": "garrytan/gstack",
+      "number": 2289,
+      "kind": "pull-request",
+      "title": "fix: force LF on *.txt so generated llms.txt stays clean on Windows",
+      "url": "https://github.com/garrytan/gstack/pull/2289",
+      "author": "Olamiaca",
+      "dates": {
+        "createdAt": "2026-07-17T09:37:08Z",
+        "updatedAt": "2026-07-17T10:03:00Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/gitattributes-txt-eol-lf",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2444,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
       ],
       "sourceReconciliation": {
         "openItems": true,
@@ -34639,28 +34171,28 @@
       },
       "portTrace": null,
       "rootCauseFamily": "host-capability-and-portability",
-      "component": "installation-migration",
-      "disposition": "RETAIN_INTERNAL",
-      "replacementTest": "installation.host-matrix-contract",
+      "component": "runtime-paths-state",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.paths-state.matrix-contract",
       "relatedJudgmentModule": "none",
       "category": "infrastructure",
       "classification": {
-        "rule": "installation-migration:time-attack-internal",
-        "input": "title+body",
-        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+        "rule": "runtime-paths-state:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
     },
     {
-      "id": "time-attack/gstack#5",
-      "repo": "time-attack/gstack",
-      "number": 5,
+      "id": "garrytan/gstack#2290",
+      "repo": "garrytan/gstack",
+      "number": 2290,
       "kind": "pull-request",
-      "title": "fix(codex): preserve search mode and harden Codex workflows",
-      "url": "https://github.com/time-attack/gstack/pull/5",
-      "author": "time-attack",
+      "title": "fix(browse): stop the Bun polyfill flashing console windows on Windows",
+      "url": "https://github.com/garrytan/gstack/pull/2290",
+      "author": "WimvandenHeijkant",
       "dates": {
-        "createdAt": "2026-07-14T20:56:30Z",
-        "updatedAt": "2026-07-14T20:56:30Z",
+        "createdAt": "2026-07-17T09:59:28Z",
+        "updatedAt": "2026-07-17T10:02:50Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -34668,13 +34200,143 @@
       "stateReason": null,
       "draft": false,
       "baseRef": "main",
-      "headRef": "time-attack/wave-codex-model-isolated-review",
+      "headRef": "fix/windows-hide-console-popup",
       "labels": [],
       "bodyPresent": true,
-      "bodyLength": 2015,
+      "bodyLength": 3168,
       "sourceOccurrences": [
-        "time-attack/open-items",
-        "time-attack/open-prs"
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "browser-control-and-evidence",
+      "component": "runtime-browser",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.browser.lifecycle-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-browser:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2291",
+      "repo": "garrytan/gstack",
+      "number": 2291,
+      "kind": "issue",
+      "title": "Windows: setup can never pass its own browse gate (BROWSE_BIN misses .exe) — skills silently never install while VERSION reports the new version",
+      "url": "https://github.com/garrytan/gstack/issues/2291",
+      "author": "Richman711",
+      "dates": {
+        "createdAt": "2026-07-17T11:41:15Z",
+        "updatedAt": "2026-07-17T11:41:15Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3898,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "installation-migration",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2292",
+      "repo": "garrytan/gstack",
+      "number": 2292,
+      "kind": "issue",
+      "title": "AskUserQuestion PreToolUse hook's defer() hits claude-code#64389 race — fix: use allow instead",
+      "url": "https://github.com/garrytan/gstack/issues/2292",
+      "author": "lotofiyan",
+      "dates": {
+        "createdAt": "2026-07-17T12:50:44Z",
+        "updatedAt": "2026-07-17T12:50:44Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2943,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "workflow-orchestration-and-handoffs",
+      "component": "debug",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "workflow.debug.root-cause-contract",
+      "relatedJudgmentModule": "investigation",
+      "category": "workflow",
+      "classification": {
+        "rule": "debug:open-bug",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2293",
+      "repo": "garrytan/gstack",
+      "number": 2293,
+      "kind": "pull-request",
+      "title": "fix(codex): hang protection without coreutils + replace deprecated --enable web_search_cached",
+      "url": "https://github.com/garrytan/gstack/pull/2293",
+      "author": "smilesjosh007",
+      "dates": {
+        "createdAt": "2026-07-17T23:21:11Z",
+        "updatedAt": "2026-07-17T23:33:15Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/codex-timeout-fallback-web-search",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3650,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
       ],
       "sourceReconciliation": {
         "openItems": true,
@@ -34684,27 +34346,27 @@
       "portTrace": null,
       "rootCauseFamily": "judgment-quality-and-calibration",
       "component": "review",
-      "disposition": "RETAIN_INTERNAL",
+      "disposition": "NEEDS_EVIDENCE",
       "replacementTest": "judgment.review.precision-contract",
       "relatedJudgmentModule": "outside-voice",
       "category": "judgment",
       "classification": {
-        "rule": "review:time-attack-internal",
+        "rule": "review:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
     },
     {
-      "id": "time-attack/gstack#6",
-      "repo": "time-attack/gstack",
-      "number": 6,
+      "id": "garrytan/gstack#2294",
+      "repo": "garrytan/gstack",
+      "number": 2294,
       "kind": "pull-request",
-      "title": "fix: salvage verified docs, PDF, and design fixes",
-      "url": "https://github.com/time-attack/gstack/pull/6",
-      "author": "time-attack",
+      "title": "fix(browse): pass windowsHide in bun-polyfill spawn wrappers (Windows console flash every 60s)",
+      "url": "https://github.com/garrytan/gstack/pull/2294",
+      "author": "rroojrooj",
       "dates": {
-        "createdAt": "2026-07-14T21:06:50Z",
-        "updatedAt": "2026-07-14T21:06:50Z",
+        "createdAt": "2026-07-18T06:54:02Z",
+        "updatedAt": "2026-07-18T06:54:06Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -34712,13 +34374,1670 @@
       "stateReason": null,
       "draft": false,
       "baseRef": "main",
-      "headRef": "time-attack/wave-docs-pdf-design-isolated-review",
+      "headRef": "fix/windows-spawn-windowshide",
       "labels": [],
       "bodyPresent": true,
-      "bodyLength": 3186,
+      "bodyLength": 1737,
       "sourceOccurrences": [
-        "time-attack/open-items",
-        "time-attack/open-prs"
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "browser-control-and-evidence",
+      "component": "runtime-browser",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.browser.lifecycle-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-browser:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2295",
+      "repo": "garrytan/gstack",
+      "number": 2295,
+      "kind": "issue",
+      "title": "Windows: terminal-agent watchdog respawn-loops every 60s — console flash + unbounded bun.exe leak; circuit-breaker can never trip",
+      "url": "https://github.com/garrytan/gstack/issues/2295",
+      "author": "rroojrooj",
+      "dates": {
+        "createdAt": "2026-07-18T06:54:39Z",
+        "updatedAt": "2026-07-18T06:54:39Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3341,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "runtime-paths-state",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "runtime.paths-state.matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-paths-state:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2296",
+      "repo": "garrytan/gstack",
+      "number": 2296,
+      "kind": "issue",
+      "title": "team-init required mode: generated hook emits flat permissionDecision, so the deny never fires",
+      "url": "https://github.com/garrytan/gstack/issues/2296",
+      "author": "SW3T0",
+      "dates": {
+        "createdAt": "2026-07-18T11:48:34Z",
+        "updatedAt": "2026-07-18T11:49:05Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2550,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "installation-and-migration",
+      "component": "installation-migration",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:ambiguous-open-issue",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2297",
+      "repo": "garrytan/gstack",
+      "number": 2297,
+      "kind": "pull-request",
+      "title": "v1.60.2.0 feat(browse): add webauthn command for CDP virtual authenticator support",
+      "url": "https://github.com/garrytan/gstack/pull/2297",
+      "author": "huckym",
+      "dates": {
+        "createdAt": "2026-07-18T14:48:21Z",
+        "updatedAt": "2026-07-18T14:48:25Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "webauthn-virtual-authenticator",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 695,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "browser-control-and-evidence",
+      "component": "runtime-browser",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.browser.lifecycle-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-browser:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2298",
+      "repo": "garrytan/gstack",
+      "number": 2298,
+      "kind": "pull-request",
+      "title": "feat: add Kimi Code host connector",
+      "url": "https://github.com/garrytan/gstack/pull/2298",
+      "author": "abkrim",
+      "dates": {
+        "createdAt": "2026-07-18T19:57:37Z",
+        "updatedAt": "2026-07-20T16:42:45Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "feat/kimi-host",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 650,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "installation-migration",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:unvetted-community-pr",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2299",
+      "repo": "garrytan/gstack",
+      "number": 2299,
+      "kind": "issue",
+      "title": "gstack-diff-scope reports every scope false on uncommitted work, and can't set two categories for one file",
+      "url": "https://github.com/garrytan/gstack/issues/2299",
+      "author": "ShahriarLak",
+      "dates": {
+        "createdAt": "2026-07-18T23:10:45Z",
+        "updatedAt": "2026-07-18T23:10:45Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 5482,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "plan",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "judgment.plan.contract",
+      "relatedJudgmentModule": "plan-review",
+      "category": "judgment",
+      "classification": {
+        "rule": "plan:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2300",
+      "repo": "garrytan/gstack",
+      "number": 2300,
+      "kind": "issue",
+      "title": "setup fails on Linux: build-node-server.sh uses unescaped { in perl regex (fatal on perl ≥5.26)",
+      "url": "https://github.com/garrytan/gstack/issues/2300",
+      "author": "kapioskapiou",
+      "dates": {
+        "createdAt": "2026-07-19T00:58:22Z",
+        "updatedAt": "2026-07-21T11:05:41Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2021,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "installation-migration",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2301",
+      "repo": "garrytan/gstack",
+      "number": 2301,
+      "kind": "pull-request",
+      "title": "v1.60.2.0 feat: add complete ship handoffs",
+      "url": "https://github.com/garrytan/gstack/pull/2301",
+      "author": "fedster99",
+      "dates": {
+        "createdAt": "2026-07-19T04:51:03Z",
+        "updatedAt": "2026-07-19T04:51:07Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "feat/ship-completion-handoff",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3827,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "workflow-orchestration-and-handoffs",
+      "component": "ship",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.ship.state-machine-contract",
+      "relatedJudgmentModule": "release",
+      "category": "workflow",
+      "classification": {
+        "rule": "ship:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2302",
+      "repo": "garrytan/gstack",
+      "number": 2302,
+      "kind": "pull-request",
+      "title": "fix: scope benchmark routing to web performance",
+      "url": "https://github.com/garrytan/gstack/pull/2302",
+      "author": "creatornader",
+      "dates": {
+        "createdAt": "2026-07-19T05:10:01Z",
+        "updatedAt": "2026-07-26T20:06:51Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/benchmark-web-scope-20260719",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 442,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "qa",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.qa.evidence-contract",
+      "relatedJudgmentModule": "performance",
+      "category": "workflow",
+      "classification": {
+        "rule": "qa:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2303",
+      "repo": "garrytan/gstack",
+      "number": 2303,
+      "kind": "pull-request",
+      "title": "v1.60.2.0 fix: make ship handoffs self-contained",
+      "url": "https://github.com/garrytan/gstack/pull/2303",
+      "author": "fedster99",
+      "dates": {
+        "createdAt": "2026-07-19T09:40:43Z",
+        "updatedAt": "2026-07-19T09:48:01Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fedster99/ship-context-handoff",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2893,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "workflow-orchestration-and-handoffs",
+      "component": "ship",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.ship.state-machine-contract",
+      "relatedJudgmentModule": "release",
+      "category": "workflow",
+      "classification": {
+        "rule": "ship:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2304",
+      "repo": "garrytan/gstack",
+      "number": 2304,
+      "kind": "issue",
+      "title": "gstack-redact-prepush: no allowlist plumbing (engine supports it) + unchunked scan fail-closes on >1 MiB diffs — both push users onto GSTACK_REDACT_PREPUSH=skip, which skips all scanning",
+      "url": "https://github.com/garrytan/gstack/issues/2304",
+      "author": "sneakygriff",
+      "dates": {
+        "createdAt": "2026-07-20T05:01:56Z",
+        "updatedAt": "2026-07-20T05:01:56Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2920,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "documentation-and-discoverability",
+      "component": "docs-governance",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "docs.generated-source-contract",
+      "relatedJudgmentModule": "docs",
+      "category": "governance",
+      "classification": {
+        "rule": "docs-governance:open-bug",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2305",
+      "repo": "garrytan/gstack",
+      "number": 2305,
+      "kind": "issue",
+      "title": "setup omits lib/ beside bin/, breaking gstack-learnings-log runtime imports",
+      "url": "https://github.com/garrytan/gstack/issues/2305",
+      "author": "richardiitse",
+      "dates": {
+        "createdAt": "2026-07-20T06:24:41Z",
+        "updatedAt": "2026-07-20T06:24:41Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1479,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "installation-and-migration",
+      "component": "installation-migration",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2307",
+      "repo": "garrytan/gstack",
+      "number": 2307,
+      "kind": "issue",
+      "title": "retro/ship test-file count scans untracked build output: reports 623 vs 17 real (37x) on a Rails repo",
+      "url": "https://github.com/garrytan/gstack/issues/2307",
+      "author": "joshRpowell",
+      "dates": {
+        "createdAt": "2026-07-20T12:15:45Z",
+        "updatedAt": "2026-07-20T12:15:45Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3454,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2308",
+      "repo": "garrytan/gstack",
+      "number": 2308,
+      "kind": "pull-request",
+      "title": "fix: count tracked files for test-file metric in /retro and /ship",
+      "url": "https://github.com/garrytan/gstack/pull/2308",
+      "author": "joshRpowell",
+      "dates": {
+        "createdAt": "2026-07-20T12:40:53Z",
+        "updatedAt": "2026-07-20T12:40:57Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/test-count-scan",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 4002,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2309",
+      "repo": "garrytan/gstack",
+      "number": 2309,
+      "kind": "pull-request",
+      "title": "feat: register Gemini CLI host with dedicated .gemini subdir",
+      "url": "https://github.com/garrytan/gstack/pull/2309",
+      "author": "fischer33",
+      "dates": {
+        "createdAt": "2026-07-20T15:44:40Z",
+        "updatedAt": "2026-07-20T15:44:44Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "feat/edge-substance",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1817,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "documentation-and-discoverability",
+      "component": "docs-governance",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "docs.generated-source-contract",
+      "relatedJudgmentModule": "docs",
+      "category": "governance",
+      "classification": {
+        "rule": "docs-governance:unvetted-community-pr",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2310",
+      "repo": "garrytan/gstack",
+      "number": 2310,
+      "kind": "issue",
+      "title": "question-preference-hook emits invalid permissionDecision \"defer\" → aborts every AskUserQuestion call",
+      "url": "https://github.com/garrytan/gstack/issues/2310",
+      "author": "johnmwhitman",
+      "dates": {
+        "createdAt": "2026-07-20T20:59:38Z",
+        "updatedAt": "2026-07-26T11:00:06Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2536,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2311",
+      "repo": "garrytan/gstack",
+      "number": 2311,
+      "kind": "pull-request",
+      "title": "fix(browse): clean stale SingletonLock in handoff() before relaunch",
+      "url": "https://github.com/garrytan/gstack/pull/2311",
+      "author": "jasonm-max",
+      "dates": {
+        "createdAt": "2026-07-20T23:28:53Z",
+        "updatedAt": "2026-07-20T23:28:56Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/browse-handoff-singleton-lock",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1079,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "browser-control-and-evidence",
+      "component": "runtime-browser",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.browser.lifecycle-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-browser:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2312",
+      "repo": "garrytan/gstack",
+      "number": 2312,
+      "kind": "pull-request",
+      "title": "docs: add Health Stack section to pin /health to the fast path",
+      "url": "https://github.com/garrytan/gstack/pull/2312",
+      "author": "jaimedhenriques",
+      "dates": {
+        "createdAt": "2026-07-21T00:30:50Z",
+        "updatedAt": "2026-07-21T00:30:53Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "chore/gstack-health-stack",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1056,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "documentation-and-discoverability",
+      "component": "docs-governance",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "docs.generated-source-contract",
+      "relatedJudgmentModule": "health",
+      "category": "governance",
+      "classification": {
+        "rule": "docs-governance:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2313",
+      "repo": "garrytan/gstack",
+      "number": 2313,
+      "kind": "pull-request",
+      "title": "docs: Team Server Mode — running a fleet of concurrent agents on one shared machine",
+      "url": "https://github.com/garrytan/gstack/pull/2313",
+      "author": "shulam-pay",
+      "dates": {
+        "createdAt": "2026-07-21T14:19:16Z",
+        "updatedAt": "2026-07-21T14:19:20Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "docs/team-server-mode",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1381,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "documentation-and-discoverability",
+      "component": "docs-governance",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "docs.generated-source-contract",
+      "relatedJudgmentModule": "docs",
+      "category": "governance",
+      "classification": {
+        "rule": "docs-governance:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2314",
+      "repo": "garrytan/gstack",
+      "number": 2314,
+      "kind": "issue",
+      "title": "/browse daemons bind OS-assigned ephemeral ports on 127.0.0.1 and can silently hijack local test-suite traffic (phantom 404s)",
+      "url": "https://github.com/garrytan/gstack/issues/2314",
+      "author": "devop-hub",
+      "dates": {
+        "createdAt": "2026-07-21T22:38:01Z",
+        "updatedAt": "2026-07-21T22:38:01Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3667,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "runtime-browser",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "runtime.browser.lifecycle-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-browser:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2317",
+      "repo": "garrytan/gstack",
+      "number": 2317,
+      "kind": "issue",
+      "title": "review skill: Claude Code install path still never copies checklist.md/specialists/ (fresh repro on v1.60.1.0, follow-up to #1499)",
+      "url": "https://github.com/garrytan/gstack/issues/2317",
+      "author": "AlexTu2",
+      "dates": {
+        "createdAt": "2026-07-22T06:03:03Z",
+        "updatedAt": "2026-07-22T08:53:55Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3623,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "installation-migration",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2318",
+      "repo": "garrytan/gstack",
+      "number": 2318,
+      "kind": "pull-request",
+      "title": "fix(hooks): question-preference-hook must not emit permissionDecision 'defer' (merges #2165 + #1924)",
+      "url": "https://github.com/garrytan/gstack/pull/2318",
+      "author": "Akagilnc",
+      "dates": {
+        "createdAt": "2026-07-22T08:05:29Z",
+        "updatedAt": "2026-07-22T08:05:33Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/auq-hook-neutral-passthrough",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3691,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2321",
+      "repo": "garrytan/gstack",
+      "number": 2321,
+      "kind": "pull-request",
+      "title": "fix(preamble): probe gbrain engine liveness before recommending it",
+      "url": "https://github.com/garrytan/gstack/pull/2321",
+      "author": "syong",
+      "dates": {
+        "createdAt": "2026-07-22T14:09:48Z",
+        "updatedAt": "2026-07-22T16:48:40Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/gbrain-liveness-probe",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2812,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2322",
+      "repo": "garrytan/gstack",
+      "number": 2322,
+      "kind": "issue",
+      "title": "安装 gstack skills 供 Cloud Agent 全局使用",
+      "url": "https://github.com/garrytan/gstack/issues/2322",
+      "author": "fireman2017",
+      "dates": {
+        "createdAt": "2026-07-22T16:32:32Z",
+        "updatedAt": "2026-07-22T16:32:32Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 267,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "out-of-scope-or-insufficient-signal",
+      "component": "docs-governance",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "docs.generated-source-contract",
+      "relatedJudgmentModule": "none",
+      "category": "governance",
+      "classification": {
+        "rule": "fallback:ambiguous-open-issue",
+        "input": "fallback",
+        "note": "No conservative title or two-signal body rule matched; retained for governance triage."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2323",
+      "repo": "garrytan/gstack",
+      "number": 2323,
+      "kind": "pull-request",
+      "title": "feat: add GitHub Copilot CLI and app support",
+      "url": "https://github.com/garrytan/gstack/pull/2323",
+      "author": "andrey-esipov",
+      "dates": {
+        "createdAt": "2026-07-22T16:37:31Z",
+        "updatedAt": "2026-07-25T12:59:08Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "andrey-esipov-copilot-host-support",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 9110,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "installation-migration",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:unvetted-community-pr",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2324",
+      "repo": "garrytan/gstack",
+      "number": 2324,
+      "kind": "pull-request",
+      "title": "fix(slop-diff): redirect slop-scan stdout to a file — piped capture truncates on large reports",
+      "url": "https://github.com/garrytan/gstack/pull/2324",
+      "author": "Andy-Haigh",
+      "dates": {
+        "createdAt": "2026-07-22T17:44:37Z",
+        "updatedAt": "2026-07-22T17:44:41Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/slop-diff-piped-stdout-truncation",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2063,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "out-of-scope-or-insufficient-signal",
+      "component": "docs-governance",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "docs.generated-source-contract",
+      "relatedJudgmentModule": "none",
+      "category": "governance",
+      "classification": {
+        "rule": "fallback:unvetted-community-pr",
+        "input": "fallback",
+        "note": "No conservative title or two-signal body rule matched; retained for governance triage."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2325",
+      "repo": "garrytan/gstack",
+      "number": 2325,
+      "kind": "pull-request",
+      "title": "fix(hooks): don't emit invalid permissionDecision 'defer' — it swallows the AskUserQuestion widget",
+      "url": "https://github.com/garrytan/gstack/pull/2325",
+      "author": "jawadakram20",
+      "dates": {
+        "createdAt": "2026-07-22T18:43:12Z",
+        "updatedAt": "2026-07-26T11:00:05Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/auq-defer-swallows-widget",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2511,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "qa",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.qa.evidence-contract",
+      "relatedJudgmentModule": "fix-and-verify",
+      "category": "workflow",
+      "classification": {
+        "rule": "qa:unvetted-community-pr",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2326",
+      "repo": "garrytan/gstack",
+      "number": 2326,
+      "kind": "pull-request",
+      "title": "v1.60.2.0 document-release: detect in-app public docs sites (Next.js/Docusaurus/Mintlify/VitePress/Nextra), not just root .md",
+      "url": "https://github.com/garrytan/gstack/pull/2326",
+      "author": "Martindvttt",
+      "dates": {
+        "createdAt": "2026-07-22T20:20:33Z",
+        "updatedAt": "2026-07-22T21:11:48Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "docs-site-coverage-detection",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 4036,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "workflow-orchestration-and-handoffs",
+      "component": "ship",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.ship.state-machine-contract",
+      "relatedJudgmentModule": "docs",
+      "category": "workflow",
+      "classification": {
+        "rule": "ship:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2328",
+      "repo": "garrytan/gstack",
+      "number": 2328,
+      "kind": "pull-request",
+      "title": "feat(redact): path-ignore for the pre-push credential scan",
+      "url": "https://github.com/garrytan/gstack/pull/2328",
+      "author": "frederik-kaster-noygear",
+      "dates": {
+        "createdAt": "2026-07-22T23:05:48Z",
+        "updatedAt": "2026-07-23T03:21:14Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "claude/redact-prepush-path-ignore",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3770,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "security-trust-and-governance",
+      "component": "runtime-paths-state",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.paths-state.matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "governance",
+      "classification": {
+        "rule": "runtime-paths-state:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2329",
+      "repo": "garrytan/gstack",
+      "number": 2329,
+      "kind": "pull-request",
+      "title": "fix: tolerate Bun's spurious EEXIST from recursive mkdir on Windows ReadOnly dirs",
+      "url": "https://github.com/garrytan/gstack/pull/2329",
+      "author": "Vaughan-g-aus",
+      "dates": {
+        "createdAt": "2026-07-23T01:08:34Z",
+        "updatedAt": "2026-07-23T01:26:31Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/windows-readonly-mkdir-eexist",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1895,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "runtime-paths-state",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.paths-state.matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-paths-state:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2331",
+      "repo": "garrytan/gstack",
+      "number": 2331,
+      "kind": "pull-request",
+      "title": "fix(hooks): emit permissionDecision under hookSpecificOutput — /freeze and /careful never fired",
+      "url": "https://github.com/garrytan/gstack/pull/2331",
+      "author": "jawadakram20",
+      "dates": {
+        "createdAt": "2026-07-23T10:42:14Z",
+        "updatedAt": "2026-07-23T10:42:18Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/hook-permission-decision-shape",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2329,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "qa",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.qa.evidence-contract",
+      "relatedJudgmentModule": "fix-and-verify",
+      "category": "workflow",
+      "classification": {
+        "rule": "qa:unvetted-community-pr",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2332",
+      "repo": "garrytan/gstack",
+      "number": 2332,
+      "kind": "pull-request",
+      "title": "fix(plan-tune): project-local question preferences never matched — hook used basename, writers use gstack-slug",
+      "url": "https://github.com/garrytan/gstack/pull/2332",
+      "author": "jawadakram20",
+      "dates": {
+        "createdAt": "2026-07-23T10:42:33Z",
+        "updatedAt": "2026-07-23T10:42:36Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/preference-slug-mismatch",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2566,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "plan",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "judgment.plan.contract",
+      "relatedJudgmentModule": "plan-review",
+      "category": "judgment",
+      "classification": {
+        "rule": "plan:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2333",
+      "repo": "garrytan/gstack",
+      "number": 2333,
+      "kind": "pull-request",
+      "title": "fix(preamble): quoted tilde made Artifacts Sync and telemetry-finalize blocks dead code",
+      "url": "https://github.com/garrytan/gstack/pull/2333",
+      "author": "jawadakram20",
+      "dates": {
+        "createdAt": "2026-07-23T10:42:52Z",
+        "updatedAt": "2026-07-23T10:42:55Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/quoted-tilde-dead-code",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2600,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "documentation-and-discoverability",
+      "component": "docs-governance",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "docs.generated-source-contract",
+      "relatedJudgmentModule": "docs",
+      "category": "governance",
+      "classification": {
+        "rule": "docs-governance:unvetted-community-pr",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2334",
+      "repo": "garrytan/gstack",
+      "number": 2334,
+      "kind": "pull-request",
+      "title": "v1.60.2.0 fix: preserve ship path for versionless repos",
+      "url": "https://github.com/garrytan/gstack/pull/2334",
+      "author": "Alchemist-DevAI",
+      "dates": {
+        "createdAt": "2026-07-23T19:05:11Z",
+        "updatedAt": "2026-07-23T19:05:45Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "EDG-14015-preserve-versionless-ship",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 213,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "workflow-orchestration-and-handoffs",
+      "component": "ship",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.ship.state-machine-contract",
+      "relatedJudgmentModule": "release",
+      "category": "workflow",
+      "classification": {
+        "rule": "ship:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2335",
+      "repo": "garrytan/gstack",
+      "number": 2335,
+      "kind": "issue",
+      "title": "security: keep ngrok authentication tokens out of agent chat",
+      "url": "https://github.com/garrytan/gstack/issues/2335",
+      "author": "weisisheng",
+      "dates": {
+        "createdAt": "2026-07-23T19:34:28Z",
+        "updatedAt": "2026-07-23T19:34:28Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1050,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "security-trust-and-governance",
+      "component": "review",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "judgment.review.precision-contract",
+      "relatedJudgmentModule": "security-review",
+      "category": "governance",
+      "classification": {
+        "rule": "review:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2336",
+      "repo": "garrytan/gstack",
+      "number": 2336,
+      "kind": "issue",
+      "title": "question-log-hook: user answers lost on native AskUserQuestion (answers-object shape unparsed → __unknown__ + poisoned followed_recommendation)",
+      "url": "https://github.com/garrytan/gstack/issues/2336",
+      "author": "yijisoo",
+      "dates": {
+        "createdAt": "2026-07-24T02:10:10Z",
+        "updatedAt": "2026-07-24T02:10:10Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 12445,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "out-of-scope-or-insufficient-signal",
+      "component": "docs-governance",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "docs.generated-source-contract",
+      "relatedJudgmentModule": "none",
+      "category": "governance",
+      "classification": {
+        "rule": "fallback:ambiguous-open-issue",
+        "input": "fallback",
+        "note": "No conservative title or two-signal body rule matched; retained for governance triage."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2337",
+      "repo": "garrytan/gstack",
+      "number": 2337,
+      "kind": "issue",
+      "title": "OpenClaw skill frontmatter fails Codex YAML parsing",
+      "url": "https://github.com/garrytan/gstack/issues/2337",
+      "author": "maxthilen",
+      "dates": {
+        "createdAt": "2026-07-24T10:04:21Z",
+        "updatedAt": "2026-07-24T10:04:21Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1017,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "review",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "judgment.review.precision-contract",
+      "relatedJudgmentModule": "outside-voice",
+      "category": "judgment",
+      "classification": {
+        "rule": "review:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2338",
+      "repo": "garrytan/gstack",
+      "number": 2338,
+      "kind": "issue",
+      "title": "Codex-generated skill preambles hardcode ~/.Codex while installer exposes ~/.agents",
+      "url": "https://github.com/garrytan/gstack/issues/2338",
+      "author": "maxthilen",
+      "dates": {
+        "createdAt": "2026-07-24T11:05:28Z",
+        "updatedAt": "2026-07-24T11:05:28Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1613,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "installation-migration",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "outside-voice",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2339",
+      "repo": "garrytan/gstack",
+      "number": 2339,
+      "kind": "pull-request",
+      "title": "make-pdf: fix smartypants corrupting autolinked reference URLs + custom cover extraction",
+      "url": "https://github.com/garrytan/gstack/pull/2339",
+      "author": "BrendaB24",
+      "dates": {
+        "createdAt": "2026-07-24T16:42:33Z",
+        "updatedAt": "2026-07-24T16:42:43Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "make-pdf-doi-fix-and-custom-cover",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1325,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
       ],
       "sourceReconciliation": {
         "openItems": true,
@@ -34728,27 +36047,113 @@
       "portTrace": null,
       "rootCauseFamily": "artifact-generation-and-rendering",
       "component": "runtime-pdf-diagram",
-      "disposition": "RETAIN_INTERNAL",
+      "disposition": "NEEDS_EVIDENCE",
       "replacementTest": "runtime.artifact-render-contract",
-      "relatedJudgmentModule": "docs",
+      "relatedJudgmentModule": "none",
       "category": "workflow",
       "classification": {
-        "rule": "runtime-pdf-diagram:time-attack-internal",
+        "rule": "runtime-pdf-diagram:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
     },
     {
-      "id": "time-attack/gstack#7",
-      "repo": "time-attack/gstack",
-      "number": 7,
-      "kind": "pull-request",
-      "title": "fix: reconstruct the setup/install safety wave",
-      "url": "https://github.com/time-attack/gstack/pull/7",
-      "author": "time-attack",
+      "id": "garrytan/gstack#2340",
+      "repo": "garrytan/gstack",
+      "number": 2340,
+      "kind": "issue",
+      "title": "AskUserQuestion always fails on Claude desktop: question-preference-hook returns invalid permissionDecision 'defer'",
+      "url": "https://github.com/garrytan/gstack/issues/2340",
+      "author": "AngeloAdam",
       "dates": {
-        "createdAt": "2026-07-14T21:39:26Z",
-        "updatedAt": "2026-07-14T21:39:26Z",
+        "createdAt": "2026-07-24T19:26:51Z",
+        "updatedAt": "2026-07-24T19:26:51Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3264,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2341",
+      "repo": "garrytan/gstack",
+      "number": 2341,
+      "kind": "issue",
+      "title": "/sync-gbrain --dream: classifyDreamOutcome false-positives 'pack does not extract code symbols' on every base-pack brain",
+      "url": "https://github.com/garrytan/gstack/issues/2341",
+      "author": "browngeek-aoi",
+      "dates": {
+        "createdAt": "2026-07-24T19:41:55Z",
+        "updatedAt": "2026-07-24T19:41:55Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2836,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2342",
+      "repo": "garrytan/gstack",
+      "number": 2342,
+      "kind": "pull-request",
+      "title": "fix: spec {{PREAMBLE}} duplication bug + factor shared conduct block out of every skill",
+      "url": "https://github.com/garrytan/gstack/pull/2342",
+      "author": "agrawalparth08",
+      "dates": {
+        "createdAt": "2026-07-24T20:46:23Z",
+        "updatedAt": "2026-07-24T20:46:27Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -34756,13 +36161,711 @@
       "stateReason": null,
       "draft": false,
       "baseRef": "main",
-      "headRef": "time-attack/wave-setup-install-isolated-review",
+      "headRef": "upstream-pr",
       "labels": [],
       "bodyPresent": true,
-      "bodyLength": 3648,
+      "bodyLength": 2002,
       "sourceOccurrences": [
-        "time-attack/open-items",
-        "time-attack/open-prs"
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "plan",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "judgment.plan.contract",
+      "relatedJudgmentModule": "specification",
+      "category": "judgment",
+      "classification": {
+        "rule": "plan:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2343",
+      "repo": "garrytan/gstack",
+      "number": 2343,
+      "kind": "pull-request",
+      "title": "feat(ship): skip version-bump/CHANGELOG/title-rewrite when the repo has no VERSION file",
+      "url": "https://github.com/garrytan/gstack/pull/2343",
+      "author": "merit-blake",
+      "dates": {
+        "createdAt": "2026-07-25T01:56:03Z",
+        "updatedAt": "2026-07-25T01:56:06Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "ship-skip-no-version-file",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1838,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "workflow-orchestration-and-handoffs",
+      "component": "ship",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.ship.state-machine-contract",
+      "relatedJudgmentModule": "release",
+      "category": "workflow",
+      "classification": {
+        "rule": "ship:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2344",
+      "repo": "garrytan/gstack",
+      "number": 2344,
+      "kind": "pull-request",
+      "title": "fix: keep ship review retries inside one invocation",
+      "url": "https://github.com/garrytan/gstack/pull/2344",
+      "author": "yolo-jared",
+      "dates": {
+        "createdAt": "2026-07-25T09:00:20Z",
+        "updatedAt": "2026-07-25T09:00:23Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/ship-internal-review-retry",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 957,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "workflow-orchestration-and-handoffs",
+      "component": "ship",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.ship.state-machine-contract",
+      "relatedJudgmentModule": "release",
+      "category": "workflow",
+      "classification": {
+        "rule": "ship:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2345",
+      "repo": "garrytan/gstack",
+      "number": 2345,
+      "kind": "pull-request",
+      "title": "ci: skip eval jobs deterministically on fork PRs",
+      "url": "https://github.com/garrytan/gstack/pull/2345",
+      "author": "andrey-esipov",
+      "dates": {
+        "createdAt": "2026-07-25T12:27:14Z",
+        "updatedAt": "2026-07-25T12:42:24Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "ci/fork-pr-eval-skip",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 4127,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "qa",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.qa.evidence-contract",
+      "relatedJudgmentModule": "web-qa",
+      "category": "workflow",
+      "classification": {
+        "rule": "qa:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2346",
+      "repo": "garrytan/gstack",
+      "number": 2346,
+      "kind": "pull-request",
+      "title": "Fix browse daemon ownership across handoff",
+      "url": "https://github.com/garrytan/gstack/pull/2346",
+      "author": "s-ai-alpha",
+      "dates": {
+        "createdAt": "2026-07-25T13:34:58Z",
+        "updatedAt": "2026-07-25T13:35:01Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": true,
+      "baseRef": "main",
+      "headRef": "agent/preserve-browse-daemon-ownership",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1323,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "browser-control-and-evidence",
+      "component": "runtime-browser",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.browser.lifecycle-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-browser:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2347",
+      "repo": "garrytan/gstack",
+      "number": 2347,
+      "kind": "issue",
+      "title": "./setup --host codex also exposes gstack to Claude Code",
+      "url": "https://github.com/garrytan/gstack/issues/2347",
+      "author": "methoddss",
+      "dates": {
+        "createdAt": "2026-07-25T19:51:31Z",
+        "updatedAt": "2026-07-25T19:51:31Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3709,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "installation-migration",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "outside-voice",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2348",
+      "repo": "garrytan/gstack",
+      "number": 2348,
+      "kind": "pull-request",
+      "title": "fix(codex): resolve review resources via runtime root",
+      "url": "https://github.com/garrytan/gstack/pull/2348",
+      "author": "uncfreak1255-code",
+      "dates": {
+        "createdAt": "2026-07-25T21:35:33Z",
+        "updatedAt": "2026-07-25T21:35:37Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/codex-review-resource-paths",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1447,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "review",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "judgment.review.precision-contract",
+      "relatedJudgmentModule": "outside-voice",
+      "category": "judgment",
+      "classification": {
+        "rule": "review:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2350",
+      "repo": "garrytan/gstack",
+      "number": 2350,
+      "kind": "issue",
+      "title": "office-hours asks 'is demand real?' - an evidence layer that keeps the answer honest after the session",
+      "url": "https://github.com/garrytan/gstack/issues/2350",
+      "author": "umair-tareen",
+      "dates": {
+        "createdAt": "2026-07-26T03:11:14Z",
+        "updatedAt": "2026-07-26T03:11:14Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2529,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "qa",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.qa.evidence-contract",
+      "relatedJudgmentModule": "office-hours",
+      "category": "workflow",
+      "classification": {
+        "rule": "qa:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2351",
+      "repo": "garrytan/gstack",
+      "number": 2351,
+      "kind": "issue",
+      "title": "Windows: /browse daemon spawns bun without windowsHide → console window flashes and steals focus",
+      "url": "https://github.com/garrytan/gstack/issues/2351",
+      "author": "abolrous",
+      "dates": {
+        "createdAt": "2026-07-26T03:40:43Z",
+        "updatedAt": "2026-07-28T11:33:54Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2829,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "browser-control-and-evidence",
+      "component": "runtime-browser",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.browser.lifecycle-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-browser:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2352",
+      "repo": "garrytan/gstack",
+      "number": 2352,
+      "kind": "issue",
+      "title": "memory-ingest: allow keeping the rendered transcript markdown on a local-stdio brain (the input `gbrain dream --phase synthesize` already wants)",
+      "url": "https://github.com/garrytan/gstack/issues/2352",
+      "author": "chris-conte",
+      "dates": {
+        "createdAt": "2026-07-26T04:07:46Z",
+        "updatedAt": "2026-07-26T04:07:46Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3139,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2353",
+      "repo": "garrytan/gstack",
+      "number": 2353,
+      "kind": "issue",
+      "title": "--include-unattributed is inert: the skip guard compares \"\" against \"_unattributed\", so unattributable sessions always import",
+      "url": "https://github.com/garrytan/gstack/issues/2353",
+      "author": "chris-conte",
+      "dates": {
+        "createdAt": "2026-07-26T04:08:05Z",
+        "updatedAt": "2026-07-26T04:08:05Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2653,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:ambiguous-open-issue",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2354",
+      "repo": "garrytan/gstack",
+      "number": 2354,
+      "kind": "pull-request",
+      "title": "fix(hooks): emit permissionDecision under hookSpecificOutput; fix Windows hook spawn",
+      "url": "https://github.com/garrytan/gstack/pull/2354",
+      "author": "xwang4-svg",
+      "dates": {
+        "createdAt": "2026-07-26T05:07:32Z",
+        "updatedAt": "2026-07-26T05:35:59Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "upstream/hook-permission-decision-contract",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 4692,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "runtime-paths-state",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.paths-state.matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-paths-state:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2355",
+      "repo": "garrytan/gstack",
+      "number": 2355,
+      "kind": "pull-request",
+      "title": "agent-browser: frontend-agnostic realm-cached auto-login + per-session isolation (WIP)",
+      "url": "https://github.com/garrytan/gstack/pull/2355",
+      "author": "yardenhochman",
+      "dates": {
+        "createdAt": "2026-07-26T06:44:05Z",
+        "updatedAt": "2026-07-26T11:19:47Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "feat/agent-browser-session-isolation",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2727,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "browser-control-and-evidence",
+      "component": "runtime-browser",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.browser.lifecycle-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-browser:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2356",
+      "repo": "garrytan/gstack",
+      "number": 2356,
+      "kind": "issue",
+      "title": "Windows: AUQ hooks can never spawn gstack-question-log (doubled drive letter from URL().pathname + spawnSync of extensionless bash script) → /plan-tune has no data",
+      "url": "https://github.com/garrytan/gstack/issues/2356",
+      "author": "kousundberg",
+      "dates": {
+        "createdAt": "2026-07-26T16:00:26Z",
+        "updatedAt": "2026-07-26T16:00:26Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 4804,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "plan",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "judgment.plan.contract",
+      "relatedJudgmentModule": "plan-review",
+      "category": "judgment",
+      "classification": {
+        "rule": "plan:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2357",
+      "repo": "garrytan/gstack",
+      "number": 2357,
+      "kind": "pull-request",
+      "title": "redact: block Google OAuth client secrets and Telegram bot tokens",
+      "url": "https://github.com/garrytan/gstack/pull/2357",
+      "author": "francis-eye",
+      "dates": {
+        "createdAt": "2026-07-26T16:38:03Z",
+        "updatedAt": "2026-07-26T16:38:06Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "add-google-oauth-telegram-patterns",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3201,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "out-of-scope-or-insufficient-signal",
+      "component": "docs-governance",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "docs.generated-source-contract",
+      "relatedJudgmentModule": "none",
+      "category": "governance",
+      "classification": {
+        "rule": "fallback:unvetted-community-pr",
+        "input": "fallback",
+        "note": "No conservative title or two-signal body rule matched; retained for governance triage."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2358",
+      "repo": "garrytan/gstack",
+      "number": 2358,
+      "kind": "pull-request",
+      "title": "fix(redact): chained pre-push.local silently fails open (stdin newline stripped)",
+      "url": "https://github.com/garrytan/gstack/pull/2358",
+      "author": "francis-eye",
+      "dates": {
+        "createdAt": "2026-07-26T16:40:03Z",
+        "updatedAt": "2026-07-26T16:40:06Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix-prepush-local-stdin-newline",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2645,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "qa",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.qa.evidence-contract",
+      "relatedJudgmentModule": "fix-and-verify",
+      "category": "workflow",
+      "classification": {
+        "rule": "qa:unvetted-community-pr",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2359",
+      "repo": "garrytan/gstack",
+      "number": 2359,
+      "kind": "pull-request",
+      "title": "setup: cap the Playwright browser install with a wall-clock timeout",
+      "url": "https://github.com/garrytan/gstack/pull/2359",
+      "author": "Googox",
+      "dates": {
+        "createdAt": "2026-07-26T21:45:34Z",
+        "updatedAt": "2026-07-26T21:54:28Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/playwright-install-timeout",
+      "labels": [],
+      "bodyPresent": false,
+      "bodyLength": 0,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
       ],
       "sourceReconciliation": {
         "openItems": true,
@@ -34772,27 +36875,27 @@
       "portTrace": null,
       "rootCauseFamily": "installation-and-migration",
       "component": "installation-migration",
-      "disposition": "RETAIN_INTERNAL",
+      "disposition": "NEEDS_EVIDENCE",
       "replacementTest": "installation.host-matrix-contract",
       "relatedJudgmentModule": "none",
       "category": "infrastructure",
       "classification": {
-        "rule": "installation-migration:time-attack-internal",
+        "rule": "installation-migration:unvetted-community-pr",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }
     },
     {
-      "id": "time-attack/gstack#8",
-      "repo": "time-attack/gstack",
-      "number": 8,
+      "id": "garrytan/gstack#2360",
+      "repo": "garrytan/gstack",
+      "number": 2360,
       "kind": "pull-request",
-      "title": "fix: preserve autoplan tasks and hide Render key bytes",
-      "url": "https://github.com/time-attack/gstack/pull/8",
-      "author": "time-attack",
+      "title": "fix: normalise git_remote fallback so --include-unattributed guard fires (#2353)",
+      "url": "https://github.com/garrytan/gstack/pull/2360",
+      "author": "vryahn",
       "dates": {
-        "createdAt": "2026-07-14T22:02:47Z",
-        "updatedAt": "2026-07-14T22:02:47Z",
+        "createdAt": "2026-07-27T01:24:08Z",
+        "updatedAt": "2026-07-27T01:24:12Z",
         "closedAt": null,
         "mergedAt": null
       },
@@ -34800,10 +36903,752 @@
       "stateReason": null,
       "draft": false,
       "baseRef": "main",
-      "headRef": "time-attack/wave-skill-pipeline-isolated-review",
+      "headRef": "fix/2353-unattributed-guard",
       "labels": [],
       "bodyPresent": true,
-      "bodyLength": 2538,
+      "bodyLength": 1321,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:unvetted-community-pr",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2361",
+      "repo": "garrytan/gstack",
+      "number": 2361,
+      "kind": "issue",
+      "title": "setup --host rejects cursor and slate, but both are registered in ALL_HOST_CONFIGS",
+      "url": "https://github.com/garrytan/gstack/issues/2361",
+      "author": "dep0we",
+      "dates": {
+        "createdAt": "2026-07-27T02:02:34Z",
+        "updatedAt": "2026-07-27T02:02:34Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1429,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "installation-migration",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2362",
+      "repo": "garrytan/gstack",
+      "number": 2362,
+      "kind": "issue",
+      "title": "`{{PREAMBLE}}` macro used inline in spec/SKILL.md.tmpl injects the entire 767-line preamble mid-sentence (+43 KB per /spec load)",
+      "url": "https://github.com/garrytan/gstack/issues/2362",
+      "author": "shing-rcpet",
+      "dates": {
+        "createdAt": "2026-07-27T03:11:47Z",
+        "updatedAt": "2026-07-27T03:11:47Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3820,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "plan",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "judgment.plan.contract",
+      "relatedJudgmentModule": "specification",
+      "category": "judgment",
+      "classification": {
+        "rule": "plan:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2363",
+      "repo": "garrytan/gstack",
+      "number": 2363,
+      "kind": "pull-request",
+      "title": "v1.60.2.0 fix(codex): keep gstack catalog within prompt budget",
+      "url": "https://github.com/garrytan/gstack/pull/2363",
+      "author": "cuddly-life",
+      "dates": {
+        "createdAt": "2026-07-27T03:48:49Z",
+        "updatedAt": "2026-07-27T03:48:53Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/codex-skill-catalog-budget",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2048,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "review",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "judgment.review.precision-contract",
+      "relatedJudgmentModule": "outside-voice",
+      "category": "judgment",
+      "classification": {
+        "rule": "review:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2364",
+      "repo": "garrytan/gstack",
+      "number": 2364,
+      "kind": "pull-request",
+      "title": "feat: add gstack-cursor-install and gstack-cloud-bootstrap for Cloud …",
+      "url": "https://github.com/garrytan/gstack/pull/2364",
+      "author": "ljluestc",
+      "dates": {
+        "createdAt": "2026-07-27T03:51:39Z",
+        "updatedAt": "2026-07-27T03:51:42Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": true,
+      "baseRef": "main",
+      "headRef": "fix/cloud-agent-cursor-install",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 924,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "installation-migration",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "installation-migration:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2365",
+      "repo": "garrytan/gstack",
+      "number": 2365,
+      "kind": "issue",
+      "title": "[gbrain] ZeroEntropy has been acquired by Notion",
+      "url": "https://github.com/garrytan/gstack/issues/2365",
+      "author": "sbaechler",
+      "dates": {
+        "createdAt": "2026-07-27T08:44:05Z",
+        "updatedAt": "2026-07-27T09:36:50Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1367,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:ambiguous-open-issue",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2367",
+      "repo": "garrytan/gstack",
+      "number": 2367,
+      "kind": "pull-request",
+      "title": "Fix: resolveSlug silently returns \"unknown\" on Windows",
+      "url": "https://github.com/garrytan/gstack/pull/2367",
+      "author": "benjaminberes-bp",
+      "dates": {
+        "createdAt": "2026-07-27T13:03:29Z",
+        "updatedAt": "2026-07-27T13:03:34Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/windows-resolve-slug",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2744,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "runtime-paths-state",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.paths-state.matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-paths-state:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2368",
+      "repo": "garrytan/gstack",
+      "number": 2368,
+      "kind": "pull-request",
+      "title": "Fix: gstack-config get returns \"\" with exit 0 for keys missing from the DEFAULTS table",
+      "url": "https://github.com/garrytan/gstack/pull/2368",
+      "author": "benjaminberes-bp",
+      "dates": {
+        "createdAt": "2026-07-27T13:09:58Z",
+        "updatedAt": "2026-07-27T13:10:02Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/config-missing-defaults",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1992,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "qa",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.qa.evidence-contract",
+      "relatedJudgmentModule": "fix-and-verify",
+      "category": "workflow",
+      "classification": {
+        "rule": "qa:unvetted-community-pr",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2369",
+      "repo": "garrytan/gstack",
+      "number": 2369,
+      "kind": "pull-request",
+      "title": "Drop the hard jq dependency from gstack-gbrain-source-wireup",
+      "url": "https://github.com/garrytan/gstack/pull/2369",
+      "author": "benjaminberes-bp",
+      "dates": {
+        "createdAt": "2026-07-27T13:14:52Z",
+        "updatedAt": "2026-07-27T13:14:56Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/wireup-drop-jq",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2148,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2370",
+      "repo": "garrytan/gstack",
+      "number": 2370,
+      "kind": "issue",
+      "title": "/codex: mktemp templates put X's before a .txt suffix — breaks on macOS after the first run, and the failure looks like a model stall",
+      "url": "https://github.com/garrytan/gstack/issues/2370",
+      "author": "wyatt-paxiv",
+      "dates": {
+        "createdAt": "2026-07-27T16:24:39Z",
+        "updatedAt": "2026-07-27T16:24:39Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 4727,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "judgment-quality-and-calibration",
+      "component": "review",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "judgment.review.precision-contract",
+      "relatedJudgmentModule": "outside-voice",
+      "category": "judgment",
+      "classification": {
+        "rule": "review:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2371",
+      "repo": "garrytan/gstack",
+      "number": 2371,
+      "kind": "pull-request",
+      "title": "fix(memory-ingest): --include-unattributed is inert — apply the fallback to page.git_remote (#2353)",
+      "url": "https://github.com/garrytan/gstack/pull/2371",
+      "author": "noron12234",
+      "dates": {
+        "createdAt": "2026-07-28T07:07:23Z",
+        "updatedAt": "2026-07-28T07:07:27Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/2353-unattributed-guard",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 2695,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2372",
+      "repo": "garrytan/gstack",
+      "number": 2372,
+      "kind": "pull-request",
+      "title": "fix(mktemp): X's must be trailing — breaks on macOS (2nd run) and Alpine (1st run) (#2370)",
+      "url": "https://github.com/garrytan/gstack/pull/2372",
+      "author": "noron12234",
+      "dates": {
+        "createdAt": "2026-07-28T07:22:05Z",
+        "updatedAt": "2026-07-28T07:22:08Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/2370-mktemp-suffix",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 3399,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "host-capability-and-portability",
+      "component": "runtime-paths-state",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.paths-state.matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "infrastructure",
+      "classification": {
+        "rule": "runtime-paths-state:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2373",
+      "repo": "garrytan/gstack",
+      "number": 2373,
+      "kind": "pull-request",
+      "title": "Fix AskUserQuestion pass-through emitting an invalid permission decision",
+      "url": "https://github.com/garrytan/gstack/pull/2373",
+      "author": "ilanbm",
+      "dates": {
+        "createdAt": "2026-07-28T12:15:27Z",
+        "updatedAt": "2026-07-28T12:15:31Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/question-hook-valid-permission-decision",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 1099,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "security-trust-and-governance",
+      "component": "runtime-paths-state",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.paths-state.matrix-contract",
+      "relatedJudgmentModule": "none",
+      "category": "governance",
+      "classification": {
+        "rule": "runtime-paths-state:unvetted-community-pr",
+        "input": "title+body",
+        "note": "Title was ambiguous; a narrow two-signal body rule selected the component."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2374",
+      "repo": "garrytan/gstack",
+      "number": 2374,
+      "kind": "issue",
+      "title": "Windows: eval \"$(gstack-paths)\" strips backslashes from TMP_ROOT — mktemp fails and skills exit before Codex runs",
+      "url": "https://github.com/garrytan/gstack/issues/2374",
+      "author": "fangearhq-boop",
+      "dates": {
+        "createdAt": "2026-07-28T16:07:43Z",
+        "updatedAt": "2026-07-28T17:08:36Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 4892,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "review",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "judgment.review.precision-contract",
+      "relatedJudgmentModule": "outside-voice",
+      "category": "judgment",
+      "classification": {
+        "rule": "review:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2376",
+      "repo": "garrytan/gstack",
+      "number": 2376,
+      "kind": "pull-request",
+      "title": "fix(paths): shell-quote gstack-paths output so eval round-trips values",
+      "url": "https://github.com/garrytan/gstack/pull/2376",
+      "author": "fangearhq-boop",
+      "dates": {
+        "createdAt": "2026-07-28T17:08:05Z",
+        "updatedAt": "2026-07-28T17:08:08Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "fix/gstack-paths-eval-quoting",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 4637,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "verification-and-regression-coverage",
+      "component": "qa",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "workflow.qa.evidence-contract",
+      "relatedJudgmentModule": "fix-and-verify",
+      "category": "workflow",
+      "classification": {
+        "rule": "qa:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2377",
+      "repo": "garrytan/gstack",
+      "number": 2377,
+      "kind": "pull-request",
+      "title": "v1.63.0.0 feat(gbrain): make repository indexing verifiable and fail-closed",
+      "url": "https://github.com/garrytan/gstack/pull/2377",
+      "author": "mamedov",
+      "dates": {
+        "createdAt": "2026-07-28T20:23:57Z",
+        "updatedAt": "2026-07-28T21:11:32Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "ai/safe-repository-index-sync",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 5117,
+      "sourceOccurrences": [
+        "garrytan/open-items",
+        "garrytan/open-prs"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": true,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
+      "disposition": "NEEDS_EVIDENCE",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
+      "classification": {
+        "rule": "runtime-context-dev:unvetted-community-pr",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "garrytan/gstack#2378",
+      "repo": "garrytan/gstack",
+      "number": 2378,
+      "kind": "issue",
+      "title": "update-check gates on main:VERSION but /gstack-upgrade installs main HEAD — installs sit silently 31 commits behind between releases (incl. security fixes)",
+      "url": "https://github.com/garrytan/gstack/issues/2378",
+      "author": "blackbullet01",
+      "dates": {
+        "createdAt": "2026-07-28T21:01:52Z",
+        "updatedAt": "2026-07-28T21:01:52Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": null,
+      "baseRef": null,
+      "headRef": null,
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 4736,
+      "sourceOccurrences": [
+        "garrytan/open-items"
+      ],
+      "sourceReconciliation": {
+        "openItems": true,
+        "openPRs": false,
+        "requiredDetail": false
+      },
+      "portTrace": null,
+      "rootCauseFamily": "security-trust-and-governance",
+      "component": "installation-migration",
+      "disposition": "FIX_IN_GSTACK_2",
+      "replacementTest": "installation.host-matrix-contract",
+      "relatedJudgmentModule": "security-review",
+      "category": "governance",
+      "classification": {
+        "rule": "installation-migration:open-bug",
+        "input": "title",
+        "note": "First matching ordered title rule selected the component; disposition remained conservative."
+      }
+    },
+    {
+      "id": "time-attack/gstack#40",
+      "repo": "time-attack/gstack",
+      "number": 40,
+      "kind": "pull-request",
+      "title": "feat: measured web-data provider contract — Firecrawl/Exa/Context.dev/Aside/local, selectable per task",
+      "url": "https://github.com/time-attack/gstack/pull/40",
+      "author": "time-attack",
+      "dates": {
+        "createdAt": "2026-07-24T01:41:12Z",
+        "updatedAt": "2026-07-24T01:51:04Z",
+        "closedAt": null,
+        "mergedAt": null
+      },
+      "state": "open",
+      "stateReason": null,
+      "draft": false,
+      "baseRef": "main",
+      "headRef": "time-attack/web-data-providers",
+      "labels": [],
+      "bodyPresent": true,
+      "bodyLength": 4973,
       "sourceOccurrences": [
         "time-attack/open-items",
         "time-attack/open-prs"
@@ -34814,14 +37659,14 @@
         "requiredDetail": false
       },
       "portTrace": null,
-      "rootCauseFamily": "security-trust-and-governance",
-      "component": "plan",
+      "rootCauseFamily": "context-memory-and-isolation",
+      "component": "runtime-context-dev",
       "disposition": "RETAIN_INTERNAL",
-      "replacementTest": "judgment.plan.contract",
-      "relatedJudgmentModule": "plan-review",
-      "category": "governance",
+      "replacementTest": "runtime.context-isolation-contract",
+      "relatedJudgmentModule": "none",
+      "category": "context",
       "classification": {
-        "rule": "plan:time-attack-internal",
+        "rule": "runtime-context-dev:time-attack-internal",
         "input": "title",
         "note": "First matching ordered title rule selected the component; disposition remained conservative."
       }

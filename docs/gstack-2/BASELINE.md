@@ -87,13 +87,14 @@ success.
 
 ## Backlog baseline
 
-The frozen API inputs contain 755 unique open GitHub items after reconciling
-the issues endpoint (which also contains PRs) with the PR endpoint:
+The frozen API inputs (snapshots refreshed 2026-07-28) contain 820 unique open
+GitHub items after reconciling the issues endpoint (which also contains PRs)
+with the PR endpoint:
 
-- `garrytan/gstack`: 748 items;
-- `time-attack/gstack`: 7 items;
-- 326 issues and 429 pull requests in total;
-- 1,184 raw open-endpoint records, including 429 reconciled duplicates;
+- `garrytan/gstack`: 819 items;
+- `time-attack/gstack`: 1 item;
+- 355 issues and 465 pull requests in total;
+- 1,285 raw open-endpoint records, including 465 reconciled duplicates;
 - 16 required upstream PRs with separate detail and changed-file snapshots.
 
 See [BACKLOG-MAP.json](./BACKLOG-MAP.json) for the complete mapping and
