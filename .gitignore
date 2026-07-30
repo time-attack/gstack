@@ -39,3 +39,10 @@ docs/throughput-*.json
 
 # gbrain local source-staging dir (capability checks, source clones) — runtime artifact
 .sources/
+
+# Local run artifacts and agent-session dirs (never commit)
+outputs/
+.deepeval/
+.tmp-ios-ab-evaluator-final/
+.claude/worktrees/
+.claude/settings.local.json
