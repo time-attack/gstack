@@ -4,7 +4,7 @@ import {
   ROOT, browseBin, runId, evalsEnabled, selectedTests,
   describeIfSelected, testConcurrentIfSelected,
   copyDirSync, setupBrowseShims, logCost, recordE2E,
-  createEvalCollector, finalizeEvalCollector,
+  createEvalCollector, finalizeEvalCollector, requireReportArtifact,
 } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
@@ -70,20 +70,19 @@ Write your review findings to ${reviewDir}/review-output.md`,
     recordE2E(evalCollector, '/review SQL injection', 'Review skill E2E', result);
     expect(result.exitReason).toBe('success');
 
-    // Verify the review output mentions SQL injection-related findings
+    // Verify the review output mentions SQL injection-related findings.
+    // Report artifact is a HARD requirement — zero output must never pass.
     const reviewOutputPath = path.join(reviewDir, 'review-output.md');
-    if (fs.existsSync(reviewOutputPath)) {
-      const reviewContent = fs.readFileSync(reviewOutputPath, 'utf-8').toLowerCase();
-      const hasSqlContent =
-        reviewContent.includes('sql') ||
-        reviewContent.includes('injection') ||
-        reviewContent.includes('sanitiz') ||
-        reviewContent.includes('parameteriz') ||
-        reviewContent.includes('interpolat') ||
-        reviewContent.includes('user_input') ||
-        reviewContent.includes('unsanitized');
-      expect(hasSqlContent).toBe(true);
-    }
+    const reviewContent = requireReportArtifact(reviewOutputPath).toLowerCase();
+    const hasSqlContent =
+      reviewContent.includes('sql') ||
+      reviewContent.includes('injection') ||
+      reviewContent.includes('sanitiz') ||
+      reviewContent.includes('parameteriz') ||
+      reviewContent.includes('interpolat') ||
+      reviewContent.includes('user_input') ||
+      reviewContent.includes('unsanitized');
+    expect(hasSqlContent).toBe(true);
   }, 210_000);
 });
 
@@ -145,17 +144,16 @@ The diff adds a new "returned" status to the Order model. Your job is to check i
     recordE2E(evalCollector, '/review enum completeness', 'Review enum completeness E2E', result);
     expect(result.exitReason).toBe('success');
 
-    // Verify the review caught the missing enum handlers
+    // Verify the review caught the missing enum handlers.
+    // Report artifact is a HARD requirement — zero output must never pass.
     const reviewPath = path.join(enumDir, 'review-output.md');
-    if (fs.existsSync(reviewPath)) {
-      const review = fs.readFileSync(reviewPath, 'utf-8');
-      // Should mention the missing "returned" handling in at least one of the methods
-      const mentionsReturned = review.toLowerCase().includes('returned');
-      const mentionsEnum = review.toLowerCase().includes('enum') || review.toLowerCase().includes('status');
-      const mentionsCritical = review.toLowerCase().includes('critical');
-      expect(mentionsReturned).toBe(true);
-      expect(mentionsEnum || mentionsCritical).toBe(true);
-    }
+    const review = requireReportArtifact(reviewPath);
+    // Should mention the missing "returned" handling in at least one of the methods
+    const mentionsReturned = review.toLowerCase().includes('returned');
+    const mentionsEnum = review.toLowerCase().includes('enum') || review.toLowerCase().includes('status');
+    const mentionsCritical = review.toLowerCase().includes('critical');
+    expect(mentionsReturned).toBe(true);
+    expect(mentionsEnum || mentionsCritical).toBe(true);
   }, 120_000);
 });
 
@@ -225,30 +223,29 @@ Important: The design checklist should catch issues like blacklisted fonts, smal
     recordE2E(evalCollector, '/review design lite', 'Review design lite E2E', result);
     expect(result.exitReason).toBe('success');
 
-    // Verify the review caught at least 4 of 7 planted design issues
+    // Verify the review caught at least 4 of 7 planted design issues.
+    // Report artifact is a HARD requirement — zero output must never pass.
     const reviewPath = path.join(designDir, 'review-output.md');
-    if (fs.existsSync(reviewPath)) {
-      const review = fs.readFileSync(reviewPath, 'utf-8').toLowerCase();
-      let detected = 0;
+    const review = requireReportArtifact(reviewPath).toLowerCase();
+    let detected = 0;
 
-      // Issue 1: Blacklisted font (Papyrus) — HIGH
-      if (review.includes('papyrus') || review.includes('blacklisted font') || review.includes('font family')) detected++;
-      // Issue 2: Body text < 16px — HIGH
-      if (review.includes('14px') || review.includes('font-size') || review.includes('font size') || review.includes('body text')) detected++;
-      // Issue 3: outline: none — HIGH
-      if (review.includes('outline') || review.includes('focus')) detected++;
-      // Issue 4: !important — HIGH
-      if (review.includes('!important') || review.includes('important')) detected++;
-      // Issue 5: Purple gradient — MEDIUM
-      if (review.includes('gradient') || review.includes('purple') || review.includes('violet') || review.includes('#6366f1') || review.includes('#8b5cf6')) detected++;
-      // Issue 6: Generic hero copy — MEDIUM
-      if (review.includes('welcome to') || review.includes('all-in-one') || review.includes('generic') || review.includes('hero copy') || review.includes('ai slop')) detected++;
-      // Issue 7: 3-column feature grid — LOW
-      if (review.includes('3-column') || review.includes('three-column') || review.includes('feature grid') || review.includes('icon') || review.includes('circle')) detected++;
+    // Issue 1: Blacklisted font (Papyrus) — HIGH
+    if (review.includes('papyrus') || review.includes('blacklisted font') || review.includes('font family')) detected++;
+    // Issue 2: Body text < 16px — HIGH
+    if (review.includes('14px') || review.includes('font-size') || review.includes('font size') || review.includes('body text')) detected++;
+    // Issue 3: outline: none — HIGH
+    if (review.includes('outline') || review.includes('focus')) detected++;
+    // Issue 4: !important — HIGH
+    if (review.includes('!important') || review.includes('important')) detected++;
+    // Issue 5: Purple gradient — MEDIUM
+    if (review.includes('gradient') || review.includes('purple') || review.includes('violet') || review.includes('#6366f1') || review.includes('#8b5cf6')) detected++;
+    // Issue 6: Generic hero copy — MEDIUM
+    if (review.includes('welcome to') || review.includes('all-in-one') || review.includes('generic') || review.includes('hero copy') || review.includes('ai slop')) detected++;
+    // Issue 7: 3-column feature grid — LOW
+    if (review.includes('3-column') || review.includes('three-column') || review.includes('feature grid') || review.includes('icon') || review.includes('circle')) detected++;
 
-      console.log(`Design review detected ${detected}/7 planted issues`);
-      expect(detected).toBeGreaterThanOrEqual(4);
-    }
+    console.log(`Design review detected ${detected}/7 planted issues`);
+    expect(detected).toBeGreaterThanOrEqual(4);
   }, 300_000);
 });
 

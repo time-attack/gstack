@@ -3,6 +3,7 @@ import { runSkillTest } from './helpers/session-runner';
 import {
   ROOT, runId, describeIfSelected, testConcurrentIfSelected,
   logCost, recordE2E, createEvalCollector, finalizeEvalCollector,
+  requireReportArtifact,
 } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
@@ -91,18 +92,16 @@ Write your findings to ${dir}/review-output.md`,
     recordE2E(evalCollector, '/review army migration safety', 'Review Army', result);
     expect(result.exitReason).toBe('success');
 
-    // Verify migration issues were caught
+    // Verify migration issues were caught (report artifact is a hard requirement)
     const outputPath = path.join(dir, 'review-output.md');
-    if (fs.existsSync(outputPath)) {
-      const content = fs.readFileSync(outputPath, 'utf-8').toLowerCase();
-      const hasMigrationFinding =
-        content.includes('drop') ||
-        content.includes('data loss') ||
-        content.includes('reversib') ||
-        content.includes('migration') ||
-        content.includes('column');
-      expect(hasMigrationFinding).toBe(true);
-    }
+    const content = requireReportArtifact(outputPath).toLowerCase();
+    const hasMigrationFinding =
+      content.includes('drop') ||
+      content.includes('data loss') ||
+      content.includes('reversib') ||
+      content.includes('migration') ||
+      content.includes('column');
+    expect(hasMigrationFinding).toBe(true);
   }, 210_000);
 });
 
@@ -157,18 +156,16 @@ Write your findings to ${dir}/review-output.md`,
     expect(result.exitReason).toBe('success');
 
     const outputPath = path.join(dir, 'review-output.md');
-    if (fs.existsSync(outputPath)) {
-      const content = fs.readFileSync(outputPath, 'utf-8').toLowerCase();
-      const hasN1Finding =
-        content.includes('n+1') ||
-        content.includes('n + 1') ||
-        content.includes('eager') ||
-        content.includes('includes') ||
-        content.includes('preload') ||
-        content.includes('query') ||
-        content.includes('loop');
-      expect(hasN1Finding).toBe(true);
-    }
+    const content = requireReportArtifact(outputPath).toLowerCase();
+    const hasN1Finding =
+      content.includes('n+1') ||
+      content.includes('n + 1') ||
+      content.includes('eager') ||
+      content.includes('includes') ||
+      content.includes('preload') ||
+      content.includes('query') ||
+      content.includes('loop');
+    expect(hasN1Finding).toBe(true);
   }, 210_000);
 });
 
@@ -259,20 +256,18 @@ Write your completion audit to ${dir}/review-output.md`,
     expect(result.exitReason).toBe('success');
 
     const outputPath = path.join(dir, 'review-output.md');
-    if (fs.existsSync(outputPath)) {
-      const content = fs.readFileSync(outputPath, 'utf-8').toLowerCase();
-      // Should identify email notifications as NOT DONE
-      const hasNotDone =
-        content.includes('not done') ||
-        content.includes('not_done') ||
-        content.includes('missing') ||
-        content.includes('not implemented');
-      const mentionsEmail =
-        content.includes('email') ||
-        content.includes('notification');
-      expect(hasNotDone).toBe(true);
-      expect(mentionsEmail).toBe(true);
-    }
+    const content = requireReportArtifact(outputPath).toLowerCase();
+    // Should identify email notifications as NOT DONE
+    const hasNotDone =
+      content.includes('not done') ||
+      content.includes('not_done') ||
+      content.includes('missing') ||
+      content.includes('not implemented');
+    const mentionsEmail =
+      content.includes('email') ||
+      content.includes('notification');
+    expect(hasNotDone).toBe(true);
+    expect(mentionsEmail).toBe(true);
   }, 150_000);
 });
 
@@ -334,14 +329,12 @@ Include the line: "PR Quality Score: X/10" where X is the computed score.`,
     expect(result.exitReason).toBe('success');
 
     const outputPath = path.join(dir, 'review-output.md');
-    if (fs.existsSync(outputPath)) {
-      const content = fs.readFileSync(outputPath, 'utf-8');
-      // Should contain a quality score
-      const hasScore =
-        content.toLowerCase().includes('quality score') ||
-        content.match(/\d+\/10/);
-      expect(hasScore).toBeTruthy();
-    }
+    const content = requireReportArtifact(outputPath);
+    // Should contain a quality score
+    const hasScore =
+      content.toLowerCase().includes('quality score') ||
+      content.match(/\d+\/10/);
+    expect(hasScore).toBeTruthy();
   }, 150_000);
 });
 
@@ -399,24 +392,22 @@ Write ONLY JSON findings (no preamble) to ${dir}/findings.json`,
     expect(result.exitReason).toBe('success');
 
     const findingsPath = path.join(dir, 'findings.json');
-    if (fs.existsSync(findingsPath)) {
-      const content = fs.readFileSync(findingsPath, 'utf-8').trim();
-      const lines = content.split('\n').filter(l => l.trim());
-      // At least one finding
-      expect(lines.length).toBeGreaterThanOrEqual(1);
-      // Each line should be valid JSON with required fields
-      for (const line of lines) {
-        let parsed: any;
-        try { parsed = JSON.parse(line); } catch { continue; }
-        // Required fields per schema
-        expect(parsed).toHaveProperty('severity');
-        expect(parsed).toHaveProperty('confidence');
-        expect(parsed).toHaveProperty('path');
-        expect(parsed).toHaveProperty('category');
-        expect(parsed).toHaveProperty('summary');
-        expect(parsed).toHaveProperty('specialist');
-        break; // One valid line is enough for the gate test
-      }
+    const content = requireReportArtifact(findingsPath, 20).trim();
+    const lines = content.split('\n').filter(l => l.trim());
+    // At least one finding
+    expect(lines.length).toBeGreaterThanOrEqual(1);
+    // Each line should be valid JSON with required fields
+    for (const line of lines) {
+      let parsed: any;
+      try { parsed = JSON.parse(line); } catch { continue; }
+      // Required fields per schema
+      expect(parsed).toHaveProperty('severity');
+      expect(parsed).toHaveProperty('confidence');
+      expect(parsed).toHaveProperty('path');
+      expect(parsed).toHaveProperty('category');
+      expect(parsed).toHaveProperty('summary');
+      expect(parsed).toHaveProperty('specialist');
+      break; // One valid line is enough for the gate test
     }
   }, 120_000);
 });
@@ -477,10 +468,8 @@ Start the file with "RED TEAM REVIEW" on the first line.`,
     expect(result.exitReason).toBe('success');
 
     const outputPath = path.join(dir, 'review-output.md');
-    if (fs.existsSync(outputPath)) {
-      const content = fs.readFileSync(outputPath, 'utf-8');
-      expect(content.toLowerCase()).toMatch(/red team|adversarial/);
-    }
+    const content = requireReportArtifact(outputPath);
+    expect(content.toLowerCase()).toMatch(/red team|adversarial/);
   }, 210_000);
 });
 
@@ -544,15 +533,13 @@ Write findings to ${dir}/review-output.md`,
     expect(result.exitReason).toBe('success');
 
     const outputPath = path.join(dir, 'review-output.md');
-    if (fs.existsSync(outputPath)) {
-      const content = fs.readFileSync(outputPath, 'utf-8').toLowerCase();
-      // Should catch the SQL injection
-      const hasSqlFinding =
-        content.includes('sql') ||
-        content.includes('injection') ||
-        content.includes('interpolat');
-      expect(hasSqlFinding).toBe(true);
-    }
+    const content = requireReportArtifact(outputPath).toLowerCase();
+    // Should catch the SQL injection
+    const hasSqlFinding =
+      content.includes('sql') ||
+      content.includes('injection') ||
+      content.includes('interpolat');
+    expect(hasSqlFinding).toBe(true);
   }, 210_000);
 });
 
