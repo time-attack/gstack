@@ -25,6 +25,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { hermeticChildEnv, isHermeticEnabled } from './hermetic-env';
+import { resolveEvalModel } from './eval-model';
 
 /** Strip ANSI escapes for pattern-matching against visible text. */
 export function stripAnsi(s: string): string {
@@ -1219,8 +1220,8 @@ export async function launchClaudePty(
   // (see ClaudePtyOptions.model). Chain mirrors session-runner.ts:144 so PTY and
   // `claude -p` evals always agree. Pushed before extraArgs => a test-supplied
   // --model wins (last flag wins).
-  const model = opts.model ?? process.env.EVALS_MODEL ?? 'claude-sonnet-4-6';
-  args.push('--model', model);
+  const model = opts.model ?? resolveEvalModel();
+  if (model) args.push('--model', model);
   // Permission mode: 'plan' default, null => omit flag entirely.
   const permissionMode = opts.permissionMode === undefined ? 'plan' : opts.permissionMode;
   if (permissionMode !== null) {

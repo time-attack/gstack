@@ -6,7 +6,6 @@
  * three shapes, persistent failure, non-retryable error, options
  * propagation, concurrency cap.
  *
- * Also covers validateFixtures() rejections.
  */
 
 import { describe, test, expect } from 'bun:test';
@@ -28,13 +27,7 @@ import {
   RateLimitExhaustedError,
   __resetSemaphoreForTests,
   type QueryProvider,
-  type AgentSdkResult,
 } from '../test/helpers/agent-sdk-runner';
-import {
-  validateFixtures,
-  fanoutPass,
-  type OverlayFixture,
-} from '../test/fixtures/overlay-nudges';
 
 // ---------------------------------------------------------------------------
 // Stub SDK event builders
@@ -246,6 +239,7 @@ describe('runAgentSdkTest — happy path', () => {
     };
     const result = await runAgentSdkTest({
       ...BASE_OPTS,
+      model: 'claude-opus-4-7',
       queryProvider: makeStubProvider(stub),
     });
 
@@ -689,6 +683,7 @@ describe('toSkillTestResult', () => {
     };
     const r = await runAgentSdkTest({
       ...BASE_OPTS,
+      model: 'claude-opus-4-7',
       queryProvider: makeStubProvider(stub),
     });
     const s = toSkillTestResult(r);
@@ -703,124 +698,5 @@ describe('toSkillTestResult', () => {
     expect(s.firstResponseMs).toBeNumber();
     expect(s.maxInterTurnMs).toBeNumber();
     expect(s.transcript).toBeArray();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Fixture validator
-// ---------------------------------------------------------------------------
-
-describe('validateFixtures', () => {
-  function base(overrides: Partial<OverlayFixture> = {}): OverlayFixture {
-    return {
-      id: 'test-fixture',
-      overlayPath: 'model-overlays/opus-4-7.md',
-      model: 'claude-opus-4-7',
-      trials: 10,
-      setupWorkspace: () => {},
-      userPrompt: 'go',
-      metric: () => 0,
-      pass: fanoutPass,
-      ...overrides,
-    };
-  }
-
-  test('passes for a valid fixture', () => {
-    expect(() => validateFixtures([base()])).not.toThrow();
-  });
-
-  test('rejects empty id', () => {
-    expect(() => validateFixtures([base({ id: '' })])).toThrow(/id must be/);
-  });
-
-  test('rejects id with uppercase or unsafe chars', () => {
-    expect(() => validateFixtures([base({ id: 'Test_Fixture' })])).toThrow(/id must be/);
-  });
-
-  test('rejects duplicate ids', () => {
-    expect(() => validateFixtures([base(), base()])).toThrow(/duplicate fixture id/);
-  });
-
-  test('rejects non-integer trials', () => {
-    expect(() => validateFixtures([base({ trials: 3.5 })])).toThrow(/trials must be/);
-  });
-
-  test('rejects trials < 3', () => {
-    expect(() => validateFixtures([base({ trials: 2 })])).toThrow(/trials must be/);
-  });
-
-  test('rejects concurrency < 1', () => {
-    expect(() => validateFixtures([base({ concurrency: 0 })])).toThrow(/concurrency must be/);
-  });
-
-  test('rejects non-integer concurrency', () => {
-    expect(() => validateFixtures([base({ concurrency: 2.5 })])).toThrow(/concurrency must be/);
-  });
-
-  test('rejects empty model', () => {
-    expect(() => validateFixtures([base({ model: '' })])).toThrow(/model must be/);
-  });
-
-  test('rejects empty userPrompt', () => {
-    expect(() => validateFixtures([base({ userPrompt: '' })])).toThrow(/userPrompt must be/);
-  });
-
-  test('rejects absolute overlayPath', () => {
-    expect(() => validateFixtures([base({ overlayPath: '/etc/passwd' })])).toThrow(/overlayPath must be/);
-  });
-
-  test("rejects overlayPath containing '..'", () => {
-    expect(() =>
-      validateFixtures([base({ overlayPath: '../outside/file.md' })]),
-    ).toThrow(/overlayPath must be/);
-  });
-
-  test('rejects missing overlay file', () => {
-    expect(() =>
-      validateFixtures([base({ overlayPath: 'model-overlays/nonexistent.md' })]),
-    ).toThrow(/overlay file not found/);
-  });
-
-  test('rejects non-function setupWorkspace', () => {
-    expect(() =>
-      validateFixtures([base({ setupWorkspace: 'not a function' as unknown as (d: string) => void })]),
-    ).toThrow(/setupWorkspace must be a function/);
-  });
-
-  test('rejects non-function metric', () => {
-    expect(() =>
-      validateFixtures([base({ metric: null as unknown as (r: AgentSdkResult) => number })]),
-    ).toThrow(/metric must be a function/);
-  });
-
-  test('rejects non-function pass', () => {
-    expect(() =>
-      validateFixtures([base({ pass: undefined as unknown as OverlayFixture['pass'] })]),
-    ).toThrow(/pass must be a function/);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// fanoutPass predicate
-// ---------------------------------------------------------------------------
-
-describe('fanoutPass predicate', () => {
-  test('accepts mean lift >= 0.5 AND >=3/10 overlay trials >= 2', () => {
-    const overlay = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
-    const off = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    expect(fanoutPass({ overlay, off })).toBe(true);
-  });
-
-  test('rejects when mean lift < 0.5', () => {
-    const overlay = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
-    const off = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
-    expect(fanoutPass({ overlay, off })).toBe(false);
-  });
-
-  test('rejects when mean lift >= 0.5 but <3 overlay trials emit >=2', () => {
-    // Mean overlay = 1.2, off = 0.0, lift 1.2 but only 2 trials at >=2
-    const overlay = [2, 2, 1, 1, 1, 1, 1, 1, 1, 1];
-    const off = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    expect(fanoutPass({ overlay, off })).toBe(false);
   });
 });

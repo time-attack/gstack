@@ -672,12 +672,12 @@ describe('launchClaudePty model pin (static tripwire)', () => {
     expect(opts.model).toBe('claude-sonnet-4-6');
   });
 
-  test('spawn args push --model from the EVALS_MODEL fallback chain', () => {
+  test('spawn args push --model from the shared resolveEvalModel chain', () => {
     expect(src).toContain("args.push('--model', model)");
-    // opts.model -> EVALS_MODEL -> 'claude-sonnet-4-6' (mirrors session-runner.ts:144)
-    expect(src).toMatch(
-      /opts\.model\s*\?\?\s*process\.env\.EVALS_MODEL\s*\?\?\s*'claude-sonnet-4-6'/,
-    );
+    // opts.model -> resolveEvalModel() (GSTACK_EVAL_MODEL/EVALS_MODEL pin, else
+    // omit --model so the host uses its configured default; mirrors session-runner)
+    expect(src).toMatch(/opts\.model\s*\?\?\s*resolveEvalModel\(\)/);
+    expect(src).toContain("if (model) args.push('--model', model)");
   });
 
   test('--model is pushed BEFORE extraArgs so a per-test --model override wins', () => {

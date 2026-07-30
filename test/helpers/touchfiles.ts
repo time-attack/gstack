@@ -190,27 +190,27 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
 
   // AskUserQuestion format regression (RECOMMENDATION + Completeness: N/10)
   // Fires when either template OR the two preamble resolvers change.
-  'plan-ceo-review-format-mode':      ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completeness-section.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md', 'test/helpers/llm-judge.ts'],
-  'plan-ceo-review-format-approach':  ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completeness-section.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md', 'test/helpers/llm-judge.ts'],
-  'plan-eng-review-format-coverage':  ['plan-eng-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completeness-section.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md', 'test/helpers/llm-judge.ts'],
-  'plan-eng-review-format-kind':      ['plan-eng-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completeness-section.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md', 'test/helpers/llm-judge.ts'],
+  'plan-ceo-review-format-mode':      ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completeness-section.ts', 'scripts/resolvers/preamble.ts', 'test/helpers/llm-judge.ts'],
+  'plan-ceo-review-format-approach':  ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completeness-section.ts', 'scripts/resolvers/preamble.ts', 'test/helpers/llm-judge.ts'],
+  'plan-eng-review-format-coverage':  ['plan-eng-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completeness-section.ts', 'scripts/resolvers/preamble.ts', 'test/helpers/llm-judge.ts'],
+  'plan-eng-review-format-kind':      ['plan-eng-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completeness-section.ts', 'scripts/resolvers/preamble.ts', 'test/helpers/llm-judge.ts'],
 
   // v1.7.0.0 Pros/Cons format cadence + format + negative-escape evals.
-  // Dependencies: same as format-mode + the 4 plan-review templates + overlay.
+  // Dependencies: same as format-mode + the 4 plan-review templates.
   // All periodic-tier (non-deterministic Opus 4.7 behavior).
-  'plan-ceo-review-prosons-cadence':  ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
-  'plan-review-prosons-format':       ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
-  'plan-review-prosons-hardstop-neg': ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
-  'plan-review-prosons-neutral-neg':  ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
+  'plan-ceo-review-prosons-cadence':  ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'plan-review-prosons-format':       ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'plan-review-prosons-hardstop-neg': ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'plan-review-prosons-neutral-neg':  ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
 
   // Expanded coverage (CT3) — 6 non-plan-review skills inherit Pros/Cons via preamble
-  'ship-prosons-format':              ['ship/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
-  'office-hours-prosons-format':      ['office-hours/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
-  'investigate-prosons-format':       ['investigate/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
-  'qa-prosons-format':                ['qa/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
-  'review-prosons-format':            ['review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
-  'design-review-prosons-format':     ['design-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
-  'document-release-prosons-format':  ['document-release/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'model-overlays/opus-4-7.md'],
+  'ship-prosons-format':              ['ship/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'office-hours-prosons-format':      ['office-hours/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'investigate-prosons-format':       ['investigate/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'qa-prosons-format':                ['qa/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'review-prosons-format':            ['review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'design-review-prosons-format':     ['design-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'document-release-prosons-format':  ['document-release/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
 
   // /plan-tune (v1 observational)
   'plan-tune-inspect':         ['plan-tune/**', 'scripts/question-registry.ts', 'scripts/psychographic-signals.ts', 'scripts/one-way-doors.ts', 'bin/gstack-question-log', 'bin/gstack-question-preference', 'bin/gstack-developer-profile'],
@@ -360,33 +360,6 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'journey-retro':          ['*/SKILL.md.tmpl', 'SKILL.md.tmpl', 'scripts/gen-skill-docs.ts'],
   'journey-design-system':  ['*/SKILL.md.tmpl', 'SKILL.md.tmpl', 'scripts/gen-skill-docs.ts'],
   'journey-visual-qa':      ['*/SKILL.md.tmpl', 'SKILL.md.tmpl', 'scripts/gen-skill-docs.ts'],
-
-  // Opus 4.7 behavior evals — keys match testName: values in the test file.
-  // Routing sub-tests use template literal `routing-${c.name}` testNames,
-  // which the touchfile completeness scanner skips; they inherit selection
-  // from the file-level touchfile entry via GLOBAL_TOUCHFILES.
-  'fanout-arm-overlay-on':
-    ['model-overlays/claude.md', 'model-overlays/opus-4-7.md', 'scripts/models.ts', 'scripts/resolvers/model-overlay.ts'],
-  'fanout-arm-overlay-off':
-    ['model-overlays/claude.md', 'model-overlays/opus-4-7.md', 'scripts/models.ts', 'scripts/resolvers/model-overlay.ts'],
-
-  // Overlay efficacy harness (SDK) — measures whether overlay nudges change
-  // behavior under @anthropic-ai/claude-agent-sdk (closer to real Claude Code
-  // than `claude -p`). testNames in the file are template literals so the
-  // completeness scanner doesn't require them; these entries exist for
-  // diff-based selection accuracy.
-  'overlay-harness-opus-4-7-fanout-toy': [
-    'model-overlays/**',
-    'test/fixtures/overlay-nudges.ts',
-    'test/helpers/agent-sdk-runner.ts',
-    'scripts/resolvers/model-overlay.ts',
-  ],
-  'overlay-harness-opus-4-7-fanout-realistic': [
-    'model-overlays/**',
-    'test/fixtures/overlay-nudges.ts',
-    'test/helpers/agent-sdk-runner.ts',
-    'scripts/resolvers/model-overlay.ts',
-  ],
 
   // /ios-qa — agent flow E2E. Daemon + stub StateServer + codegen
   // exercised end-to-end. The no-device path is gate-tier; the with-device
@@ -725,14 +698,6 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'journey-retro': 'periodic',
   'journey-design-system': 'periodic',
   'journey-visual-qa': 'periodic',
-
-  // Opus 4.7 overlay evals — periodic (non-deterministic LLM behavior + Opus cost)
-  'fanout-arm-overlay-on': 'periodic',
-  'fanout-arm-overlay-off': 'periodic',
-
-  // Overlay efficacy harness (SDK, paid) — periodic only
-  'overlay-harness-opus-4-7-fanout-toy': 'periodic',
-  'overlay-harness-opus-4-7-fanout-realistic': 'periodic',
 
   // /ios-qa daemon + codegen — no-device path runs every PR (no hardware
   // dependency, deterministic). with-device path requires GSTACK_HAS_IOS_DEVICE.

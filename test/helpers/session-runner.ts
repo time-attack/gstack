@@ -11,6 +11,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { getProjectEvalDir } from './eval-store';
 import { hermeticChildEnv, isHermeticEnabled } from './hermetic-env';
+import { resolveEvalModel } from './eval-model';
 
 const GSTACK_DEV_DIR = path.join(os.homedir(), '.gstack-dev');
 const HEARTBEAT_PATH = path.join(GSTACK_DEV_DIR, 'e2e-live.json'); // heartbeat stays global
@@ -125,7 +126,7 @@ export async function runSkillTest(options: {
   timeout?: number;
   testName?: string;
   runId?: string;
-  /** Model to use. Defaults to claude-sonnet-4-6 (overridable via EVALS_MODEL env). */
+  /** Model to use. Default omits --model so the host uses its configured default; pin via GSTACK_EVAL_MODEL/EVALS_MODEL. */
   model?: string;
   /** Extra env vars merged into the spawned claude -p process. Useful for
    *  per-test GSTACK_HOME overrides so the test doesn't have to spell out
@@ -142,7 +143,7 @@ export async function runSkillTest(options: {
     runId,
     env: extraEnv,
   } = options;
-  const model = options.model ?? process.env.EVALS_MODEL ?? 'claude-sonnet-4-6';
+  const model = options.model ?? resolveEvalModel();
 
   const startTime = Date.now();
   const startedAt = new Date().toISOString();
@@ -161,7 +162,8 @@ export async function runSkillTest(options: {
   // avoid shell escaping issues. --verbose is required for stream-json mode.
   const args = [
     '-p',
-    '--model', model,
+    // Omit --model when unpinned so the host uses its configured default.
+    ...(model ? ['--model', model] : []),
     '--output-format', 'stream-json',
     '--verbose',
     '--dangerously-skip-permissions',

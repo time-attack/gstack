@@ -10,6 +10,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { resolveEvalModel } from './eval-model';
 
 export interface JudgeScore {
   clarity: number;       // 1-5
@@ -56,7 +57,7 @@ export interface RecommendationScore {
  * existing callers; pass a model id (e.g. claude-haiku-4-5-20251001)
  * for cheaper bounded judgments like judgeRecommendation.
  */
-export async function callJudge<T>(prompt: string, model: string = 'claude-sonnet-4-6'): Promise<T> {
+export async function callJudge<T>(prompt: string, model: string = resolveEvalModel() ?? 'claude-haiku-4-5-20251001'): Promise<T> {
   const client = new Anthropic();
 
   const makeRequest = () => client.messages.create({

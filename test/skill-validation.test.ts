@@ -1588,12 +1588,12 @@ describe('Private-path leak detection', () => {
 describe('Doc inventory cross-check', () => {
   // Skills that don't get user-invocation lines in agent-facing docs.
   // - 'qa-only' is a sub-mode of /qa with shared docs.
-  // - The 5 listed below are infrastructure (model overlays, shipped binary,
-  //   hosts) that don't show up in the user-facing skill table.
+  // - The 10 listed below are infrastructure (shipped binary, hosts) that
+  //   don't show up in the user-facing skill table.
   const DOC_INVENTORY_EXCLUDE = new Set([
     // Infra / non-skills
     'agents', 'claude', 'connect-chrome', 'contrib', 'hosts',
-    'lib', 'model-overlays', 'openclaw', 'supabase', 'scripts', 'test',
+    'lib', 'openclaw', 'supabase', 'scripts', 'test',
   ]);
 
   function discoverSkillDirs(): string[] {

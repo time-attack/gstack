@@ -36,6 +36,7 @@ import {
 import * as fs from 'fs';
 import * as path from 'path';
 import { resolveClaudeBinary as resolveClaudeBinaryShared } from '../../browse/src/claude-bin';
+import { resolveEvalModel } from './eval-model';
 import { hermeticChildEnv } from './hermetic-env';
 import type { SkillTestResult } from './session-runner';
 
@@ -299,7 +300,7 @@ export async function runAgentSdkTest(
   const sem = getApiSemaphore();
   const maxRetries = opts.maxRetries ?? 3;
   const queryImpl: QueryProvider = opts.queryProvider ?? query;
-  const model = opts.model ?? 'claude-opus-4-7';
+  const model = opts.model ?? resolveEvalModel();
 
   // NOTE on env: the SDK child gets the COMPLETE hermetic env (allowlist
   // scrub + ANTHROPIC_API_KEY + hermetic CLAUDE_CONFIG_DIR/GSTACK_HOME), with
