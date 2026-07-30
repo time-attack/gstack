@@ -594,7 +594,8 @@ The retained 1.x compatibility tooling includes **opt-in** usage telemetry:
 
 - **Default is off.** Nothing is sent anywhere unless you explicitly say yes.
 - **On first run,** gstack asks if you want to share anonymous usage data. You can say no.
-- **What's sent (if you opt in):** skill name, duration, success/fail, gstack version, OS. That's it.
+- **What's sent (if you opt in to the community tier):** skill name, duration, success/fail, gstack version, OS. That's it.
+- **The anonymous tier is local-only.** Choosing "anonymous" keeps usage events on your machine; nothing is uploaded. Only the community tier syncs.
 - **What's never sent:** code, file paths, repo names, branch names, prompts, or any user-generated content.
 - **Change anytime:** `gstack-config set telemetry off` disables everything instantly.
 - **Updates are installer-owned:** GStack skill preambles perform no passive release request. Use `npx skills update` (optionally `-p` or `-g`) so the Agent Skills installer preserves the source, scope, host placement, and selected-skill set. The retained 1.x `gstack-update-check --force` path runs only when explicitly requested.

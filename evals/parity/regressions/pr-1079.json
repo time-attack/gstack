@@ -1,0 +1,27 @@
+{
+  "pr": 1079,
+  "url": "https://github.com/garrytan/gstack/issues/1079",
+  "title": "External effects must not fail or lie: REST PR mutations, sandbox canary, no-runtime discipline",
+  "targets": [
+    "ship",
+    "land-and-deploy",
+    "document-release",
+    "codex"
+  ],
+  "anchor": "GSTACK2_FIX_1079_EXTERNAL_EFFECTS",
+  "body": "### External effects that fail or lie\n\n1. **PR mutations use the REST API.** The gh CLI's high-level PR-edit\n   subcommand rides a GraphQL mutation that hard-errors under fine-grained\n   tokens and several permission setups. Every PR title/body/base mutation\n   uses the one canonical form:\n   `gh api -X PATCH \"repos/:owner/:repo/pulls/$(gh pr view --json number -q .number)\" -f title=… | -F body=@<file>`\n   (full block in `references/EXTERNAL-EFFECTS.md`).\n2. **A second-opinion pass must prove it ran.** On a Linux host without user\n   namespaces, Codex's bwrap sandbox cannot start and the pass silently\n   no-ops. Before crediting any Codex pass as review evidence, source\n   `$GSTACK_BIN/gstack-codex-probe` and run `_gstack_codex_sandbox_canary`\n   once per session; `CODEX_SANDBOX_UNAVAILABLE` is a typed, fail-closed\n   result — record \"codex skipped: sandbox unavailable\" and continue without\n   that voice. An empty or failed pass is never reported as a clean review.\n3. **The effects discipline binds without the runtime.** When the optional\n   runtime is absent, print each effect key and exact command as assistant\n   text before executing it directly; on interruption or ambiguity, STOP and\n   inspect the external system. Never retry automatically; never re-run an\n   effect whose outcome is unknown.",
+  "regression": {
+    "input": {
+      "mutation": "pr-title-update",
+      "sandbox_canary": "CODEX_SANDBOX_UNAVAILABLE",
+      "runtime_installed": false
+    },
+    "expected": {
+      "pr_mutation_transport": "rest-patch",
+      "graphql_edit_subcommand_allowed": false,
+      "codex_pass_credited": false,
+      "degradation_typed": true,
+      "auto_retry_without_runtime": false
+    }
+  }
+}

@@ -196,8 +196,15 @@ PR, or PR-ready claim is authorized by this status.
   seven hosts (currently verified at the installer layer plus the four-skill
   live adversarial run; full per-host UI execution is partial); (b) the official
   signed `v2.0.0-rc.6` runtime bootstrap exercised through the production install
-  path; (c) the full retained-tool egress (privacy) audit. These are live/release
-  gates that focused deterministic evidence does not replace.
+  path. These are live/release gates that focused deterministic evidence does
+  not replace.
+- [x] Gate (c), the full retained-tool egress (privacy) audit, completed
+  2026-07-28: verdict **PASS**, zero violations across 9 surfaces, with 9
+  NEEDS_REVIEW findings (consent-semantics drift, hygiene leftovers, one
+  metadata leak) fixed on this branch. Evidence:
+  [evals/privacy/egress-audit-2026-07-28.md](../../evals/privacy/egress-audit-2026-07-28.md)
+  (+ machine-readable `.json`); fix summary in
+  [PRIVACY.md](./PRIVACY.md#retained-tool-egress-audit-2026-07-28).
 
 ## Evidence index
 

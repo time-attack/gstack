@@ -251,7 +251,7 @@ $GSTACK_BIN/gstack-redact --from-file /tmp/gstack-pr-body-$$.md --repo-visibilit
 
 **If GitHub:**
 ```bash
-gh pr edit --body-file /tmp/gstack-pr-body-$$.md
+gh api -X PATCH "repos/:owner/:repo/pulls/$(gh pr view --json number -q .number)" -F body=@/tmp/gstack-pr-body-$$.md
 ```
 
 **If GitLab:**
@@ -270,7 +270,7 @@ rm -f /tmp/gstack-pr-body-$$.md
 ```
 
 6. If `gh pr view` / `glab mr view` fails (no PR/MR exists): skip with message "No PR/MR found — skipping body update."
-7. If `gh pr edit` / `glab mr update` fails: warn "Could not update PR/MR body — documentation changes are in the
+7. If the REST PR update / `glab mr update` fails: warn "Could not update PR/MR body — documentation changes are in the
    commit." and continue.
 
 **PR/MR title sync (idempotent, always-on):**
@@ -311,7 +311,7 @@ The helper handles three cases: title already correct (no-op), title has a diffe
 
 **If GitHub:**
 ```bash
-gh pr edit --title "$NEW_TITLE"
+gh api -X PATCH "repos/:owner/:repo/pulls/$(gh pr view --json number -q .number)" -f title="$NEW_TITLE"
 ```
 
 **If GitLab:**

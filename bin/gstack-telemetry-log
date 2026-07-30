@@ -228,8 +228,8 @@ INSTALL_FIELD="null"
 BROWSE_BOOL="false"
 [ "$USED_BROWSE" = "true" ] && BROWSE_BOOL="true"
 
-# Sanitize security fields — they're salted hashes and controlled enum values,
-# but apply json_safe() defensively. Domain is limited to 253 chars (RFC 1035).
+# Sanitize security fields — they're salted hashes (url domain + payload) and
+# controlled enum values, but apply json_safe() defensively.
 SEC_URL_DOMAIN="$(json_safe "$SEC_URL_DOMAIN")"
 SEC_PAYLOAD_HASH="$(json_safe "$SEC_PAYLOAD_HASH")"
 SEC_LAYER="$(json_safe "$SEC_LAYER")"

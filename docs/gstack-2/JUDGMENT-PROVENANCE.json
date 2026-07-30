@@ -20,7 +20,7 @@
     "packaged_section_copies": 14,
     "internal_execution_adapters": 1,
     "scenarios": 19,
-    "bug_fix_ports": 24,
+    "bug_fix_ports": 34,
     "assets": 70,
     "dependency_copies": 3,
     "runtime_helpers": 39
@@ -87,7 +87,7 @@
       "source_path": "office-hours/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "8568fe73cca76a80805fab3092cacd10db7e1d7f",
-      "normalized_render_sha256": "c77376fa95348c5c8deb1319f9bd232cc38532d78f3a45802f640749e2c76215",
+      "normalized_render_sha256": "603b1ee5a1bf745cb1e06a0c14bbb1208e7149b4d6130b8f008975ddb0095b8f",
       "target": "skills/plan/references/legacy/office-hours.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -99,7 +99,9 @@
         703,
         2000,
         879,
-        538
+        538,
+        1777,
+        2189
       ],
       "original_source_file": "office-hours/SKILL.md.tmpl",
       "original_line_range": "1-526",
@@ -207,7 +209,7 @@
       "source_path": "plan-ceo-review/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "c43cfe64146fe79df74a974f1673fe36defcce00",
-      "normalized_render_sha256": "8b53b9a5362c834edd08b5f50cf8511a532188b8295092ca7b7f285d9270a355",
+      "normalized_render_sha256": "a12bf8b296f31c7c950ba07f64567c09a44d6173bca40628a33d8a61eafc00a8",
       "target": "skills/plan/references/legacy/plan-ceo-review.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -215,7 +217,8 @@
         2030,
         886,
         703,
-        879
+        879,
+        2189
       ],
       "original_source_file": "plan-ceo-review/SKILL.md.tmpl",
       "original_line_range": "1-427",
@@ -618,7 +621,8 @@
         2023,
         886,
         703,
-        879
+        879,
+        9108
       ],
       "original_source_file": "autoplan/SKILL.md.tmpl",
       "original_line_range": "1-916",
@@ -1370,7 +1374,7 @@
       "source_path": "sync-gbrain/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "2ec065472e263a07f3818ed87ee9a6a2e13ca3ae",
-      "normalized_render_sha256": "c3e8c6bee0e7b7eb04aed78c3097135a380c3bc09e49b7ec3e8affe0c40d7246",
+      "normalized_render_sha256": "e198a6c156fd30cb7ba9c979c86ca1b3fdae03ca3d846d469786b8b403f20934",
       "target": "skills/plan/references/legacy/sync-gbrain.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -1455,7 +1459,8 @@
         1484,
         2030,
         2186,
-        879
+        879,
+        1920
       ],
       "original_source_file": "qa/SKILL.md.tmpl",
       "original_line_range": "1-355",
@@ -1581,7 +1586,8 @@
         679,
         1484,
         2030,
-        879
+        879,
+        1920
       ],
       "original_source_file": "qa-only/SKILL.md.tmpl",
       "original_line_range": "1-115",
@@ -2474,7 +2480,7 @@
       "source_path": "benchmark-models/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "034cda182406dc04a82c4336ac3ebc36b5fc41b1",
-      "normalized_render_sha256": "4bec3634223002fa47999bd4582dbe566d0561a5c9dbbd41f665787371940027",
+      "normalized_render_sha256": "c7d4440746f2a3882371d9bd4211e006d1bef64de441ad0c15aadad983aaaf40",
       "target": "skills/qa/references/legacy/benchmark-models.md",
       "disposition": "BUG_FIX",
       "overlays": [
@@ -3154,12 +3160,15 @@
       "source_path": "codex/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "333de7d8d590cc78184b0e2371171f6121408f73",
-      "normalized_render_sha256": "fda5208c92025ee46cd5cffab2f56bbea4bcb563d4ccacc43768c62b0de923c6",
+      "normalized_render_sha256": "65c980d0b7f7a8b920970660060d8e771bc679adda96b29d696e00e17854a9f6",
       "target": "skills/review/references/legacy/codex.md",
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        879
+        879,
+        1079,
+        2370,
+        9109
       ],
       "original_source_file": "codex/SKILL.md.tmpl",
       "original_line_range": "1-666",
@@ -3237,12 +3246,14 @@
       "source_path": "claude/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "94552cbe4efebc908f70f03880e584879db80aca",
-      "normalized_render_sha256": "e0257ec3df4432da9b0fb10e6af66da8ed15548a3fae987778fc14a6747f4b30",
+      "normalized_render_sha256": "6f2a86acf55ac47f50dad00ad6ec1df70c6d1b2e258d95fb5da8c0b42da3a9c1",
       "target": "skills/review/references/legacy/claude.md",
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        879
+        879,
+        2370,
+        9109
       ],
       "original_source_file": "claude/SKILL.md.tmpl",
       "original_line_range": "1-342",
@@ -3324,7 +3335,8 @@
         2030,
         2186,
         1102,
-        879
+        879,
+        1079
       ],
       "original_source_file": "ship/SKILL.md.tmpl",
       "original_line_range": "1-538",
@@ -3457,7 +3469,8 @@
       "overlays": [
         679,
         884,
-        879
+        879,
+        1079
       ],
       "original_source_file": "land-and-deploy/SKILL.md.tmpl",
       "original_line_range": "1-1009",
@@ -3640,7 +3653,8 @@
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        879
+        879,
+        1079
       ],
       "original_source_file": "document-release/SKILL.md.tmpl",
       "original_line_range": "1-161",
@@ -3713,12 +3727,13 @@
       "source_path": "setup-deploy/SKILL.md.tmpl",
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "587a993c01b6964b5437534527f25368cc265ec9",
-      "normalized_render_sha256": "6c5998d60249939fd09253e55f8e66338b2223083e8b3329df745553fbdeeda0",
+      "normalized_render_sha256": "4fe4ee7647adc717ed031e4feadf2c26da1fb0273634b10edd58d6645ff4cce6",
       "target": "skills/ship/references/legacy/setup-deploy.md",
       "disposition": "BUG_FIX",
       "overlays": [
         679,
-        879
+        879,
+        1078
       ],
       "original_source_file": "setup-deploy/SKILL.md.tmpl",
       "original_line_range": "1-226",
@@ -4130,7 +4145,7 @@
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "475e8b258ae06c1ddc2269275a5d85e2dc09eddf",
       "normalized_render_sha256": "68c4d42fce344fc9d834e1cd2bbe21dea119d416668ebb32ebe9e7c52b130f32",
-      "ported_render_sha256": "83c9315922fc6cef23701f720fa7eeff0cfccc000c05db0570a6483326857b08",
+      "ported_render_sha256": "664f1ac79edf148fe76334e0c4ae1db72488b07eed30edd03cc2c0e11687ce9f",
       "target": "skills/ship/references/sections/document-release/release-body.md",
       "lazy_reference_module_target": "skills/ship/references/legacy/document-release.md",
       "packaged_targets": [
@@ -4392,7 +4407,7 @@
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "64562a6b1ff51a9c528d34aef1a7447e18576c13",
       "normalized_render_sha256": "afd9782df4d0ec3397bfa45410e3fa0b9c55ee2df9d9bac8d703f9207d5ecd01",
-      "ported_render_sha256": "5902f0079fd4563bba5930d88aae480ba840c173233c41e4e2bbb20e6bb6e575",
+      "ported_render_sha256": "39e7012ebafd2e654abf0989fe952b3aa4a124b394eb2d5d246b15f836b31f46",
       "target": "skills/plan/references/sections/plan-eng-review/review-sections.md",
       "lazy_reference_module_target": "skills/plan/references/legacy/plan-eng-review.md",
       "packaged_targets": [
@@ -4639,7 +4654,7 @@
       "base_sha": "bb57306d98c97011b0919c6132705a15b1579781",
       "blob_sha": "22ac0d668ba8f2a15c7f9416508d81727c5114e0",
       "normalized_render_sha256": "813c4c75f1cc8c85ab3121f0a76966673118cf759d283c3ef5f6aa1ba64dd764",
-      "ported_render_sha256": "609f895f1aaacc495c2be353061ab53d346b75101d767d98477d8c0f5de924a2",
+      "ported_render_sha256": "ad8b03d31e0e4809c0b7b712a425ed93c13409dfa18012fb0bba4878d3ac8e97",
       "target": "skills/ship/references/sections/ship/pr-body.md",
       "lazy_reference_module_target": "skills/ship/references/legacy/ship.md",
       "packaged_targets": [
@@ -4847,7 +4862,7 @@
       "source_path": "plan-eng-review/sections/review-sections.md.tmpl",
       "target_path": "skills/plan/references/sections/plan-eng-review/review-sections.md",
       "blob_sha": "64562a6b1ff51a9c528d34aef1a7447e18576c13",
-      "sha256": "5902f0079fd4563bba5930d88aae480ba840c173233c41e4e2bbb20e6bb6e575"
+      "sha256": "39e7012ebafd2e654abf0989fe952b3aa4a124b394eb2d5d246b15f836b31f46"
     },
     {
       "tree": "review",
@@ -4863,7 +4878,7 @@
       "source_path": "document-release/sections/release-body.md.tmpl",
       "target_path": "skills/ship/references/sections/document-release/release-body.md",
       "blob_sha": "475e8b258ae06c1ddc2269275a5d85e2dc09eddf",
-      "sha256": "83c9315922fc6cef23701f720fa7eeff0cfccc000c05db0570a6483326857b08"
+      "sha256": "664f1ac79edf148fe76334e0c4ae1db72488b07eed30edd03cc2c0e11687ce9f"
     },
     {
       "tree": "ship",
@@ -4903,7 +4918,7 @@
       "source_path": "ship/sections/pr-body.md.tmpl",
       "target_path": "skills/ship/references/sections/ship/pr-body.md",
       "blob_sha": "22ac0d668ba8f2a15c7f9416508d81727c5114e0",
-      "sha256": "609f895f1aaacc495c2be353061ab53d346b75101d767d98477d8c0f5de924a2"
+      "sha256": "ad8b03d31e0e4809c0b7b712a425ed93c13409dfa18012fb0bba4878d3ac8e97"
     },
     {
       "tree": "ship",
@@ -5730,7 +5745,10 @@
       "source_path": "bin/gstack-codex-probe",
       "consumer_modules": [
         "autoplan",
-        "codex"
+        "codex",
+        "document-release",
+        "land-and-deploy",
+        "ship"
       ],
       "stable_path": "${GSTACK_HOME:-$HOME/.gstack}/bin/gstack-codex-probe"
     },
@@ -6005,6 +6023,7 @@
       "delivery": "repository-payload",
       "source_path": "bin/gstack-redact",
       "consumer_modules": [
+        "autoplan",
         "document-generate",
         "ship",
         "spec"
@@ -6424,6 +6443,85 @@
         "office-hours"
       ],
       "anchor": "GSTACK2_FIX_538_FOUNDER_RESOURCES_OPTOUT"
+    },
+    {
+      "pr": 1777,
+      "url": "https://github.com/garrytan/gstack/pull/1777",
+      "title": "Retain rejection confidence in design exploration",
+      "targets": [
+        "office-hours"
+      ],
+      "anchor": "GSTACK2_FIX_1777_REJECTION_CONFIDENCE"
+    },
+    {
+      "pr": 1920,
+      "url": "https://github.com/garrytan/gstack/pull/1920",
+      "title": "Infer the design system before auditing deviations",
+      "targets": [
+        "qa",
+        "qa-only"
+      ],
+      "anchor": "GSTACK2_FIX_1920_INFER_DESIGN_SYSTEM"
+    },
+    {
+      "pr": 2189,
+      "url": "https://github.com/garrytan/gstack/pull/2189",
+      "title": "Accept coherent design-thesis framing",
+      "targets": [
+        "plan-ceo-review",
+        "office-hours"
+      ],
+      "anchor": "GSTACK2_FIX_2189_DESIGN_THESIS_EQUIVALENCE"
+    },
+    {
+      "pr": 1078,
+      "url": "https://github.com/garrytan/gstack/issues/1078",
+      "title": "Verify deploy credentials without echoing any key bytes",
+      "targets": [
+        "setup-deploy"
+      ],
+      "anchor": "GSTACK2_FIX_1078_NO_KEY_ECHO"
+    },
+    {
+      "pr": 1079,
+      "url": "https://github.com/garrytan/gstack/issues/1079",
+      "title": "External effects must not fail or lie: REST PR mutations, sandbox canary, no-runtime discipline",
+      "targets": [
+        "ship",
+        "land-and-deploy",
+        "document-release",
+        "codex"
+      ],
+      "anchor": "GSTACK2_FIX_1079_EXTERNAL_EFFECTS"
+    },
+    {
+      "pr": 2370,
+      "url": "https://github.com/garrytan/gstack/issues/2370",
+      "title": "Dispatch outside voices portably: trailing-XXXXXX mktemp and prompts via stdin",
+      "targets": [
+        "codex",
+        "claude"
+      ],
+      "anchor": "GSTACK2_FIX_2370_PORTABLE_DISPATCH"
+    },
+    {
+      "pr": 9108,
+      "url": "https://github.com/time-attack/gstack/blob/main/evals/privacy/egress-audit-2026-07-28.md",
+      "title": "Autoplan Codex dispatch requires per-repo consent and a redact scan",
+      "targets": [
+        "autoplan"
+      ],
+      "anchor": "GSTACK2_FIX_9108_AUTOPLAN_CODEX_CONSENT_REDACT"
+    },
+    {
+      "pr": 9109,
+      "url": "https://github.com/time-attack/gstack/blob/main/evals/privacy/egress-audit-2026-07-28.md",
+      "title": "Outside-voice review dispatches scan the diff before it leaves the machine",
+      "targets": [
+        "codex",
+        "claude"
+      ],
+      "anchor": "GSTACK2_FIX_9109_OUTSIDE_VOICE_REDACT_SCAN"
     }
   ]
 }

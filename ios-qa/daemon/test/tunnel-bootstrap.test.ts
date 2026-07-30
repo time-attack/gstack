@@ -383,7 +383,6 @@ describe('resolveTunnelIPv6 fallback chain', () => {
       deviceName: 'Test',
       spawn,
       resolve: async () => { resolveCalled = true; return ['fd99::99']; },
-      legacyResolve: async () => { resolveCalled = true; return ['fdAA::AA']; },
     });
     expect(addr).toBe('fd11::1');
     expect(resolveCalled).toBe(false);
@@ -393,19 +392,16 @@ describe('resolveTunnelIPv6 fallback chain', () => {
     const spawn = makeSpawn([
       { argsMatch: /devicectl device info details/, jsonOutput: { result: { connectionProperties: {} } } },
     ]);
-    let legacyCalled = false;
     const addr = await resolveTunnelIPv6({
       udid: 'U',
       deviceName: 'Test',
       spawn,
       resolve: async () => ['fd22::2'],
-      legacyResolve: async () => { legacyCalled = true; return ['fdAA::AA']; },
     });
     expect(addr).toBe('fd22::2');
-    expect(legacyCalled).toBe(false);
   });
 
-  test('falls through to legacy resolve6 when both devicectl and dns.lookup fail', async () => {
+  test('returns null when both strategies fail (no unicast-DNS resolve6 fallback)', async () => {
     const spawn = makeSpawn([
       { argsMatch: /devicectl device info details/, exitCode: 1 },
     ]);
@@ -414,21 +410,6 @@ describe('resolveTunnelIPv6 fallback chain', () => {
       deviceName: 'Test',
       spawn,
       resolve: async () => { throw new Error('ESERVFAIL'); },
-      legacyResolve: async () => ['fd33::3'],
-    });
-    expect(addr).toBe('fd33::3');
-  });
-
-  test('returns null when all three strategies fail', async () => {
-    const spawn = makeSpawn([
-      { argsMatch: /devicectl device info details/, exitCode: 1 },
-    ]);
-    const addr = await resolveTunnelIPv6({
-      udid: 'U',
-      deviceName: 'Test',
-      spawn,
-      resolve: async () => { throw new Error('ESERVFAIL'); },
-      legacyResolve: async () => { throw new Error('ESERVFAIL'); },
     });
     expect(addr).toBeNull();
   });

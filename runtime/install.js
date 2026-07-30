@@ -127,7 +127,9 @@ export const DEFAULT_RUNTIME_HELPERS = Object.freeze({
   "gstack-taste-update": helper("bin/gstack-taste-update"),
   "gstack-telemetry-log": helper("bin/gstack-telemetry-log"),
   "gstack-timeline-log": helper("bin/gstack-timeline-log"),
-  "gstack-update-check": helper("bin/gstack-update-check"),
+  // gstack-update-check is intentionally absent: the standard Agent Skills
+  // installer owns updates in GStack 2 (#1081), so the managed runtime ships
+  // no passive release-check helper.
   "gstack-version-bump": helper("bin/gstack-version-bump"),
   "remote-slug": helper("browse/bin/remote-slug"),
 });
