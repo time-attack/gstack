@@ -163,7 +163,7 @@ async function killServer(pid: number): Promise<void> {
     try {
       Bun.spawnSync(
         ['taskkill', '/PID', String(pid), '/T', '/F'],
-        { stdout: 'pipe', stderr: 'pipe', timeout: 5000 }
+        { stdout: 'pipe', stderr: 'pipe', timeout: 5000, windowsHide: true }
       );
     } catch (err: any) {
       if (err?.code !== 'ENOENT') throw err;
@@ -342,15 +342,16 @@ async function startServer(extraEnv?: Record<string, string>): Promise<ServerSta
     const launcherCode =
       `const{spawn}=require('child_process');` +
       `spawn(process.execPath,[${JSON.stringify(NODE_SERVER_SCRIPT)}],` +
-      `{detached:true,stdio:['ignore','ignore','ignore'],env:Object.assign({},process.env,` +
+      `{detached:true,windowsHide:true,stdio:['ignore','ignore','ignore'],env:Object.assign({},process.env,` +
       `${extraEnvStr})}).unref()`;
-    Bun.spawnSync([process.env.GSTACK_NODE || 'node', '-e', launcherCode], { stdio: ['ignore', 'ignore', 'ignore'] });
+    Bun.spawnSync([process.env.GSTACK_NODE || 'node', '-e', launcherCode], { stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true });
   } else {
     // Reviewed source-development fallback only. Node's detached spawn still
     // calls setsid() on macOS/Linux, so the Bun dev server survives SIGHUP.
     if (!SERVER_SCRIPT) throw new Error('Source browser server is unavailable.');
     nodeSpawn('bun', ['run', SERVER_SCRIPT], {
       detached: true,
+      windowsHide: true,
       stdio: ['ignore', 'ignore', 'ignore'],
       env: { ...process.env, BROWSE_STATE_FILE: config.stateFile, BROWSE_PARENT_PID: parentPid, ...extraEnv },
     }).unref();
@@ -1366,6 +1367,7 @@ Refs:           After 'snapshot', use @e1, @e2... as selectors:
       const connectProc = Bun.spawn([browseBin, 'connect'], {
         cwd: process.cwd(),
         stdio: ['ignore', 'inherit', 'inherit'],
+        windowsHide: true,
         // Disable parent-PID monitoring: pair-agent needs the server to outlive
         // the connect subprocess. Setting to 0 tells the server not to self-terminate.
         env: { ...process.env, BROWSE_PARENT_PID: '0' },

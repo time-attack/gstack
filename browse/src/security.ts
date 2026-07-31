@@ -493,6 +493,7 @@ function reportAttemptTelemetry(record: AttemptRecord): void {
     const child = spawn(result.cmd, result.cmdArgs, {
       stdio: 'ignore',
       detached: true,
+      windowsHide: true,
     });
     // unref so this subprocess doesn't hold the event loop open
     child.unref();

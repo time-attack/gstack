@@ -566,7 +566,7 @@ export class BrowserManager {
       const chromePath = executablePath || chromium.executablePath();
       try {
         const versionProc = Bun.spawnSync([chromePath, '--version'], {
-          stdout: 'pipe', stderr: 'pipe', timeout: 5000,
+          stdout: 'pipe', stderr: 'pipe', timeout: 5000, windowsHide: true,
         });
         const versionOutput = versionProc.stdout.toString().trim();
         // Output like: "Google Chrome for Testing 145.0.6422.0" or "Chromium 145.0.6422.0"

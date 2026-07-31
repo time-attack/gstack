@@ -35,6 +35,7 @@ export function getGitRoot(): string | null {
       stdout: 'pipe',
       stderr: 'pipe',
       timeout: 2_000, // Don't hang if .git is broken
+      windowsHide: true,
     });
     if (proc.exitCode !== 0) return null;
     return proc.stdout.toString().trim() || null;
@@ -127,6 +128,7 @@ export function getRemoteSlug(): string {
       stdout: 'pipe',
       stderr: 'pipe',
       timeout: 2_000,
+      windowsHide: true,
     });
     if (proc.exitCode !== 0) throw new Error('no remote');
     const url = proc.stdout.toString().trim();

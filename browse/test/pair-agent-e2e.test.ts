@@ -94,22 +94,22 @@ describe('pair-agent flow end-to-end (HTTP only, no ngrok)', () => {
     if (daemon) killDaemon(daemon);
   });
 
-  test('GET /health returns daemon status and includes token for chrome-extension origin', async () => {
+  test('GET /health never includes token, even for chrome-extension origin', async () => {
+    // The extension bootstrap carve-out was removed (extension deleted in
+    // ab4e9ae5) — /health must never surface a shell-grant token.
     const resp = await fetch(`${daemon.baseUrl}/health`, {
       headers: { Origin: 'chrome-extension://test-extension-id' },
     });
     expect(resp.status).toBe(200);
     const body = await resp.json() as any;
     expect(body.status).toBeDefined();
-    // Extension bootstrap — local listener delivers the token
-    expect(body.token).toBe(daemon.token);
+    expect(body.token).toBeUndefined();
   });
 
   test('GET /health without chrome-extension origin does NOT include token', async () => {
     const resp = await fetch(`${daemon.baseUrl}/health`);
     expect(resp.status).toBe(200);
     const body = await resp.json() as any;
-    // Headless mode + no chrome-extension origin → token withheld
     expect(body.token).toBeUndefined();
   });
 

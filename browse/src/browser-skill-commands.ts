@@ -190,6 +190,7 @@ async function handleTest(args: string[], ctx: SkillCommandContext): Promise<str
     stdout: 'pipe',
     stderr: 'pipe',
     env: process.env,
+    windowsHide: true,
   });
   const exitCode = await proc.exited;
   const stdout = proc.stdout ? await new Response(proc.stdout).text() : '';
@@ -268,6 +269,7 @@ export async function spawnSkill(opts: SpawnSkillOptions): Promise<SpawnSkillRes
       env,
       stdout: 'pipe',
       stderr: 'pipe',
+      windowsHide: true,
     });
 
     let timedOut = false;

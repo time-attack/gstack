@@ -22,14 +22,13 @@ function sliceBetween(source: string, startMarker: string, endMarker: string): s
 }
 
 describe('Server auth security', () => {
-  // Test 1: /health serves token conditionally (headed mode or chrome extension only)
-  test('/health serves token only in headed mode or to chrome extensions', () => {
+  // Test 1: /health never serves the auth token. The extension bootstrap
+  // carve-outs (headed mode / chrome-extension:// Origin) were removed after
+  // the first-party extension was deleted (ab4e9ae5).
+  test('/health never serves the auth token', () => {
     const healthBlock = sliceBetween(SERVER_SRC, "url.pathname === '/health'", "url.pathname === '/connect'");
-    // v1.35.0.0: AUTH_TOKEN const was deleted; factory uses cfg-derived authToken.
-    // Token must be conditional, not unconditional
-    expect(healthBlock).toContain('token: authToken');
-    expect(healthBlock).toContain('headed');
-    expect(healthBlock).toContain('chrome-extension://');
+    expect(healthBlock).not.toContain('token: authToken');
+    expect(healthBlock).not.toContain('chrome-extension://');
   });
 
   // Test 1b: /health does not expose sensitive browsing state
