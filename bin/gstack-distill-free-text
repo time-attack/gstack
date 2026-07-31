@@ -3,6 +3,7 @@
 #
 # Reads auq-other free-text events from this project's question-log.jsonl,
 # sends them to Claude via the Anthropic SDK, and writes structured proposals
+# Model: claude-haiku-4-5-20251001 by default; override with GSTACK_DISTILL_MODEL.
 # the user can review via /plan-tune distill. Proposals require explicit
 # user Y before applying — never autonomous (Codex #15 trust boundary).
 #
@@ -199,7 +200,7 @@ RESULT=$(EVENTS_JSON="$EVENTS_JSON" DISTILL_PROMPT="$DISTILL_PROMPT" \
   const OUTPUT_PER_TOKEN = 5e-6;
 
   const resp = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
+    model: process.env.GSTACK_DISTILL_MODEL || "claude-haiku-4-5-20251001",
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
   });

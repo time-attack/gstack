@@ -42,12 +42,10 @@ while IFS= read -r f; do
     tailwind.config.*|postcss.config.*) FRONTEND=true ;;
     app/views/*|*/components/*|styles/*|css/*|app/assets/stylesheets/*) FRONTEND=true ;;
 
-    # Prompts: prompt builders, system prompts, generation services
-    *prompt_builder*|*generation_service*|*writer_service*|*designer_service*) PROMPTS=true ;;
-    *evaluator*|*scorer*|*classifier_service*|*analyzer*) PROMPTS=true ;;
-    *voice*.rb|*writing*.rb|*prompt*.rb|*token*.rb) PROMPTS=true ;;
-    app/services/chat_tools/*|app/services/x_thread_tools/*) PROMPTS=true ;;
-    config/system_prompts/*) PROMPTS=true ;;
+    # Prompts: any path mentioning prompts (builders, templates, system prompts),
+    # plus generic LLM-eval code. Project-agnostic — no framework-specific layouts.
+    *prompt*) PROMPTS=true ;;
+    *evaluator*|*scorer*|*llm-judge*|*llm_judge*) PROMPTS=true ;;
 
     # Tests
     *.test.*|*.spec.*|*_test.*|*_spec.*) TESTS=true ;;

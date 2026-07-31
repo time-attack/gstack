@@ -192,9 +192,11 @@ function bumpPref(list: Preference[], value: string, opposite: Preference[], act
     entry.rejected_count += 1;
   }
   entry.last_seen = now;
-  // Laplace-smoothed confidence
+  // Laplace-smoothed confidence, direction-aware (#1776/#1777): an entry's
+  // confidence measures strength in its own bucket's direction, so rejected
+  // preferences accrue rejection strength instead of staying at 0 forever.
   const total = entry.approved_count + entry.rejected_count;
-  entry.confidence = entry.approved_count / (total + 1);
+  entry.confidence = (action === 'approved' ? entry.approved_count : entry.rejected_count) / (total + 1);
   // Flag conflict if the opposite bucket has a strong entry for this value
   const opp = opposite.find(p => p.value.toLowerCase() === value.toLowerCase());
   if (opp && opp.approved_count + opp.rejected_count >= 3 && opp.confidence >= 0.6) {

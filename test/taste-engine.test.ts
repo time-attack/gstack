@@ -153,6 +153,15 @@ describe('taste-engine: Laplace-smoothed confidence', () => {
     expect(rejected.rejected_count).toBe(1);
     expect(rejected.approved_count).toBe(0);
   });
+
+  // GSTACK2_BUG_FIX pr=1777 (and #1776): confidence is direction-aware, so
+  // rejected-bucket entries accrue rejection strength instead of pinning at 0.
+  test('repeated rejections raise rejected-bucket confidence toward 1', () => {
+    for (let i = 0; i < 5; i++) run(['rejected', `v${i}`, '--reason', 'fonts: Papyrus']);
+    const pref = readProfile().dimensions.fonts.rejected[0];
+    expect(pref.rejected_count).toBe(5);
+    expect(pref.confidence).toBeCloseTo(5 / 6, 5);
+  });
 });
 
 describe('taste-engine: decay math', () => {

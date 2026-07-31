@@ -29,4 +29,19 @@ describe("one-way-door credential keyword net (#1839)", () => {
       expect(classifyQuestion({ summary: `rotate my ${noun}` }).oneWay).toBe(true);
     }
   });
+
+  // #2024: reset/revoke missed 'secret' and 'access key' — all four verbs now
+  // share one noun alternation, so no verb can drift out of parity again.
+  test("every credential verb catches every credential noun (#2024)", () => {
+    for (const verb of ["revoke", "reset", "rotate", "invalidate"]) {
+      for (const noun of ["api key", "token", "secret", "credential", "access key", "password"]) {
+        expect(classifyQuestion({ summary: `${verb} my ${noun}` }).oneWay).toBe(true);
+      }
+    }
+  });
+
+  test("backlog #2024 literal phrasings classify one-way", () => {
+    expect(classifyQuestion({ summary: "Should I reset my secret?" }).oneWay).toBe(true);
+    expect(classifyQuestion({ summary: "Revoke the secret now" }).oneWay).toBe(true);
+  });
 });
