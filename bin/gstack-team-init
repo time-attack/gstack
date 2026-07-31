@@ -29,6 +29,22 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 CLAUDE_MD="$REPO_ROOT/CLAUDE.md"
 GENERATED=()
 
+# ── Resolve the gstack distribution source (nothing hardcoded) ─
+# Detect the repo this gstack install came from via its own git origin,
+# falling back to the `update_repo` config key, then to the published
+# canonical channel. The snippet emits the standard Agent Skills install
+# (`npx skills add <repo>/skills`) — the installer owns host placement.
+GSTACK_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+_ORIGIN="$(git -C "$GSTACK_DIR" remote get-url origin 2>/dev/null || true)"
+if [ -z "$_ORIGIN" ]; then
+  _ORIGIN="$("$GSTACK_DIR/bin/gstack-config" get update_repo 2>/dev/null || true)"
+fi
+_ORIGIN="${_ORIGIN%/}"
+_ORIGIN="${_ORIGIN%.git}"
+REPO_SLUG="$(printf '%s' "$_ORIGIN" | sed -nE 's#^(git@github\.com:|https?://github\.com/)?([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2#p')"
+REPO_SLUG="${REPO_SLUG:-time-attack/gstack}"
+INSTALL_CMD="npx skills add ${REPO_SLUG}/skills"
+
 # ── Migrate vendored copy if present ──────────────────────────
 
 if [ -d "$REPO_ROOT/.claude/skills/gstack" ] && [ ! -L "$REPO_ROOT/.claude/skills/gstack" ]; then
@@ -52,42 +68,40 @@ fi
 # ── CLAUDE.md snippet ──────────────────────────────────────────
 
 if [ "$MODE" = "optional" ]; then
-  SNIPPET='## gstack (recommended)
+  SNIPPET="## gstack (recommended)
 
-This project uses [gstack](https://github.com/garrytan/gstack) for AI-assisted workflows.
+This project uses [gstack](https://github.com/${REPO_SLUG}) for AI-assisted workflows.
 Install it for the best experience:
 
-```bash
-git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
-cd ~/.claude/skills/gstack && ./setup --team
-```
+\`\`\`bash
+${INSTALL_CMD}
+\`\`\`
 
-Skills like /qa, /ship, /review, /investigate, and /browse become available after install.
-Use /browse for all web browsing. Use ~/.claude/skills/gstack/... for gstack file paths.'
+Skills like /plan, /qa, /debug, /review, and /ship become available after install."
 else
-  SNIPPET='## gstack (REQUIRED — global install)
+  SNIPPET="## gstack (REQUIRED)
 
 **Before doing ANY work, verify gstack is installed:**
 
-```bash
-test -d ~/.claude/skills/gstack/bin && echo "GSTACK_OK" || echo "GSTACK_MISSING"
-```
+\`\`\`bash
+ls ~/.claude/skills/*/SKILL.md .claude/skills/*/SKILL.md 2>/dev/null \\
+  | grep -qE '/(gstack-)?(plan|qa|debug|review|ship)/SKILL.md\$' \\
+  && echo \"GSTACK_OK\" || echo \"GSTACK_MISSING\"
+\`\`\`
 
 If GSTACK_MISSING: STOP. Do not proceed. Tell the user:
 
 > gstack is required for all AI-assisted work in this repo.
 > Install it:
-> ```bash
-> git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
-> cd ~/.claude/skills/gstack && ./setup --team
-> ```
+> \`\`\`bash
+> ${INSTALL_CMD}
+> \`\`\`
 > Then restart your AI coding tool.
 
 Do not skip skills, ignore gstack errors, or work around missing gstack.
 
-Using gstack skills: After install, skills like /qa, /ship, /review, /investigate,
-and /browse are available. Use /browse for all web browsing.
-Use ~/.claude/skills/gstack/... for gstack file paths (the global path).'
+Using gstack skills: After install, skills like /plan, /qa, /debug, /review,
+and /ship are available."
 fi
 
 # Check if CLAUDE.md already has a gstack section
@@ -111,19 +125,19 @@ if [ "$MODE" = "required" ]; then
 
   # Create enforcement hook script
   mkdir -p "$HOOKS_DIR"
-  cat > "$HOOKS_DIR/check-gstack.sh" << 'HOOK_EOF'
+  cat > "$HOOKS_DIR/check-gstack.sh" << HOOK_EOF
 #!/bin/bash
-# Block skill usage when gstack is not installed globally.
+# Block skill usage when gstack is not installed (global or project scope).
 
-if [ ! -d "$HOME/.claude/skills/gstack/bin" ]; then
+if ! ls "\$HOME"/.claude/skills/*/SKILL.md "\${CLAUDE_PROJECT_DIR:-.}"/.claude/skills/*/SKILL.md 2>/dev/null \\
+    | grep -qE '/(gstack-)?(plan|qa|debug|review|ship)/SKILL.md\$'; then
   cat >&2 <<'MSG'
-BLOCKED: gstack is not installed globally.
+BLOCKED: gstack is not installed.
 
 gstack is required for AI-assisted work in this repo.
 
 Install it:
-  git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
-  cd ~/.claude/skills/gstack && ./setup --team
+  ${INSTALL_CMD}
 
 Then restart your AI coding tool.
 MSG
@@ -188,5 +202,4 @@ if [ ${#GENERATED[@]} -gt 0 ]; then
 fi
 echo ""
 echo "Each developer then runs:"
-echo "  git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack"
-echo "  cd ~/.claude/skills/gstack && ./setup --team"
+echo "  ${INSTALL_CMD}"

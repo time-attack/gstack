@@ -8,10 +8,14 @@
 #
 # Env overrides (for testing):
 #   GSTACK_DIR          — override auto-detected gstack root
-#   GSTACK_REMOTE_URL   — override remote VERSION URL (branch-pinned fallback)
+#   GSTACK_REMOTE_URL   — override remote VERSION URL (fallback fetch path)
 #   GSTACK_REMOTE_REPO  — override remote git URL for ls-remote SHA resolution
 #   GSTACK_HOME         — canonical GStack state/runtime root
 #   GSTACK_STATE_DIR    — legacy fallback when GSTACK_HOME is unset
+#
+# The distribution repo is never hardcoded: it is detected from this
+# install's git origin remote, falling back to the `update_repo` config key.
+# If nothing resolves, the remote check is skipped.
 set -euo pipefail
 
 GSTACK_DIR="${GSTACK_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -20,8 +24,6 @@ CACHE_FILE="$STATE_DIR/last-update-check"
 MARKER_FILE="$STATE_DIR/just-upgraded-from"
 SNOOZE_FILE="$STATE_DIR/update-snoozed"
 VERSION_FILE="$GSTACK_DIR/VERSION"
-REMOTE_URL="${GSTACK_REMOTE_URL:-https://raw.githubusercontent.com/garrytan/gstack/main/VERSION}"
-REMOTE_REPO="${GSTACK_REMOTE_REPO:-https://github.com/garrytan/gstack.git}"
 
 # Agent Skills owns normal update discovery and installation (`npx skills
 # update`). Skill preambles still call this compatibility
@@ -158,7 +160,29 @@ if [ -f "$CACHE_FILE" ]; then
   fi
 fi
 
+# ─── Resolve the distribution repo (nothing hardcoded) ───────
+# Detect the repo this install came from via its git origin remote, falling
+# back to the `update_repo` config key (owner/repo slug or GitHub URL).
+# Explicit GSTACK_REMOTE_URL / GSTACK_REMOTE_REPO overrides win verbatim.
+_ORIGIN="$(git -C "$GSTACK_DIR" remote get-url origin 2>/dev/null || true)"
+if [ -z "$_ORIGIN" ]; then
+  _ORIGIN="$("$GSTACK_DIR/bin/gstack-config" get update_repo 2>/dev/null || true)"
+fi
+_ORIGIN="${_ORIGIN%/}"
+_ORIGIN="${_ORIGIN%.git}"
+REPO_SLUG="$(printf '%s' "$_ORIGIN" | sed -nE 's#^(git@github\.com:|https?://github\.com/)?([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2#p')"
+REMOTE_URL="${GSTACK_REMOTE_URL:-}"
+REMOTE_REPO="${GSTACK_REMOTE_REPO:-}"
+if [ -n "$REPO_SLUG" ]; then
+  # HEAD tracks the repo's default branch — no hardcoded branch name.
+  : "${REMOTE_URL:=https://raw.githubusercontent.com/${REPO_SLUG}/HEAD/VERSION}"
+  : "${REMOTE_REPO:=https://github.com/${REPO_SLUG}.git}"
+fi
+
 # ─── Step 4: Slow path — fetch remote version ────────────────
+if [ -z "$REMOTE_URL" ] && [ -z "$REMOTE_REPO" ]; then
+  exit 0  # no distribution repo resolvable — Agent Skills owns update discovery
+fi
 mkdir -p "$STATE_DIR"
 
 # Fire Supabase install ping in background (parallel, non-blocking)
@@ -169,9 +193,10 @@ if [ -z "${GSTACK_SUPABASE_URL:-}" ] && [ -f "$GSTACK_DIR/supabase/config.sh" ];
 fi
 _SUPA_URL="${GSTACK_SUPABASE_URL:-}"
 _SUPA_KEY="${GSTACK_SUPABASE_ANON_KEY:-}"
-# Respect telemetry opt-out — don't ping Supabase if user set telemetry: off
+# Respect telemetry tiers — anonymous is local-only (nothing ever uploads),
+# so only the explicit community tier sends the install ping.
 _TEL_TIER="$("$GSTACK_DIR/bin/gstack-config" get telemetry 2>/dev/null || true)"
-if [ -n "$_SUPA_URL" ] && [ -n "$_SUPA_KEY" ] && [ "${_TEL_TIER:-off}" != "off" ]; then
+if [ -n "$_SUPA_URL" ] && [ -n "$_SUPA_KEY" ] && [ "${_TEL_TIER:-off}" = "community" ]; then
   _OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
   curl -sf --max-time 5 \
     -X POST "${_SUPA_URL}/functions/v1/update-check" \
@@ -191,22 +216,22 @@ fi
 # An explicit GSTACK_REMOTE_URL override (tests, mirrors) skips this path
 # so the override is honored verbatim.
 REMOTE=""
-if [ -z "${GSTACK_REMOTE_URL:-}" ]; then
+if [ -z "${GSTACK_REMOTE_URL:-}" ] && [ -n "$REMOTE_REPO" ] && [ -n "$REPO_SLUG" ]; then
   # Disable credential prompts and apply a 5-second low-speed timeout so a
   # flaky network or captive portal can't hang every skill preamble.
   _LSR_LINE="$(GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=5 \
-    git ls-remote "$REMOTE_REPO" refs/heads/main 2>/dev/null || true)"
-  _REMOTE_SHA="$(echo "$_LSR_LINE" | awk '{print $1}')"
+    git ls-remote "$REMOTE_REPO" HEAD 2>/dev/null || true)"
+  _REMOTE_SHA="$(echo "$_LSR_LINE" | awk '$2 == "HEAD" {print $1; exit}')"
   if echo "$_REMOTE_SHA" | grep -qE '^[0-9a-f]{40}$'; then
-    _SHA_URL="https://raw.githubusercontent.com/garrytan/gstack/${_REMOTE_SHA}/VERSION"
+    _SHA_URL="https://raw.githubusercontent.com/${REPO_SLUG}/${_REMOTE_SHA}/VERSION"
     REMOTE="$(curl -sf --max-time 5 "$_SHA_URL" 2>/dev/null || true)"
   fi
 fi
 
-# Fallback: branch-pinned URL when ls-remote is unavailable (no git, no
-# network, mirror without refs/heads/main) or when GSTACK_REMOTE_URL was
-# explicitly overridden.
-if [ -z "$REMOTE" ]; then
+# Fallback: HEAD-pinned raw URL when ls-remote is unavailable (no git, no
+# network, non-GitHub mirror) or when GSTACK_REMOTE_URL was explicitly
+# overridden.
+if [ -z "$REMOTE" ] && [ -n "$REMOTE_URL" ]; then
   REMOTE="$(curl -sf --max-time 5 "$REMOTE_URL" 2>/dev/null || true)"
 fi
 REMOTE="$(echo "$REMOTE" | tr -d '[:space:]')"

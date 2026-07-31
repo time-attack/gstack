@@ -218,7 +218,8 @@ describe('gstack-team-init', () => {
     expect(result.exitCode).toBe(0);
     const claude = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf-8');
     expect(claude).toContain('## gstack (recommended)');
-    expect(claude).toContain('./setup --team');
+    expect(claude).toContain('npx skills add');
+    expect(claude).toContain('/skills');
   });
 
   test('required: creates CLAUDE.md with required section', () => {
