@@ -61,6 +61,7 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'qa-only-no-fix': ['qa-only/**', 'qa/templates/**'],
   'qa-fix-loop':    ['qa/**', 'browse/src/**', 'browse/test/test-server.ts'],
   'qa-bootstrap':   ['qa/**', 'ship/**'],
+  'qa-ask-contract': ['skills/qa/**', 'test/skill-e2e-qa-ask-contract.test.ts'],
 
   // Review
   'review-sql-injection':     ['review/**', 'test/fixtures/review-eval-vuln.rb'],
@@ -210,6 +211,10 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'qa-prosons-format':                ['qa/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
   'review-prosons-format':            ['review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
   'document-release-prosons-format':  ['document-release/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+
+  // /plan proportionality on trivial asks (#886 field failure — trivial-change
+  // fast path must not load the specialist stack or hard-block)
+  'plan-proportionality':      ['skills/plan/**', 'test/skill-e2e-plan-proportionality.test.ts'],
 
   // /plan-tune (v1 observational)
   'plan-tune-inspect':         ['plan-tune/**', 'scripts/question-registry.ts', 'scripts/psychographic-signals.ts', 'scripts/one-way-doors.ts', 'bin/gstack-question-log', 'bin/gstack-question-preference', 'bin/gstack-developer-profile'],
@@ -428,6 +433,7 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'qa-only-no-fix': 'gate',     // CRITICAL guardrail: Edit tool forbidden
   'qa-fix-loop': 'periodic',
   'qa-bootstrap': 'gate',
+  'qa-ask-contract': 'gate',    // Contract guardrail: never RUN test commands to probe; ask instead
 
   // Review — gate for functional/guardrails, periodic for quality
   'review-sql-injection': 'gate',     // Security guardrail
@@ -567,6 +573,10 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'qa-prosons-format': 'periodic',
   'review-prosons-format': 'periodic',
   'document-release-prosons-format': 'periodic',
+
+  // /plan proportionality — gate (deterministic functional guardrail: trivial
+  // rename must stay on the fast path, not hard-block or load the module stack)
+  'plan-proportionality': 'gate',
 
   // /plan-tune — gate (core v1 DX promise: plain-English intent routing)
   'plan-tune-inspect': 'gate',
