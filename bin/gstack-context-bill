@@ -1,0 +1,10 @@
+#!/usr/bin/env node
+// gstack-context-bill — token bill-of-materials for an installed gstack skills tree.
+// Read-only, offline, no state written. See runtime/context-bill.js.
+import { contextBillMain } from "../runtime/context-bill.js";
+
+process.exitCode = await contextBillMain(process.argv.slice(2), {
+  cwd: process.cwd(),
+  stdout: process.stdout,
+  stderr: process.stderr,
+});

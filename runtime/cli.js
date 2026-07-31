@@ -41,6 +41,7 @@ import {
   redactSensitiveText,
   validateContextKey,
 } from "./context.js";
+import { contextBillMain } from "./context-bill.js";
 import { rollbackUpgrade } from "./upgrade.js";
 import { installManagedRuntime, uninstallManagedRuntime } from "./install.js";
 import { assertManagedHome, withRuntimeLifecycleLock } from "./managed-home.js";
@@ -90,6 +91,8 @@ export async function main(argv = process.argv.slice(2), options = {}) {
           args, home, cwd, env, stdin, stdout, stderr,
           clientFactory: options.contextClientFactory ?? ((clientOptions) => new ContextClient(clientOptions)),
         });
+      case "context-bill":
+        return await contextBillMain(args, { cwd, stdout, stderr });
       case "cleanup":
         return await cleanupCommand({ args, home, stdout });
       case "upgrade":
@@ -942,6 +945,8 @@ function usage() {
     "  gstack context crawl <public-url> [--max-pages N] [--max-depth N] [--json]\n" +
     "  gstack context sitemap <public-domain> [--max-links N] [--json]\n" +
     "  gstack context screenshot <public-url-or-domain> [--full-page] [--json]\n" +
+    "  gstack context-bill [TREE] [--json] [--skill <name>] [--mode <mode>]   # offline token bill-of-materials\n" +
+    "  gstack context-bill --diff <treeA> <treeB> | [TREE] --budget <budget.json>\n" +
     "  gstack cleanup [--dry-run] [--older-than-hours N]\n" +
     "  gstack upgrade --source <complete-gstack-package> --version <version> | --rollback\n" +
     "  gstack uninstall [--purge --yes]\n";
