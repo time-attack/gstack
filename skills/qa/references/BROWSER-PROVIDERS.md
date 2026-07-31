@@ -3,12 +3,16 @@
 
 Browser setup is optional and consented. The Agent Skills installer owns skill placement; this flow never enrolls another host. At onboarding, offer this flow only when the user asks to configure browser capabilities now. Otherwise run it just in time when a selected workflow first needs interactive browser evidence.
 
+## How to read this file
+
+Read `Routing flow`, `Provider states`, and `Common local readiness journey`, then jump to exactly one provider section below — the one matching the provider selected in the routing flow — plus `GStack local browser fallback` when falling back to it. Read only your selected provider's section; every other provider section describes a host that is not active in this session and must not be read or acted on. The provider sections, one `##` heading each, are: Claude in Chrome, Codex built-in browser, Gemini CLI browser agent, Cursor interactive browser provider, GitHub Copilot and VS Code integrated browser, OpenClaw browser plugin, Kimi Code, Pi coding agent, Aside AI browser.
+
 ## Routing flow
 
 1. Identify the active host and provider from callable tools in the current session, not from unrelated installed binaries, parent-application environment variables, documentation, or guessed host names. Inherited `CODEX_*`, bundle identifiers, and similar process metadata never override the actual agent/tool surface.
 2. Show the detected provider, what user-controlled setup it requires, and the GStack local-browser fallback.
 3. Ask whether to use the host-native provider, set up GStack local browser, continue without browser evidence, or defer. A selection is not permission to install another product or attach private browser state.
-4. For a host-native selection, follow the matching provider section below. Never install an extension, grant site access, sign in, add an MCP server, attach an existing profile, or change host settings without the user's explicit action.
+4. For a host-native selection, read and follow only the matching provider section below. Never install an extension, grant site access, sign in, add an MCP server, attach an existing profile, or change host settings without the user's explicit action.
 5. After setup, run the common readiness journey. Tool names or metadata alone are insufficient evidence.
 6. If the journey fails, report `needs-user-action`, `unavailable`, or `failed` with the exact observed cause and offer the local GStack browser. Do not silently fall back.
 
