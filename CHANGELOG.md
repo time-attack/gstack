@@ -1,11 +1,67 @@
 # Changelog
 
-> **GStack 2 draft in progress.** This branch (`codex/gstack-2`) is the working
-> draft of GStack 2 — not a released version. Current status is **BLOCKED**
-> pending live host-adversarial verification. See
+> **GStack 2 draft in progress.** `main` carries the working draft of GStack 2
+> — not a released version. Current status is **BLOCKED** pending the remaining
+> release gates. See
 > [`docs/gstack-2/STATUS.md`](docs/gstack-2/STATUS.md) for the authoritative
-> completion state and remaining P0 gates. No version bump or release claim is
-> made here while that status holds.
+> completion state and remaining P0 gates. No GStack 2 release claim is made
+> here while that status holds.
+
+## [1.65.0.0] - 2026-07-31
+
+**Dead scaffolding out, hardcoded assumptions out. What remains actually runs.**
+
+Every documented command now works. The tree carried 14 package.json scripts, two CI lanes, and a build step that pointed at deleted generator files and failed on module-not-found; all of that is gone, and CLAUDE.md now describes the real thing: a static six-skill tree (plan, qa, debug, review, ship, make-pdf) you edit directly. The skills stopped assuming they run in someone else's repo. /ship no longer pastes another project's test commands (`bin/test-lane`, Rails migrate warnings, a Ruby eval harness) into yours; it reads your CLAUDE.md or asks once and persists the answer. Review checklists detect your base branch instead of hardcoding `origin/main`, and /qa loads only the modules for the lane you're actually in instead of forcing ~67KB of reading on every API question.
+
+### The numbers that matter
+
+Source: the free-suite shard runner (`bun run test:free`, 326 files) before and after, plus `test/gstack2-skills.test.ts` and `docs/gstack-2/BLOAT-LEDGER.json`.
+
+| Metric | Before | After | Δ |
+|---|---|---|---|
+| Free-suite deterministic failures | 24 | 0 | -24 |
+| package.json scripts that error on run | 14 | 0 | -14 |
+| Hardcoded foreign-project/host sites in shipped skills | 25+ | 0 | all purged |
+| Always-loaded discovery surface (six skills) | unenforced | ~314 tokens, 71.5% below the 1.x baseline | test-enforced |
+| /qa forced module reads (API-only session) | ~67KB | lane-scoped | ~17K tokens saved |
+
+The failure number is the one to feel: every one of the 24 was a command or import the tree itself had already deleted. The suite is green because the references are gone, not because tests were silenced.
+
+### What this means for gstack users
+
+You can trust what the repo tells you to run. Skills adapt to your project instead of assuming someone else's, the anonymous telemetry tier is genuinely local-only, the browser's `/health` endpoint no longer hands its root token to anyone claiming to be a Chrome extension, and Windows users stop seeing console flashes and broken state-dir permissions. Status stays BLOCKED until live host coverage (Kimi, OpenClaw, Copilot) and the signed runtime bootstrap land; nothing here claims otherwise.
+
+### Itemized changes
+
+### Added
+
+- `test/gstack2-skills.test.ts` restored import-free: enforces exactly six skills, the discovery-surface ceiling (≥70% below the ~1,100-token 1.x baseline), and the 40K per-skill cap on every free run.
+- `docs/gstack-2/EGRESS-AUDIT.md`: per-surface network call-site tables for every retained tool (browse, make-pdf, ios-qa, gbrain, Context.dev, telemetry, setup, extension) — the retained-tool egress audit P0 gate.
+- `docs/gstack-2/AUDIT-BACKLOG.md`: ranked residue of lower-severity audit findings not addressed in this release.
+- Model-benchmark evaluation suite (`lib/model-benchmark/evaluation.ts` + tests) and the platform bakeoff harness under `evals/platform-bakeoff/`.
+- Setup's gbrain flow gains an explicit Step 0 provider choice: no code-indexing provider is selected by default, and per-repo egress consent is required before any provider sends code off-machine.
+
+### Changed
+
+- `/ship` tests/eval steps, land-and-deploy, and spec's execute path are platform-agnostic: project commands come from your CLAUDE.md (or one question, persisted), agent spawns adapt to the host.
+- `/qa` module loading is lane-conditional; `BROWSER-PROVIDERS.md` is read per selected provider only.
+- `/debug` drops ~43KB of unreachable ported assets.
+- Eval helpers resolve models through one host-neutral point (`test/helpers/eval-model.ts`); unpinned runs use each host's configured default.
+- `bin/gstack-update-check` and `bin/gstack-team-init` derive the repo from your git remote instead of a hardcoded upstream.
+
+### Fixed
+
+- Anonymous-tier install ping no longer sends anything (documented local-only, now actually local-only).
+- browse `/health` root-token carve-out for deleted extension consumers removed; Windows spawns get `windowsHide` (#1835); `.gstack` state dir gets ACL-inheritance repair on Windows (#1605).
+- make-pdf's offline sanitizer now covers `<style>@import`, inline `style="url(...)"`, and `srcset` (no network at render).
+- ios-qa StateServer binds loopback-only.
+- `gstack-telemetry-log` input integrity (malformed durations can't corrupt the JSONL stream), `gstack-brain-context-load` cold-probe latency no longer permanently disables gbrain context, `gstack-memory-ingest` survives gbrain ≥0.42 gitignore semantics (#2144), gbrain sync enforces per-repo deny/read-only policy (#2051, #1792), one-way-door detection catches reset/revoke phrasing (#2024), portable mktemp in review's codex module (#2091), autoplan jq scope bug (#2018), setup-gbrain quoting (#1798).
+
+### For contributors
+
+- The generator, parity harness, per-host render pipeline, and model-overlay apparatus are fully retired; `skills/` is the static source of truth. Regression fixtures under `evals/parity/regressions/` remain as data.
+- `test/brain-sync.test.ts` is hermetic (stubbed gh/glab/gbrain, fake HOME, spawn timeouts) — it can no longer hang a shard.
+- Docs truth pass: STATUS, TEST-EVIDENCE, HOST-COMPATIBILITY, ARCHITECTURE, and PRIVACY agree with the tree, including the unfavorable v4 live run being filed rather than cherry-picked.
 
 ## [1.64.20.0] - 2026-07-24
 
