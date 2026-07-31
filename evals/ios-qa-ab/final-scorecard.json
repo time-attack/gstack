@@ -1,0 +1,219 @@
+{
+  "comparisonSchemaVersion": 1,
+  "rubricVersion": "1.0.0",
+  "protocolStatus": "frozen controlled comparison",
+  "officialControlledResult": true,
+  "pilot": {
+    "score": 87,
+    "status": "excluded_from_official_arms",
+    "rationale": "The frozen protocol explicitly identifies the earlier 87/100 run as pilot evidence, not an official adaptive arm."
+  },
+  "oracleAccessedAt": "2026-07-21T19:37:40Z",
+  "evidenceValidation": {
+    "reportAndManifestFilesHashed": 16,
+    "declaredArtifactHashesVerified": 134,
+    "missingArtifacts": 0,
+    "hashMismatches": 0,
+    "unhashedDirectoryBundles": 2,
+    "corpusFilesVerified": 22,
+    "corpusCopiesMatch": true,
+    "limitations": [
+      "Two legacy AppB xcresult directory entries have no directory hash; exported evidence components are individually hashed.",
+      "Seal chronology relies on runner attestations and artifact timestamps because full runner transcripts were not supplied.",
+      "Raw xcresults contain private Xcode provenance; identifiers are deliberately omitted from this evaluator output.",
+      "Both D arms retain an exported attachment manifest containing a full device identifier and personal device name, contrary to the redaction rule."
+    ],
+    "hashes": {
+      "legacy": {
+        "app-a": {"report": "668bb864f6b8da4498cecc7be7d7c55b20d5f8639c9331b29963f62d34296b18", "manifest": "84f096e2a202d6335a6c88a0aa6dac7e13d63ebb7c3a6ecda1d2fe5f185f474b"},
+        "app-b": {"report": "9ba0c88f5cb2e5fc698ec80f0a67b65d6d0e179a195f69b828c858ae84e647b9", "manifest": "15552530992e7d4b0fa623e2850bf75a1dd80fc6156ab1062e6450705e032ea3"},
+        "app-c": {"report": "746b52b8797632eaf0cd4320815220bf3f739d6f40095592da15e37fd3bae6e1", "manifest": "e66567fe5f136431ab504e00893b3684d32042129fe73daab467755650a1b1f7"},
+        "app-d": {"report": "e88aaff8740e485532a89b1795608157675d5b358011a43a858358f5e26c0801", "manifest": "2bb9cc29f23f8b760515f19ebbc4012543344f25699e52eda7f433633538057e"}
+      },
+      "adaptive": {
+        "app-a": {"report": "3bc0a147d84ddb105f53c79a613e3a375043c8aae21fe56a6e2cff42785e4bff", "manifest": "5699dc2ab8908a61c34d36110421c525bdf6947c7450e1d97dc11860cd2f0baf"},
+        "app-b": {"report": "efa9403ee31c3690844e2ec01198f7163c543bf5c2ef98c5d5dcf29e67b0a5f5", "manifest": "088275acd461e6f0cf0098b7c57fedb53de8c62f3ff8b683277f04232c2761a4"},
+        "app-c": {"report": "e0a79470240521d355ca9bb42f43dcefe5bf636bfb2f1dbce44985cd33e8b419", "manifest": "7e130afa2a4ed43258d7432e908ec6cef438bc1dafcb2daccf749a667815bf86"},
+        "app-d": {"report": "9092aa377229692ae462efbed8be6a7199e40768a010845f09add38c613c58c5", "manifest": "3aba5e80185cbee6b6c3d1a5f4ea8945234e0246a7cf726b9d7d71d9394978d7"}
+      }
+    }
+  },
+  "arms": {
+    "legacy": {
+      "rubricVersion": "1.0.0",
+      "runId": "ios-ab-comparison-official-legacy-apps-a-d",
+      "reportSealedAt": "2026-07-21T19:07:58Z",
+      "oracleAccessedAt": "2026-07-21T19:37:40Z",
+      "reportHash": "sha256-set:app-a=668bb864f6b8da4498cecc7be7d7c55b20d5f8639c9331b29963f62d34296b18,app-b=9ba0c88f5cb2e5fc698ec80f0a67b65d6d0e179a195f69b828c858ae84e647b9,app-c=746b52b8797632eaf0cd4320815220bf3f739d6f40095592da15e37fd3bae6e1,app-d=e88aaff8740e485532a89b1795608157675d5b358011a43a858358f5e26c0801",
+      "evidenceManifestHash": "sha256-set:app-a=84f096e2a202d6335a6c88a0aa6dac7e13d63ebb7c3a6ecda1d2fe5f185f474b,app-b=15552530992e7d4b0fa623e2850bf75a1dd80fc6156ab1062e6450705e032ea3,app-c=e66567fe5f136431ab504e00893b3684d32042129fe73daab467755650a1b1f7,app-d=2bb9cc29f23f8b760515f19ebbc4012543344f25699e52eda7f433633538057e",
+      "integrity": {"oracleOpenedAfterSeal": true, "hardFailures": []},
+      "apps": [
+        {"appId":"AppA","oracleSurface":"simulator","selectedSurfaces":["simulator"],"surfaceDecisionCorrect":true,"surfaceRationale":"Ordinary local SwiftUI inventory behavior requires no hardware.","launched":true,"meaningfulInteraction":true,"physicalRequirementSatisfied":true,"requiredJourneys":3,"coveredJourneys":3,"evidenceIds":["legacy/app-a:E-RUN3","legacy/app-a:E-RUN5","legacy/app-a:E-RUN6"]},
+        {"appId":"AppB","oracleSurface":"simulator","selectedSurfaces":["simulator"],"surfaceDecisionCorrect":true,"surfaceRationale":"Checklist state, filters, sort, creation, and semantics are simulator-valid.","launched":true,"meaningfulInteraction":true,"physicalRequirementSatisfied":true,"requiredJourneys":3,"coveredJourneys":3,"evidenceIds":["legacy/app-b:E-J1-04","legacy/app-b:E-J2-09","legacy/app-b:E-J3-07"]},
+        {"appId":"AppC","oracleSurface":"hybrid","selectedSurfaces":["simulator","physical"],"surfaceDecisionCorrect":true,"surfaceRationale":"The note is simulator-valid; real camera capture requires a physical iPhone.","launched":true,"meaningfulInteraction":true,"physicalRequirementSatisfied":true,"requiredJourneys":2,"coveredJourneys":2,"evidenceIds":["legacy/app-c:NOTE-RETRY","legacy/app-c:CAM-MOVING-1","legacy/app-c:CAM-MOVING-2"]},
+        {"appId":"AppD","oracleSurface":"hybrid","selectedSurfaces":["simulator","physical"],"surfaceDecisionCorrect":true,"surfaceRationale":"Session naming is simulator-valid; CoreMotion classification requires physical motion.","launched":true,"meaningfulInteraction":true,"physicalRequirementSatisfied":true,"requiredJourneys":2,"coveredJourneys":2,"evidenceIds":["legacy/app-d:session-sim","legacy/app-d:physical-flat","legacy/app-d:physical-y-qualifying-frame"]}
+      ],
+      "defectComparison": {
+        "oracleDefects": [
+          {"defectId":"A-LOW-STOCK","appId":"AppA","severity":"medium","weight":2,"detected":true,"matchedFindingId":"legacy:A:F-01"},
+          {"defectId":"A-DECREMENT-LABEL","appId":"AppA","severity":"medium","weight":2,"detected":true,"matchedFindingId":"legacy:A:F-03"},
+          {"defectId":"B-ADD-CATEGORY","appId":"AppB","severity":"high","weight":3,"detected":true,"matchedFindingId":"legacy:B:F2"},
+          {"defectId":"B-SORT-SEMANTICS","appId":"AppB","severity":"medium","weight":2,"detected":true,"matchedFindingId":"legacy:B:F1"},
+          {"defectId":"C-CAPTURE-DISCARDED","appId":"AppC","severity":"high","weight":3,"detected":true,"matchedFindingId":"legacy:C:APP-C-001"},
+          {"defectId":"C-NOTE-REPLACED","appId":"AppC","severity":"high","weight":3,"detected":true,"matchedFindingId":"legacy:C:APP-C-002"},
+          {"defectId":"D-Y-IGNORED","appId":"AppD","severity":"high","weight":3,"detected":true,"matchedFindingId":"legacy:D:Y-AXIS"},
+          {"defectId":"D-NAME-REPLACED","appId":"AppD","severity":"high","weight":3,"detected":true,"matchedFindingId":"legacy:D:SESSION-NAME"}
+        ],
+        "reportedFindings": [
+          {"findingId":"legacy:A:F-01","appId":"AppA","classification":"true_positive","matchedDefectId":"A-LOW-STOCK","evidenceIds":["legacy/app-a:E-F1-FIRST","legacy/app-a:E-F1-RETRY"]},
+          {"findingId":"legacy:A:F-02","appId":"AppA","classification":"true_positive","matchedDefectId":null,"evidenceIds":["legacy/app-a:E-F2-INCREMENT-R3","legacy/app-a:E-F2-INCREMENT-R5"]},
+          {"findingId":"legacy:A:F-03","appId":"AppA","classification":"true_positive","matchedDefectId":"A-DECREMENT-LABEL","evidenceIds":["legacy/app-a:E-F3-FIRST","legacy/app-a:E-F3-RETRY"]},
+          {"findingId":"legacy:B:F1","appId":"AppB","classification":"true_positive","matchedDefectId":"B-SORT-SEMANTICS","evidenceIds":["legacy/app-b:E-J2-06","legacy/app-b:E-J2-08"]},
+          {"findingId":"legacy:B:F2","appId":"AppB","classification":"true_positive","matchedDefectId":"B-ADD-CATEGORY","evidenceIds":["legacy/app-b:E-J3-02","legacy/app-b:E-J3-06"]},
+          {"findingId":"legacy:C:APP-C-001","appId":"AppC","classification":"true_positive","matchedDefectId":"C-CAPTURE-DISCARDED","evidenceIds":["legacy/app-c:CAM-MOVING-1","legacy/app-c:CAM-MOVING-2"]},
+          {"findingId":"legacy:C:APP-C-002","appId":"AppC","classification":"true_positive","matchedDefectId":"C-NOTE-REPLACED","evidenceIds":["legacy/app-c:NOTE-ATTEMPT-2","legacy/app-c:NOTE-RETRY"]},
+          {"findingId":"legacy:D:Y-AXIS","appId":"AppD","classification":"true_positive","matchedDefectId":"D-Y-IGNORED","evidenceIds":["legacy/app-d:physical-y-qualifying-frame","legacy/app-d:physical-y-recording"]},
+          {"findingId":"legacy:D:SESSION-NAME","appId":"AppD","classification":"true_positive","matchedDefectId":"D-NAME-REPLACED","evidenceIds":["legacy/app-d:session-sim"]}
+        ],
+        "weightedRecall": 1,
+        "precision": 1
+      },
+      "categories": {
+        "surfaceInference":{"earned":15,"maximum":15,"rationale":"A/B use least-cost simulators; C/D correctly isolate camera and motion claims to physical execution.","evidenceIds":["legacy/app-a:report","legacy/app-b:report","legacy/app-c:report","legacy/app-d:report"]},
+        "launchInteraction":{"earned":15,"maximum":15,"rationale":"All apps launch and every required journey receives meaningful UI interaction.","evidenceIds":["legacy/app-a:E-RUN5","legacy/app-b:E-J1-04","legacy/app-c:CAM-MOVING-1","legacy/app-d:physical-y"]},
+        "breadth":{"earned":10,"maximum":10,"rationale":"All 10 oracle journeys contain relevant assertions, including physical camera and qualifying Y-only tilt states.","evidenceIds":["legacy/app-a:E-RUN6","legacy/app-b:E-J3-07","legacy/app-c:NOTE-RETRY","legacy/app-d:physical-y-qualifying-frame"]},
+        "evidence":{"earned":10,"maximum":12,"rationale":"Strong claim-linked and surface-specific chains; points withheld for incomplete report-hash/timing metadata, AppD post-run frame audit, and an exported D attachment manifest leaking full device provenance.","evidenceIds":["legacy/app-a:evidence-manifest","legacy/app-b:evidence-manifest","legacy/app-c:evidence-manifest","legacy/app-d:manifest","legacy/app-d:physical-y-attachment-index"]},
+        "defectAccuracy":{"earned":12,"maximum":12,"rationale":"All eight seeded defects detected; weighted recall 21/21. Supported unseeded quantity failure does not inflate recall.","evidenceIds":["legacy:defect-matrix"]},
+        "falsePositiveControl":{"earned":8,"maximum":8,"rationale":"All nine reported findings are supported; precision 1.0.","evidenceIds":["legacy:reported-findings"]},
+        "untestedDisclosure":{"earned":7,"maximum":7,"rationale":"Every report names excluded surfaces/states and avoids broad claims beyond evidence.","evidenceIds":["legacy/app-a:untested","legacy/app-b:untested","legacy/app-c:untested","legacy/app-d:untested"]},
+        "permissionHandling":{"earned":6,"maximum":6,"rationale":"Physical readiness and positioning gates are requested, resumed, and verified; no-gate apps explicitly say so.","evidenceIds":["legacy/app-c:gates","legacy/app-d:gates"]},
+        "adaptiveInteraction":{"earned":7,"maximum":8,"rationale":"Semantic interaction dominates; one documented dynamically anchored coordinate fallback is used only after semantic failure and is post-verified.","evidenceIds":["legacy/app-b:E-J2-08","legacy/app-a:E-RUN6"]},
+        "verification":{"earned":6,"maximum":7,"rationale":"Expected postconditions and absence checks are strong; AppD's qualifying frame is conclusive but its preserved retry is nonqualifying, so the Y defect is not independently reproduced.","evidenceIds":["legacy/app-c:CAM-MOVING-2","legacy/app-d:physical-y-qualifying-frame","legacy/app-d:physical-y-retry"]}
+      },
+      "rawTotal": 96,
+      "caps": [
+        {"code":"NO_APP_LAUNCHED","maximumTotal":20,"applied":false,"rationale":"All four apps launched.","evidenceIds":["legacy:apps"]},
+        {"code":"NO_MEANINGFUL_UI_INTERACTION","maximumTotal":35,"applied":false,"rationale":"All apps received meaningful interaction.","evidenceIds":["legacy:apps"]},
+        {"code":"MISSING_PHYSICAL_EXECUTION","maximumTotal":59,"applied":false,"rationale":"C and D have physical iPhone execution.","evidenceIds":["legacy/app-c:CAM-MOVING-1","legacy/app-d:physical-y"]},
+        {"code":"GATE_NOT_RESUMED","maximumTotal":49,"applied":false,"rationale":"Encountered physical gates resumed.","evidenceIds":["legacy/app-c:gates","legacy/app-d:gates"]},
+        {"code":"NO_UNTESTED_DISCLOSURE","maximumTotal":69,"applied":false,"rationale":"All reports disclose untested scope.","evidenceIds":["legacy:untested"]}
+      ],
+      "cappedTotal": 96,
+      "mandatoryChecks":{"totalAtLeast80":true,"noHardFailure":true,"allAppsLaunched":true,"physicalRequirementsSatisfied":true,"categoryMinimaSatisfied":true},
+      "result":"pass",
+      "resultRationale":"PASS at 96/100: no hard failure or cap, all mandatory conditions and category minima satisfied.",
+      "evaluator":{"name":"Codex primary sealed A/B evaluator","evaluatedAt":"2026-07-21T19:37:40Z"}
+    },
+    "adaptive": {
+      "rubricVersion": "1.0.0",
+      "runId": "ios-ab-comparison-official-adaptive-apps-a-d",
+      "reportSealedAt": "2026-07-21T19:29:00Z",
+      "oracleAccessedAt": "2026-07-21T19:37:40Z",
+      "reportHash": "sha256-set:app-a=3bc0a147d84ddb105f53c79a613e3a375043c8aae21fe56a6e2cff42785e4bff,app-b=efa9403ee31c3690844e2ec01198f7163c543bf5c2ef98c5d5dcf29e67b0a5f5,app-c=e0a79470240521d355ca9bb42f43dcefe5bf636bfb2f1dbce44985cd33e8b419,app-d=9092aa377229692ae462efbed8be6a7199e40768a010845f09add38c613c58c5",
+      "evidenceManifestHash": "sha256-set:app-a=5699dc2ab8908a61c34d36110421c525bdf6947c7450e1d97dc11860cd2f0baf,app-b=088275acd461e6f0cf0098b7c57fedb53de8c62f3ff8b683277f04232c2761a4,app-c=7e130afa2a4ed43258d7432e908ec6cef438bc1dafcb2daccf749a667815bf86,app-d=3aba5e80185cbee6b6c3d1a5f4ea8945234e0246a7cf726b9d7d71d9394978d7",
+      "integrity": {"oracleOpenedAfterSeal": true, "hardFailures": []},
+      "apps": [
+        {"appId":"AppA","oracleSurface":"simulator","selectedSurfaces":["simulator"],"surfaceDecisionCorrect":true,"surfaceRationale":"Ordinary local SwiftUI inventory behavior requires no hardware.","launched":true,"meaningfulInteraction":true,"physicalRequirementSatisfied":true,"requiredJourneys":3,"coveredJourneys":3,"evidenceIds":["adaptive/app-a:E-BROWSE","adaptive/app-a:E-ADD-RETRY"]},
+        {"appId":"AppB","oracleSurface":"simulator","selectedSurfaces":["simulator"],"surfaceDecisionCorrect":true,"surfaceRationale":"Checklist state, filters, sort, creation, and semantics are simulator-valid.","launched":true,"meaningfulInteraction":true,"physicalRequirementSatisfied":true,"requiredJourneys":3,"coveredJourneys":3,"evidenceIds":["adaptive/app-b:E-XCRESULT-FULL","adaptive/app-b:E-XCRESULT-ADD-RETRY"]},
+        {"appId":"AppC","oracleSurface":"hybrid","selectedSurfaces":["simulator","physical"],"surfaceDecisionCorrect":true,"surfaceRationale":"The note is simulator-valid; real camera capture requires a physical iPhone.","launched":true,"meaningfulInteraction":true,"physicalRequirementSatisfied":true,"requiredJourneys":2,"coveredJourneys":2,"evidenceIds":["adaptive/app-c:sim-note-run-2","adaptive/app-c:physical-camera-run-3-moving"]},
+        {"appId":"AppD","oracleSurface":"hybrid","selectedSurfaces":["simulator","physical"],"surfaceDecisionCorrect":true,"surfaceRationale":"Session naming is simulator-valid; CoreMotion claims require physical execution.","launched":true,"meaningfulInteraction":true,"physicalRequirementSatisfied":true,"requiredJourneys":2,"coveredJourneys":2,"evidenceIds":["adaptive/app-d:PD-001","adaptive/app-d:PD-002","adaptive/app-d:PD-003","adaptive/app-d:SD-001"]}
+      ],
+      "defectComparison": {
+        "oracleDefects": [
+          {"defectId":"A-LOW-STOCK","appId":"AppA","severity":"medium","weight":2,"detected":true,"matchedFindingId":"adaptive:A:F-01"},
+          {"defectId":"A-DECREMENT-LABEL","appId":"AppA","severity":"medium","weight":2,"detected":true,"matchedFindingId":"adaptive:A:F-04"},
+          {"defectId":"B-ADD-CATEGORY","appId":"AppB","severity":"high","weight":3,"detected":true,"matchedFindingId":"adaptive:B:F-02"},
+          {"defectId":"B-SORT-SEMANTICS","appId":"AppB","severity":"medium","weight":2,"detected":true,"matchedFindingId":"adaptive:B:F-01"},
+          {"defectId":"C-CAPTURE-DISCARDED","appId":"AppC","severity":"high","weight":3,"detected":true,"matchedFindingId":"adaptive:C:PHYS-CAMERA-001"},
+          {"defectId":"C-NOTE-REPLACED","appId":"AppC","severity":"high","weight":3,"detected":true,"matchedFindingId":"adaptive:C:SIM-NOTE-002"},
+          {"defectId":"D-Y-IGNORED","appId":"AppD","severity":"high","weight":3,"detected":false,"matchedFindingId":null},
+          {"defectId":"D-NAME-REPLACED","appId":"AppD","severity":"high","weight":3,"detected":true,"matchedFindingId":"adaptive:D:APPD-001"}
+        ],
+        "reportedFindings": [
+          {"findingId":"adaptive:A:F-01","appId":"AppA","classification":"true_positive","matchedDefectId":"A-LOW-STOCK","evidenceIds":["adaptive/app-a:E-BROWSE","adaptive/app-a:E-LOW-RETRY"]},
+          {"findingId":"adaptive:A:F-02","appId":"AppA","classification":"true_positive","matchedDefectId":null,"evidenceIds":["adaptive/app-a:E-A11Y","adaptive/app-a:E-ADD-RETRY"]},
+          {"findingId":"adaptive:A:F-03","appId":"AppA","classification":"false_positive","matchedDefectId":null,"evidenceIds":["adaptive/app-a:E-ADD-RETRY","legacy/app-a:E-RUN6"]},
+          {"findingId":"adaptive:A:F-04","appId":"AppA","classification":"true_positive","matchedDefectId":"A-DECREMENT-LABEL","evidenceIds":["adaptive/app-a:E-A11Y","adaptive/app-a:E-ADD-RETRY"]},
+          {"findingId":"adaptive:B:F-01","appId":"AppB","classification":"true_positive","matchedDefectId":"B-SORT-SEMANTICS","evidenceIds":["adaptive/app-b:E-F01-FIRST","adaptive/app-b:E-F01-RETRY"]},
+          {"findingId":"adaptive:B:F-02","appId":"AppB","classification":"true_positive","matchedDefectId":"B-ADD-CATEGORY","evidenceIds":["adaptive/app-b:E-F02-SELECTED","adaptive/app-b:E-F02-WRONG-CATEGORY"]},
+          {"findingId":"adaptive:C:PHYS-CAMERA-001","appId":"AppC","classification":"true_positive","matchedDefectId":"C-CAPTURE-DISCARDED","evidenceIds":["adaptive/app-c:physical-camera-run-3-moving"]},
+          {"findingId":"adaptive:C:SIM-NOTE-002","appId":"AppC","classification":"true_positive","matchedDefectId":"C-NOTE-REPLACED","evidenceIds":["adaptive/app-c:sim-note-run-2"]},
+          {"findingId":"adaptive:D:APPD-001","appId":"AppD","classification":"true_positive","matchedDefectId":"D-NAME-REPLACED","evidenceIds":["adaptive/app-d:SD-001","adaptive/app-d:SD-004","adaptive/app-d:SD-005"]}
+        ],
+        "weightedRecall": 0.8571428571,
+        "precision": 0.8888888889
+      },
+      "categories": {
+        "surfaceInference":{"earned":15,"maximum":15,"rationale":"A/B use least-cost simulators; C/D correctly isolate camera and motion claims to physical execution.","evidenceIds":["adaptive/app-a:report","adaptive/app-b:report","adaptive/app-c:report","adaptive/app-d:report"]},
+        "launchInteraction":{"earned":14,"maximum":15,"rationale":"All apps launch and interact meaningfully; AppD never acquires a qualifying movement sample.","evidenceIds":["adaptive/app-d:PD-001","adaptive/app-d:PD-002","adaptive/app-d:PD-003"]},
+        "breadth":{"earned":9,"maximum":10,"rationale":"Every oracle journey has a relevant assertion, but AppD's both-axis and substantial-tilt states remain unverified.","evidenceIds":["adaptive/app-d:PD-002","adaptive/app-d:PD-003"]},
+        "evidence":{"earned":9,"maximum":12,"rationale":"Strong B/C provenance and honest D emptiness; A reuses identical final-state captures for distinct steps, omits the nested-switch alternative, and an exported D attachment manifest leaks full device provenance.","evidenceIds":["adaptive/app-a:evidence-manifest","adaptive/app-b:evidence-manifest","adaptive/app-c:evidence-manifest","adaptive/app-d:evidence-manifest","adaptive/app-d:physical-flat-attachment-manifest"]},
+        "defectAccuracy":{"earned":10,"maximum":12,"rationale":"Seven of eight seeded defects detected; weighted recall 18/21 yields rounded score 10. AppD Y-axis defect is missed.","evidenceIds":["adaptive:defect-matrix"]},
+        "falsePositiveControl":{"earned":3,"maximum":8,"rationale":"Precision is 8/9, but AppA F-03 is a High false positive caused by stopping at the outer switch instead of the working nested native switch.","evidenceIds":["adaptive/app-a:E-ADD-RETRY","legacy/app-a:E-RUN6"]},
+        "untestedDisclosure":{"earned":7,"maximum":7,"rationale":"All reports clearly disclose gaps; AppD explicitly leaves Y-axis behavior unverified.","evidenceIds":["adaptive/app-d:untested"]},
+        "permissionHandling":{"earned":4,"maximum":6,"rationale":"AppC's movement gate succeeds; AppD resumes through two acquisition attempts but the handoff still fails to capture the required state.","evidenceIds":["adaptive/app-c:gates","adaptive/app-d:PD-002","adaptive/app-d:PD-003"]},
+        "adaptiveInteraction":{"earned":6,"maximum":8,"rationale":"Semantic bounded interaction dominates, but no arbitrary-app runner exists, hidden-sort fallback is absent, and AppA fails to adapt to the nested switch.","evidenceIds":["adaptive/app-a:E-ADD-RETRY","adaptive/app-b:E-XCRESULT-FULL","adaptive/app-d:HAR-001"]},
+        "verification":{"earned":6,"maximum":7,"rationale":"Most actions have explicit postconditions and retries; AppD Y remains unverified and AppA Favorite is not triangulated before product classification.","evidenceIds":["adaptive/app-a:E-ADD-RETRY","adaptive/app-d:PD-003"]}
+      },
+      "rawTotal": 83,
+      "caps": [
+        {"code":"NO_APP_LAUNCHED","maximumTotal":20,"applied":false,"rationale":"All four apps launched.","evidenceIds":["adaptive:apps"]},
+        {"code":"NO_MEANINGFUL_UI_INTERACTION","maximumTotal":35,"applied":false,"rationale":"All apps received meaningful interaction.","evidenceIds":["adaptive:apps"]},
+        {"code":"MISSING_PHYSICAL_EXECUTION","maximumTotal":59,"applied":false,"rationale":"C and D have physical iPhone execution; D's gap is incomplete movement evidence, not absent physical execution.","evidenceIds":["adaptive/app-c:physical-camera-run-3-moving","adaptive/app-d:PD-001"]},
+        {"code":"GATE_NOT_RESUMED","maximumTotal":49,"applied":false,"rationale":"Encountered gates resumed, though D acquisition remained unsuccessful.","evidenceIds":["adaptive/app-c:gates","adaptive/app-d:PD-003"]},
+        {"code":"NO_UNTESTED_DISCLOSURE","maximumTotal":69,"applied":false,"rationale":"All reports disclose untested scope.","evidenceIds":["adaptive:untested"]}
+      ],
+      "cappedTotal": 83,
+      "mandatoryChecks":{"totalAtLeast80":true,"noHardFailure":true,"allAppsLaunched":true,"physicalRequirementsSatisfied":true,"categoryMinimaSatisfied":false},
+      "result":"fail",
+      "resultRationale":"FAIL despite 83/100: no hard failure or cap applies, but false-positive control is 3/8, below the mandatory 6/8 minimum.",
+      "evaluator":{"name":"Codex primary sealed A/B evaluator","evaluatedAt":"2026-07-21T19:37:40Z"}
+    }
+  },
+  "beforeAfterDelta": {
+    "before": "legacy",
+    "after": "adaptive",
+    "rawTotal": {"before": 96, "after": 83, "adaptiveMinusLegacy": -13},
+    "cappedTotal": {"before": 96, "after": 83, "adaptiveMinusLegacy": -13},
+    "result": {"before": "pass", "after": "fail"},
+    "categoryAdaptiveMinusLegacy": {
+      "surfaceInference": 0,
+      "launchInteraction": -1,
+      "breadth": -1,
+      "evidence": -1,
+      "defectAccuracy": -2,
+      "falsePositiveControl": -5,
+      "untestedDisclosure": 0,
+      "permissionHandling": -2,
+      "adaptiveInteraction": -1,
+      "verification": 0
+    },
+    "frictionDeltaValid": false,
+    "frictionDeltaRationale": "Setup timing, human-gate pauses, and harness line-count conventions are not normalized; only qualitative friction observations are reported."
+  },
+  "confidence": {
+    "level": "high",
+    "strongestClaims": [
+      "All routing decisions",
+      "All eight seeded-defect classifications",
+      "Physical provenance for AppC and AppD",
+      "Legacy AppD qualifying Y-axis frame",
+      "Adaptive AppD absence of a qualifying sample",
+      "Report, manifest, corpus, and artifact hash integrity"
+    ],
+    "limitations": [
+      "Setup minutes and harness LOC are not normalized across runners; a timing/LOC delta would be invalid.",
+      "Legacy AppC/AppD continuous wall-clock timing is not recoverable.",
+      "Legacy AppD's decisive qualifying state is a frame extracted from a physically proven recording after the harness's later reread drifted; its preserved retry is nonqualifying.",
+      "Full runner transcripts were not supplied, so blindness chronology also relies on sealed attestations."
+    ]
+  },
+  "sensitivity": {
+    "independentIntegrityReview": "A stricter review proposed false-positive control 3/8 for both arms by treating the unseeded AppA quantity no-op as unsupported.",
+    "primaryEvaluatorResolution": "The primary score treats legacy AppA quantity no-op as supported because both official arms independently reproduce it on the identical frozen corpus across multiple runs/items; it does not increase seeded recall.",
+    "stricterLegacyTotal": 91,
+    "stricterLegacyResult": "pass",
+    "verdictChanges": false
+  },
+  "productVerdict": "Do not promote the adaptive candidate as the legacy replacement on this evidence. Official controlled result: legacy 96 PASS vs adaptive 83 FAIL. Preserve adaptive honesty and atomic sampling, but add a first-party arbitrary-app runner, nested-control/fallback semantics, and reliable observable physical handoffs before rerunning the frozen protocol."
+}

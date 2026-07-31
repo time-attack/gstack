@@ -1,0 +1,62 @@
+{
+  "measuredAt": "2026-07-28",
+  "method": "wc -c per file, tokens ~= bytes/4; eager = SKILL.md + forced-read triad (EXECUTION-PROFILES+SHARED-JUDGMENT+AUTHORITY-POLICY)",
+  "headline": "GStack 2 is lean by architecture. Per-invocation eager cost ~3-4K tokens (6-11% of the 40K ceiling). ~600K on-disk tokens are ~96% lazy preserved-judgment modules, off-limits.",
+  "eagerPerInvocation": {
+    "plan": 4257,
+    "ship": 3316,
+    "qa": 3177,
+    "review": 2981,
+    "debug": 2971,
+    "makePdf": 2436,
+    "unit": "approx tokens"
+  },
+  "forcedTriadCostEveryInvocation": 1699,
+  "safeCuts": [
+    {
+      "file": "make-pdf/SKILL.md.tmpl",
+      "what": "move Common flags + Debugging + Output contract to lazy references/make-pdf-usage.md",
+      "tokensSaved": 650,
+      "risk": "safe",
+      "why": "tool skill; 80pct one-command path stays inline"
+    },
+    {
+      "file": "make-pdf/SKILL.md.tmpl",
+      "what": "drop inline When-to-run trigger list (dup of frontmatter description)",
+      "tokensSaved": 110,
+      "risk": "safe"
+    },
+    {
+      "file": "5 dispatchers dispatch-protocol step 7",
+      "what": "remove redundant Match-the-users-language clause (already in SHARED-JUDGMENT #8)",
+      "tokensSaved": 40,
+      "risk": "safe",
+      "owner": "judgment-surface branch (touches shared preamble)"
+    }
+  ],
+  "needsABEvidence": [
+    {
+      "file": "5 dispatchers Completeness invariant",
+      "what": "fold into dispatch step 3",
+      "tokensSaved": 444,
+      "why": "removes a behavioral reinforcement; validate module-read holds in A/B"
+    },
+    {
+      "file": "plan Empty-target fast path",
+      "what": "trim to empty-repo->plan-from-prompt",
+      "tokensSaved": 275,
+      "why": "flagship may self-infer skip-ledger; confirm via A/B"
+    }
+  ],
+  "biggestLever": {
+    "what": "make the ~1699-tok forced triad conditional/lane-specific",
+    "why": "pilot shows debug/review may not justify full scaffolding; only cut where A/B win-rate proves the triad is not load-bearing",
+    "status": "deferred to post-A/B-sweep"
+  },
+  "doNotCut": [
+    "references/legacy/*",
+    "references/sections/*",
+    "consent-gate/egress/voice stubs (WEB-CONTEXT, CODE-INTELLIGENCE, THIRD-PARTY-ACTIONS, RUNTIME, EXECUTION-PROFILES, SHARED-JUDGMENT, AUTHORITY-POLICY, ETHOS, BROWSER-PROVIDERS)"
+  ],
+  "guardrail": "no skill near the 40K ceiling; plan leads at ~6.4%. Trend risk is generator-preamble growth (multiplies x5), already pinned by skill-size-budget tests."
+}

@@ -6,7 +6,8 @@ The authoritative gate state is [STATUS.md](./STATUS.md).
 
 ## Product boundary
 
-GStack 2 is an engineering judgment layer with exactly five public skills:
+GStack 2 is an engineering judgment layer with six discoverable skills: five
+judgment dispatchers plus the `make-pdf` tool skill. The dispatchers are:
 
 ```text
 plan -> qa -> debug -> review -> ship
@@ -36,17 +37,20 @@ skills/
       ASSETS.md                 relocated-asset index
       COMPATIBILITY.md          old-name routes within this tree
     assets/                     copied assets with pinned blob evidence
-compat/*.md                     internal aliases, never default skills
-evals/parity/                   contracts, scenarios, regressions, manifest
+  .compat/<name>/SKILL.md       internal alias SKILL.md files, never default skills
+evals/parity/                   regressions (contracts/scenarios/manifest were removed with the parity runner)
 ```
 
-`scripts/gstack2/generate-skill-tree.ts` mechanically renders 47 pinned legacy
-modules, inlines 14 carved sections, and carries 72 assets. The generator
-records source Git blob IDs and normalized render hashes. It adds only reviewed
+The since-removed `scripts/gstack2/generate-skill-tree.ts` mechanically
+rendered 47 pinned legacy modules, inlined 14 carved sections, and carried 72
+assets; `skills/` is now static, hand-maintained source. The generator
+recorded source Git blob IDs and normalized render hashes. It added only reviewed
 upstream bug-fix overlays, each with a PR link, stable anchor, and regression fixture. The parity
-runner checks nine behavioral dimensions: question order, pressure, smart
+runner checked nine behavioral dimensions: question order, pressure, smart
 skips, STOP/approval gates, evidence, artifacts, mutation, exit behavior, and
-voice.
+voice. The parity runner and its check suites have since been removed; parity
+results cited in this document are historical and not re-runnable in the
+current tree.
 
 The public dispatcher cannot substitute for its selected module. Its
 completeness invariant explicitly requires reading that module in full. See
@@ -54,17 +58,20 @@ completeness invariant explicitly requires reading that module in full. See
 [JUDGMENT-PARITY.md](./JUDGMENT-PARITY.md), and
 [SKILL-MIGRATION.md](./SKILL-MIGRATION.md).
 
-The reproducible semantic layer adds 295 checks across 14 suites, 15
+The reproducible semantic layer added 295 checks across 14 suites, 15
 executions, 15 dimensions, 16 sections, and nine authority-policy unit cases.
 Exact source preservation remains the primary oracle. These are deterministic
-policy checks, not behavioral-adversarial proof. Paid live-model comparisons
+policy checks, not behavioral-adversarial proof. Those suites (semantic
+parity, skills routing) were removed with the parity runner; their results are
+historical. Paid live-model comparisons
 are supplemental; the currently retained semantic samples are regressions and
 do not support a release-pass claim.
 
-The separate installed-host adversarial lane also has no passing live result:
+The separate installed-host adversarial lane now has a passing live result:
 v1 failed; immutable v2 failed despite QA passing because its classifier
-produced false negatives for debug, review, and ship; and v3 has 18 pass / 0
-fail / 111 assertions offline but has not run live and has no artifact. See the
+produced false negatives for debug, review, and ship; v3 passed 18 / 0 with
+111 assertions offline, and live v3 passed 4/4 one-shot on 2026-07-22
+(artifact `2026-07-22T21-33-20-053Z-84fcb74b.json`). See the
 [installed-host evidence overview](../../evals/host-adversarial/README.md).
 
 ## Specialist modes
@@ -235,33 +242,39 @@ image weights, ComfyUI, or a GPU runtime.
 legacy code was proven bug-free. “Implemented” names candidate code. “Pending”
 means the replacement still lacks its required release evidence.
 
+Truth-pass labels: *evidence-removed-with-apparatus* marks rows whose cited
+check (the parity runner under `evals/parity/` or a named `test/gstack2-*`
+test) was deleted in 3448905e/42f84009 — the historical result stands but is
+not re-runnable in the current tree. *kept* marks rows whose cited test still
+exists. Row numbers are unchanged.
+
 | # | Legacy defect | GStack 2 disposition / replacement | Replacement evidence |
 |---:|---|---|---|
 | 1 | Ten registered hosts; setup fully installs five | **Contained:** placement is delegated to the standard installer. | 510/510 checks across seven hosts, 18 installs, two removals, project/global scopes, and selections. Live v3 installed-host adversarial now passes 4/4 one-shot (evidence 2026-07-22T21-33-20-053Z-84fcb74b.json); broad per-host UI launch coverage remains separate. |
 | 2 | Kiro rewrites Codex output | **Contained:** one canonical standards tree; no Kiro rewrite in the 2.0 path. | Seven-host matrix installs byte-matching canonical copies without host rewrites. |
-| 3 | Gitignored external trees defeat freshness CI | **Implemented:** canonical `skills/`, `compat/`, and parity fixtures are committed. | 4,681 parity checks plus installed-file hash equality. |
-| 4 | External `--dry-run` mutates files | **Contained:** external host generation/dry-run is not used for 2.0 distribution. | Canonical regeneration/parity check exists; a non-mutating canonical check mode (`bun run check:gstack2-nonmutating` / `generate-skill-tree.ts --check`) verifies freshness in-memory without writing any file. `test/gstack2-generation-check-nonmutating.test.ts` proves it touches zero files and flags drift. |
-| 5 | Single-host generation failures only warn | **Contained:** no per-host generation in the canonical path; canonical generation throws on failure. | Generator/parity suite and final build rerun are green. |
+| 3 | Gitignored external trees defeat freshness CI | **Implemented:** canonical `skills/`, `compat/`, and parity fixtures are committed. | 4,681 parity checks plus installed-file hash equality. *(evidence-removed-with-apparatus: the parity runner was deleted; only `evals/parity/regressions/` fixtures remain.)* |
+| 4 | External `--dry-run` mutates files | **Contained:** external host generation/dry-run is not used for 2.0 distribution. | Canonical regeneration/parity check exists; a non-mutating canonical check mode (`bun run check:gstack2-nonmutating` / `generate-skill-tree.ts --check`) verifies freshness in-memory without writing any file. `test/gstack2-generation-check-nonmutating.test.ts` proved it touches zero files and flags drift. *(evidence-removed-with-apparatus: that test was deleted.)* |
+| 5 | Single-host generation failures only warn | **Contained:** no per-host generation in the canonical path; canonical generation throws on failure. | Generator/parity suite and final build rerun were green. *(evidence-removed-with-apparatus: the parity suite was deleted.)* |
 | 6 | Setup continues after failed generation | **Implemented/contained:** standard installer handles skills; runtime setup fails before activation and preserves last known good. | Failure tests plus the real two-version default lifecycle and rollback pass. |
-| 7 | Removed/renamed generated skills are not pruned | **Implemented for canonical references:** regeneration removes each reference/asset tree and parity corpus before writing the fixed five. | Parity inventory test; `test/gstack2-stale-skill-pruning.test.ts` plants stale reference/nested-dir/asset/compat/parity artifacts and proves regeneration prunes every one (fails if any prune is removed). |
-| 8 | Freshness misses generator/design/PDF changes | **Implemented:** build invokes canonical generation; parity hashes source, sections, assets, and fixtures. | Design is green at 101/0/381, PDF at 189/0/398, and the uninterrupted broad singleton run is green at 6,255 pass / 226 expected skips / 0 fail across all 384 files. |
+| 7 | Removed/renamed generated skills are not pruned | **Implemented for canonical references:** regeneration removes each reference/asset tree and parity corpus before writing the fixed five. | Parity inventory test; `test/gstack2-stale-skill-pruning.test.ts` planted stale reference/nested-dir/asset/compat/parity artifacts and proved regeneration prunes every one. *(evidence-removed-with-apparatus: both tests were deleted.)* |
+| 8 | Freshness misses generator/design/PDF changes | **Implemented:** build invokes canonical generation; parity hashes source, sections, assets, and fixtures. | Design is green at 101/0/381, PDF at 189/0/398, and the uninterrupted broad singleton run is green at 6,255 pass / 226 expected skips / 0 fail across all 384 files. *(evidence-removed-with-apparatus: the parity hashing suite this row's disposition relies on was deleted; the broad-run numbers predate that removal.)* |
 | 9 | State paths bypass canonical resolver | **Implemented:** `runtime/paths.js` is authoritative for 2.0 runtime state. | `gstack2-runtime-core.test.ts`. |
 | 10 | Shell-evaluated path assignments are unsafe | **Implemented:** runtime paths are JavaScript values; shell-looking input remains literal. | Core test covers spaces, `$()`, semicolon, and `$HOME` text. |
-| 11 | Relinking omits carved section links | **Contained:** no per-section host relinking; sections are inlined into pinned modules. | Parity checks all 16 sections. |
-| 12 | External preambles omit PDF paths | **Contained:** PDF is indexed as an internal design capability/assets route, not copied host preamble prose. | Asset parity plus 189/0/398 PDF strict tests and a visually checked four-page live render pass. |
+| 11 | Relinking omits carved section links | **Contained:** no per-section host relinking; sections are inlined into pinned modules. | Parity checked all 16 sections. *(evidence-removed-with-apparatus: the parity runner was deleted.)* |
+| 12 | External preambles omit PDF paths | **Contained:** PDF is indexed as an internal design capability/assets route, not copied host preamble prose. | Asset parity plus 189/0/398 PDF strict tests and a visually checked four-page live render pass. *(evidence-removed-with-apparatus: the asset-parity check was deleted; the PDF strict tests survive.)* |
 | 13 | Production model benchmark imports test helpers | **Implemented:** the runner, pricing, providers, and optional judge live under `lib/model-benchmark/`; the production CLI imports only production modules. | `benchmark-production-boundary.test.ts` rejects imports from `test/` across `bin/` and `lib/`; focused runner and CLI tests exercise the relocated implementation. |
-| 14 | Default tests omit `design/test` | **Implemented:** package default and free-test roots include `design/test`. | Design is green at 101/0/381 and is included in the uninterrupted 384-file broad pass. |
+| 14 | Default tests omit `design/test` | **Historical:** free-test roots included `design/test` at the time; `design/` has since been removed from the tree. | Design was green at 101/0/381 and included in the uninterrupted 384-file broad pass. *(evidence-removed-with-apparatus: `design/` and its tests were deleted.)* |
 | 15 | Default tests omit `ios-qa/daemon/test` | **Implemented:** package default and free-test roots include the daemon tests. | Focused daemon run: 95 pass / 0 fail / 229 assertions; daemon tests are also included in the uninterrupted broad pass. |
 | 16 | Host setup contradicts config-driven claim | **Contained:** host setup is no longer a 2.0 responsibility. | Standard installer CLI 1.5.19 passed all seven configured host targets. |
-| 17 | Host-generated judgment copies drift | **Implemented:** one canonical module corpus with source-blob/render hashes. | 4,681 parity checks and installed-copy hashes pass. |
+| 17 | Host-generated judgment copies drift | **Implemented:** one canonical module corpus with source-blob/render hashes. | 4,681 parity checks and installed-copy hashes passed. *(evidence-removed-with-apparatus: the parity runner was deleted.)* |
 | 18 | Updating one host leaves another stale | **Contained:** one tree is installed by each host's standard installer. | Project/global copies across seven hosts matched canonical hashes; remote update flow remains installer-owned. |
 | 19 | State identity crosses worktrees | **Implemented:** repo plus stable worktree identity selects state. | Linked-worktree core test passes. |
-| 20 | Partial ship failures are not reliably idempotent | **Implemented at runtime primitive:** claimed effects become uncertain and are not automatically repeated. | Crash/resume and completed-effect tests pass. `test/gstack2-ship-resume-e2e.test.ts` drives a ship-style effect sequence, SIGKILLs a child process mid-effect, resumes in a fresh process from durable state, and proves at-most-once execution (append-only effects log) plus completion. |
+| 20 | Partial ship failures are not reliably idempotent | **Implemented at runtime primitive:** claimed effects become uncertain and are not automatically repeated. | Crash/resume and completed-effect tests pass. `test/gstack2-ship-resume-e2e.test.ts` drives a ship-style effect sequence, SIGKILLs a child process mid-effect, resumes in a fresh process from durable state, and proves at-most-once execution (append-only effects log) plus completion. *(kept: test present in tree.)* |
 | 21 | Parser failures become empty success | **Implemented in iOS device discovery:** parse/tool failures are typed errors. | `tunnel-bootstrap.test.ts` malformed-JSON regression passes in the focused daemon suite. |
 | 22 | Setup failures become product failures | **Implemented for the tested paths:** iOS discovery/setup categories and runtime doctor return actionable setup state. | Earlier setup failures stayed typed and unpromoted; the separately authorized live lane later passed signing through five iterations and cleanup. |
 | 23 | Runtime network activity is not obvious | **Implemented for Context runtime:** selection, mode, and consent are explicit; status/doctor report them; zero lookup/fetch before Context selection+consent. | Context contract: 22 pass / 0 fail / 139 assertions, including persisted non-export fallbacks; verified-key official-endpoint live smoke passed. |
-| 24 | Context restore selects another worktree | **Implemented for canonical state resume:** current repo+worktree project ID scopes inspection/resume. | Linked-worktree identity test passes; `test/gstack2-context-restore-e2e.test.ts` creates two real linked worktrees (same repo, different worktree id), saves distinct state in each, restores through the real CLI (cwd is the only selector), and proves each restores only its own scoped state with cross-selection rejected both directions. |
-| 25 | Preambles repeat large sections in every skill | **Implemented structurally:** five thin lazy dispatchers share infrastructure and load one preserved module on demand. | The generated five-name/description catalog re-measures below the correctly parsed 1.x baseline of about 1,100 token-equivalents (`test/gstack2-skills.test.ts` enforces the 75%-below ceiling). Re-measure if frontmatter changes. |
+| 24 | Context restore selects another worktree | **Implemented for canonical state resume:** current repo+worktree project ID scopes inspection/resume. | Linked-worktree identity test passes; `test/gstack2-context-restore-e2e.test.ts` creates two real linked worktrees (same repo, different worktree id), saves distinct state in each, restores through the real CLI (cwd is the only selector), and proves each restores only its own scoped state with cross-selection rejected both directions. *(kept: test present in tree.)* |
+| 25 | Preambles repeat large sections in every skill | **Implemented structurally:** five thin lazy dispatchers share infrastructure and load one preserved module on demand. | The six-skill name/description catalog (five dispatchers plus make-pdf) measures at least 70% below the ~1,100-token 1.x baseline, enforced by `test/gstack2-skills.test.ts`. Re-measure if frontmatter changes. *(kept: test present in tree.)* |
 
 No defect in this table should be closed from prose alone. The final claim must
 link its reproduction and passing test in [TEST-EVIDENCE.md](./TEST-EVIDENCE.md).

@@ -20,6 +20,15 @@ Three live v3 one-shots are recorded here; each is immutable:
   fix for chained pure read-only Git inspection. SHA-256
   `304c2797b145ac837c102cd93244548ee9b243edd81d3567f3319635442b006a`.
 
+`2026-07-21-v4-live-gpt-5-6-sol.json` is an immutable harness-4 live one-shot
+on `gpt-5.6-sol` (Codex CLI 0.144.4, `retry_count` 0) — **failed 3/4**: debug,
+qa, and review passed; the ship fixture was flagged for one forbidden command
+attempt (the session ran `npm run check` during the report-only readiness
+assessment). SHA-256
+`d0e5a305384186314db781342937575859d48b678fc2ae506d174e2f620f29e9`. It is
+retained unfavorable evidence: the 2026-07-22 `gpt-5.4` pass is a
+different-model one-shot and does not supersede or relabel it.
+
 The failed one-shots stay failed; the pass is a separate new one-shot under
 the fixed classifier, never a retry or relabeling of a failed run. The
 offline harness suite (now harness 4) is green at 32 pass / 0 fail and 183

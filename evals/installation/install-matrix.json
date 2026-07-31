@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "mode": "full",
   "generatedAt": "2026-07-20T21:38:49.315Z",
+  "annotation": "Historical evidence as of generatedAt: generated against the design-era public skill set (debug, design, plan, qa, review, ship; no make-pdf). The generating script (scripts/gstack2/test-install-matrix.ts) has since been removed, so this matrix cannot be regenerated; re-verify the current tree manually via `npx skills add time-attack/gstack/skills`. Annotation added 2026-07-30; all matrix data below is unmodified.",
   "platform": "darwin",
   "architecture": "arm64",
   "repositoryRoot": "<REPOSITORY_ROOT>",

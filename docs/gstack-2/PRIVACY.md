@@ -2,9 +2,11 @@
 
 GStack 2 defaults to local judgment and local state. Optional network and
 device capabilities are separated by explicit purpose and consent. The full
-retained-tool egress audit ran on 2026-07-28 and passed with zero violations;
-see [the audit section below](#retained-tool-egress-audit-2026-07-28) and the
-gate list in [STATUS.md](./STATUS.md).
+retained-tool egress audit ran on 2026-07-28 and passed with zero violations
+([audit section below](#retained-tool-egress-audit-2026-07-28)); the
+2026-07-30 integration-wave re-audit, with per-surface call-site tables and
+remediation status, is [EGRESS-AUDIT.md](./EGRESS-AUDIT.md). See the gate
+list in [STATUS.md](./STATUS.md).
 
 ## Data-flow summary
 
@@ -37,6 +39,11 @@ an isolated temporary home that was removed afterward; the committed artifact
 contains no credential or response body.
 
 ## Retained-tool egress audit (2026-07-28)
+
+A newer re-audit of the same surfaces on the integration branch (2026-07-30,
+eight parallel auditors) lives in [EGRESS-AUDIT.md](./EGRESS-AUDIT.md); it
+records the violations found after this run and their fix status. The
+section below documents the original 2026-07-28 baseline audit.
 
 Every network egress path in the retained tools was audited against this
 contract across 9 surfaces: browse server + tunnel, the deleted design CLI and

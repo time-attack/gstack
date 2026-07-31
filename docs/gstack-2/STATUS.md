@@ -1,6 +1,6 @@
 # GStack 2 status
 
-**Status at the 2026-07-22 checkpoint: `BLOCKED` (primary live gate cleared).**
+**Status at the 2026-07-30 checkpoint: `BLOCKED` (primary live gate cleared).**
 
 The candidate contains substantial implementation, but it is not yet a released
 or verified GStack 2. `DONE` is prohibited until every P0 gate is backed by the
@@ -29,13 +29,14 @@ PR, or PR-ready claim is authorized by this status.
   traced.
 - [x] Five canonical judgment dispatcher directories: `plan`, `qa`, `debug`,
   `review`, and `ship`, plus the `make-pdf` tool skill emitted into
-  `skills/make-pdf/`. (The `/design` skill was retired; its runtime image /
-  diagram / PDF capabilities remain available to the surviving skills.)
+  `skills/make-pdf/`. (The `/design` skill and its runtime were retired; PDF
+  generation survives as the `make-pdf` tool skill.)
   `make-pdf` is a tool skill, not a mode-based dispatcher, but it ships in the
-  same canonical tree, so `npx skills add time-attack/gstack/skills` now
-  surfaces six discoverable skills. The install-matrix and native-CI runs
-  recorded below ("exactly five skills") predate this addition; a fresh install
-  now finds six, and re-running those matrices to refresh the counts is pending.
+  same canonical tree, so `npx skills add time-attack/gstack/skills` surfaces
+  six discoverable skills. The install-matrix and native-CI runs recorded below
+  also counted six discoverable skills, but on the design-era tree (`design`
+  present, `make-pdf` absent) — the staleness is name-level, not count-level.
+  Re-running those matrices against the current tree is pending.
 - [x] The six `/plan` top-level modes are exactly **Discovery, Product,
   Engineering, DX, Specification, and Full chain**.
 - [x] Standard installer matrix is green: 510/510 checks, 18 installs and two
@@ -45,7 +46,8 @@ PR, or PR-ready claim is authorized by this status.
   copies, and canonical hashes passed. The committed artifact is
   [`evals/installation/install-matrix.json`](../../evals/installation/install-matrix.json).
 - [x] A standards-based Codex runtime-absent run passed. The canonical root
-  `--list` returned exactly five skills; the selected install used
+  `--list` returned exactly six skills (the design-era catalog); the selected
+  install used
   `time-attack/gstack/skills --skill qa` and installed only byte-identical
   `qa`. `skills` 1.5.19 can count hidden aliases in its pre-filter display, so
   that display is not the installed subset count. Codex then preserved pure
@@ -53,32 +55,42 @@ PR, or PR-ready claim is authorized by this status.
   no file changes, started no browser, created no runtime, and contacted no
   GStack external service. Artifact:
   [`evals/installation/standard-codex-runtime-absent-2026-07-17.json`](../../evals/installation/standard-codex-runtime-absent-2026-07-17.json).
-- [x] The current five names/descriptions stay well below the correctly parsed
-  1.x baseline of about 1,100 token-equivalents; `test/gstack2-skills.test.ts`
-  enforces the 75%-below ceiling on every run.
-- [x] Generated inventory contains 47 preserved modules, 14 carved sections,
-  19 scenarios, 25 regression definitions, and 72 assets.
-- [x] Compatibility aliases remain opt-in and outside default five-skill
+- [x] The current six names/descriptions stay well below the correctly parsed
+  1.x baseline of about 1,100 token-equivalents; the restored import-free
+  `test/gstack2-skills.test.ts` enforces the at-least-70%-below-the-1.x-baseline
+  ceiling across all six skills on every free-suite run.
+- [x] The pinned inventory contains 47 preserved modules, 14 carved sections,
+  19 scenarios, 34 regression definitions, and 70 assets
+  ([JUDGMENT-PROVENANCE.json](./JUDGMENT-PROVENANCE.json)).
+- [x] Compatibility aliases remain opt-in and outside default six-skill
   discovery; each prints its replacement and contains no copied judgment.
 - [x] Judgment provenance, behavioral contracts, 19 structured scenarios, and
-  25 upstream bug-fix regression definitions implemented.
-- [x] The regenerated parity rerun is green: 4,336 checks covering
-  47 modules, 14 sections, 19 scenarios, 25 regressions, and 72 assets.
-- [x] Deterministic semantic parity is green: 238 checks across 11 suites, 12
-  executions, 15 comparison dimensions, 14 carved sections, and eight
+  34 upstream bug-fix regression definitions implemented.
+- [x] The final recorded parity run before the generator/parity harness was
+  retired is green: 5,650 checks covering 47 modules, 14 sections, 19
+  scenarios, 34 regression ports, and 70 assets (pinned in
+  [JUDGMENT-PARITY.md](./JUDGMENT-PARITY.md)). Historical: the harness is
+  gone, so the figure is not re-runnable on this tree.
+- [x] Deterministic semantic parity closed green: 295 checks across 14 suites,
+  15 executions, 15 comparison dimensions, 16 carved sections, and nine
   authority-policy unit cases, including unsupported numeric claims. Exact
-  preserved source bodies are the primary
-  oracle. These are deterministic policy checks, not behavioral-adversarial
-  proof, and do not close the installed-host gate. All
+  preserved source bodies are the primary oracle. Historical: the semantic
+  harness was retired with the generator apparatus, so this figure is not
+  re-runnable. These were deterministic policy checks, not
+  behavioral-adversarial proof, and do not close the installed-host gate. All
   three retained Claude Haiku live samples are classified `REGRESSION`; they
   are preserved as noisy supplemental evidence, never cherry-picked as a
   primary gate or represented as green.
-- [x] The current macOS GStack 2 suite is green: 218 pass / 0 fail and 2,229
-  assertions across 20 files.
+- [x] The final recorded macOS GStack 2 suite run under the retired generator
+  apparatus was green: 218 pass / 0 fail and 2,229 assertions across 20 files.
+  Historical: that suite ran through the removed `scripts/gstack2` apparatus
+  and several of its files no longer exist; current coverage runs through the
+  free suite (`bun test`, with 16 `test/gstack2-*.test.ts` files present).
 - [x] Optional host-neutral runtime implemented with canonical paths,
   repo/worktree state identity, locks, atomic writes, effect claims,
   doctor/config/state/cleanup, migrations, upgrade/rollback, and uninstall.
-- [x] Managed runtime installer coverage is green at 34 pass / 0 fail. The
+- [x] Managed runtime installer coverage is green at 25 pass / 0 fail with 341
+  assertions ([UPGRADE-AND-ROLLBACK.md](./UPGRADE-AND-ROLLBACK.md)). The
   deterministic clean macOS arm64 managed-bundle audit records
   110 components, 1,829 files, 450,044,315 bytes, and 50 capability launchers.
   This is a platform-specific bundle measurement, not a universal byte count;
@@ -128,13 +140,16 @@ PR, or PR-ready claim is authorized by this status.
   was not persisted in the repository or permanent GStack state.
 - [x] iOS candidate fixes implemented for UDID/CoreDevice identity, malformed
   device-list errors, suspended-app bounded timeout, and active-bundle checks.
-- [x] Default/free-test roots now include `design/test` and
-  `ios-qa/daemon/test`.
+- [x] Default/free-test roots are `browse/test`, `test`, `make-pdf/test`, and
+  `ios-qa/daemon/test` (`scripts/test-free-shards.ts`); the retired
+  `design/test` tree is gone.
 - [x] Focused retained capability suites are green: iOS daemon 95 pass / 0 fail
-  / 229 assertions; design 101 pass / 0 fail / 381 assertions; PDF 189 pass / 0
-  fail / 398 assertions; and diagram 51 pass / 0 fail / 1 skip / 120
-  assertions. The opt-in paid diagram lane recorded two skips and is not live
-  provider evidence.
+  / 229 assertions and PDF 189 pass / 0 fail / 398 assertions (`make-pdf/test`).
+  Historical: the design and diagram runtimes were retired with the `/design`
+  skill; their final recorded runs (design 101 pass / 0 fail / 381 assertions;
+  diagram 51 pass / 0 fail / 1 skip / 120 assertions) are retained as history,
+  and those trees no longer exist. The opt-in paid diagram lane recorded two
+  skips and was never live provider evidence.
 - [x] After the user re-authorized the connected test phone, the physical-iOS
   lane passed 12/12. The existing Apple-signed wildcard development profile and
   matching private key signed the reserved fixture; no fabricated profile was
@@ -187,7 +202,8 @@ PR, or PR-ready claim is authorized by this status.
   [`29615621805`](https://github.com/time-attack/gstack/actions/runs/29615621805)
   passed at commit `a8a5fa1a`: macOS 150/0/1,189, Ubuntu 150/0/1,189,
   Windows 150/0/1,145, Dev Container 150/0/1,188, and the standard installer
-  470/470. Each native installer discovery found exactly five skills. Sanitized
+  470/470. Each native installer discovery found exactly six skills (the
+  design-era catalog). Sanitized
   artifact:
   [`evals/ci/native-2026-07-17.json`](../../evals/ci/native-2026-07-17.json).
 - [x] Architecture, privacy, Context.dev, host compatibility, upgrade/rollback,
@@ -201,13 +217,15 @@ PR, or PR-ready claim is authorized by this status.
   and no mutation or forbidden-command attempts. Broad per-host UI launch
   coverage across all seven hosts remains partial (still verified at the
   installer layer plus this four-skill live run).
-- [x] RESOLVED: the four previously-pending infrastructure rows now carry
-  evidence-linked tests — row 4 (`test/gstack2-generation-check-nonmutating.test.ts`,
-  non-mutating `--check`), row 7 (`test/gstack2-stale-skill-pruning.test.ts`),
-  row 20 (`test/gstack2-ship-resume-e2e.test.ts`, real process-kill + cross-process
-  resume), row 24 (`test/gstack2-context-restore-e2e.test.ts`, real linked-worktree
-  scoping). All 25 rows in [ARCHITECTURE.md](./ARCHITECTURE.md) are now
-  implemented/contained with evidence.
+- [x] RESOLVED with one caveat: rows 20
+  (`test/gstack2-ship-resume-e2e.test.ts`, real process-kill + cross-process
+  resume) and 24 (`test/gstack2-context-restore-e2e.test.ts`, real
+  linked-worktree scoping) remain evidence-linked and both tests exist on this
+  tree. Rows 4 (non-mutating `--check`) and 7 (stale-skill pruning) lost their
+  evidence tests when the generator apparatus was removed — `skills/` now
+  ships static, so both rows are moot-by-design; their recorded evidence is
+  removed-with-apparatus, not re-runnable. See
+  [ARCHITECTURE.md](./ARCHITECTURE.md).
 - [ ] Remaining before `DONE`: (a) per-host UI launch coverage — four of seven
   hosts carry live UI evidence (Codex full 4/4 suite; Claude Code and Cursor
   passed scored UI-launch cells; Pi launched but its scored cell is a retained
@@ -220,12 +238,23 @@ PR, or PR-ready claim is authorized by this status.
   signed `v2.0.0-rc.6` runtime bootstrap exercised through the production install
   path. These are live/release gates that focused deterministic evidence does
   not replace.
-- [x] Gate (c), the full retained-tool egress (privacy) audit, completed
-  2026-07-28: verdict **PASS**, zero violations across 9 surfaces, with 9
-  NEEDS_REVIEW findings (consent-semantics drift, hygiene leftovers, one
-  metadata leak) fixed on this branch. Evidence:
+- [x] Gate (c), the full retained-tool egress (privacy) audit. Current
+  authority: the 2026-07-30 re-audit in [EGRESS-AUDIT.md](./EGRESS-AUDIT.md),
+  which supersedes the 2026-07-28 run (that run passed at zero violations,
+  but covered the tree before subsequent integration work). The re-audit
+  found P1/P2 violations (no P0) and confirms no default-on external egress
+  of code or user content in any retained tool. Fixed and verified in tree
+  this wave: the anonymous-tier install ping, hardcoded update upstream,
+  deepeval default-on telemetry, `/health` root-token carve-outs, StateServer
+  wildcard bind, gbrain-sync policy bypass, make-pdf raw-HTML offline-gate
+  bypass, and Braintrust key-presence-equals-consent banner. Still open
+  (all P2): ios-qa `GET /auth/sessions` raw-token exposure, deepeval
+  `evaluate()` ambient-key auto-upload, browse local telemetry env-only off
+  switch, cosign silent SHA-256 downgrade, StateServer boot-token os_log,
+  deprecated brain-consumer/reader curl scripts, and make-pdf preview
+  remote images. Historical evidence:
   [evals/privacy/egress-audit-2026-07-28.md](../../evals/privacy/egress-audit-2026-07-28.md)
-  (+ machine-readable `.json`); fix summary in
+  (+ machine-readable `.json`) and
   [PRIVACY.md](./PRIVACY.md#retained-tool-egress-audit-2026-07-28).
 
 ## Evidence index
@@ -236,15 +265,15 @@ PR, or PR-ready claim is authorized by this status.
 | Candidate and baseline command ledger | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md) | Runtime-absent, SIGINT, and native matrix pass; live v3 passed 4/4 on 2026-07-22 |
 | Native CI matrix | [native-2026-07-17.json](../../evals/ci/native-2026-07-17.json) | macOS, Ubuntu, Windows, installer, and Dev Container green |
 | Complete skill migration | [SKILL-MIGRATION.md](./SKILL-MIGRATION.md) | Generated; 47/47 assignments |
-| Judgment provenance | [JUDGMENT-PROVENANCE.json](./JUDGMENT-PROVENANCE.json) | Generated; 4,881-check parity rerun green |
-| Parity contract | [JUDGMENT-PARITY.md](./JUDGMENT-PARITY.md) | Green for source/render/contract/asset fixtures |
-| Semantic parity | [SEMANTIC-PARITY.md](./SEMANTIC-PARITY.md) | Deterministic 295-check corpus green; retained live samples are regressions |
+| Judgment provenance | [JUDGMENT-PROVENANCE.json](./JUDGMENT-PROVENANCE.json) | Pinned inventory (47/14/19/34/70); final 5,650-check parity run recorded before harness retirement (historical, not re-runnable) |
+| Parity contract | [JUDGMENT-PARITY.md](./JUDGMENT-PARITY.md) | Final recorded run green (5,650 checks); parity harness retired, not re-runnable |
+| Semantic parity | [SEMANTIC-PARITY.md](./SEMANTIC-PARITY.md) | Deterministic 295-check corpus closed green (historical; harness retired); retained live samples are regressions |
 | Installed-host adversarial | [eval overview](../../evals/host-adversarial/README.md), [passing live v3 artifact](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json) | V1/V2 failed; paid live V3 passes 4/4 one-shot (earlier 3/4 runs retained); harness-4 offline 32/0 green; 2026-07-28 UI-launch cells: claude + cursor passed, pi retained failed |
-| Structured scenarios | [SCENARIOS.md](./SCENARIOS.md) | 25/25 structured routing fixtures green |
+| Structured scenarios | [SCENARIOS.md](./SCENARIOS.md) | 19/19 structured routing fixtures green |
 | Backlog traceability | [BACKLOG-MAP.json](./BACKLOG-MAP.json) | 820 unique items mapped (snapshots refreshed 2026-07-28) |
 | Context integration | [CONTEXT-DEV.md](./CONTEXT-DEV.md) | Automated contract 22/139 green; verified-key official-endpoint live smoke passed |
 | Host matrix | [HOST-COMPATIBILITY.md](./HOST-COMPATIBILITY.md) | 510/510 checks; Codex runtime-absent run + 4/4 live v3 passed; claude/cursor UI cells passed; pi cell retained failed; kimi auth-blocked; openclaw/copilot pending availability |
-| Privacy boundary | [PRIVACY.md](./PRIVACY.md) | Implemented contract; full retained-tool egress audit pending |
+| Privacy boundary | [PRIVACY.md](./PRIVACY.md), [EGRESS-AUDIT.md](./EGRESS-AUDIT.md) | Implemented contract; 2026-07-30 re-audit is current authority (supersedes the 2026-07-28 zero-violation pass): P1/P2 violations found, all P1s fixed and verified in tree, seven P2 items open |
 | Physical iOS | [IOS-PHYSICAL-DEVICE.md](./IOS-PHYSICAL-DEVICE.md), [live artifact](./evidence/ios-physical-device-2026-07-20T17-49-19-302Z.json) | 12/12 harness tests and five-of-five live iterations passed on a wired paired iPhone |
 | Upgrade/recovery | [UPGRADE-AND-ROLLBACK.md](./UPGRADE-AND-ROLLBACK.md) | Runtime installer 25 pass / 341 assertions; deterministic clean macOS arm64 bundle audit recorded |
 

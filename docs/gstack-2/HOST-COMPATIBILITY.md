@@ -47,15 +47,19 @@ qa
 debug
 review
 ship
+make-pdf
 ```
 
-`compat/*.md` and `references/legacy/*.md` are not `SKILL.md` files and must not
-appear as additional skills. Installing a subset must not pull the other four
+Compatibility aliases live at `skills/.compat/<name>/SKILL.md` (routing-only,
+no judgment); the dot-prefixed directory keeps them out of discovery, so
+neither they nor `references/legacy/*.md` may appear as additional skills. Installing a subset must not pull the other
 public entries unless the user selected them.
 
-With `skills` CLI 1.5.19, the repository-root `--list` result is exactly these
-five names. For selected installation, use the canonical `skills/` source as in
-the example above. That CLI version's pre-filter display can count hidden
+The committed `skills` CLI 1.5.19 evidence run predates the `design` →
+`make-pdf` change, so its recorded discovery result is the six design-era names
+(`debug`, `design`, `plan`, `qa`, `review`, `ship`), not the current set. For
+selected installation, use the canonical `skills/` source as in the example
+above. That CLI version's pre-filter display can count hidden
 compatibility aliases, but the committed actual-host artifact proves that only
 the selected `qa` directory was installed; the display count is not an
 installed-skill count.
@@ -71,11 +75,17 @@ absent. Every installed file was a physical copy and its hash matched the
 selected source. The standard skill installation remains Markdown-only and
 does not install the optional runtime. The committed evidence artifact is
 [`evals/installation/install-matrix.json`](../../evals/installation/install-matrix.json).
+That artifact is **historical evidence as of its 2026-07-20 `generatedAt`
+date**: it was generated against the design-era skill set (`design` in place of
+`make-pdf`) by a matrix script that has since been removed. Its
+installer-mechanics results (copy fidelity, hashes, scope handling, removal)
+stand as of that date; it does not verify discovery of the current six-skill
+set.
 
 | Host | Portable | Project all-five | Global all-five | Selected-skill coverage | Installer tier | Host UI/process |
 |---|---|---|---|---|---|---|
 | Claude Code | yes | pass | pass | no separate subset case | **Verified — installer** | **UI-verified**: six-skill discovery + `/qa` activation probes passed; scored one-shot cell **passed 13/13** ([artifact](../../evals/host-adversarial/runs/2026-07-28-uilaunch-claude-2.json)); first cell retained failed on a harness parser defect ([artifact](../../evals/host-adversarial/runs/2026-07-28-uilaunch-claude.json)) |
-| OpenAI Codex | yes | pass | pass | global `qa`, `review`, `ship` pass + removal pass; actual selected `qa` runtime-absent run; opt-in alias covered | **Verified — installer**; runtime-absent invocation passed | **UI-verified**: live v3 adversarial **passed 4/4** one-shot ([artifact](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json)); v1, v2, and two earlier 3/4 live v3 one-shots retained failed |
+| OpenAI Codex | yes | pass | pass | global `qa`, `review`, `ship` pass + removal pass; actual selected `qa` runtime-absent run; opt-in alias covered | **Verified — installer**; runtime-absent invocation passed | **UI-verified**: live v3 adversarial **passed 4/4** one-shot ([artifact](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json)); v1, v2, two 3/4 live v3 one-shots, and a 3/4 harness-4 `gpt-5.6-sol` one-shot ([artifact](../../evals/host-adversarial/runs/2026-07-21-v4-live-gpt-5-6-sol.json)) retained failed |
 | Kimi Code CLI | yes | pass | pass | no separate subset case | **Verified — installer** | six-skill discovery verified from kimi's own session context record; every model call fails 401 (local OAuth grant expired 2026-07-24, refresh rejected) — scored cell pending operator `kimi login`. Browser automation uses the consented GStack local-browser fallback |
 | Cursor | yes | pass | pass | project `qa`, `review`, `ship` pass + removal pass | **Verified — installer** | **UI-verified**: six-skill discovery + `/qa` activation probes passed; scored one-shot cell **passed 13/13** in ask mode ([artifact](../../evals/host-adversarial/runs/2026-07-28-uilaunch-cursor-2.json)); first cell retained failed on plan-mode final-message conflict + a harness plan-tool misclassification ([artifact](../../evals/host-adversarial/runs/2026-07-28-uilaunch-cursor.json)) |
 | Pi | yes | pass | pass | no separate subset case | **Verified — installer** | UI launch + `/qa` activation verified by probe; scored one-shot cell **failed** — safe report-only behavior and valid structured output but only 2/5 mandated reads (pi 0.80.9, `gemini-2.5-pro`), retained as-is ([artifact](../../evals/host-adversarial/runs/2026-07-28-uilaunch-pi.json)) |
@@ -104,14 +114,30 @@ runtime or browser. The Codex adversarial lane now has a passing live result:
 the 2026-07-22 paid live v3 one-shot **passed 4/4** (Codex CLI 0.145.0,
 `gpt-5.4`, `retry_count` 0; artifact
 [`2026-07-22T21-33-20-053Z-84fcb74b.json`](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json)).
-The retained failed history is unchanged: v1 and immutable v2 failed, and two
+The retained failed history is unchanged: v1 and immutable v2 failed, two
 earlier live v3 one-shots each failed 3/4 (review compound inspection, then
-ship `git symbolic-ref` under the pre-fix classifier). None was retried or
+ship `git symbolic-ref` under the pre-fix classifier), and a harness-4
+`gpt-5.6-sol` one-shot (Codex CLI 0.144.4, 2026-07-21) failed 3/4 when the
+ship fixture logged one forbidden command attempt (the session ran
+`npm run check` during the report-only readiness assessment; artifact
+[`2026-07-21-v4-live-gpt-5-6-sol.json`](../../evals/host-adversarial/runs/2026-07-21-v4-live-gpt-5-6-sol.json)).
+The 4/4 pass is a single-model result on the model recorded in its artifact
+and does not supersede the retained `gpt-5.6-sol` failure. None was retried or
 relabeled; the offline harness suite (now harness 4 with per-host adapters) is
 green at 32 tests / 183 assertions. The installer
 matrix used the current local canonical projection through the published
 `npx skills` CLI. The release branch remained unpushed; native CI used the
 temporary `codex/gstack-2-ci-20260717-39bc307b` ref only.
+
+Hosts still without any live host-UI execution evidence:
+
+- **Kimi Code CLI** — installer- and discovery-verified only; the scored cell
+  is blocked on an expired operator OAuth grant (`kimi login` required).
+- **OpenClaw** — installer-verified only; the CLI is not installed here.
+- **GitHub Copilot** — installer-verified only; requires a paid Copilot seat.
+
+Pi has live UI evidence, but its scored cell is a retained failure, not a
+pass.
 
 Legacy generators currently know ten host names. That is historical breadth,
 not proof that all ten install correctly. Kiro's old Codex-rewrite behavior and
@@ -138,26 +164,38 @@ operator's live skill directory.
 11. Record exact command, exit status, output artifact, and cleanup result in
     [TEST-EVIDENCE.md](./TEST-EVIDENCE.md).
 
-The automated filesystem portion is:
+The scripted matrix runner (`scripts/gstack2/test-install-matrix.ts`) and its
+test file were removed with the rest of `scripts/gstack2/`, so the committed
+matrix JSON cannot be regenerated and stands as historical evidence at its
+recorded date. To re-verify installation against the current tree, run the
+standard installer manually from a clean temporary home and project:
 
 ```bash
-bun test test/gstack2-installation.test.ts
-bun run scripts/gstack2/test-install-matrix.ts --full \
-  --output /tmp/gstack2-install-matrix.json
+# From a clean temp project (HOME pointed at a temp dir):
+npx skills add time-attack/gstack/skills            # all six, project scope
+npx skills add time-attack/gstack/skills -g         # global scope
+npx skills add time-attack/gstack/skills --skill qa # selected subset
 ```
 
-The current matrix passed 510/510 installer CLI checks across 18 installs and two
+Then assert the discovered set is exactly the six canonical names, compare
+each installed file's hash against its source, verify the subset case
+installed only the selected skill, and remove everything through the same
+installer.
+
+The committed historical matrix (2026-07-20, design-era skill set) passed
+510/510 installer CLI checks across 18 installs and two
 removals; its JSON artifact is committed at
 [`evals/installation/install-matrix.json`](../../evals/installation/install-matrix.json).
 Steps 8–9 passed for the recorded Codex runtime-absent invocation; UI-launch
 cells now also cover Claude Code, Cursor, and (as a retained failure) Pi per
 the matrix above. The paid live v3
-adversarial gate **passed 4/4 one-shot** on 2026-07-22; the two earlier 3/4
+adversarial gate **passed 4/4 one-shot** on 2026-07-22; the 3/4
 one-shots are retained as immutable failed runs, not pending runs. Evidence:
 [`standard-codex-runtime-absent-2026-07-17.json`](../../evals/installation/standard-codex-runtime-absent-2026-07-17.json),
 [`2026-07-22T21-33-20-053Z-84fcb74b.json`](../../evals/host-adversarial/runs/2026-07-22T21-33-20-053Z-84fcb74b.json)
 (passed), and the retained failed one-shots
-[`2026-07-17T19-48-45Z-v3-live-gpt-5-4.json`](../../evals/host-adversarial/runs/2026-07-17T19-48-45Z-v3-live-gpt-5-4.json)
+[`2026-07-17T19-48-45Z-v3-live-gpt-5-4.json`](../../evals/host-adversarial/runs/2026-07-17T19-48-45Z-v3-live-gpt-5-4.json),
+[`2026-07-21-v4-live-gpt-5-6-sol.json`](../../evals/host-adversarial/runs/2026-07-21-v4-live-gpt-5-6-sol.json),
 and [`2026-07-22T20-57-26-117Z-b39a6a57.json`](../../evals/host-adversarial/runs/2026-07-22T20-57-26-117Z-b39a6a57.json).
 
 ## Optional runtime/platform matrix
