@@ -27,42 +27,75 @@ import { spawnSync } from 'child_process';
 const ROOT = path.resolve(import.meta.dir, '..');
 const BIN = path.join(ROOT, 'bin');
 
+// Hermetic guards. The bin scripts under test shell out to `gh auth status` /
+// `glab auth status` (gstack-artifacts-init) and `gbrain` (source-wireup via
+// restore/uninstall) — real NETWORK calls on a configured dev machine. Those
+// ran through synchronous spawnSync, which blocks the event loop, so bun's
+// per-test timeout could never fire and a hang killed the whole shard.
+// Fix: fail-fast stubs at the head of PATH (offline-deterministic: providers
+// simply "not authenticated" / gbrain "not installed"), a fake HOME so
+// ~/.gstack-artifacts-remote.txt and gh/glab/gbrain config never leak in or
+// out of the real home, and a hard timeout on every spawnSync as a
+// last-resort bound (a killed spawn fails its test instead of hanging the shard).
+const SPAWN_TIMEOUT = 15000;
+const STUB_BIN = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-sync-stubs-'));
+for (const tool of ['gh', 'glab', 'gbrain']) {
+  const stub = path.join(STUB_BIN, tool);
+  fs.writeFileSync(stub, '#!/bin/sh\nexit 1\n');
+  fs.chmodSync(stub, 0o755);
+}
+
 let tmpHome: string;
 let bareRemote: string;
+let fakeHome: string;
+
+function baseEnv(extra: Record<string, string> = {}) {
+  return {
+    ...process.env,
+    PATH: `${STUB_BIN}:${process.env.PATH}`,
+    HOME: fakeHome,
+    GSTACK_HOME: tmpHome,
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_CONFIG_NOSYSTEM: '1',
+    ...extra,
+  };
+}
 
 function run(argv: string[], opts: { env?: Record<string, string>; input?: string } = {}) {
   const bin = argv[0];
   const full = bin.startsWith('/') ? bin : path.join(BIN, bin);
   const res = spawnSync(full, argv.slice(1), {
-    env: { ...process.env, GSTACK_HOME: tmpHome, ...(opts.env || {}) },
+    env: baseEnv(opts.env),
     encoding: 'utf-8',
     input: opts.input,
     cwd: ROOT,
+    timeout: SPAWN_TIMEOUT,
   });
   return { stdout: res.stdout || '', stderr: res.stderr || '', status: res.status ?? -1 };
 }
 
 function git(args: string[], cwd?: string) {
-  const res = spawnSync('git', args, { cwd: cwd || tmpHome, encoding: 'utf-8' });
+  const res = spawnSync('git', args, {
+    cwd: cwd || tmpHome,
+    encoding: 'utf-8',
+    env: baseEnv(),
+    timeout: SPAWN_TIMEOUT,
+  });
   return { stdout: res.stdout || '', stderr: res.stderr || '', status: res.status ?? -1 };
 }
 
 beforeEach(() => {
   tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-sync-home-'));
   bareRemote = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-sync-remote-'));
-  spawnSync('git', ['init', '--bare', '-q', '-b', 'main', bareRemote]);
+  fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-sync-fakehome-'));
+  spawnSync('git', ['init', '--bare', '-q', '-b', 'main', bareRemote], { timeout: SPAWN_TIMEOUT });
 });
 
 afterEach(() => {
   fs.rmSync(tmpHome, { recursive: true, force: true });
   fs.rmSync(bareRemote, { recursive: true, force: true });
-  // Clean up any remote-helper file init may have written.
-  const remoteFile = path.join(os.homedir(), '.gstack-brain-remote.txt');
-  // Only remove if it points at OUR bare remote (don't clobber a real user file).
-  try {
-    const contents = fs.readFileSync(remoteFile, 'utf-8').trim();
-    if (contents === bareRemote) fs.unlinkSync(remoteFile);
-  } catch {}
+  // Remote-helper files init/restore write land in fakeHome, never real $HOME.
+  fs.rmSync(fakeHome, { recursive: true, force: true });
 });
 
 // ---------------------------------------------------------------
@@ -163,8 +196,9 @@ describe('gstack-brain-enqueue', () => {
     for (let i = 0; i < 10; i++) {
       procs.push(new Promise<void>((resolve) => {
         const r = spawnSync(path.join(BIN, 'gstack-brain-enqueue'), [`file-${i}.jsonl`], {
-          env: { ...process.env, GSTACK_HOME: tmpHome },
+          env: baseEnv(),
           encoding: 'utf-8',
+          timeout: SPAWN_TIMEOUT,
         });
         resolve();
       }));
@@ -211,7 +245,10 @@ describe('gstack-jsonl-merge', () => {
     const lines = fs.readFileSync(ours, 'utf-8').trim().split('\n');
     expect(lines.length).toBe(3);
     // Order is deterministic (sha256 of each line).
-    const again = spawnSync(path.join(BIN, 'gstack-jsonl-merge'), [base, ours, theirs]);
+    const again = spawnSync(path.join(BIN, 'gstack-jsonl-merge'), [base, ours, theirs], {
+      env: baseEnv(),
+      timeout: SPAWN_TIMEOUT,
+    });
     // (re-running doesn't change the order since same input → same output)
   });
 });
@@ -237,7 +274,7 @@ describe('init + sync + restore round-trip', () => {
   test('refuses init on different remote', () => {
     run(['gstack-artifacts-init', '--remote', bareRemote]);
     const otherRemote = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-other-'));
-    spawnSync('git', ['init', '--bare', '-q', '-b', 'main', otherRemote]);
+    spawnSync('git', ['init', '--bare', '-q', '-b', 'main', otherRemote], { timeout: SPAWN_TIMEOUT });
     const r = run(['gstack-artifacts-init', '--remote', otherRemote]);
     expect(r.status).not.toBe(0);
     expect(r.stderr).toContain('already a git repo pointing at');
@@ -254,7 +291,10 @@ describe('init + sync + restore round-trip', () => {
     const r = run(['gstack-brain-sync', '--once']);
     expect(r.status).toBe(0);
     // Check the remote got the commit.
-    const log = spawnSync('git', ['--git-dir=' + bareRemote, 'log', '--oneline'], { encoding: 'utf-8' });
+    const log = spawnSync('git', ['--git-dir=' + bareRemote, 'log', '--oneline'], {
+      encoding: 'utf-8',
+      timeout: SPAWN_TIMEOUT,
+    });
     expect(log.stdout).toMatch(/sync: 1 file/);
   });
 
@@ -277,7 +317,10 @@ describe('init + sync + restore round-trip', () => {
     const restored = fs.readFileSync(path.join(machineB, 'projects/myproj/learnings.jsonl'), 'utf-8');
     expect(restored).toContain('machine A wisdom');
     // Merge drivers re-registered on B.
-    const cfg = spawnSync('git', ['-C', machineB, 'config', '--get', 'merge.jsonl-append.driver'], { encoding: 'utf-8' });
+    const cfg = spawnSync('git', ['-C', machineB, 'config', '--get', 'merge.jsonl-append.driver'], {
+      encoding: 'utf-8',
+      timeout: SPAWN_TIMEOUT,
+    });
     expect(cfg.stdout).toContain('gstack-jsonl-merge');
     fs.rmSync(machineB, { recursive: true, force: true });
   });
