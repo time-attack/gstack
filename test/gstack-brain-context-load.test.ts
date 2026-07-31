@@ -55,7 +55,12 @@ fi
 function prependPath(binDir: string): Record<string, string> {
   const pathKey = Object.keys(process.env).find((key) => key.toLowerCase() === "path") || "PATH";
   const currentPath = process.env[pathKey] || "";
-  return { [pathKey]: `${binDir}${delimiter}${currentPath}` };
+  return {
+    [pathKey]: `${binDir}${delimiter}${currentPath}`,
+    // Cold process spawns on a loaded machine can exceed the 500ms default
+    // budget; the fake gbrain is instant once spawned, so give it headroom.
+    GSTACK_BRAIN_TIMEOUT_MS: "10000",
+  };
 }
 
 describe("gstack-brain-context-load CLI", () => {
