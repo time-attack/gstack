@@ -42,7 +42,13 @@ fi
 _ORIGIN="${_ORIGIN%/}"
 _ORIGIN="${_ORIGIN%.git}"
 REPO_SLUG="$(printf '%s' "$_ORIGIN" | sed -nE 's#^(git@github\.com:|https?://github\.com/)?([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2#p')"
-REPO_SLUG="${REPO_SLUG:-time-attack/gstack}"
+# If the install source can't be resolved, emit a fill-in placeholder rather
+# than assuming a canonical repo — a team's fork must not be pointed elsewhere.
+if [ -z "$REPO_SLUG" ]; then
+  REPO_SLUG="<owner>/<repo>"
+  printf 'gstack-team-init: could not detect the gstack install source; wrote a placeholder install command.\n' >&2
+  printf '  Set it with: gstack-config set update_repo <owner>/<repo>   then re-run.\n' >&2
+fi
 INSTALL_CMD="npx skills add ${REPO_SLUG}/skills"
 
 # ── Migrate vendored copy if present ──────────────────────────
