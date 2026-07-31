@@ -51,6 +51,12 @@ SEC_LAYER=""
 SEC_VERDICT=""
 
 while [ $# -gt 0 ]; do
+  # Every recognized flag takes a value. A flag with its value missing is a
+  # malformed invocation: best-effort no-op (telemetry never exits non-zero,
+  # and a half-parsed event must never reach the JSONL stream).
+  case "$1" in
+    --*) [ $# -ge 2 ] || exit 0 ;;
+  esac
   case "$1" in
     --skill)         SKILL="$2"; shift 2 ;;
     --duration)      DURATION="$2"; shift 2 ;;
@@ -180,6 +186,29 @@ EVENT_TYPE="$(json_safe "$EVENT_TYPE")"
 REPO_SLUG="$(json_safe "$REPO_SLUG")"
 BRANCH="$(json_safe "$BRANCH")"
 
+# ─── Normalize categorical fields (skill_run events only) ────
+# Unrecognized values collapse to "unknown"/null so typo'd or hostile callers
+# can't pollute the analytics vocabulary. Other event types (attack_attempt,
+# first_task_scaffold_shown, upgrade_prompted) carry token payloads in these
+# fields and pass through untouched.
+if [ "$EVENT_TYPE" = "skill_run" ]; then
+  if [ -n "$SKILL" ]; then
+    _SKILL_ALT="${SKILL#gstack-}"  # prefixed installs log names like gstack-qa
+    case "$SKILL" in
+      */*|*..*) SKILL="unknown" ;;
+      *) [ -d "$GSTACK_DIR/skills/$SKILL" ] || [ -f "$GSTACK_DIR/$SKILL/SKILL.md" ] \
+          || [ -d "$GSTACK_DIR/skills/$_SKILL_ALT" ] || [ -f "$GSTACK_DIR/$_SKILL_ALT/SKILL.md" ] \
+          || SKILL="unknown" ;;
+    esac
+  fi
+  case "$OUTCOME" in
+    success|error|abort|unknown) ;;  # documented enum (skill epilogue docs)
+    *) OUTCOME="unknown" ;;
+  esac
+  # failed_step names the step that failed; it only means something on error
+  [ "$OUTCOME" = "error" ] || FAILED_STEP=""
+fi
+
 # Escape null fields — sanitize ERROR_CLASS and FAILED_STEP via json_safe()
 ERR_FIELD="null"
 [ -n "$ERROR_CLASS" ] && ERR_FIELD="\"$(json_safe "$ERROR_CLASS")\""
@@ -211,12 +240,14 @@ fi
 STEP_FIELD="null"
 [ -n "$FAILED_STEP" ] && STEP_FIELD="\"$(json_safe "$FAILED_STEP")\""
 
+# Duration must be a plain non-negative integer — anything else ("1e3x",
+# "12.5", "-3") becomes null rather than corrupting the JSONL stream.
+case "$DURATION" in
+  *[!0-9]*) DURATION="" ;;
+esac
 # Cap unreasonable durations
 if [ -n "$DURATION" ] && [ "$DURATION" -gt 86400 ] 2>/dev/null; then
   DURATION=""  # null if > 24h
-fi
-if [ -n "$DURATION" ] && [ "$DURATION" -lt 0 ] 2>/dev/null; then
-  DURATION=""  # null if negative
 fi
 
 DUR_FIELD="null"
