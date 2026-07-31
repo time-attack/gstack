@@ -144,7 +144,7 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // devex, office-hours + future PR2 carves). One file iterating CARVE_GUARDS;
   // the selector sets GSTACK_CARVE_SKILL=<name> to scope cost to the changed
   // skill (D-CODEX A). Touching the registry/helper or sections.ts runs all.
-  'carve-section-loading':       ['plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'office-hours/**', 'document-release/**', 'design-consultation/**', 'cso/**', 'test/helpers/carve-guards.ts', 'scripts/resolvers/sections.ts', 'scripts/gen-skill-docs.ts', 'test/helpers/auq-sdk-capture.ts', 'test/helpers/session-runner.ts'],
+  'carve-section-loading':       ['plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'office-hours/**', 'document-release/**', 'cso/**', 'test/helpers/carve-guards.ts', 'scripts/resolvers/sections.ts', 'scripts/gen-skill-docs.ts', 'test/helpers/auq-sdk-capture.ts', 'test/helpers/session-runner.ts'],
   'autoplan-chain-pty':          ['autoplan/**', 'plan-ceo-review/**', 'plan-design-review/**', 'plan-eng-review/**', 'plan-devex-review/**', 'test/fixtures/plans/ui-heavy-feature.md', 'test/helpers/claude-pty-runner.ts'],
   'e2e-harness-audit':            ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-completion-status.ts', 'test/helpers/agent-sdk-runner.ts', 'test/helpers/claude-pty-runner.ts'],
 
@@ -209,7 +209,6 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'investigate-prosons-format':       ['investigate/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
   'qa-prosons-format':                ['qa/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
   'review-prosons-format':            ['review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
-  'design-review-prosons-format':     ['design-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
   'document-release-prosons-format':  ['document-release/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
 
   // /plan-tune (v1 observational)
@@ -294,19 +293,6 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'ship-plan-verification': ['ship/**', 'qa-only/**', 'scripts/gen-skill-docs.ts'],
   'ship-idempotency':       ['ship/**', 'scripts/resolvers/utility.ts'],
   'review-plan-completion': ['review/**', 'scripts/gen-skill-docs.ts'],
-
-  // Design
-  'design-consultation-core':       ['design-consultation/**', 'scripts/gen-skill-docs.ts', 'test/helpers/llm-judge.ts'],
-  'design-consultation-existing':   ['design-consultation/**', 'scripts/gen-skill-docs.ts'],
-  'design-consultation-research':   ['design-consultation/**', 'scripts/gen-skill-docs.ts'],
-  'design-consultation-preview':    ['design-consultation/**', 'scripts/gen-skill-docs.ts'],
-  'plan-design-review-no-ui-scope': ['plan-design-review/**', 'scripts/gen-skill-docs.ts'],
-  'design-review-fix':              ['design-review/**', 'browse/src/**', 'scripts/gen-skill-docs.ts'],
-
-  // Design Shotgun
-  'design-shotgun-path':            ['design-shotgun/**', 'design/src/**', 'scripts/resolvers/design.ts'],
-  'design-shotgun-session':         ['design-shotgun/**', 'scripts/resolvers/design.ts'],
-  'design-shotgun-full':            ['design-shotgun/**', 'design/src/**', 'browse/src/**'],
 
   // gstack-upgrade
   'gstack-upgrade-happy-path': ['gstack-upgrade/**'],
@@ -580,7 +566,6 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'investigate-prosons-format': 'periodic',
   'qa-prosons-format': 'periodic',
   'review-prosons-format': 'periodic',
-  'design-review-prosons-format': 'periodic',
   'document-release-prosons-format': 'periodic',
 
   // /plan-tune — gate (core v1 DX promise: plain-English intent routing)
@@ -649,17 +634,6 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'codex-discover-skill': 'periodic',
   'codex-review-findings': 'periodic',
   'gemini-smoke': 'periodic',
-
-  // Design — gate for cheap functional, periodic for Opus/quality
-  'design-consultation-core': 'periodic',
-  'design-consultation-existing': 'periodic',
-  'design-consultation-research': 'gate',
-  'design-consultation-preview': 'gate',
-  'plan-design-review-no-ui-scope': 'gate',
-  'design-review-fix': 'periodic',
-  'design-shotgun-path': 'gate',
-  'design-shotgun-session': 'gate',
-  'design-shotgun-full': 'periodic',
 
 
   // gstack-upgrade
