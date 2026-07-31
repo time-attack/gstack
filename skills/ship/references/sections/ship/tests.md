@@ -158,19 +158,23 @@ Only commit if there are changes. Stage all bootstrap files (config, test direct
 
 ## Step 5: Run tests (on merged code)
 
-**Do NOT run `RAILS_ENV=test bin/rails db:migrate`** — `bin/test-lane` already calls
-`db:test:prepare` internally, which loads the schema into the correct lane database.
-Running bare test migrations without INSTANCE hits an orphan DB and corrupts structure.sql.
+**Determine the project's test command(s) — never assume them:**
 
-Run both test suites in parallel:
+1. Read the project's CLAUDE.md (and TESTING.md if present) for the documented test command(s). Step 4 may already have found or verified one — reuse that.
+2. If CLAUDE.md has no test command but Step 4 detected or bootstrapped a test framework, use the command verified in B5.
+3. If neither exists, use AskUserQuestion: "How do I run this project's test suite?" Offer any candidates you can detect (task-runner scripts, Makefile targets, the runtime's conventional default) plus "Other". Then persist the answer to CLAUDE.md's `## Testing` section so it never has to be asked again.
+
+Follow any project-specific warnings in CLAUDE.md/TESTING.md (required env vars, setup steps, commands NOT to run) — the project's docs own that knowledge, not this skill. Do not run database/setup commands the project's test harness already handles internally.
+
+Run each suite, teeing output to a temp file so results are readable after completion. If the project has multiple independent suites, run them in parallel:
 
 ```bash
-bin/test-lane 2>&1 | tee /tmp/ship_tests.txt &
-npm run test 2>&1 | tee /tmp/ship_vitest.txt &
+<test command A> 2>&1 | tee /tmp/ship_tests_a.txt &
+<test command B> 2>&1 | tee /tmp/ship_tests_b.txt &
 wait
 ```
 
-After both complete, read the output files and check pass/fail.
+After all suites complete, read the output files and check pass/fail.
 
 **If any test fails:** Do NOT immediately stop. Apply the Test Failure Ownership Triage:
 
@@ -286,49 +290,34 @@ Use AskUserQuestion:
 
 ## Step 6: Eval Suites (conditional)
 
-Evals are mandatory when prompt-related files change. Skip this step entirely if no prompt files are in the diff.
+Evals apply only to projects that have them, and are mandatory when files they cover change. The project owns its eval infrastructure — this skill only reads it.
 
-**1. Check if the diff touches prompt-related files:**
+**1. Determine whether the project has evals:**
+
+Read the project's CLAUDE.md for an eval command and any documented trigger patterns (which files, when changed, require an eval run).
+
+- **If CLAUDE.md documents no evals:** do a quick check for an obvious eval setup (an eval directory, an eval script in the project's task runner). If nothing turns up, print "No eval setup detected — skipping evals." and continue to Step 9. Do NOT invent an eval harness here.
+- **If an eval setup clearly exists but CLAUDE.md doesn't document the command or trigger patterns:** use AskUserQuestion ("How do I run this project's evals, and which files should trigger them when changed?") and persist the answer to CLAUDE.md so it never has to be asked again.
+
+**2. Check if the diff touches eval-covered files:**
 
 ```bash
 git diff origin/<base> --name-only
 ```
 
-Match against these patterns (from CLAUDE.md):
-- `app/services/*_prompt_builder.rb`
-- `app/services/*_generation_service.rb`, `*_writer_service.rb`, `*_designer_service.rb`
-- `app/services/*_evaluator.rb`, `*_scorer.rb`, `*_classifier_service.rb`, `*_analyzer.rb`
-- `app/services/concerns/*voice*.rb`, `*writing*.rb`, `*prompt*.rb`, `*token*.rb`
-- `app/services/chat_tools/*.rb`, `app/services/x_thread_tools/*.rb`
-- `config/system_prompts/*.txt`
-- `test/evals/**/*` (eval infrastructure changes affect all suites)
+Match the changed files against the project's documented trigger patterns. Also treat changes to the eval infrastructure itself (runners, judges, shared fixtures) as affecting ALL suites that depend on them.
 
-**If no matches:** Print "No prompt-related files changed — skipping evals." and continue to Step 9.
+**If no matches:** Print "No eval-covered files changed — skipping evals." and continue to Step 9.
 
-**2. Identify affected eval suites:**
+**3. Run the affected suites at the project's most rigorous setting:**
 
-Each eval runner (`test/evals/*_eval_runner.rb`) declares `PROMPT_SOURCE_FILES` listing which source files affect it. Grep these to find which suites match the changed files:
+`/ship` is a pre-merge gate — if the project's eval command supports quality tiers or judge levels, use the fullest one it documents.
 
 ```bash
-grep -l "changed_file_basename" test/evals/*_eval_runner.rb
+<project eval command> 2>&1 | tee /tmp/ship_evals.txt
 ```
 
-Map runner → test file: `post_generation_eval_runner.rb` → `post_generation_eval_test.rb`.
-
-**Special cases:**
-- Changes to `test/evals/judges/*.rb`, `test/evals/support/*.rb`, or `test/evals/fixtures/` affect ALL suites that use those judges/support files. Check imports in the eval test files to determine which.
-- Changes to `config/system_prompts/*.txt` — grep eval runners for the prompt filename to find affected suites.
-- If unsure which suites are affected, run ALL suites that could plausibly be impacted. Over-testing is better than missing a regression.
-
-**3. Run affected suites at `EVAL_JUDGE_TIER=full`:**
-
-`/ship` is a pre-merge gate, so always use full tier (Sonnet structural + Opus persona judges).
-
-```bash
-EVAL_JUDGE_TIER=full EVAL_VERBOSE=1 bin/test-lane --eval test/evals/<suite>_eval_test.rb 2>&1 | tee /tmp/ship_evals.txt
-```
-
-If multiple suites need to run, run them sequentially (each needs a test lane). If the first suite fails, stop immediately — don't burn API cost on remaining suites.
+Scope the run to the affected suites if the command supports it; if unsure which suites are affected, run ALL that could plausibly be impacted — over-testing is better than missing a regression. If multiple suites contend for a shared resource (test databases, API rate limits), run them sequentially. If the first suite fails, stop immediately — don't burn API cost on remaining suites.
 
 **Long eval suites (30+ min): launch detached so a turn boundary can't kill them.**
 A plain backgrounded eval lives in the harness's process group and dies to a
@@ -348,16 +337,9 @@ poller is reaped.
 
 **4. Check results:**
 
-- **If any eval fails:** Show the failures, the cost dashboard, and **STOP**. Do not proceed.
+- **If any eval fails:** Show the failures (and cost, if the harness reports it) and **STOP**. Do not proceed.
 - **If all pass:** Note pass counts and cost. Continue to Step 9.
 
-**5. Save eval output** — include eval results and cost dashboard in the PR body (Step 19).
-
-**Tier reference (for context — /ship always uses `full`):**
-| Tier | When | Speed (cached) | Cost |
-|------|------|----------------|------|
-| `fast` (Haiku) | Dev iteration, smoke tests | ~5s (14x faster) | ~$0.07/run |
-| `standard` (Sonnet) | Default dev, `bin/test-lane --eval` | ~17s (4x faster) | ~$0.37/run |
-| `full` (Opus persona) | **`/ship` and pre-merge** | ~72s (baseline) | ~$1.27/run |
+**5. Save eval output** — include eval results and any cost summary the harness reports in the PR body (Step 19).
 
 ---

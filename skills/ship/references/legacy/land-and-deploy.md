@@ -532,20 +532,27 @@ and tell the user: "I found and fixed a few issues during the review. The fixes 
 
 **Free tests — run them now:**
 
-Read CLAUDE.md to find the project's test command. If not specified, use `bun test`.
-Run the test command and capture the exit code and output.
+Resolve the test command from the project, never from a hardcoded stack assumption.
+Read the CLAUDE.md `## Testing` section first and use the command it declares. If that
+section is absent, search the project for its actual test entry point (package.json
+test script, Gemfile rake tasks, pytest configuration, and so on) and use what you
+find. If no test framework is detectable, note that the test check is skipped and
+continue. Run the resolved test command and capture the exit code and output.
 
 ```bash
-bun test 2>&1 | tail -10
+<project test command> 2>&1 | tail -10
 ```
 
 If tests fail: **BLOCKER.** Cannot merge with failing tests.
 
-**E2E tests — check recent results:**
+**E2E tests — check recent results (only if the project declares an eval setup):**
+
+Read CLAUDE.md for the project's eval command and eval-results location. If the
+project declares neither, skip this check and the LLM-judge check below — no warning.
 
 ```bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
-ls -t ~/.gstack-dev/evals/*-e2e-*-$(date +%Y-%m-%d)*.json 2>/dev/null | head -20
+ls -t <eval results dir>/*-e2e-*-$(date +%Y-%m-%d)*.json 2>/dev/null | head -20
 ```
 
 For each eval file from today, parse pass/fail counts. Show:
@@ -561,7 +568,7 @@ If E2E results exist but have failures: **WARNING — N tests failed.** List the
 
 ```bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
-ls -t ~/.gstack-dev/evals/*-llm-judge-*-$(date +%Y-%m-%d)*.json 2>/dev/null | head -5
+ls -t <eval results dir>/*-llm-judge-*-$(date +%Y-%m-%d)*.json 2>/dev/null | head -5
 ```
 
 If found, parse and show pass/fail. If not found, note "No LLM evals run today."

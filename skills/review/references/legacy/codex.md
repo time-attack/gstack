@@ -91,13 +91,25 @@ shared helpers that both `$review --mode Deep --module codex` and `$plan --mode 
 
 ```bash
 _TEL=off # Canonical execution does not emit GStack telemetry.
-source $GSTACK_BIN/gstack-codex-probe
-
-if ! _gstack_codex_auth_probe >/dev/null; then
-  echo "AUTH_FAILED"
+if [ -f "$GSTACK_BIN/gstack-codex-probe" ]; then
+  source "$GSTACK_BIN/gstack-codex-probe"
+  if ! _gstack_codex_auth_probe >/dev/null; then
+    echo "AUTH_FAILED"
+  fi
+  _gstack_codex_version_check   # warns if known-bad, non-blocking
+else
+  echo "RUNTIME_ABSENT"
 fi
-_gstack_codex_version_check   # warns if known-bad, non-blocking
 ```
+
+If the output contains `RUNTIME_ABSENT`, the optional gstack runtime is not
+installed, so this module's helper functions (`_gstack_codex_auth_probe`,
+`_gstack_codex_timeout_wrapper`, `gstack-paths`) are unavailable. Skip the
+codex arm gracefully: tell the user "codex skipped: optional runtime absent
+(`$GSTACK_BIN/gstack-codex-probe` not installed; install the optional gstack
+runtime to enable this outside voice)", record it as a typed degradation —
+never as a clean codex pass — and continue the surrounding workflow without
+this voice. Do not run Step 0.6 or any later step of this module.
 
 If the output contains `AUTH_FAILED`, stop and tell the user:
 "No Codex authentication found. Run `codex login` or set `$CODEX_API_KEY` / `$OPENAI_API_KEY`, then re-run this skill."
@@ -124,11 +136,18 @@ This keeps the skill working whether installed as a Claude Code plugin
 container where `HOME` may be unset and `/tmp` may be read-only.
 
 ```bash
-eval "$($GSTACK_BIN/gstack-paths)"
+if [ -x "$GSTACK_BIN/gstack-paths" ]; then
+  eval "$($GSTACK_BIN/gstack-paths)"
+else
+  PLAN_ROOT="${PLAN_ROOT:-${CLAUDE_PLANS_DIR:-$HOME/.claude/plans}}"
+  TMP_ROOT="${TMP_ROOT:-${TMPDIR:-/tmp}}"
+fi
 ```
 
 After this, every subsequent bash block in this skill uses `"$PLAN_ROOT"` and
-`"$TMP_ROOT"` rather than hardcoded `~/.claude/plans` or `/tmp/codex-*`.
+`"$TMP_ROOT"` rather than hardcoded `~/.claude/plans` or `/tmp/codex-*`. If the
+optional runtime's `gstack-paths` is absent, the fallback assignments above keep
+both variables defined (Step 0.5 has already skipped the codex arm in that case).
 
 ---
 

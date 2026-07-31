@@ -52,7 +52,7 @@ separated tokens starting with `--`. Last flag wins on conflict.
 | `--no-dedupe` | — | Skip the dedupe check. |
 | `--no-gate` | OFF (gate is ON) | Skip the codex quality-score gate between Phase 4 and Phase 5. **Redaction (Phase 4.5a semantic + 4.5b regex) still runs — there is no flag that disables it.** |
 | `--audit` | OFF | Route Phase 5 to the Audit/Cleanup template (instead of Standard). |
-| `--execute` | conditional default (see Phase 5) | Spawn `claude -p` in a fresh worktree after filing the issue. |
+| `--execute` | conditional default (see Phase 5) | Spawn an agent in a fresh worktree after filing the issue (host-conditional; see Phase 5). |
 | `--no-execute` | — | File issue only; do NOT spawn agent (alias: `--file-only`). |
 | `--file-only` | — | Same as `--no-execute`. |
 | `--plan-file <path>` | inferred from harness | Load the spec into the specified plan file instead of inferring. |
@@ -488,7 +488,12 @@ git worktree add "$SPAWN_PATH" -b "$SPAWN_BRANCH" "$PIN_SHA" 2>&1
 in-progress changes will be visible to the agent. Cancel with Ctrl+C if not
 desired." Then fall back to current dir (still spawn).
 
-If A and worktree created: spawn `claude -p` with the spec piped via stdin:
+If A and worktree created: spawn using the host's own agent-spawn affordance.
+You know which host you are running in — do not guess a binary that isn't there.
+
+- **Host with a headless/non-interactive agent CLI** (e.g. on Claude Code the
+  command is `claude -p`; other hosts have their own equivalent): spawn it in
+  the worktree with the spec piped via stdin. Claude Code example:
 
 ```bash
 cat "$ARCHIVE_PATH" | (cd "$SPAWN_PATH" && claude -p 2>&1) &
@@ -497,8 +502,21 @@ echo "Spawned: PID $SPAWN_PID in $SPAWN_PATH (branch $SPAWN_BRANCH)"
 echo "Follow with: cd $SPAWN_PATH && claude --resume"
 ```
 
+  On other hosts, substitute the host's own spawn and resume commands.
+
+- **Host without a headless spawn affordance**: print the ready-to-run handoff
+  and let the user launch it:
+
+```
+Worktree ready: $SPAWN_PATH (branch $SPAWN_BRANCH)
+Spec: $ARCHIVE_PATH
+Start your agent in that directory and feed it the spec, e.g.:
+  cd $SPAWN_PATH && <your-agent-cli> < $ARCHIVE_PATH
+```
+
 Update archive frontmatter with `spec_worktree_path: $SPAWN_PATH` and
-`spec_executed: true` (atomic re-write).
+`spec_executed: true` (atomic re-write). On the manual-handoff path, record
+the worktree path but leave `spec_executed: false` — no agent was spawned.
 
 **F3 stash restore safety (when B path was chosen):** Do NOT auto-restore inline
 — the spawned agent may take hours. Instead print: "Stash preserved as

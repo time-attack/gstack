@@ -46,6 +46,60 @@ implemented as a dispatcher binary.
 
 ---
 
+## Step 0: Choose the code-indexing provider and grant consent
+
+No code-indexing provider is selected by default. GBrain is one supported
+engine behind the optional `gstack-code-intelligence` provider contract, not
+an assumed dependency — with no provider, callers fall back to grep and the
+file-only decision store. Fire this AskUserQuestion
+before installing a provider, granting repository access, or sending any code
+off this machine:
+
+> D# — Which code-indexing provider should this machine use?
+> Project/branch/task: <one-sentence grounding using detected slug + branch>
+> ELI10: gstack skills can answer "where is X defined / who calls Y" through a
+> semantic code index. That needs a provider with access to your repositories.
+> Nothing is installed or indexed until you pick one here.
+> Stakes if we pick wrong: a provider that sends code off-machine without you
+> intending it is an egress leak; skipping indexing entirely just means
+> slower, grep-based search.
+> Recommendation: A — this skill exists to set up GBrain; pick C if you don't
+> want any index.
+> A) GBrain (recommended)
+>   ✅ This skill sets it up end to end; the engine stays yours: local PGLite,
+>     hosted Supabase, or remote MCP path (picked later, in Step 2)
+>   ✅ The local PGLite engine never sends code off this machine
+> B) Sourcebot (YC F25)
+>   ✅ Fast regex + semantic code search across many repos
+>   ❌ Outside this skill's scope — do not install Sourcebot here; hand the
+>     user to Sourcebot's own installer and stop
+> C) No code indexing
+>   ✅ Zero installs, zero egress; skills fall back to grep + the file-only
+>     decision store
+>   ❌ Semantic "where is X handled?" queries stay grep-quality
+> Net: A continues this skill; B hands off; C stops here cleanly.
+
+If the user already runs Graphify (a `graphify-out/` directory in the repo),
+treat it as their selected provider: skip the question, install nothing, and
+stop — this skill only sets up GBrain.
+
+Consent rules, regardless of choice:
+- **Per-repo egress consent.** Any provider configuration that sends code
+  off-machine (hosted Supabase engine, remote MCP brain, Sourcebot cloud)
+  requires explicit consent per repository before that repo is indexed or
+  imported. Step 6's per-remote policy is that gate for GBrain — never
+  pre-answer it. For Sourcebot, require an explicit cloud-versus-self-hosted
+  decision from the user before they connect any repo: the cloud path is
+  egress and needs the same per-repo consent.
+- **No unsupported paths.** Do not add Sourcegraph or a GStack-built local index.
+  Neither is a supported provider under the `gstack-code-intelligence`
+  contract; advertising them here would offer a path this skill can't deliver.
+
+**If A**: continue to Step 1. **If B**: stop after the hand-off note above.
+**If C**: STOP the skill cleanly; record nothing.
+
+---
+
 ## Step 1: Detect current state
 
 ```bash
@@ -120,11 +174,11 @@ mv "$HOME/.gbrain/config.json" "$BACKUP"
 # gstack default: voyage-code-3 (1024d) when VOYAGE_API_KEY is set — best for
 # code retrieval. Without the key, fall back to gbrain's own auto-selected
 # embedding provider chain (OpenAI 1536d when OPENAI_API_KEY is present, etc.).
-GBRAIN_EMBED_FLAGS=""
+set --  # flags ride the positional params — unquoted $VAR breaks under zsh word-splitting (#1798)
 if [ -n "${VOYAGE_API_KEY:-}" ]; then
-  GBRAIN_EMBED_FLAGS="--embedding-model voyage:voyage-code-3 --embedding-dimensions 1024"
+  set -- --embedding-model voyage:voyage-code-3 --embedding-dimensions 1024
 fi
-if ! gbrain init --pglite --json $GBRAIN_EMBED_FLAGS; then
+if ! gbrain init --pglite --json "$@"; then
   # Restore on failure
   mv "$BACKUP" "$HOME/.gbrain/config.json"
   echo "gbrain init failed. Your previous config was restored at $HOME/.gbrain/config.json." >&2
@@ -334,11 +388,11 @@ Then follow the same secret-read + verify + init flow as Path 1.
 # gstack default: voyage-code-3 (1024d) when VOYAGE_API_KEY is set — code
 # retrieval beats general-purpose embeddings on real code queries (validated
 # A/B). Without the key, gbrain auto-selects (OpenAI 1536d when available).
-GBRAIN_EMBED_FLAGS=""
+set --  # flags ride the positional params — unquoted $VAR breaks under zsh word-splitting (#1798)
 if [ -n "${VOYAGE_API_KEY:-}" ]; then
-  GBRAIN_EMBED_FLAGS="--embedding-model voyage:voyage-code-3 --embedding-dimensions 1024"
+  set -- --embedding-model voyage:voyage-code-3 --embedding-dimensions 1024
 fi
-gbrain init --pglite --json $GBRAIN_EMBED_FLAGS
+gbrain init --pglite --json "$@"
 ```
 
 Done. No network, no secrets (beyond Voyage embedding API calls during sync, if
@@ -426,11 +480,11 @@ fi
 # VOYAGE_API_KEY is set. It wins the A/B over voyage-4-large and OpenAI
 # text-embedding-3-large on this codebase's symbol queries. Falls back to
 # gbrain's auto-selected provider when the key isn't present.
-GBRAIN_EMBED_FLAGS=""
+set --  # flags ride the positional params — unquoted $VAR breaks under zsh word-splitting (#1798)
 if [ -n "${VOYAGE_API_KEY:-}" ]; then
-  GBRAIN_EMBED_FLAGS="--embedding-model voyage:voyage-code-3 --embedding-dimensions 1024"
+  set -- --embedding-model voyage:voyage-code-3 --embedding-dimensions 1024
 fi
-if ! gbrain init --pglite --json $GBRAIN_EMBED_FLAGS; then
+if ! gbrain init --pglite --json "$@"; then
   if [ -n "${BACKUP:-}" ] && [ -f "$BACKUP" ]; then mv "$BACKUP" "$HOME/.gbrain/config.json"; fi
   echo "gbrain init failed. Existing config (if any) was restored. PGLite at ~/.gbrain/pglite/ may be in a partial state — \`rm -rf ~/.gbrain/pglite\` to reset." >&2
   echo "Continuing setup without local code search; you can re-run $plan --mode Discovery --module setup-gbrain to retry." >&2

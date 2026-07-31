@@ -79,13 +79,7 @@ If any learnings come back, name which one applies to your investigation in one 
 
 After forming your root cause hypothesis, lock edits to the affected module to prevent scope creep.
 
-```bash
-_FREEZE_SCRIPT="${CLAUDE_SKILL_DIR}/../freeze/bin/check-freeze.sh"
-[ -x "$_FREEZE_SCRIPT" ] || _FREEZE_SCRIPT="${CLAUDE_SKILL_DIR}/../gstack-freeze/bin/check-freeze.sh"
-[ -x "$_FREEZE_SCRIPT" ] && echo "FREEZE_AVAILABLE" || echo "FREEZE_UNAVAILABLE"
-```
-
-**If FREEZE_AVAILABLE:** Identify the narrowest directory containing the affected files. Write it to the freeze state file:
+Identify the narrowest directory containing the affected files. Write it to the freeze state file:
 
 ```bash
 eval "$($GSTACK_BIN/gstack-paths)"
@@ -99,7 +93,7 @@ Substitute `<detected-directory>` with the actual directory path (e.g., `src/aut
 
 If the bug spans the entire repo or the scope is genuinely unclear, skip the lock and note why.
 
-**If FREEZE_UNAVAILABLE:** Skip scope lock. Edits are unrestricted.
+This boundary is advisory policy that you enforce yourself unless the active host explicitly confirms an installed freeze hook — do not claim edits outside the boundary are mechanically blocked when no hook is active.
 
 ---
 

@@ -92,7 +92,7 @@ eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)"
 ```
 
 1. Read `CLAUDE.md`, `TODOS.md` (if they exist).
-2. Run `git log --oneline -30` and `git diff origin/main --stat 2>/dev/null` to understand recent context.
+2. Detect the base branch (the branch a PR/MR would target, or the repo's default branch — e.g. via `gh repo view --json defaultBranchRef`). Run `git log --oneline -30` and `git diff origin/<base> --stat 2>/dev/null` to understand recent context.
 3. Use Grep/Glob to map the codebase areas most relevant to the user's request.
 4. **List existing design docs for this project:**
    ```bash

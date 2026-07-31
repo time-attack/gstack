@@ -430,13 +430,15 @@ user via AskUserQuestion rather than destroying non-WIP commits.
 5. Compose each commit message:
    - First line: `<type>: <summary>` (type = feat/fix/chore/refactor/docs)
    - Body: brief description of what this commit contains
-   - Only the **final commit** (VERSION + CHANGELOG) gets the version tag and co-author trailer:
+   - Only the **final commit** (VERSION + CHANGELOG) gets the version tag and co-author trailer.
+     Use the running agent's own co-author identity — or the project's declared convention if
+     CLAUDE.md specifies one — never a hardcoded agent name:
 
 ```bash
 git commit -m "$(cat <<'EOF'
 chore: bump version and changelog (vX.Y.Z.W)
 
-Co-Authored-By: OpenAI Codex <noreply@openai.com>
+Co-Authored-By: <running agent's name> <<agent's noreply email>>
 EOF
 )"
 ```
