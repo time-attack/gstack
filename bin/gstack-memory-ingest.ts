@@ -616,9 +616,12 @@ function parseTranscriptJsonl(path: string): ParsedSession | null {
       // Collapse to one-line summary
       const tool = rec?.name || rec?.tool || rec?.tool_call?.name || "tool";
       bodyParts.push(`### Tool call: ${tool}`);
-    } else if (isCodex && rec?.payload?.message) {
-      // Codex shape: each record has payload.message
-      const msg = rec.payload.message;
+    } else if (isCodex && (rec?.payload?.message || rec?.payload?.type === "message")) {
+      // Codex shapes (#2105): legacy records carry payload.message; real
+      // rollout records are `{type:"response_item", payload:{type:"message",
+      // role, content:[{type:"input_text"|"output_text", text}]}}` with
+      // role/content on the payload itself.
+      const msg = rec.payload.message ?? rec.payload;
       const role = msg.role || "user";
       const content = extractContentText(msg);
       if (content) {
@@ -1417,7 +1420,24 @@ function runGbrainImport(
     // inside Next.js / Prisma / Rails projects with their own
     // .env.local (codex review #7 — defense in depth on top of the
     // parent gstack-gbrain-sync seeding the bun grandchild's env).
-    const child = spawnGbrainAsync(["import", stagingDir, "--no-embed", "--json"]);
+    //
+    // #2144: gbrain ≥0.42's collector enumerates via `git ls-files --cached
+    // --others --exclude-standard` when the import dir sits inside a git work
+    // tree. Our staging dir is a direct child of $GSTACK_HOME (the artifacts
+    // repo, whose .gitignore is `*`), so that fast path returns ZERO files and
+    // the run silently ingests nothing. GIT_CEILING_DIRECTORIES stops git's
+    // upward repo discovery at the staging dir's parent, so gbrain's git probe
+    // fails cleanly and it falls back to its plain FS walk, which sees the
+    // staged pages. Scoped to this one child process — no on-disk gitignore
+    // mutation, and the staging-guard/resume contracts stay untouched.
+    const ceiling = dirname(stagingDir);
+    const baseEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      GIT_CEILING_DIRECTORIES: process.env.GIT_CEILING_DIRECTORIES
+        ? `${ceiling}:${process.env.GIT_CEILING_DIRECTORIES}`
+        : ceiling,
+    };
+    const child = spawnGbrainAsync(["import", stagingDir, "--no-embed", "--json"], { baseEnv });
     _activeImportChild = child;
     let stdout = "";
     let stderr = "";
@@ -1760,6 +1780,37 @@ async function ingestPass(args: CliArgs): Promise<BulkResult> {
       const msg =
         "gbrain import exited 0 but emitted no parseable --json payload. " +
         "Refusing to advance state.";
+      console.error(`[memory-ingest] ERR: ${msg}`);
+      failed += prep.prepared.length;
+      return {
+        written: 0,
+        skipped_secret: prep.skippedSecret,
+        skipped_dedup: prep.skippedDedup,
+        skipped_unattributed: prep.skippedUnattributed,
+        failed,
+        duration_ms: Date.now() - t0,
+        partial_pages: prep.partialPages,
+        system_error: msg,
+      };
+    }
+
+    // #2144 tripwire: gbrain's collector saw fewer files than we staged —
+    // something between staging and import silently filtered them (the
+    // gitignore-aware fast path was the first instance of this family; a
+    // future walker change could be the next). Without this guard the run
+    // reports `written: N` while nothing reached the index. Refuse to
+    // advance state so the next run retries. Skipped on resume runs: the
+    // freshly re-prepared count doesn't have to match what the prior run
+    // left on disk. `total_files` is absent on older gbrain — guard only
+    // when the field is actually reported.
+    if (
+      !resuming &&
+      typeof importJson.total_files === "number" &&
+      importJson.total_files < staging.written
+    ) {
+      const msg =
+        `gbrain import saw ${importJson.total_files} of ${staging.written} staged pages — ` +
+        `staged files were silently filtered before import (#2144). Refusing to advance state.`;
       console.error(`[memory-ingest] ERR: ${msg}`);
       failed += prep.prepared.length;
       return {

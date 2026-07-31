@@ -766,3 +766,180 @@ exit 0
     rmSync(home, { recursive: true, force: true });
   });
 });
+
+// ── #2144: gbrain ≥0.42 gitignore-aware collector vs ignore-all ~/.gstack ──
+//
+// GSTACK_HOME is the artifacts git repo whose .gitignore is `*`. gbrain ≥0.42
+// enumerates import dirs inside a git work tree via `git ls-files --cached
+// --others --exclude-standard`, which returns ZERO files for a staging dir
+// under an ignore-all repo — silent 0-page ingest reported as success.
+// Countermeasure: the import child gets GIT_CEILING_DIRECTORIES set to the
+// staging dir's parent so git repo discovery fails and gbrain falls back to
+// its FS walk. Tripwire: when gbrain reports total_files < staged count, the
+// run errors instead of advancing state.
+describe("gstack-memory-ingest #2144: staging inside ignore-all GSTACK_HOME", () => {
+  const CLAUDE_SESSION =
+    `{"type":"user","message":{"role":"user","content":"hi"},"timestamp":"2026-05-01T00:00:00Z","cwd":"/tmp/foo"}\n` +
+    `{"type":"assistant","message":{"role":"assistant","content":"hello"},"timestamp":"2026-05-01T00:00:01Z"}\n`;
+
+  it("sets GIT_CEILING_DIRECTORIES so gbrain's git-aware fast path falls back to the FS walk", () => {
+    const home = makeTestHome();
+    const gstackHome = join(home, ".gstack");
+    mkdirSync(gstackHome, { recursive: true });
+    // Reproduce the artifacts repo exactly: git repo + ignore-everything.
+    spawnSync("git", ["init", "-q", gstackHome], { encoding: "utf-8" });
+    writeFileSync(join(gstackHome, ".gitignore"), "*\n", "utf-8");
+
+    // Fake gbrain that emulates ≥0.42's collectSyncableFiles: git-aware fast
+    // path first, FS-walk fallback only when git repo discovery fails.
+    const binDir = join(home, "fake-bin");
+    mkdirSync(binDir, { recursive: true });
+    const envLog = join(home, "gbrain-env.log");
+    const script = `#!/usr/bin/env bash
+case "\${1:-}" in
+  --help|-h) echo "Usage: gbrain"; echo "Commands:"; echo "  import <dir>   Import"; exit 0 ;;
+  import)
+    DIR="\${2:-}"
+    echo "ceiling=\${GIT_CEILING_DIRECTORIES:-unset}" >> "${envLog}"
+    if LS=\$(git -C "\$DIR" ls-files --cached --others --exclude-standard 2>/dev/null); then
+      TOTAL=\$(printf '%s' "\$LS" | grep -c '\\.md\$' || true)
+    else
+      TOTAL=\$(find "\$DIR" -name '*.md' -type f | wc -l | tr -d ' ')
+    fi
+    if [[ " \$* " == *" --json "* ]]; then
+      echo "{\\"status\\":\\"success\\",\\"duration_s\\":0.1,\\"imported\\":\$TOTAL,\\"skipped\\":0,\\"errors\\":0,\\"chunks\\":\$TOTAL,\\"total_files\\":\$TOTAL}"
+    fi
+    exit 0 ;;
+  *) echo "unknown"; exit 2 ;;
+esac
+`;
+    writeFileSync(join(binDir, "gbrain"), script, "utf-8");
+    chmodSync(join(binDir, "gbrain"), 0o755);
+
+    writeClaudeCodeSession(home, "tmp-foo", "ceil1", CLAUDE_SESSION);
+
+    const r = runScript(["--bulk", "--include-unattributed", "--quiet"], {
+      HOME: home,
+      GSTACK_HOME: gstackHome,
+      PATH: `${binDir}:${process.env.PATH || ""}`,
+    });
+
+    // Without the ceiling env, the shim's git fast path returns 0 files and
+    // the count-mismatch tripwire exits 1; with it, the FS walk finds the page.
+    expect(r.exitCode).toBe(0);
+    expect(readFileSync(envLog, "utf-8")).toContain(`ceiling=${gstackHome}`);
+
+    // State advanced for the ingested session.
+    const state = JSON.parse(
+      readFileSync(join(gstackHome, ".transcript-ingest-state.json"), "utf-8"),
+    );
+    expect(Object.keys(state.sessions || {}).length).toBe(1);
+
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  it("errors (no state advance) when gbrain reports fewer total_files than staged", () => {
+    const home = makeTestHome();
+    const gstackHome = join(home, ".gstack");
+    mkdirSync(gstackHome, { recursive: true });
+
+    // Fake gbrain that silently sees nothing — the #2144 failure shape.
+    const binDir = join(home, "fake-bin");
+    mkdirSync(binDir, { recursive: true });
+    const script = `#!/usr/bin/env bash
+case "\${1:-}" in
+  --help|-h) echo "Usage: gbrain"; echo "Commands:"; echo "  import <dir>   Import"; exit 0 ;;
+  import)
+    if [[ " \$* " == *" --json "* ]]; then
+      echo '{"status":"success","duration_s":0.1,"imported":0,"skipped":0,"errors":0,"chunks":0,"total_files":0}'
+    fi
+    exit 0 ;;
+  *) echo "unknown"; exit 2 ;;
+esac
+`;
+    writeFileSync(join(binDir, "gbrain"), script, "utf-8");
+    chmodSync(join(binDir, "gbrain"), 0o755);
+
+    writeClaudeCodeSession(home, "tmp-foo", "swallow1", CLAUDE_SESSION);
+
+    const r = runScript(["--bulk", "--include-unattributed", "--quiet"], {
+      HOME: home,
+      GSTACK_HOME: gstackHome,
+      PATH: `${binDir}:${process.env.PATH || ""}`,
+    });
+
+    expect(r.exitCode).toBe(1);
+    expect(r.stderr).toMatch(/saw 0 of 1 staged pages/);
+    expect(r.stderr).toMatch(/Refusing to advance state/);
+
+    // No state advance — next run must retry the session.
+    const statePath = join(gstackHome, ".transcript-ingest-state.json");
+    if (existsSync(statePath)) {
+      const state = JSON.parse(readFileSync(statePath, "utf-8"));
+      expect(Object.keys(state.sessions || {}).length).toBe(0);
+    }
+
+    rmSync(home, { recursive: true, force: true });
+  });
+});
+
+// ── #2105: Codex rollout records with payload.type === "message" ──────────
+describe("gstack-memory-ingest #2105: Codex rollout message shape", () => {
+  it("renders body text from payload.type='message' records (not just payload.message)", () => {
+    const home = makeTestHome();
+    const gstackHome = join(home, ".gstack");
+    mkdirSync(gstackHome, { recursive: true });
+
+    // Shim copies the staging dir so we can inspect the rendered body.
+    const binDir = join(home, "fake-bin");
+    mkdirSync(binDir, { recursive: true });
+    const stagingCopy = join(home, "staging-copy");
+    const script = `#!/usr/bin/env bash
+case "\${1:-}" in
+  --help|-h) echo "Usage: gbrain"; echo "Commands:"; echo "  import <dir>   Import"; exit 0 ;;
+  import)
+    DIR="\${2:-}"
+    cp -R "\$DIR" "${stagingCopy}" 2>/dev/null || true
+    if [[ " \$* " == *" --json "* ]]; then
+      echo '{"status":"success","duration_s":0.1,"imported":1,"skipped":0,"errors":0,"chunks":1,"total_files":1}'
+    fi
+    exit 0 ;;
+  *) echo "unknown"; exit 2 ;;
+esac
+`;
+    writeFileSync(join(binDir, "gbrain"), script, "utf-8");
+    chmodSync(join(binDir, "gbrain"), 0o755);
+
+    // Real rollout shape: session_meta, then response_item records whose
+    // payload carries type/role/content directly (no payload.message).
+    const today = new Date();
+    const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const rollout =
+      `{"type":"session_meta","payload":{"id":"sess-2105","cwd":"/tmp/x"},"timestamp":"${today.toISOString()}"}\n` +
+      `{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"rollout ping"}]},"timestamp":"${today.toISOString()}"}\n` +
+      `{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"rollout pong"}]},"timestamp":"${today.toISOString()}"}\n`;
+    writeCodexSession(home, ymd, rollout);
+
+    const r = runScript(["--bulk", "--include-unattributed", "--quiet"], {
+      HOME: home,
+      GSTACK_HOME: gstackHome,
+      PATH: `${binDir}:${process.env.PATH || ""}`,
+    });
+    expect(r.exitCode).toBe(0);
+
+    const findMd = spawnSync("find", [stagingCopy, "-name", "*.md", "-type", "f"], {
+      encoding: "utf-8",
+    });
+    const mdPaths = (findMd.stdout || "").trim().split("\n").filter(Boolean);
+    expect(mdPaths.length).toBe(1);
+    const body = readFileSync(mdPaths[0], "utf-8");
+    // Pre-#2105 fix these rendered as an empty body: only payload.message
+    // records were matched, so real rollout content was dropped.
+    expect(body).toContain("## User");
+    expect(body).toContain("rollout ping");
+    expect(body).toContain("## Assistant");
+    expect(body).toContain("rollout pong");
+
+    rmSync(home, { recursive: true, force: true });
+  });
+});
