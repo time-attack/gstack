@@ -124,6 +124,21 @@ export async function runProviderBenchmark(
   // not consent (docs/gstack-2/PRIVACY.md; egress-audit-2026-07-28 finding 7).
   const noSendLogs = !(opts.upload === true && process.env.BRAINTRUST_API_KEY);
 
+  if (!noSendLogs) {
+    // Fail-closed egress receipt BEFORE the SDK opens its upload session
+    // (EGRESS_RECEIPT_FAILED aborts the run before Eval() sends anything).
+    // The Braintrust SDK owns the wire bytes, so sha256 is null.
+    const { writeReceipt } = await import('../egress-receipt.js');
+    writeReceipt({
+      sink: 'braintrust-eval',
+      host: 'api.braintrust.dev',
+      payloadClass: 'benchmark-prompts-outputs-metrics (sent by braintrust SDK)',
+      bytes: 0,
+      sha256: null,
+      consent: 'braintrust_upload=true (--upload or config key)',
+    });
+  }
+
   const result = await Eval(
     `gstack-model-benchmark:${provider}`,
     {

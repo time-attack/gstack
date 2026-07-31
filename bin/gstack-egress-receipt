@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+// gstack-egress-receipt — shell bridge for the two bash egress sinks
+// (bin/gstack-telemetry-sync, bin/gstack-update-check, bin/gstack-brain-sync).
+//
+// Usage:
+//   gstack-egress-receipt write --sink S --host H --class C \
+//       (--payload-file F | --no-payload) [--consent "key=value"]
+//     → prints the receipt id on stdout, exit 0.
+//     → exit 3 + "EGRESS_RECEIPT_FAILED: ..." on stderr when the receipt
+//       cannot be written. Callers MUST then refuse the send (fail-closed).
+//
+//   gstack-egress-receipt outcome <receipt-id> <status>
+//     → best-effort response-status record; never blocks anything.
+//
+// Home: GSTACK_HOME, legacy GSTACK_STATE_DIR, else ~/.gstack.
+// The payload file is hashed as-is: pass the SAME file to curl (`-d @file`)
+// so the receipt hash matches the exact bytes sent (scan-at-sink precedent).
+
+import fs from "node:fs";
+import { EGRESS_RECEIPT_FAILED, sha256Hex, writeOutcome, writeReceipt } from "../lib/egress-receipt.js";
+
+function parseArgs(args, valueFlags, boolFlags) {
+  const values = new Map();
+  const flags = new Set();
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (valueFlags.includes(arg)) {
+      const value = args[++index];
+      if (value == null) usage(`${arg} requires a value`);
+      values.set(arg, value);
+    } else if (boolFlags.includes(arg)) {
+      flags.add(arg);
+    } else {
+      usage(`unknown option: ${arg}`);
+    }
+  }
+  return { values, flags };
+}
+
+function usage(message) {
+  process.stderr.write(`gstack-egress-receipt: ${message}\n`);
+  process.exit(2);
+}
+
+const [command, ...rest] = process.argv.slice(2);
+
+if (command === "write") {
+  const { values, flags } = parseArgs(rest,
+    ["--sink", "--host", "--class", "--payload-file", "--consent"], ["--no-payload"]);
+  const payloadFile = values.get("--payload-file");
+  if (!payloadFile && !flags.has("--no-payload")) usage("write requires --payload-file or --no-payload");
+  try {
+    let bytes = 0;
+    let sha256 = sha256Hex("");
+    if (payloadFile) {
+      const payload = fs.readFileSync(payloadFile);
+      bytes = payload.byteLength;
+      sha256 = sha256Hex(payload);
+    }
+    const { id } = writeReceipt({
+      sink: values.get("--sink"),
+      host: values.get("--host"),
+      payloadClass: values.get("--class"),
+      bytes,
+      sha256,
+      consent: values.get("--consent") ?? "unspecified",
+    });
+    process.stdout.write(`${id}\n`);
+  } catch (error) {
+    process.stderr.write(`${EGRESS_RECEIPT_FAILED}: ${error?.message ?? error}\n`);
+    process.exit(3);
+  }
+} else if (command === "outcome") {
+  const [receipt, status, ...extra] = rest;
+  if (!receipt || !status || extra.length) usage("Usage: gstack-egress-receipt outcome <receipt-id> <status>");
+  try {
+    writeOutcome({ receipt, status });
+  } catch {
+    // Best-effort: the pre-send receipt is the invariant, the outcome is bookkeeping.
+  }
+} else {
+  usage("Usage: gstack-egress-receipt write|outcome ...");
+}

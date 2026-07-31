@@ -8,6 +8,12 @@ retained-tool egress audit ran on 2026-07-28 and passed with zero violations
 remediation status, is [EGRESS-AUDIT.md](./EGRESS-AUDIT.md). See the gate
 list in [STATUS.md](./STATUS.md).
 
+Beyond the point-in-time audits, every gstack-initiated off-machine send now
+writes a hash-chained, content-free receipt before it fires: run
+`gstack egress list` (what DID leave), `gstack egress grants` (what CAN
+leave and how to revoke it), and `gstack egress verify` (tamper check). See
+[EGRESS-RECEIPTS.md](./EGRESS-RECEIPTS.md).
+
 ## Data-flow summary
 
 | Capability | Default | May leave the machine | Never send |

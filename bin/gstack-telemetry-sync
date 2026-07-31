@@ -111,13 +111,34 @@ RESP_FILE="$(mktemp "${TMPDIR:-/tmp}/gstack-sync-XXXXXX")" || {
   echo "gstack-telemetry-sync: mktemp failed — skipping this run" >&2
   exit 0
 }
-trap 'rm -f "$RESP_FILE"' EXIT
+PAYLOAD_FILE="$(mktemp "${TMPDIR:-/tmp}/gstack-sync-payload-XXXXXX")" || {
+  echo "gstack-telemetry-sync: mktemp failed — skipping this run" >&2
+  rm -f "$RESP_FILE"
+  exit 0
+}
+trap 'rm -f "$RESP_FILE" "$PAYLOAD_FILE"' EXIT
+printf '%s' "$BATCH" > "$PAYLOAD_FILE"
+
+# Egress receipt BEFORE the send (fail-closed): hash the exact bytes curl will
+# send. If the receipt cannot be written, the send is refused.
+DEST_HOST="${SUPABASE_URL#*://}"
+DEST_HOST="${DEST_HOST%%/*}"
+RECEIPT_ID="$(GSTACK_HOME="$STATE_DIR" "$GSTACK_DIR/bin/gstack-egress-receipt" write \
+  --sink telemetry-sync --host "$DEST_HOST" --class telemetry-events \
+  --payload-file "$PAYLOAD_FILE" --consent "telemetry=community")" || {
+  echo "gstack-telemetry-sync: EGRESS_RECEIPT_FAILED — send refused" >&2
+  exit 1
+}
+
 HTTP_CODE="$(curl -s -w '%{http_code}' --max-time 10 \
   -X POST "${SUPABASE_URL}/functions/v1/telemetry-ingest" \
   -H "Content-Type: application/json" \
   -H "apikey: ${ANON_KEY}" \
   -o "$RESP_FILE" \
-  -d "$BATCH" 2>/dev/null || echo "000")"
+  -d @"$PAYLOAD_FILE" 2>/dev/null || echo "000")"
+
+# Best-effort response-status record for the receipt above.
+GSTACK_HOME="$STATE_DIR" "$GSTACK_DIR/bin/gstack-egress-receipt" outcome "$RECEIPT_ID" "$HTTP_CODE" 2>/dev/null || true
 
 # ─── Update cursor on success (2xx) ─────────────────────────
 case "$HTTP_CODE" in

@@ -373,25 +373,32 @@ describe("GStack runtime setup UX", () => {
   test("official installed-browser preview reports exact adapter bytes and omits browser binaries", async () => {
     const output = capture();
     const target = `${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`;
+    // Isolated --home so the pre-fetch egress receipt lands in a temp ledger,
+    // not the operator's real ~/.gstack/security/egress.jsonl.
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "gstack-bootstrap-preview-bytes-"));
     let fetches = 0;
-    expect(await bootstrapMain([
-      "preview", "--capability", "browser", "--browser", "installed",
-      "--browser-path", process.execPath, "--json",
-    ], {
-      stdout: output.stream,
-      stderr: output.stream,
-      libc: process.platform === "linux" ? "glibc" : undefined,
-      fetch: async (url: string) => {
-        fetches += 1;
-        return { ok: true, url, json: async () => officialManifestFixture(target) };
-      },
-    })).toBe(0);
-    const result = JSON.parse(output.value());
-    expect(result.browser).toEqual({ provider: "installed", executablePath: await fs.realpath(process.execPath) });
-    expect(result.components).toEqual(["browser-code", "core"]);
-    expect(result.downloads.map((item) => item.component)).toEqual(["browser-code", "core"]);
-    expect(result.downloadBytes).toBe(16);
-    expect(fetches).toBe(1);
+    try {
+      expect(await bootstrapMain([
+        "preview", "--capability", "browser", "--browser", "installed",
+        "--browser-path", process.execPath, "--json", "--home", path.join(root, "home"),
+      ], {
+        stdout: output.stream,
+        stderr: output.stream,
+        libc: process.platform === "linux" ? "glibc" : undefined,
+        fetch: async (url: string) => {
+          fetches += 1;
+          return { ok: true, url, json: async () => officialManifestFixture(target) };
+        },
+      })).toBe(0);
+      const result = JSON.parse(output.value());
+      expect(result.browser).toEqual({ provider: "installed", executablePath: await fs.realpath(process.execPath) });
+      expect(result.components).toEqual(["browser-code", "core"]);
+      expect(result.downloads.map((item) => item.component)).toEqual(["browser-code", "core"]);
+      expect(result.downloadBytes).toBe(16);
+      expect(fetches).toBe(1);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
   });
 
   test("official previews retain an active installed-browser choice across same- and cross-release additions", async () => {
@@ -682,7 +689,12 @@ describe("GStack runtime setup UX", () => {
       expect(output.value()).toContain(`Official runtime release ${BOOTSTRAP_RELEASE_TAG} is not published`);
       expect(output.value()).toContain(OFFICIAL_MANIFEST_URL);
       expect(output.value()).toContain("No files were downloaded or installed");
-      expect(await fs.readdir(root)).toEqual([]);
+      // The only artifact allowed in the home is the egress-receipt ledger:
+      // the manifest fetch was ATTEMPTED, and receipts record attempts
+      // (receipt-before-send) even when the release turns out missing.
+      expect(await fs.readdir(root)).toEqual(["home"]);
+      expect(await fs.readdir(path.join(root, "home"))).toEqual(["security"]);
+      expect(await fs.readdir(path.join(root, "home", "security"))).toEqual(["egress.jsonl"]);
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }
@@ -721,13 +733,19 @@ describe("GStack runtime setup UX", () => {
         arrayBuffer: async () => new TextEncoder().encode("tampered").buffer,
       };
     };
-    expect(await bootstrapMain(["install", "--capability", "browser", "--browser", "managed", "--yes"], {
-      stdout: output.stream,
-      stderr: output.stream,
-      fetch: fetch_,
-    })).toBe(1);
-    expect(calls).toBe(2);
-    expect(output.value()).toContain("SHA-256 mismatch");
+    // Isolated --home so the pre-fetch egress receipts land in a temp ledger.
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "gstack-bootstrap-sha-"));
+    try {
+      expect(await bootstrapMain(["install", "--capability", "browser", "--browser", "managed", "--yes", "--home", path.join(root, "home")], {
+        stdout: output.stream,
+        stderr: output.stream,
+        fetch: fetch_,
+      })).toBe(1);
+      expect(calls).toBe(2);
+      expect(output.value()).toContain("SHA-256 mismatch");
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
   });
 
   test("bootstrap rejects physical iOS on non-macOS before any network request", async () => {
@@ -763,23 +781,29 @@ describe("GStack runtime setup UX", () => {
     const output = capture();
     const target = `${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`;
     let calls = 0;
-    expect(await bootstrapMain(["install", "--capability", "browser", "--browser", "managed", "--yes"], {
-      stdout: output.stream,
-      stderr: output.stream,
-      fetch: async (url: string) => {
-        calls += 1;
-        return {
-          ok: true,
-          url,
-          json: async () => officialManifestFixture(target, (component, artifact) => {
-            if (component !== "core") return;
-            artifact.cosignBundleUrl = `${artifact.url}.sigstore.json`;
-          }),
-        };
-      },
-    })).toBe(1);
-    expect(calls).toBe(1);
-    expect(output.value()).toContain("does not bind the official GStack release workflow");
+    // Isolated --home so the pre-fetch egress receipt lands in a temp ledger.
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "gstack-bootstrap-cosign-id-"));
+    try {
+      expect(await bootstrapMain(["install", "--capability", "browser", "--browser", "managed", "--yes", "--home", path.join(root, "home")], {
+        stdout: output.stream,
+        stderr: output.stream,
+        fetch: async (url: string) => {
+          calls += 1;
+          return {
+            ok: true,
+            url,
+            json: async () => officialManifestFixture(target, (component, artifact) => {
+              if (component !== "core") return;
+              artifact.cosignBundleUrl = `${artifact.url}.sigstore.json`;
+            }),
+          };
+        },
+      })).toBe(1);
+      expect(calls).toBe(1);
+      expect(output.value()).toContain("does not bind the official GStack release workflow");
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
   });
 
   test("developer source fallback is explicit and does not mark the source as a prepared release", async () => {

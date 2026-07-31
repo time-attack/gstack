@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { createHash } from "node:crypto";
-import { constants as fsConstants, createReadStream } from "node:fs";
+import { appendFileSync, chmodSync, constants as fsConstants, createReadStream, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
@@ -164,11 +164,13 @@ export async function main(argv = process.argv.slice(2), options = {}) {
     );
     const manifestUrl = options.manifestUrl ?? OFFICIAL_MANIFEST_URL;
     assertOfficialUrl(manifestUrl, { manifest: true });
+    const home = path.resolve(parsed.home ?? process.env.GSTACK_HOME ?? path.join(os.homedir(), ".gstack"));
     const manifest = await fetchJson(fetch_, manifestUrl, {
       official: manifestUrl === OFFICIAL_MANIFEST_URL,
+      receiptHome: home,
+      receiptConsent: `explicit \`${parsed.action}\` command`,
     });
     validateManifest(manifest, target);
-    const home = path.resolve(parsed.home ?? process.env.GSTACK_HOME ?? path.join(os.homedir(), ".gstack"));
     const active = await inspectReusableRuntime(home, manifest.version).catch(() => null);
     const reusable = active?.releaseMatches ? active : null;
     if (!browserChoice && active?.browserChoice) {
@@ -199,9 +201,9 @@ export async function main(argv = process.argv.slice(2), options = {}) {
       if (reusable) await seedReusableRuntime(reusable, root, claimedFiles);
       for (const item of plan.downloads) {
         const archive = path.join(temporary, `${item.component}.tar.gz`);
-        await downloadVerified(fetch_, item.artifact.url, archive, item.artifact.sha256, item.artifact.bytes);
+        await downloadVerified(fetch_, item.artifact.url, archive, item.artifact.sha256, item.artifact.bytes, { receiptHome: home });
         io.stdout.write(`Verified SHA-256 for ${item.component} (${target}).\n`);
-        await verifyCosignWhenAvailable(archive, item.artifact, path.join(temporary, item.component), { ...options, fetch: fetch_, ...io });
+        await verifyCosignWhenAvailable(archive, item.artifact, path.join(temporary, item.component), { ...options, fetch: fetch_, ...io, receiptHome: home });
         const extracted = path.join(temporary, "extracted", item.component);
         await fs.mkdir(extracted, { recursive: true, mode: 0o700 });
         await extractTarSafely(archive, extracted, options);
@@ -461,7 +463,50 @@ function sha256File(file) {
   });
 }
 
+/**
+ * Egress receipt for one bodyless bootstrap GET. Receipt-before-send,
+ * fail-closed: an unwritable receipt aborts the download with the typed
+ * EGRESS_RECEIPT_FAILED (never a silent unrecorded fetch).
+ *
+ * This is a minimal inline copy of lib/egress-receipt.js#writeReceipt because
+ * this file is dependency-free by contract: it is vendored standalone into
+ * every skill's references/support/, where ../lib does not exist. Keep the
+ * record shape and hash-chain semantics in sync with the canonical module;
+ * test/egress-receipt-wiring.test.ts pins both.
+ * ponytail: no ledger lock here — bootstrap is a single interactive process,
+ * add the lib's mkdir lock if a concurrent bootstrap path ever appears.
+ */
+function bootstrapEgressReceipt(home, url, payloadClass, consent) {
+  const resolvedHome = home ?? process.env.GSTACK_HOME ?? path.join(os.homedir(), ".gstack");
+  const ledger = path.join(resolvedHome, "security", "egress.jsonl");
+  const sha256Hex = (data) => createHash("sha256").update(data).digest("hex");
+  try {
+    mkdirSync(path.dirname(ledger), { recursive: true, mode: 0o700 });
+    const existed = existsSync(ledger);
+    const lines = existed ? readFileSync(ledger, "utf8").split("\n").filter(Boolean) : [];
+    const record = {
+      ts: new Date().toISOString(),
+      type: "egress",
+      sink: "runtime-bootstrap",
+      host: new URL(url).host,
+      payload_class: payloadClass,
+      bytes: 0,
+      sha256: sha256Hex(""),
+      consent: consent ?? "explicit install --yes consent",
+      prev: lines.length ? sha256Hex(lines[lines.length - 1]) : "",
+    };
+    appendFileSync(ledger, `${JSON.stringify(record)}\n`, { mode: 0o600 });
+    if (!existed) chmodSync(ledger, 0o600);
+  } catch (error) {
+    throw bootstrapError(
+      `Egress receipt could not be written to ${ledger}; refusing to download (${error?.message ?? error})`,
+      "EGRESS_RECEIPT_FAILED",
+    );
+  }
+}
+
 async function fetchJson(fetch_, url, options = {}) {
+  bootstrapEgressReceipt(options.receiptHome, url, "manifest-fetch (GET, no body)", options.receiptConsent);
   const response = await fetch_(url, { headers: { Accept: "application/json" }, redirect: "follow" });
   assertFinalDownloadUrl(response.url || url);
   if (!response.ok) {
@@ -478,7 +523,8 @@ async function fetchJson(fetch_, url, options = {}) {
   return value;
 }
 
-async function downloadVerified(fetch_, url, destination, expectedSha256, expectedBytes) {
+async function downloadVerified(fetch_, url, destination, expectedSha256, expectedBytes, options = {}) {
+  bootstrapEgressReceipt(options.receiptHome, url, "component-artifact-download (GET, no body)");
   const response = await fetch_(url, { redirect: "follow" });
   assertFinalDownloadUrl(response.url || url);
   if (!response.ok) throw bootstrapError(`Artifact download failed with HTTP ${response.status}`, "BOOTSTRAP_DOWNLOAD_FAILED");
@@ -530,6 +576,7 @@ async function verifyCosignWhenAvailable(archive, artifact, temporary, options) 
     return;
   }
   const bundle = path.join(temporary, "cosign.bundle");
+  bootstrapEgressReceipt(options.receiptHome, artifact.cosignBundleUrl, "cosign-attestation-download (GET, no body)");
   const response = await options.fetch(artifact.cosignBundleUrl, { redirect: "follow" });
   assertFinalDownloadUrl(response.url || artifact.cosignBundleUrl);
   if (!response.ok) throw bootstrapError("Cosign bundle download failed", "BOOTSTRAP_ATTESTATION_FAILED");

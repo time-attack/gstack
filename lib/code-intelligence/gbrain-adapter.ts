@@ -10,6 +10,7 @@
  */
 
 import { spawnSync } from "child_process";
+import { sha256Hex, writeReceipt } from "../egress-receipt.js";
 import { spawnGbrain, buildGbrainEnv, NEEDS_SHELL_ON_WINDOWS } from "../gbrain-exec";
 import { ensureSourceRegistered, probeSource, sourcePageCount } from "../gbrain-sources";
 import {
@@ -71,8 +72,26 @@ export class GbrainProvider implements CodeProvider {
     return this.capabilities.has(capability);
   }
 
+  /**
+   * Fail-closed egress receipt for the write ops (register/refresh/add). The
+   * gbrain subprocess owns the wire bytes, so the receipt records destination
+   * + payload class; sha256 is only known for `add` (the exact document body).
+   */
+  #receipt(payloadClass: string, opts: OpOptions, body?: string): void {
+    writeReceipt({
+      env: opts.env,
+      sink: "gbrain",
+      host: "gbrain-db (user-configured DATABASE_URL)",
+      payloadClass,
+      bytes: body == null ? 0 : Buffer.byteLength(body),
+      sha256: body == null ? null : sha256Hex(body),
+      consent: "code-intelligence provider=gbrain + per-repo consented=true",
+    });
+  }
+
   async registerSource(repo: RepoRef, opts: OpOptions = {}): Promise<SourceStatus> {
     assertEgressConsent(this, opts);
+    this.#receipt("repo-source-registration (sent by gbrain subprocess)", opts);
     try {
       const result = await ensureSourceRegistered(repo.id, repo.path, {
         federated: true,
@@ -90,6 +109,7 @@ export class GbrainProvider implements CodeProvider {
 
   async refresh(source: SourceRef, opts: OpOptions = {}): Promise<SourceStatus> {
     assertEgressConsent(this, opts);
+    this.#receipt("repo-code-index (sent by gbrain subprocess)", opts);
     const timeout = opts.timeout ?? DEFAULT_TIMEOUT_MS;
     // Two passes, verified end-to-end against real Postgres-backed gbrain 0.42.56:
     //  1. default sync (markdown strategy) — indexes docs.
@@ -144,6 +164,7 @@ export class GbrainProvider implements CodeProvider {
   async add(doc: { slug: string; body: string }, opts: OpOptions = {}): Promise<SourceStatus> {
     assertCapability(this, "add");
     assertEgressConsent(this, opts);
+    this.#receipt("document-body (sent by gbrain subprocess)", opts, doc.body);
     // `gbrain put <slug>` reads the document body from stdin.
     this.#assertOk(this.#runInput(["put", doc.slug], doc.body, opts));
     return { id: doc.slug, state: "ready" };

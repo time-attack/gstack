@@ -1,6 +1,7 @@
 import net from "node:net";
 import dns from "node:dns/promises";
 import { loadConfig, loadSecrets } from "./config.js";
+import { sha256Hex, writeOutcome, writeReceipt } from "../lib/egress-receipt.js";
 
 export const CONTEXT_FAILURES = Object.freeze([
   "CONTEXT_KEY_MISSING",
@@ -412,6 +413,21 @@ export class ContextClient {
     if (!key) throw new ContextError("CONTEXT_KEY_MISSING", "Context.dev API key is not configured");
     const requestUrl = new URL(`${baseUrl.replace(/\/$/, "")}${endpoint}`);
     addQuery(requestUrl.searchParams, options.query ?? {});
+    const body = options.body ? JSON.stringify(options.body) : undefined;
+    // Egress receipt BEFORE the send, fail-closed (EGRESS_RECEIPT_FAILED
+    // aborts the request). Content-free: byte count + sha256 of the exact
+    // request body only; GET operations carry the target in the query string,
+    // which is never written to the ledger.
+    const receipt = writeReceipt({
+      home: this.home,
+      env: this.env,
+      sink: "context.dev",
+      host: requestUrl.host,
+      payloadClass: "public-url-extraction-request",
+      bytes: body == null ? 0 : Buffer.byteLength(body),
+      sha256: sha256Hex(body ?? ""),
+      consent: "network={mode:context,consent:true,selection:context} + context.validation=verified",
+    });
     const controller = new AbortController();
     const timeoutMs = options.timeoutMs ?? this.timeoutMs;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -429,7 +445,7 @@ export class ContextClient {
             Authorization: `Bearer ${key}`,
             ...(options.body ? { "Content-Type": "application/json" } : {}),
           },
-          body: options.body ? JSON.stringify(options.body) : undefined,
+          body,
           signal: controller.signal,
           redirect: "error",
         }), controller.signal);
@@ -437,6 +453,9 @@ export class ContextClient {
         if (cause instanceof ContextError) throw cause;
         throw mapContextFailure(undefined, {}, cause, undefined, { secrets: [key] });
       }
+      try {
+        writeOutcome({ home: this.home, env: this.env, receipt: receipt.id, status: response.status });
+      } catch { /* best-effort: the pre-send receipt is the invariant */ }
 
       let text;
       try {

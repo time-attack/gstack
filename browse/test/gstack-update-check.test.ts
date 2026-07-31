@@ -45,6 +45,10 @@ beforeEach(() => {
   const binDir = join(gstackDir, 'bin');
   mkdirSync(binDir);
   symlinkSync(join(ROOT, 'bin', 'gstack-config'), join(binDir, 'gstack-config'));
+  // Egress-instrumented update-check receipts every fetch through this bridge;
+  // a real install always ships it under bin/, so the fixture must too or the
+  // fail-closed gate skips the (mocked) version fetch.
+  symlinkSync(join(ROOT, 'bin', 'gstack-egress-receipt'), join(binDir, 'gstack-egress-receipt'));
 });
 
 afterEach(() => {

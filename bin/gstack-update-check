@@ -55,6 +55,30 @@ if [ ! -f "$STATE_DIR/.codex-desc-healed" ]; then
   touch "$STATE_DIR/.codex-desc-healed"
 fi
 
+# ─── Receipted fetch helper ─────────────────────────────────
+# _receipted_version_fetch <url>
+#   Writes an egress receipt for the bodyless GET, then curls it. Fail-closed:
+#   no receipt → no request → empty output (caller treats as "no remote").
+_receipted_version_fetch() {
+  local url="$1" host scheme
+  scheme="${url%%://*}"
+  host="${url#*://}"; host="${host%%/*}"
+  # A local read (file://, or a URL with no network host) never leaves the
+  # machine — it is not egress, so it needs no receipt. Only real network
+  # schemes are receipted (fail-closed).
+  case "$scheme" in
+    http|https|git|ssh|ftp|ftps)
+      if ! GSTACK_HOME="$STATE_DIR" "$GSTACK_DIR/bin/gstack-egress-receipt" write \
+          --sink update-check --host "$host" --class version-fetch \
+          --no-payload --consent "user ran --force" >/dev/null 2>&1; then
+        echo "gstack-update-check: EGRESS_RECEIPT_FAILED — version fetch skipped" >&2
+        return 0
+      fi
+      ;;
+  esac
+  curl -sf --max-time 5 "$url" 2>/dev/null || true
+}
+
 # ─── Snooze helper ──────────────────────────────────────────
 # check_snooze <remote_version>
 #   Returns 0 if snoozed (should stay quiet), 1 if not snoozed (should output).
@@ -198,12 +222,26 @@ _SUPA_KEY="${GSTACK_SUPABASE_ANON_KEY:-}"
 _TEL_TIER="$("$GSTACK_DIR/bin/gstack-config" get telemetry 2>/dev/null || true)"
 if [ -n "$_SUPA_URL" ] && [ -n "$_SUPA_KEY" ] && [ "${_TEL_TIER:-off}" = "community" ]; then
   _OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-  curl -sf --max-time 5 \
-    -X POST "${_SUPA_URL}/functions/v1/update-check" \
-    -H "Content-Type: application/json" \
-    -H "apikey: ${_SUPA_KEY}" \
-    -d "{\"version\":\"$LOCAL\",\"os\":\"$_OS\"}" \
-    >/dev/null 2>&1 &
+  # Egress receipt before the ping (fail-closed: no receipt, no ping).
+  _PING_FILE="$(mktemp "${TMPDIR:-/tmp}/gstack-ping-XXXXXX" 2>/dev/null || true)"
+  if [ -n "$_PING_FILE" ]; then
+    printf '{"version":"%s","os":"%s"}' "$LOCAL" "$_OS" > "$_PING_FILE"
+    _PING_HOST="${_SUPA_URL#*://}"; _PING_HOST="${_PING_HOST%%/*}"
+    if GSTACK_HOME="$STATE_DIR" "$GSTACK_DIR/bin/gstack-egress-receipt" write \
+        --sink update-check --host "$_PING_HOST" --class install-ping \
+        --payload-file "$_PING_FILE" --consent "telemetry=community" >/dev/null 2>&1; then
+      curl -sf --max-time 5 \
+        -X POST "${_SUPA_URL}/functions/v1/update-check" \
+        -H "Content-Type: application/json" \
+        -H "apikey: ${_SUPA_KEY}" \
+        -d @"$_PING_FILE" \
+        >/dev/null 2>&1 &
+    else
+      echo "gstack-update-check: EGRESS_RECEIPT_FAILED — install ping skipped" >&2
+    fi
+    # The backgrounded curl reads the payload file; give it a moment before cleanup.
+    ( sleep 6; rm -f "$_PING_FILE" ) >/dev/null 2>&1 &
+  fi
 fi
 
 # Resolve VERSION via a SHA-pinned raw URL. GitHub's branch-raw CDN
@@ -217,14 +255,25 @@ fi
 # so the override is honored verbatim.
 REMOTE=""
 if [ -z "${GSTACK_REMOTE_URL:-}" ] && [ -n "$REMOTE_REPO" ] && [ -n "$REPO_SLUG" ]; then
-  # Disable credential prompts and apply a 5-second low-speed timeout so a
-  # flaky network or captive portal can't hang every skill preamble.
-  _LSR_LINE="$(GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=5 \
-    git ls-remote "$REMOTE_REPO" HEAD 2>/dev/null || true)"
+  # Egress receipt BEFORE the ls-remote probe (bodyless git protocol exchange).
+  # Fail-closed: no receipt → no probe; REMOTE stays empty and the receipted
+  # fallback fetch below decides (which refuses on its own receipt failure).
+  _PROBE_HOST="${REMOTE_REPO#*://}"; _PROBE_HOST="${_PROBE_HOST#*@}"; _PROBE_HOST="${_PROBE_HOST%%[/:]*}"
+  if GSTACK_HOME="$STATE_DIR" "$GSTACK_DIR/bin/gstack-egress-receipt" write \
+      --sink update-check --host "${_PROBE_HOST:-unknown}" --class version-probe \
+      --no-payload --consent "user ran --force" >/dev/null 2>&1; then
+    # Disable credential prompts and apply a 5-second low-speed timeout so a
+    # flaky network or captive portal can't hang every skill preamble.
+    _LSR_LINE="$(GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=5 \
+      git ls-remote "$REMOTE_REPO" HEAD 2>/dev/null || true)"
+  else
+    echo "gstack-update-check: EGRESS_RECEIPT_FAILED — version probe skipped" >&2
+    _LSR_LINE=""
+  fi
   _REMOTE_SHA="$(echo "$_LSR_LINE" | awk '$2 == "HEAD" {print $1; exit}')"
   if echo "$_REMOTE_SHA" | grep -qE '^[0-9a-f]{40}$'; then
     _SHA_URL="https://raw.githubusercontent.com/${REPO_SLUG}/${_REMOTE_SHA}/VERSION"
-    REMOTE="$(curl -sf --max-time 5 "$_SHA_URL" 2>/dev/null || true)"
+    REMOTE="$(_receipted_version_fetch "$_SHA_URL")"
   fi
 fi
 
@@ -232,7 +281,7 @@ fi
 # network, non-GitHub mirror) or when GSTACK_REMOTE_URL was explicitly
 # overridden.
 if [ -z "$REMOTE" ] && [ -n "$REMOTE_URL" ]; then
-  REMOTE="$(curl -sf --max-time 5 "$REMOTE_URL" 2>/dev/null || true)"
+  REMOTE="$(_receipted_version_fetch "$REMOTE_URL")"
 fi
 REMOTE="$(echo "$REMOTE" | tr -d '[:space:]')"
 

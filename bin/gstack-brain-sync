@@ -289,6 +289,21 @@ subcmd_once() {
       exit 0
     }
 
+  # Egress receipt BEFORE the push (fail-closed): the commit stays local and
+  # the queue is preserved, so the next run retries. Content-free: git owns
+  # the bytes, so the receipt records the destination + payload class only.
+  local remote_url remote_host
+  remote_url=$(git -C "$GSTACK_HOME" remote get-url origin 2>/dev/null || echo "")
+  remote_host="${remote_url#*://}"; remote_host="${remote_host#*@}"
+  remote_host="${remote_host%%[/:]*}"
+  if ! GSTACK_HOME="$GSTACK_HOME" "$SCRIPT_DIR/gstack-egress-receipt" write \
+      --sink brain-sync --host "${remote_host:-unknown}" --class curated-memory-git-push \
+      --no-payload --consent "artifacts_sync_mode!=off" >/dev/null 2>&1; then
+    write_status "push_failed" "EGRESS_RECEIPT_FAILED: receipt not writable; push refused"
+    echo "BRAIN_SYNC: EGRESS_RECEIPT_FAILED — push refused" >&2
+    exit 1
+  fi
+
   # Push. On reject, fetch + merge (merge driver handles JSONL) + retry once.
   local push_err
   push_err=$(git -C "$GSTACK_HOME" push origin HEAD 2>&1 >/dev/null) || {

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs/promises";
+import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { main } from "../runtime/cli.js";
@@ -14,6 +15,11 @@ import {
   redactSensitiveText,
   validateContextKey,
 } from "../runtime/context.js";
+
+// Receipts: ContextClient writes a pre-send egress receipt to its gstack home.
+// Give every unit-test client an isolated home so `bun test` never appends
+// test noise to the operator's real ~/.gstack/security/egress.jsonl.
+const RECEIPT_HOME = mkdtempSync(path.join(os.tmpdir(), "gstack-context-receipts-"));
 
 const consented = {
   network: { mode: "context", consent: true, selection: "context" },
@@ -269,6 +275,7 @@ describe("Context.dev privacy and failure contract", () => {
     });
     let fetches = 0;
     const client = new ContextClient({
+      home: RECEIPT_HOME,
       config: consented,
       key: "future-format-credential-12345",
       resolveDns: false,
@@ -375,6 +382,7 @@ describe("Context.dev privacy and failure contract", () => {
   test("DNS resolution is covered by the public-operation timeout", async () => {
     let fetches = 0;
     const client = new ContextClient({
+      home: RECEIPT_HOME,
       config: consented,
       key: "future-format-credential-12345",
       timeoutMs: 20,
@@ -400,6 +408,7 @@ describe("Context.dev privacy and failure contract", () => {
       { network: { mode: "context", consent: true } },
     ]) {
       const client = new ContextClient({
+      home: RECEIPT_HOME,
         config,
         key: "ctxt_secret_12345678",
         lookup: async () => {
@@ -431,6 +440,7 @@ describe("Context.dev privacy and failure contract", () => {
     let lookups = 0;
     let fetches = 0;
     const client = new ContextClient({
+      home: RECEIPT_HOME,
       config,
       key: "ctxt_secret_12345678",
       lookup: async () => {
@@ -458,6 +468,7 @@ describe("Context.dev privacy and failure contract", () => {
     let lookups = 0;
     let fetches = 0;
     const client = new ContextClient({
+      home: RECEIPT_HOME,
       config: consented,
       key: "ctxt_secret_12345678",
       lookup: async () => {
@@ -497,6 +508,7 @@ describe("Context.dev privacy and failure contract", () => {
       get: () => (++reads === 1 ? false : { prompt: "private" }),
     });
     const client = new ContextClient({
+      home: RECEIPT_HOME,
       config: consented,
       key: "ctxt_secret_12345678",
       resolveDns: false,
@@ -514,6 +526,7 @@ describe("Context.dev privacy and failure contract", () => {
   test("documented scrape and crawl endpoints use authenticated JSON without dependencies", async () => {
     const calls: Array<{ url: URL; init: RequestInit }> = [];
     const client = new ContextClient({
+      home: RECEIPT_HOME,
       config: consented,
       key: "ctxt_secret_12345678",
       lookup: async () => [{ address: "93.184.216.34", family: 4 }],
@@ -545,6 +558,7 @@ describe("Context.dev privacy and failure contract", () => {
   test("custom Context origins can never receive credentials, even with the legacy override flag", async () => {
     let fetches = 0;
     const client = new ContextClient({
+      home: RECEIPT_HOME,
       config: consented,
       key: "future-format-credential-12345",
       baseUrl: "https://credential-collector.example/v1",
@@ -568,6 +582,7 @@ describe("Context.dev privacy and failure contract", () => {
   test("provider echoes and fetch causes redact arbitrary current and future credential formats", async () => {
     const key = "future-format-credential-12345";
     const responseClient = new ContextClient({
+      home: RECEIPT_HOME,
       config: consented,
       key,
       resolveDns: false,
@@ -589,6 +604,7 @@ describe("Context.dev privacy and failure contract", () => {
     expect(JSON.stringify(responseError?.details)).not.toContain(key);
 
     const causeClient = new ContextClient({
+      home: RECEIPT_HOME,
       config: consented,
       key,
       resolveDns: false,
@@ -617,6 +633,7 @@ describe("Context.dev privacy and failure contract", () => {
 
   test("request timeout covers a response body that stalls after headers", async () => {
     const client = new ContextClient({
+      home: RECEIPT_HOME,
       config: consented,
       key: "future-format-credential-12345",
       resolveDns: false,
@@ -669,6 +686,7 @@ describe("Context.dev privacy and failure contract", () => {
   test("deprecated search is typed unsupported and performs no network", async () => {
     let fetches = 0;
     const client = new ContextClient({
+      home: RECEIPT_HOME,
       config: consented,
       key: "ctxt_secret_12345678",
       fetch: async () => {

@@ -42,6 +42,7 @@ import {
   validateContextKey,
 } from "./context.js";
 import { contextBillMain } from "./context-bill.js";
+import { egressCommand } from "./egress.js";
 import { rollbackUpgrade } from "./upgrade.js";
 import { installManagedRuntime, uninstallManagedRuntime } from "./install.js";
 import { assertManagedHome, withRuntimeLifecycleLock } from "./managed-home.js";
@@ -93,6 +94,8 @@ export async function main(argv = process.argv.slice(2), options = {}) {
         });
       case "context-bill":
         return await contextBillMain(args, { cwd, stdout, stderr });
+      case "egress":
+        return await egressCommand({ args, home, stdout });
       case "cleanup":
         return await cleanupCommand({ args, home, stdout });
       case "upgrade":
@@ -947,6 +950,9 @@ function usage() {
     "  gstack context screenshot <public-url-or-domain> [--full-page] [--json]\n" +
     "  gstack context-bill [TREE] [--json] [--skill <name>] [--mode <mode>]   # offline token bill-of-materials\n" +
     "  gstack context-bill --diff <treeA> <treeB> | [TREE] --budget <budget.json>\n" +
+    "  gstack egress list [--since <ISO>] [--host <host>] [--sink <sink>] [--json]   # what DID leave\n" +
+    "  gstack egress grants [--json]       # what CAN leave: every consent grant + revoke command\n" +
+    "  gstack egress verify [--json]       # recompute the receipt hash chain; exit 3 on tamper\n" +
     "  gstack cleanup [--dry-run] [--older-than-hours N]\n" +
     "  gstack upgrade --source <complete-gstack-package> --version <version> | --rollback\n" +
     "  gstack uninstall [--purge --yes]\n";

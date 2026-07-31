@@ -19,6 +19,7 @@
  */
 
 import { existsSync, readFileSync, writeFileSync, renameSync } from "fs";
+import { sha256Hex, writeReceipt } from "../egress-receipt.js";
 import {
   assertCapability,
   assertEgressConsent,
@@ -186,6 +187,20 @@ export class SourcebotProvider implements CodeProvider {
   }
 
   async #fetchWithTimeout(url: string, init: RequestInit, timeout: number): Promise<Response> {
+    // Every Sourcebot HTTP call routes through here. A loopback server keeps
+    // content on this machine (no egress, no receipt); a non-loopback server
+    // is an off-machine send and gets a fail-closed receipt BEFORE the fetch.
+    if (!this.local) {
+      const body = typeof init.body === "string" ? init.body : "";
+      writeReceipt({
+        sink: "sourcebot",
+        host: new URL(url).host,
+        payloadClass: "code-search-request",
+        bytes: Buffer.byteLength(body),
+        sha256: sha256Hex(body),
+        consent: "code-intelligence provider=sourcebot (non-loopback SOURCEBOT_URL) + per-repo consented=true",
+      });
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
