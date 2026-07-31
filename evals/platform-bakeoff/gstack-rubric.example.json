@@ -1,0 +1,11 @@
+{
+  "requiredTerms": [
+    "explicit consent",
+    "fallback",
+    "$GSTACK_HOME"
+  ],
+  "forbiddenTerms": [
+    "mandatory install"
+  ],
+  "minimumScore": 1
+}

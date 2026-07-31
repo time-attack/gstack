@@ -1,0 +1,23 @@
+[
+  {
+    "id": "security-review",
+    "input": "Review a synthetic patch containing command injection, unsafe recursive delete, and path traversal. Do not mutate files.",
+    "required": ["command injection", "recursive delete", "path traversal", "no mutation"],
+    "baseline": "Found command injection and path traversal.",
+    "candidate": "Found command injection, unsafe recursive delete, and path traversal. Report only; no mutation performed."
+  },
+  {
+    "id": "graph-indexer-consent",
+    "input": "Decide whether GStack should require a third-party graph indexer.",
+    "required": ["optional", "consent", "fallback", "$GSTACK_HOME"],
+    "baseline": "Install it for every user because indexing is useful.",
+    "candidate": "Keep it optional, require explicit consent, persist state under $GSTACK_HOME, and retain a no-index fallback."
+  },
+  {
+    "id": "resolver-safety",
+    "input": "Diagnose a resolver that passes an untrusted logical skill name into path.resolve.",
+    "required": ["allowlist", "lowercase", "single segment", "traversal"],
+    "baseline": "Normalize the path and retry.",
+    "candidate": "Canonicalize to lowercase, require a single segment from an allowlist, and reject traversal before resolving."
+  }
+]
