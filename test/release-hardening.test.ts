@@ -53,7 +53,7 @@ describe("release and CI hardening", () => {
     });
     expect(pkg.files).toEqual(["bin/gstack", "runtime", "README.md", "LICENSE", "VERSION"]);
     expect(pkg.dependencies["puppeteer-core"]).toBeUndefined();
-    expect(pkg.dependencies.playwright).toBe("npm:playwright-core@^1.58.2");
+    expect(pkg.dependencies.playwright).toBe("npm:playwright-core@^1.60.0");
   });
 
   test("runtime identity is aligned independently of the legacy four-slot release counter", () => {
