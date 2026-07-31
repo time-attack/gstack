@@ -18,7 +18,16 @@
  * Missing → CLI present, config.json absent (honors GBRAIN_HOME).
  * Broken-config → config exists but `gbrain sources list` fails with config parse error
  *                 (or any non-recognized error — defensive default per codex #8).
- * Broken-db → config exists, DB unreachable per stderr classification.
+ * Broken-db → config exists, local DB unreachable per stderr classification.
+ * Unreachable → remote endpoint / engine can't be reached at the network level
+ *               (connection refused, DNS failure, fetch failed) — #1792.
+ * Unauthenticated → endpoint reached but credentials rejected (401/403,
+ *                   invalid token) — #1792.
+ * Remote-ok → healthy thin-client: config declares a remote endpoint (or
+ *             `gbrain sources` reports "not routable"), no local engine, and
+ *             `gbrain doctor --json --fast` — the thin-client-routable health
+ *             command — reports ok/warnings (#2051 / #1792). Usable for brain
+ *             queries; local-engine stages (code import) don't apply.
  * Timeout → probe exceeded GSTACK_GBRAIN_PROBE_TIMEOUT_MS (default 15s) with no
  *           recognized error — engine is likely healthy but slow (e.g. a cold
  *           pooler connection, #1964). Consumers treat this as usable.
@@ -43,10 +52,13 @@ import { buildGbrainEnv, NEEDS_SHELL_ON_WINDOWS } from "./gbrain-exec";
 
 export type LocalEngineStatus =
   | "ok"
+  | "remote-ok"
   | "no-cli"
   | "missing-config"
   | "broken-config"
   | "broken-db"
+  | "unreachable"
+  | "unauthenticated"
   | "timeout";
 
 export interface ClassifyOptions {
@@ -244,6 +256,95 @@ function writeCache(status: LocalEngineStatus, key: CacheEntry["key"]): void {
 }
 
 /**
+ * Typed failure classification (#1792). Matches error text against
+ * credential-rejection and network-level patterns so callers can distinguish
+ * "endpoint refused my token" from "endpoint doesn't answer" from
+ * "config is malformed". Returns null when the text matches neither —
+ * callers keep their own defensive default.
+ */
+// Deliberately excludes "permission denied"/"access denied": those are also
+// local-file EACCES phrasings and must keep their broken-config default.
+const AUTH_PATTERNS =
+  /unauthorized|authentication failed|invalid (api[ _-])?(token|key)|invalid credentials|\b40[13]\b/i;
+const UNREACHABLE_PATTERNS =
+  /econnrefused|enotfound|ehostunreach|enetunreach|econnreset|connection refused|could not resolve|getaddrinfo|network is unreachable|fetch failed|socket hang up/i;
+
+function classifyFailureText(text: string): "unauthenticated" | "unreachable" | null {
+  if (AUTH_PATTERNS.test(text)) return "unauthenticated";
+  if (UNREACHABLE_PATTERNS.test(text)) return "unreachable";
+  return null;
+}
+
+/**
+ * Does ~/.gbrain/config.json declare a remote endpoint with no local engine
+ * (gbrain thin-client, #2051)? Recognized shapes: `mode: "thin-client"`,
+ * `engine: "remote*"`, or a remote URL field (`mcp_url` per the thin-client
+ * config, plus `remote_url`/`url`/`endpoint`) without a `database_url`.
+ */
+function remoteEndpointConfig(env?: NodeJS.ProcessEnv): boolean {
+  try {
+    const cfg = JSON.parse(readFileSync(gbrainConfigPath(env), "utf-8")) as {
+      mode?: string;
+      engine?: string;
+      database_url?: string;
+      mcp_url?: string;
+      remote_url?: string;
+      url?: string;
+      endpoint?: string;
+    };
+    if (cfg.mode === "thin-client") return true;
+    if (typeof cfg.engine === "string" && cfg.engine.startsWith("remote")) return true;
+    if (!cfg.database_url && (cfg.mcp_url || cfg.remote_url || cfg.url || cfg.endpoint)) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false; // unreadable/unparseable config → let the local probe classify it
+  }
+}
+
+/**
+ * Health-probe a thin-client via `gbrain doctor --json --fast` — the command
+ * that IS routable in thin-client mode (`gbrain sources` is local-DB-only and
+ * refuses with "not routable", #1792). ok/warnings → remote-ok; failures get
+ * the typed classification (unauthenticated/unreachable/timeout) with the
+ * same broken-config defensive default as the local probe.
+ */
+function classifyRemote(env?: NodeJS.ProcessEnv): LocalEngineStatus {
+  try {
+    const out = execFileSync("gbrain", ["doctor", "--json", "--fast"], {
+      encoding: "utf-8",
+      timeout: probeTimeoutMs(env),
+      stdio: ["ignore", "pipe", "pipe"],
+      env: buildGbrainEnv({ baseEnv: env ?? process.env }),
+      shell: NEEDS_SHELL_ON_WINDOWS, // #1731: gbrain is a .cmd shim on Windows
+    });
+    const parsed = JSON.parse(out) as { status?: string };
+    if (parsed.status === "ok" || parsed.status === "warnings") return "remote-ok";
+    return classifyFailureText(out) ?? "broken-config";
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException & {
+      stderr?: Buffer | string;
+      stdout?: Buffer | string;
+      killed?: boolean;
+      signal?: NodeJS.Signals | null;
+    };
+    if (e.code === "ENOENT") return "no-cli";
+    const text =
+      ((e.stderr ? e.stderr.toString() : "") || "") +
+      ((e.stdout ? e.stdout.toString() : "") || "");
+    const typed = classifyFailureText(text);
+    if (typed) return typed;
+    if (e.killed === true || e.signal === "SIGTERM" || e.code === "ETIMEDOUT") {
+      return "timeout";
+    }
+    // Doctor output unparseable (including a SyntaxError from JSON.parse on
+    // a successful-exit but non-JSON body): defensive default per codex #8.
+    return "broken-config";
+  }
+}
+
+/**
  * Probe via `gbrain sources list --json`. Classify the outcome.
  *
  * Pattern strings ("Cannot connect to database", "config.json") are deliberately
@@ -257,6 +358,12 @@ function freshClassify(env?: NodeJS.ProcessEnv): LocalEngineStatus {
 
   // 2. Config file present?
   if (!existsSync(gbrainConfigPath(env))) return "missing-config";
+
+  // 2.5 Remote-endpoint awareness (#2051): a thin-client config has no local
+  // engine, and `gbrain sources list` is local-DB-only ("not routable" in
+  // thin-client mode) — probing it would land every healthy thin-client on
+  // the broken-config default. Health-check via doctor instead.
+  if (remoteEndpointConfig(env)) return classifyRemote(env);
 
   // 3. Probe gbrain sources list.
   //
@@ -287,9 +394,20 @@ function freshClassify(env?: NodeJS.ProcessEnv): LocalEngineStatus {
     // ENOENT can happen if gbrain disappeared between resolveGbrainBin and now.
     if (e.code === "ENOENT") return "no-cli";
 
+    // Thin-client whose config didn't match a recognized remote shape
+    // (#1792): `gbrain sources` refuses with "not routable" in thin-client
+    // mode. Route to the doctor-based remote health check instead of the
+    // broken-config default.
+    if (/not routable|thin-client/i.test(stderr)) return classifyRemote(env);
+
     // Pattern match against gbrain's known error strings. Order matters:
-    // "Cannot connect to database" is the more specific DB-unreachable signal.
+    // "Cannot connect to database" is the more specific DB-unreachable signal
+    // (kept as broken-db for back-compat), and the typed patterns (#1792) run
+    // before the weak "mentions config.json" check — remediation hints often
+    // name config.json even when the real failure is auth or network.
     if (stderr.includes("Cannot connect to database")) return "broken-db";
+    const typed = classifyFailureText(stderr);
+    if (typed) return typed;
     if (stderr.includes("config.json")) return "broken-config";
 
     // Probe killed by the timeout with no recognized error: the engine is
@@ -308,7 +426,7 @@ function freshClassify(env?: NodeJS.ProcessEnv): LocalEngineStatus {
 /**
  * Classify the local gbrain engine status. Cached for 60s; bypassable.
  *
- * Returns one of 5 states. Never throws — failure modes are surfaced as states.
+ * Never throws — failure modes are surfaced as typed states.
  */
 export function localEngineStatus(opts: ClassifyOptions = {}): LocalEngineStatus {
   const env = opts.env ?? process.env;

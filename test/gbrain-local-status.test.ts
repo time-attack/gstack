@@ -6,13 +6,16 @@
  * on PATH that emits canned exit codes + stderr matching the patterns the
  * classifier looks for.
  *
- * Six status cases:
- *   1. no-cli         — gbrain absent from PATH
- *   2. missing-config — gbrain present, config.json absent (honors GBRAIN_HOME)
- *   3. broken-config  — gbrain present, config exists, stderr contains "config.json"
- *   4. broken-db      — gbrain present, config exists, stderr contains "Cannot connect to database"
- *   5. timeout        — probe exceeds GSTACK_GBRAIN_PROBE_TIMEOUT_MS with no recognized error (#1964)
- *   6. ok             — gbrain present, config exists, sources list returns valid JSON
+ * Status cases:
+ *   1. no-cli          — gbrain absent from PATH
+ *   2. missing-config  — gbrain present, config.json absent (honors GBRAIN_HOME)
+ *   3. broken-config   — gbrain present, config exists, stderr contains "config.json"
+ *   4. broken-db       — gbrain present, config exists, stderr contains "Cannot connect to database"
+ *   5. timeout         — probe exceeds GSTACK_GBRAIN_PROBE_TIMEOUT_MS with no recognized error (#1964)
+ *   6. ok              — gbrain present, config exists, sources list returns valid JSON
+ *   7. remote-ok       — thin-client config (or "not routable" sources), doctor healthy (#2051/#1792)
+ *   8. unauthenticated — probe reached the endpoint, credentials rejected (#1792)
+ *   9. unreachable     — network-level failure reaching the endpoint (#1792)
  *
  * Plus cache behavior: hit, TTL expiry, invariant invalidation (HOME change,
  * probe-timeout change), --no-cache bypass. Timeout tests keep runtime sane by
@@ -59,10 +62,24 @@ interface FakeEnv {
  * The classifier reads HOME via os.homedir() which reads process.env.HOME, so
  * we mutate process.env ambiently in each test (restored in afterEach).
  */
+type FakeBehavior =
+  | "ok"
+  | "broken-db"
+  | "broken-config"
+  | "throws"
+  | "slow"
+  | "thin-client"
+  | "remote-auth"
+  | "remote-unreachable"
+  | "auth"
+  | "unreachable";
+
 function makeEnv(opts: {
   withGbrain?: boolean;
-  gbrainBehavior?: "ok" | "broken-db" | "broken-config" | "throws" | "slow";
+  gbrainBehavior?: FakeBehavior;
   withConfig?: boolean;
+  /** "thin-client" writes a remote-endpoint config (mcp_url, no database_url). */
+  configShape?: "local" | "thin-client";
 }): FakeEnv {
   const tmp = mkdtempSync(join(tmpdir(), "gbrain-local-status-test-"));
   const bindir = join(tmp, "bin");
@@ -79,7 +96,9 @@ function makeEnv(opts: {
   if (opts.withConfig) {
     writeFileSync(
       configPath,
-      JSON.stringify({ engine: "pglite", database_url: "pglite:///fake" }),
+      opts.configShape === "thin-client"
+        ? JSON.stringify({ mode: "thin-client", mcp_url: "https://brain.example.test/mcp" })
+        : JSON.stringify({ engine: "pglite", database_url: "pglite:///fake" }),
     );
   }
 
@@ -101,9 +120,7 @@ function makeEnv(opts: {
   };
 }
 
-function makeFakeGbrainScript(
-  behavior: "ok" | "broken-db" | "broken-config" | "throws" | "slow",
-): string {
+function makeFakeGbrainScript(behavior: FakeBehavior): string {
   // "slow": healthy engine on a cold pooler connection (#1964) — sleeps past
   // the (test-lowered) probe timeout, then would answer fine.
   if (behavior === "slow") {
@@ -120,14 +137,46 @@ fi
 exit 0
 `;
   }
-  const stderrLine =
-    behavior === "broken-db"
-      ? 'echo "Cannot connect to database: . Fix: Check your connection URL in ~/.gbrain/config.json" >&2'
-      : behavior === "broken-config"
-        ? 'echo "Error: malformed config.json at ~/.gbrain/config.json" >&2'
-        : behavior === "throws"
-          ? 'echo "unexpected gbrain failure" >&2'
-          : "";
+  // Remote/thin-client behaviors: `gbrain sources` refuses ("not routable",
+  // local-DB-only per #1792), health is answered by `doctor --json --fast`.
+  if (
+    behavior === "thin-client" ||
+    behavior === "remote-auth" ||
+    behavior === "remote-unreachable"
+  ) {
+    const doctorBlock =
+      behavior === "thin-client"
+        ? `echo '{"mode":"thin-client","status":"ok"}'
+  exit 0`
+        : behavior === "remote-auth"
+          ? `echo "Error: 401 Unauthorized: invalid API token" >&2
+  exit 1`
+          : `echo "Error: fetch failed: connect ECONNREFUSED 203.0.113.7:443" >&2
+  exit 1`;
+    return `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "gbrain 0.41.28.0"
+  exit 0
+fi
+if [ "$1" = "doctor" ]; then
+  ${doctorBlock}
+fi
+if [ "$1 $2" = "sources list" ]; then
+  echo 'gbrain sources is not routable. sources commands manage local DB + config rows.' >&2
+  exit 1
+fi
+exit 0
+`;
+  }
+  const stderrLines: Partial<Record<FakeBehavior, string>> = {
+    "broken-db":
+      'echo "Cannot connect to database: . Fix: Check your connection URL in ~/.gbrain/config.json" >&2',
+    "broken-config": 'echo "Error: malformed config.json at ~/.gbrain/config.json" >&2',
+    throws: 'echo "unexpected gbrain failure" >&2',
+    auth: 'echo "Error: authentication failed: invalid credentials for engine" >&2',
+    unreachable: 'echo "Error: connect ECONNREFUSED 203.0.113.7:5432" >&2',
+  };
+  const stderrLine = stderrLines[behavior] ?? "";
   const exitCode = behavior === "ok" ? 0 : 1;
   return `#!/bin/sh
 if [ "$1" = "--version" ]; then
@@ -236,6 +285,60 @@ describe("lib/gbrain-local-status — status classification", () => {
     restoreEnv = applyEnv(env);
     process.env.GSTACK_GBRAIN_PROBE_TIMEOUT_MS = "300";
     expect(localEngineStatus({ noCache: true })).toBe("timeout");
+  });
+
+  it("returns 'remote-ok' for a thin-client config when doctor reports healthy (#2051)", () => {
+    env = makeEnv({
+      withGbrain: true,
+      gbrainBehavior: "thin-client",
+      withConfig: true,
+      configShape: "thin-client",
+    });
+    restoreEnv = applyEnv(env);
+    expect(localEngineStatus({ noCache: true })).toBe("remote-ok");
+  });
+
+  it("routes a 'not routable' sources refusal to the doctor probe even when the config looks local (#1792)", () => {
+    // Config shape gives no remote hint; the thin-client signal arrives
+    // mid-probe as gbrain's "not routable" refusal. Must NOT fall through to
+    // the broken-config defensive default.
+    env = makeEnv({ withGbrain: true, gbrainBehavior: "thin-client", withConfig: true });
+    restoreEnv = applyEnv(env);
+    expect(localEngineStatus({ noCache: true })).toBe("remote-ok");
+  });
+
+  it("returns 'unauthenticated' when the remote endpoint rejects credentials", () => {
+    env = makeEnv({
+      withGbrain: true,
+      gbrainBehavior: "remote-auth",
+      withConfig: true,
+      configShape: "thin-client",
+    });
+    restoreEnv = applyEnv(env);
+    expect(localEngineStatus({ noCache: true })).toBe("unauthenticated");
+  });
+
+  it("returns 'unreachable' when the remote endpoint fails at the network level", () => {
+    env = makeEnv({
+      withGbrain: true,
+      gbrainBehavior: "remote-unreachable",
+      withConfig: true,
+      configShape: "thin-client",
+    });
+    restoreEnv = applyEnv(env);
+    expect(localEngineStatus({ noCache: true })).toBe("unreachable");
+  });
+
+  it("returns 'unauthenticated' (not broken-config) when the local probe hits an auth error", () => {
+    env = makeEnv({ withGbrain: true, gbrainBehavior: "auth", withConfig: true });
+    restoreEnv = applyEnv(env);
+    expect(localEngineStatus({ noCache: true })).toBe("unauthenticated");
+  });
+
+  it("returns 'unreachable' (not broken-config) when the local probe hits a network error", () => {
+    env = makeEnv({ withGbrain: true, gbrainBehavior: "unreachable", withConfig: true });
+    restoreEnv = applyEnv(env);
+    expect(localEngineStatus({ noCache: true })).toBe("unreachable");
   });
 
   it("honors GBRAIN_HOME for config detection (codex D11)", () => {

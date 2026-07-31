@@ -16,6 +16,7 @@ import { spawnSync } from "child_process";
 import {
   derivePathOnlyHashLegacyId,
   planHostnameFoldMigration,
+  repoPolicyTier,
   sourceLocalPath,
   _resetGbrainSupportsRenameCache,
 } from "../bin/gstack-gbrain-sync";
@@ -861,5 +862,106 @@ describe("sourceLocalPath", () => {
       "sources list --json": { stdout: JSON.stringify({ sources: [] }) },
     });
     expect(sourceLocalPath("missing-id", envWithBindir(bindir))).toBeNull();
+  });
+});
+
+describe("per-repo trust policy enforcement (deny/read-only chokepoint)", () => {
+  // The tier used to be enforced only in /sync-gbrain skill prose; a direct or
+  // cron invocation of the script ingested repo code regardless. These tests
+  // pin the in-script chokepoint: repoPolicyTier() reads the same store the
+  // prose describes (via the gstack-gbrain-repo-policy CLI, which owns URL
+  // normalization), and runCodeImport refuses deny / honors read-only.
+  const POLICY_BIN = join(import.meta.dir, "..", "bin", "gstack-gbrain-repo-policy");
+  const savedGstackHome = process.env.GSTACK_HOME;
+
+  afterEach(() => {
+    if (savedGstackHome === undefined) delete process.env.GSTACK_HOME;
+    else process.env.GSTACK_HOME = savedGstackHome;
+  });
+
+  function setTier(gstackHome: string, url: string, tier: string): void {
+    const r = spawnSync(POLICY_BIN, ["set", url, tier], {
+      encoding: "utf-8",
+      timeout: 15000,
+      env: { ...process.env, GSTACK_HOME: gstackHome },
+    });
+    expect(r.status).toBe(0);
+  }
+
+  it("returns unset when no policy store exists (fail-open for non-policy users)", () => {
+    const gstackHome = join(makeTestHome(), ".gstack");
+    process.env.GSTACK_HOME = gstackHome; // dir doesn't even exist yet
+    expect(repoPolicyTier("https://github.com/foo/bar.git")).toBe("unset");
+  });
+
+  it("returns the stored tier, normalizing remote forms, and unset for other repos", () => {
+    const gstackHome = join(makeTestHome(), ".gstack");
+    mkdirSync(gstackHome, { recursive: true });
+    setTier(gstackHome, "https://github.com/foo/denied.git", "deny");
+    setTier(gstackHome, "https://github.com/foo/readonly.git", "read-only");
+    process.env.GSTACK_HOME = gstackHome;
+    expect(repoPolicyTier("https://github.com/foo/denied.git")).toBe("deny");
+    // SSH shorthand must collapse to the same key as the https form.
+    expect(repoPolicyTier("git@github.com:foo/denied.git")).toBe("deny");
+    expect(repoPolicyTier("https://github.com/foo/readonly")).toBe("read-only");
+    expect(repoPolicyTier("https://github.com/foo/unrelated.git")).toBe("unset");
+    expect(repoPolicyTier(null)).toBe("unset"); // no origin remote → nothing keyed
+  });
+
+  it("fails closed with 'error' when the store exists but cannot be read", () => {
+    const gstackHome = join(makeTestHome(), ".gstack");
+    // A directory at the policy path makes the CLI's read fail (exit 2) while
+    // existsSync still sees a store — a set policy must not be silently bypassed.
+    mkdirSync(join(gstackHome, "gbrain-repo-policy.json"), { recursive: true });
+    process.env.GSTACK_HOME = gstackHome;
+    expect(repoPolicyTier("https://github.com/foo/bar.git")).toBe("error");
+  });
+
+  it("refuses code ingest with exit 1 when the cwd repo's policy is deny", () => {
+    const home = makeTestHome();
+    const gstackHome = join(home, ".gstack");
+    mkdirSync(gstackHome, { recursive: true });
+    const remote = "https://github.com/foo/denied.git";
+    setTier(gstackHome, remote, "deny");
+    const repo = mkdtempSync(join(tmpdir(), "gstack-policy-deny-"));
+    spawnSync("git", ["init", "--quiet", "-b", "main"], { cwd: repo });
+    spawnSync("git", ["remote", "add", "origin", remote], { cwd: repo });
+
+    const r = spawnSync("bun", [SCRIPT, "--dry-run", "--code-only", "--quiet"], {
+      encoding: "utf-8",
+      timeout: 60000,
+      cwd: repo,
+      env: { ...process.env, HOME: home, GSTACK_HOME: gstackHome },
+    });
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain("refused: repo policy is deny");
+    expect(r.stdout).not.toContain("gbrain sources add"); // no would-sync preview
+
+    rmSync(repo, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  it("skips code ingest cleanly (exit 0) when the cwd repo's policy is read-only", () => {
+    const home = makeTestHome();
+    const gstackHome = join(home, ".gstack");
+    mkdirSync(gstackHome, { recursive: true });
+    const remote = "https://github.com/foo/readonly.git";
+    setTier(gstackHome, remote, "read-only");
+    const repo = mkdtempSync(join(tmpdir(), "gstack-policy-ro-"));
+    spawnSync("git", ["init", "--quiet", "-b", "main"], { cwd: repo });
+    spawnSync("git", ["remote", "add", "origin", remote], { cwd: repo });
+
+    const r = spawnSync("bun", [SCRIPT, "--dry-run", "--code-only", "--quiet"], {
+      encoding: "utf-8",
+      timeout: 60000,
+      cwd: repo,
+      env: { ...process.env, HOME: home, GSTACK_HOME: gstackHome },
+    });
+    expect(r.status).toBe(0); // honoring an explicit user setting is not a failure
+    expect(r.stdout).toContain("repo policy is read-only");
+    expect(r.stdout).not.toContain("gbrain sources add"); // ingest never previewed
+
+    rmSync(repo, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
   });
 });
