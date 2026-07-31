@@ -13,20 +13,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  native:
-    name: Native ${{ matrix.os }}
+  skills-tree:
+    name: Static skills tree ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [macos-14, ubuntu-24.04, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          fetch-depth: 0
-      - name: Fetch the pinned GStack 2 base commit (not reachable from PR refs)
-        run: git fetch --no-tags --depth=1 origin bb57306d98c97011b0919c6132705a15b1579781
+          bun-version: 1.3.14
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.23.1
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Canonical six-skill tree and size budget
+        run: bun test --timeout 30000 test/gstack2-skills.test.ts test/skill-size-budget.test.ts
+      - name: Standard installer discovery
+        run: npx --yes skills@1.5.19 add . --list
+
+  free-suite:
+    name: Free test suite
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
@@ -39,72 +53,7 @@ jobs:
           git config --global user.name "GStack 2 CI"
           git config --global init.defaultBranch main
       - run: bun install --frozen-lockfile
-      - name: Prove generation from an artifact-free checkout
-        run: bun run verify:gstack2-clean-generation
-      - name: Canonical six-skill, parity, state, and runtime gates
-        run: bun run test:gstack2
-      - name: Standard installer discovery
-        run: npx --yes skills@1.5.19 add . --list
-
-  installer-matrix:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 0
-      - name: Fetch the pinned GStack 2 base commit (not reachable from PR refs)
-        run: git fetch --no-tags --depth=1 origin bb57306d98c97011b0919c6132705a15b1579781
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: 1.3.14
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22.23.1
-      - run: bun install --frozen-lockfile
-      - run: bun run test:gstack2:install
-
-  installed-first-use:
-    name: Installed six-skill first use
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - name: Fetch the pinned GStack 2 base commit (not reachable from PR refs)
-        run: git fetch --no-tags --depth=1 origin bb57306d98c97011b0919c6132705a15b1579781
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: 1.3.14
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22.23.1
-      - run: bun install --frozen-lockfile --ignore-scripts
-      - run: bun run gen:gstack2
-      - name: Prove consent-first capability setup continues after approval
-        run: bun test --timeout 30000 test/gstack2-installation.test.ts test/gstack2-skill-ux.test.ts
-
-  dev-container:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 0
-      - name: Fetch the pinned GStack 2 base commit (not reachable from PR refs)
-        run: git fetch --no-tags --depth=1 origin bb57306d98c97011b0919c6132705a15b1579781
-      - name: Build the declared development container
-        run: docker build --file .devcontainer/Dockerfile --tag gstack2-devcontainer .
-      - name: Run the GStack 2 gate inside the container
-        run: >-
-          docker run --rm
-          --volume "${{ github.workspace }}:/source:ro"
-          --workdir /source
-          gstack2-devcontainer
-          /source/scripts/gstack2/devcontainer-gate.sh /source
-      - name: Exercise a clean Linux runtime install inside the container
-        run: >-
-          docker run --rm
-          --volume "${{ github.workspace }}:/source:ro"
-          --workdir /source
-          gstack2-devcontainer
-          /source/scripts/gstack2/runtime-install-smoke.sh /source
+      - name: Install Playwright Chromium (locked version, browse integration tests)
+        run: ./node_modules/.bin/playwright-core install --with-deps chromium
+      - name: Run the free suite
+        run: bun run test

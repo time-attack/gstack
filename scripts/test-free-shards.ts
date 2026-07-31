@@ -3,7 +3,7 @@
  * test-free-shards — enumerate, shard, and curate the free test suite.
  *
  * Three jobs:
- *   1. Enumeration. Walk all five free-test roots and return
+ *   1. Enumeration. Walk all four free-test roots and return
  *      every `*.test.{ts,tsx,js,jsx,mjs,cjs}` that isn't a paid-eval test.
  *   2. Sharding. Build deterministic, size-bounded shards and isolate tests
  *      whose module setup mutates process.env or whose cleanup schedules
@@ -34,7 +34,6 @@ export const FREE_TEST_ROOTS = [
   'browse/test',
   'test',
   'make-pdf/test',
-  'design/test',
   'ios-qa/daemon/test',
 ] as const;
 const TEST_FILE_REGEX = /\.test\.(?:[cm]?[jt]s|tsx|jsx)$/;
@@ -43,7 +42,7 @@ const TEST_FILE_REGEX = /\.test\.(?:[cm]?[jt]s|tsx|jsx)$/;
 // These are filtered out before any sharding or curation.
 const PAID_EVAL_TESTS = [
   /^browse\/test\/security-review-fullstack\.test\.ts$/,
-  /^test\/skill-e2e-.*\.test\.ts$/,
+  /^test\/skill-e2e(-.*)?\.test\.ts$/,
   /^test\/skill-llm-eval\.test\.ts$/,
   /^test\/skill-routing-e2e\.test\.ts$/,
   /^test\/codex-e2e\.test\.ts$/,

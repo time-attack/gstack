@@ -6,9 +6,10 @@ The judgment surface is exactly `/plan`, `/qa`, `/debug`, `/review`, and `/ship`
 They are lazy dispatchers over the preserved modules under
 `skills/*/references/legacy/`; do not rewrite or summarize away the original
 question pressure, rubrics, pushback, approval gates, evidence, artifacts,
-mutation boundaries, recommendations, or voice. Compatibility files under
-`compat/` route old names and contain no judgment. `make-pdf` is a tool skill
-(not a judgment dispatcher) emitted into `skills/make-pdf/`; it installs with the
+mutation boundaries, recommendations, or voice. Compatibility aliases under
+`skills/.compat/*/SKILL.md` route old names (e.g. `/office-hours`, `/qa-only`)
+to a dispatcher invocation and contain no judgment. `make-pdf` is a tool skill
+(not a judgment dispatcher) at `skills/make-pdf/`; it ships in the
 same canonical tree, so `npx skills add time-attack/gstack/skills` yields six
 discoverable skills (five dispatchers plus make-pdf).
 
@@ -22,17 +23,13 @@ path. Pure judgment must work without the optional `bin/gstack` runtime.
 The host-neutral `./setup` installs only that managed runtime/capability bundle;
 it never owns host skill placement.
 
-GStack 2 source workflow:
-
-```bash
-bun run gen:gstack2
-bun run test:gstack2
-```
-
-The generator owns `skills/*/references/legacy/`, `compat/`, `evals/parity/`,
-and the migration/provenance/parity/scenario documents under `docs/gstack-2/`.
-Edit `scripts/gstack2/` inputs or the pinned canonical template as appropriate,
-then regenerate. Preserve the source-blob and normalized-render evidence.
+`skills/` is the STATIC source of truth — the generator (`scripts/gstack2/`),
+`compat/`, and the parity harness were deleted; there is no regeneration step.
+The regression fixtures under `evals/parity/regressions/` remain as static
+test data.
+Edit files under `skills/` directly. The preserved legacy modules under
+`skills/*/references/legacy/` take bug fixes and mechanical corrections only;
+never rewrite, compress, or summarize the preserved judgment prose.
 
 The runtime is host-neutral, uses `$GSTACK_HOME` or `~/.gstack`, and keeps state
 as locked/atomically written JSON and JSONL. Network mode defaults off.
@@ -72,10 +69,7 @@ bun run test:e2e     # run E2E tests only (diff-based, ~$3.85/run max)
 bun run test:e2e:all # run ALL E2E tests regardless of diff
 bun run eval:select  # show which tests would run based on current diff
 bun run dev <cmd>    # run CLI in dev mode, e.g. bun run dev goto https://example.com
-bun run build        # gen docs + compile binaries
-bun run gen:skill-docs  # regenerate SKILL.md files from templates
-bun run skill:check  # health dashboard for all skills
-bun run dev:skill    # watch mode: auto-regen + validate on change
+bun run build        # compile binaries (browse, make-pdf) — no doc generation step
 bun run eval:list    # list all eval runs from ~/.gstack-dev/evals/
 bun run eval:compare # compare two eval runs (auto-picks most recent)
 bun run eval:summary # aggregate stats across all eval runs
@@ -136,39 +130,29 @@ bun test             # run before every commit — free, <2s
 bun run test:evals   # run before shipping — paid, diff-based (~$4/run max)
 ```
 
-`bun test` runs skill validation, gen-skill-docs quality checks, and browse
-integration tests. `bun run test:evals` runs LLM-judge quality evals and E2E
+`bun test` runs skill validation and browse integration tests. `bun run test:evals` runs LLM-judge quality evals and E2E
 tests via `claude -p`. Both must pass before creating a PR.
 
 ## Project structure
 
 ```
 gstack/
+├── skills/          # STATIC GStack 2 skill tree (source of truth, no generator)
+│   ├── plan/ qa/ debug/ review/ ship/  # The five judgment dispatchers
+│   │   └── references/legacy/  # Preserved specialist modules — never rewrite
+│   ├── make-pdf/    # Tool skill (sixth discoverable skill)
+│   └── .compat/     # Old-name aliases (office-hours, qa-only, ...) — routing only
 ├── browse/          # Headless browser CLI (Playwright)
 │   ├── src/         # CLI + server + commands
 │   │   ├── commands.ts  # Command registry (single source of truth)
 │   │   └── snapshot.ts  # SNAPSHOT_FLAGS metadata array
 │   ├── test/        # Integration tests + fixtures
-│   └── dist/        # Compiled binary
-├── hosts/           # Typed host configs (one per AI agent)
-│   ├── claude.ts    # Primary host config
-│   ├── codex.ts, factory.ts, kiro.ts  # Existing hosts
-│   ├── opencode.ts, slate.ts, cursor.ts, openclaw.ts  # IDE hosts
-│   ├── hermes.ts, gbrain.ts  # Agent runtime hosts
-│   └── index.ts     # Registry: exports all, derives Host type
-├── scripts/         # Build + DX tooling
-│   ├── gen-skill-docs.ts  # Template → SKILL.md generator (config-driven)
-│   ├── host-config.ts     # HostConfig interface + validator
-│   ├── host-config-export.ts  # Shell bridge for setup script
-│   ├── host-adapters/     # Host-specific adapters (OpenClaw tool mapping)
-│   ├── resolvers/   # Template resolver modules (preamble, design, review, gbrain, etc.)
-│   ├── skill-check.ts     # Health dashboard
-│   └── dev-skill.ts       # Watch mode
+│   └── dist/        # Compiled binary (gitignored)
+├── scripts/         # Build + DX tooling (build.sh, eval-*.ts, test-free-*.ts, slop-diff.ts)
 ├── test/            # Skill validation + eval tests
 │   ├── helpers/     # skill-parser.ts, session-runner.ts, llm-judge.ts, eval-store.ts
 │   ├── fixtures/    # Ground truth JSON, planted-bug fixtures, eval baselines
 │   ├── skill-validation.test.ts  # Tier 1: static validation (free, <1s)
-│   ├── gen-skill-docs.test.ts    # Tier 1: generator quality (free, <1s)
 │   ├── skill-llm-eval.test.ts   # Tier 3: LLM-as-judge (~$0.15/run)
 │   └── skill-e2e-*.test.ts       # Tier 2: E2E via claude -p (~$3.85/run, split by category)
 ├── qa-only/         # /qa-only skill (report-only QA, no fixes)
@@ -191,10 +175,6 @@ gstack/
 ├── cso/             # /cso skill (OWASP Top 10 + STRIDE security audit)
 ├── open-gstack-browser/  # /open-gstack-browser skill (launch GStack Browser)
 ├── connect-chrome/  # symlink → open-gstack-browser (backwards compat)
-├── design/          # Design binary CLI (GPT Image API)
-│   ├── src/         # CLI + commands (generate, variants, compare, serve, etc.)
-│   ├── test/        # Integration tests
-│   └── dist/        # Compiled binary
 ├── extension/       # Chrome extension (side panel + activity feed + CSS inspector)
 ├── lib/             # Shared libraries (worktree.ts)
 ├── docs/designs/    # Design documents
@@ -204,40 +184,27 @@ gstack/
 │   └── docker/      # Dockerfile.ci (pre-baked toolchain + Playwright/Chromium)
 ├── contrib/         # Contributor-only tools (never installed for users)
 │   └── add-host/    # /gstack-contrib-add-host skill
-├── setup            # One-time setup: build binary + symlink skills
-├── SKILL.md         # Generated from SKILL.md.tmpl (don't edit directly)
-├── SKILL.md.tmpl    # Template: edit this, run gen:skill-docs
+├── setup            # One-time setup: build binary + install managed runtime bundle
 ├── ETHOS.md         # Builder philosophy (Boil the Ocean, Search Before Building)
 └── package.json     # Build scripts for browse
 ```
 
 ## SKILL.md workflow
 
-SKILL.md files are **generated** from `.tmpl` templates. To update docs:
-
-1. Edit the `.tmpl` file (e.g. `SKILL.md.tmpl` or `browse/SKILL.md.tmpl`)
-2. Run `bun run gen:skill-docs` (or `bun run build` which does it automatically)
-3. Commit both the `.tmpl` and generated `.md` files
+SKILL.md files under `skills/` are **static** — the generator
+(`scripts/gen-skill-docs.ts`) was deleted, so there is no regeneration step.
+Edit the SKILL.md files directly. Legacy 1.x `.tmpl` files still in the tree
+are historical inputs with no build path; don't edit them expecting output.
 
 To add a new browse command: add it to `browse/src/commands.ts` and rebuild.
 To add a snapshot flag: add it to `SNAPSHOT_FLAGS` in `browse/src/snapshot.ts` and rebuild.
 
-**Token ceiling:** Generated SKILL.md files trip a warning above 160KB (~40K tokens).
-This is a "watch for feature bloat" guardrail, not a hard gate. Modern flagship
-models have 200K-1M context windows, so 40K is 4-20% of window, and prompt caching
-makes the marginal cost of larger skills small. The ceiling exists to catch runaway
-preamble/resolver growth, not to force compression on carefully-tuned big skills
-(`ship`, `plan-ceo-review`, `office-hours` legitimately pack 25-35K tokens of
-behavior). If you blow past 40K, the right fix is usually: (1) look at WHAT grew,
-(2) if one resolver added 10K+ in a single PR, question whether it belongs inline
-or as a reference doc, (3) only compress carefully-tuned prose as a last resort —
-cuts to the coverage audit, review army, or voice directive have real quality cost.
-
-**Merge conflicts on SKILL.md files:** NEVER resolve conflicts on generated SKILL.md
-files by accepting either side. Instead: (1) resolve conflicts on the `.tmpl` templates
-and `scripts/gen-skill-docs.ts` (the sources of truth), (2) run `bun run gen:skill-docs`
-to regenerate all SKILL.md files, (3) stage the regenerated files. Accepting one side's
-generated output silently drops the other side's template changes.
+**Size budget:** `test/skill-size-budget.test.ts` guards skill size. It is a
+"watch for feature bloat" guardrail, not a compression mandate — if a skill
+grows, look at WHAT grew and whether it belongs inline or as a reference doc;
+only compress carefully-tuned prose as a last resort. Cuts to preserved
+judgment (coverage audit, review army, voice) have real quality cost and are
+forbidden by the canonical contract.
 
 ## Platform-agnostic design
 
@@ -251,9 +218,9 @@ structures. Instead:
 This applies to test commands, eval commands, deploy commands, and any other
 project-specific behavior. The project owns its config; gstack reads it.
 
-## Writing SKILL templates
+## Writing SKILL files
 
-SKILL.md.tmpl files are **prompt templates read by Claude**, not bash scripts.
+SKILL.md files are **prompts read by Claude**, not bash scripts.
 Each bash code block runs in a separate shell — variables do not persist between blocks.
 
 Rules:
@@ -261,8 +228,8 @@ Rules:
   state between code blocks. Instead, tell Claude what to remember and reference
   it in prose (e.g., "the base branch detected in Step 0").
 - **Don't hardcode branch names.** Detect `main`/`master`/etc dynamically via
-  `gh pr view` or `gh repo view`. Use `{{BASE_BRANCH_DETECT}}` for PR-targeting
-  skills. Use "the base branch" in prose, `<base>` in code block placeholders.
+  `gh pr view` or `gh repo view`. Use "the base branch" in prose, `<base>` in
+  code block placeholders.
 - **Keep bash blocks self-contained.** Each code block should work independently.
   If a block needs context from a previous step, restate it in the prose above.
 - **Express conditionals as English.** Instead of nested `if/elif/else` in bash,
@@ -270,9 +237,9 @@ Rules:
 
 ## Writing style (V1)
 
-Default output from every tier-≥2 skill follows the Writing Style section in
-`scripts/resolvers/preamble.ts`: jargon glossed on first use (curated list in
-`scripts/jargon-list.json`, baked at gen-skill-docs time), questions framed in
+Default output from every judgment skill follows the writing-style rules baked
+into the skill files: jargon glossed on first use (curated list in
+`skills/*/references/support/scripts/jargon-list.json`), questions framed in
 outcome terms ("what breaks for your users if...") not implementation terms,
 short sentences, decisions close with user impact. Power users who want the
 tighter V0 prose set `gstack-config set explain_level terse` (binary switch,
@@ -372,8 +339,8 @@ could break other Claude Code sessions using gstack concurrently.
 
 **Check once per session:** Run `ls -la .claude/skills/gstack` to see if it's a
 symlink or a real copy. If it's a symlink to your working directory, be aware that:
-- Template changes + `bun run gen:skill-docs` immediately affect all gstack invocations
-- Breaking changes to SKILL.md.tmpl files can break concurrent gstack sessions
+- SKILL.md edits immediately affect all gstack invocations
+- Breaking changes to skill files can break concurrent gstack sessions
 - During large refactors, remove the symlink (`rm .claude/skills/gstack`) so the
   global install at `~/.claude/skills/gstack/` is used instead
 
@@ -387,8 +354,8 @@ skip the interactive prompt.
 **Note:** Vendoring gstack into a project's repo is deprecated. Use global install
 + `./setup --team` instead. See README.md for team mode instructions.
 
-**For plan reviews:** When reviewing plans that modify skill templates or the
-gen-skill-docs pipeline, consider whether the changes should be tested in isolation
+**For plan reviews:** When reviewing plans that modify skill files, consider
+whether the changes should be tested in isolation
 before going live (especially if the user is actively using gstack in other windows).
 
 **Upgrade migrations:** When a change modifies on-disk state (directory structure,
@@ -397,19 +364,16 @@ migration script to `gstack-upgrade/migrations/`. Read CONTRIBUTING.md's "Upgrad
 migrations" section for the format and testing requirements. The upgrade skill runs
 these automatically after `./setup` during `/gstack-upgrade`.
 
-## Compiled binaries — NEVER commit browse/dist/ or design/dist/
+## Compiled binaries — NEVER commit dist/ directories
 
-The `browse/dist/` and `design/dist/` directories contain compiled Bun binaries
-(`browse`, `find-browse`, `design`, ~58MB each). These are Mach-O arm64 only — they
-do NOT work on Linux, Windows, or Intel Macs. The `./setup` script already builds
-from source for every platform, so the checked-in binaries are redundant. They are
-tracked by git due to a historical mistake and should eventually be removed with
-`git rm --cached`.
+`browse/dist/` and `make-pdf/dist/` contain compiled Bun binaries (~58MB each).
+These are Mach-O arm64 only — they do NOT work on Linux, Windows, or Intel Macs.
+The `./setup` script builds from source for every platform, and the directories
+are gitignored.
 
-**NEVER stage or commit these files.** They show up as modified in `git status`
-because they're tracked despite `.gitignore` — ignore them. When staging files,
-always use specific filenames (`git add file1 file2`) — never `git add .` or
-`git add -A`, which will accidentally include the binaries.
+**NEVER stage or commit these files.** When staging files, always use specific
+filenames (`git add file1 file2`) — never `git add .` or `git add -A`, which
+could accidentally include build artifacts.
 
 ## Redaction guard (PII / secrets / legal content)
 
@@ -429,9 +393,9 @@ determined leaker (a CHANGELOG line that does would fail a hostile screenshotter
 - **CLI:** `bin/gstack-redact` (exit 0 clean / 2 MEDIUM / 3 HIGH; `--json`,
   `--auto-redact`, `--repo-visibility`, `--from-file`). `bin/gstack-redact-prepush`
   is the opt-in git hook.
-- **Skill docs are generated** from `scripts/resolvers/redact-doc.ts`
-  (`{{REDACT_TAXONOMY_TABLE}}`, `{{REDACT_INVOCATION_BLOCK:<sink>}}`) so /spec,
-  /cso, /ship, /document-release, /document-generate never drift from the engine.
+- **Skill docs carry the taxonomy statically** (the redact-doc resolver is gone
+  with the generator); when the engine's tiers or invocation contract change,
+  update the redaction prose in the affected skill files under `skills/` too.
 - **Scan-at-sink:** always scan the EXACT bytes that will be sent — write to a
   temp file, scan that file, pass the SAME file to `gh`/`git`. Never scan a string
   then re-render (that reopens a scan-vs-send gap).
@@ -919,7 +883,7 @@ Key routing rules:
 - Bugs and unknown failures → invoke `/debug`; prove root cause before mutation.
 - Diff, security, compatibility, or repository-health review → invoke `/review`.
 - PR preparation, landing, deploy, monitoring, release docs, or rollback → invoke `/ship`.
-- Old names such as `/office-hours`, `/investigate`, and `/qa-only` route through `compat/README.md`; they are not additional public skills.
+- Old names such as `/office-hours`, `/investigate`, and `/qa-only` route through the compatibility aliases in `skills/.compat/`; they are not additional public skills.
 
 ## Cross-session decision memory
 

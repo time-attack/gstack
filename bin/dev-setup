@@ -63,40 +63,10 @@ fi
 # execute the checked-out binaries directly, so invoking ./setup here would
 # mutate user state without adding any workspace capability.
 #
-# Brain-aware (gbrain) blocks render into an untracked workspace dir.
-#
-# The worktree's SKILL.md files stay canonical (the guard above). If gbrain is
-# installed, render the :user variant (with GBRAIN_CONTEXT_LOAD +
-# GBRAIN_SAVE_RESULTS) into .claude/gstack-rendered (gitignored, per-workspace)
-# and repoint the workspace's SKILL.md symlinks at it. gen-skill-docs --out-dir
-# also rewrites the section-base path so section reads resolve to the render, not
-# the global install. Result: this workspace gets the full gbrain experience
-# while git stays clean. Production skill placement and updates remain owned by
-# the standard Agent Skills installer.
-GBRAIN_DETECT="$REPO_ROOT/bin/gstack-gbrain-detect"
-RENDER_DIR="$REPO_ROOT/.claude/gstack-rendered"
-if [ -x "$GBRAIN_DETECT" ] && "$GBRAIN_DETECT" --is-ok 2>/dev/null; then
-  echo ""
-  echo "gbrain detected — rendering brain-aware skills into .claude/gstack-rendered (workspace-only, untracked)..."
-  rm -rf "$RENDER_DIR"
-  if ( cd "$REPO_ROOT" && bun run gen:skill-docs:user --host claude --out-dir "$RENDER_DIR" >/dev/null 2>&1 ); then
-    # Repoint each project-local SKILL.md symlink whose worktree target has a
-    # rendered counterpart. The skill DIRECTORY name (basename of the symlink
-    # target's dir) maps to RENDER_DIR/<dir>/SKILL.md, which is robust to
-    # frontmatter renames and the gstack- prefix on the link name.
-    repointed=0
-    for skill_link in "$REPO_ROOT"/.claude/skills/*/SKILL.md; do
-      [ -L "$skill_link" ] || continue
-      target="$(readlink "$skill_link")"
-      skilldir="$(basename "$(dirname "$target")")"
-      rendered="$RENDER_DIR/$skilldir/SKILL.md"
-      if [ -f "$rendered" ]; then ln -snf "$rendered" "$skill_link"; repointed=$((repointed + 1)); fi
-    done
-    echo "  $repointed workspace skills now serve brain-aware blocks (worktree stays canonical)."
-  else
-    echo "  warning: brain-aware render failed — workspace uses canonical skills."
-  fi
-fi
+# Skills are static (no generation pipeline). The symlinks above are the whole
+# story: the worktree's SKILL.md files stay canonical, and any stale
+# .claude/gstack-rendered dir from the retired brain-aware render is removed.
+rm -rf "$REPO_ROOT/.claude/gstack-rendered"
 
 echo ""
 echo "Dev mode active. Skills resolve from this working tree."

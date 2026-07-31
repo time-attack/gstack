@@ -23,12 +23,11 @@ import {
 const ROOT = path.resolve(import.meta.dir, '..');
 
 describe('test-free-shards: enumeration', () => {
-  test('uses the canonical five free-test roots', () => {
+  test('uses the canonical four free-test roots', () => {
     expect(FREE_TEST_ROOTS).toEqual([
       'browse/test',
       'test',
       'make-pdf/test',
-      'design/test',
       'ios-qa/daemon/test',
     ]);
   });

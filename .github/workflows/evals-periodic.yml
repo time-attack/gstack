@@ -74,8 +74,6 @@ jobs:
         suite:
           - name: e2e-plan
             file: test/skill-e2e-plan.test.ts
-          - name: e2e-design
-            file: test/skill-e2e-design.test.ts
           - name: e2e-qa-bugs
             file: test/skill-e2e-qa-bugs.test.ts
           - name: e2e-qa-workflow

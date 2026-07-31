@@ -2,63 +2,34 @@ import { describe, test, expect } from 'bun:test';
 import * as path from 'path';
 import * as fs from 'fs';
 
-// Static tripwires for the B2 render-isolation wiring. These fail CI if a
-// refactor drops a load-bearing line, re-introducing the "dev-setup dirties
-// tracked SKILL.md" drift (or worse, leaks the skip-guard into real installs).
+// Static tripwires for dev-setup's static-skills contract. Skills are no
+// longer generated: dev-setup links the worktree into .claude/skills and
+// .agents/skills and must never invoke the retired render pipeline or the
+// per-user runtime installer.
 const ROOT = path.resolve(import.meta.dir, '..');
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
-describe('dev-setup: worktree stays canonical', () => {
+describe('dev-setup: links the worktree, no rendering', () => {
   const devSetup = read('bin/dev-setup');
 
-  test('does not invoke the per-user runtime installer from a development worktree', () => {
+  test('does not invoke the user runtime installer from a development worktree', () => {
     expect(devSetup).not.toMatch(/\$GSTACK_LINK\/setup/);
     expect(devSetup).toContain('Do not call the user runtime installer');
   });
 
-  test('never exports GSTACK_SKIP_GBRAIN_REGEN (would leak into other setup paths)', () => {
-    expect(devSetup).not.toMatch(/export\s+GSTACK_SKIP_GBRAIN_REGEN/);
+  test('does not call the retired skill-generation pipeline', () => {
+    expect(devSetup).not.toContain('gen:skill-docs');
+    expect(devSetup).not.toContain('--out-dir');
   });
 
-  test('renders the :user variant into an out-dir, not in place', () => {
-    expect(devSetup).toContain('--out-dir');
-    expect(devSetup).toContain('.claude/gstack-rendered');
+  test('symlinks the repo root for Claude and agent hosts', () => {
+    expect(devSetup).toContain('.claude/skills');
+    expect(devSetup).toContain('.agents/skills');
+    expect(devSetup).toMatch(/ln -s "\$REPO_ROOT"/);
   });
 
-  test('gates the render on gstack-gbrain-detect --is-ok', () => {
-    expect(devSetup).toContain('--is-ok');
-  });
-});
-
-describe.skipIf(read('setup').includes('optional GStack 2 runtime'))('legacy setup: honors GSTACK_SKIP_GBRAIN_REGEN', () => {
-  const setup = read('setup');
-
-  test('skips the in-place :user regen when the guard is set', () => {
-    expect(setup).toContain('${GSTACK_SKIP_GBRAIN_REGEN:-}');
-    // The guard must wrap the in-place render, not the detection persist.
-    const idx = setup.indexOf('GSTACK_SKIP_GBRAIN_REGEN');
-    const after = setup.slice(idx, idx + 600);
-    expect(after).toContain('leaving tracked SKILL.md canonical');
-  });
-
-  test('uses a PID-unique detection tmp (no concurrent clobber)', () => {
-    expect(setup).toContain('$DETECTION_FILE.$$.tmp');
-  });
-
-  test('gates detection on the shared --is-ok check', () => {
-    expect(setup).toContain('"$DETECT_BIN" --is-ok');
-  });
-});
-
-describe('gen-skill-docs: section rewrite is gated on --out-dir', () => {
-  const gen = read('scripts/gen-skill-docs.ts');
-
-  test('rewriteSectionBase is a no-op without --out-dir', () => {
-    expect(gen).toContain('function rewriteSectionBase');
-    const idx = gen.indexOf('function rewriteSectionBase');
-    const body = gen.slice(idx, idx + 400);
-    expect(body).toContain('if (!OUT_DIR) return content');
-    expect(body).toContain('sections'); // surgical: regex targets only /sections/ paths
+  test('cleans up any stale render dir from the retired pipeline', () => {
+    expect(devSetup).toMatch(/rm -rf .*gstack-rendered/);
   });
 });
 
@@ -71,22 +42,8 @@ describe('dev-teardown: removes the untracked render', () => {
   });
 });
 
-describe('.gitignore: render dir is declared untracked', () => {
+describe('.gitignore: render dir stays declared untracked', () => {
   test('.claude/gstack-rendered/ is ignored', () => {
     expect(read('.gitignore')).toContain('.claude/gstack-rendered/');
-  });
-});
-
-describe('dev-skill: refreshes the render on template change', () => {
-  const devSkill = read('scripts/dev-skill.ts');
-
-  test('re-renders the :user variant into the workspace render dir', () => {
-    expect(devSkill).toContain('gstack-rendered');
-    expect(devSkill).toContain('--out-dir');
-    expect(devSkill).toContain('--respect-detection');
-  });
-
-  test('only refreshes when the render dir already exists (never creates it during plain dev)', () => {
-    expect(devSkill).toContain('fs.existsSync(RENDER_DIR)');
   });
 });

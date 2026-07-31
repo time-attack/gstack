@@ -74,5 +74,4 @@ jobs:
           setup
           scripts/build.sh
           scripts/write-version-files.sh
-          scripts/gstack2/runtime-install-smoke.sh
           browse/scripts/build-node-server.sh

@@ -38,8 +38,7 @@ bash browse/scripts/build-node-server.sh
 bash scripts/write-version-files.sh browse/dist/.version make-pdf/dist/.version
 chmod +x browse/dist/browse make-pdf/dist/pdf
 if [ "$RUNTIME_ONLY" -eq 0 ]; then
-  "$BUN_CMD" run gen:gstack2
-  "$BUN_CMD" run gen:skill-docs --host all
+  # skills/ ships static — no generation step.
   "$BUN_CMD" build --compile bin/gstack-global-discover.ts --outfile bin/gstack-global-discover
   chmod +x bin/gstack-global-discover
 fi
