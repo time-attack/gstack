@@ -37,9 +37,51 @@ scope, destination paths, updates, removal, and selected-skill installation:
 npx skills add time-attack/gstack/skills
 ```
 
-That installs the five judgment skills. Install a subset with the installer's
-`--skill` option, or use `-g` for its global scope. GStack does not silently
-enroll detected hosts.
+That installs the five judgment skills plus `make-pdf`. Install a subset with
+the installer's `--skill` option, or use `-g` for its global scope. GStack does
+not silently enroll detected hosts.
+
+### Read this before you try QA or a PDF
+
+**`npx skills add` installs skills only. It ships no binaries.** Every judgment
+mode works immediately; anything that has to *execute* something is a second,
+consent-gated install. Nothing is downloaded until you approve it.
+
+| Works right after `npx skills add` | Needs the optional runtime |
+|---|---|
+| All `/plan`, `/qa`, `/debug`, `/review`, `/ship` reasoning: modes, rubrics, pushback, approval gates, evidence standards, artifacts | GStack's local browser for browser-driven QA — unless your host has its own browser and `/qa` uses that instead |
+| Reading a diff or PR, planning, root-cause proof, spec writing, release docs | `make-pdf` actually rendering a PDF, HTML, or DOCX (`pdf` capability) |
+| Anything your coding host already does: files, git, shell, search, its own browser tools | The `gstack` CLIs: `doctor`, `state`, `context`, `context-bill`, `egress`, and decision memory (`gstack-decision-log` / `gstack-decision-search`) |
+| | Physical-iPhone QA (`ios` capability, macOS only) |
+
+Ordinary path: keep working, and when a skill first reaches a capability it
+doesn't have, it names the capability and offers the install. The manual
+equivalent, run from the installed skill directory that `npx skills list`
+prints:
+
+```bash
+node references/support/runtime-bootstrap.mjs preview --capability pdf --browser managed   # exact bytes, downloads nothing
+node references/support/runtime-bootstrap.mjs install --capability pdf --browser managed --yes
+```
+
+Capabilities are `browser`, `pdf`, `diagram`, `ios`. `pdf` expands to
+`pdf + diagram + browser` (~199 MB today; the preview prints the real number for
+your platform). Add `--browser installed --browser-path <absolute-path>` to reuse
+a Chrome you already have instead of downloading Chromium; the same script's
+`options --capability pdf` lists the choices offline.
+
+Verify afterwards — the runtime lives in `$GSTACK_HOME` (default `~/.gstack`) and
+is **not** added to your `PATH`, so use the full path or add it yourself. Skills
+resolve it on their own either way:
+
+```bash
+~/.gstack/bin/gstack doctor                        # every check, nothing mutated
+~/.gstack/bin/gstack doctor --capability browser   # or ios
+ls ~/.gstack/bin                                   # browse, make-pdf, gstack, helpers
+```
+
+Full detail, including what each failure message means:
+[`docs/gstack-2/INSTALL.md`](docs/gstack-2/INSTALL.md).
 
 The standard installer also owns the complete skill lifecycle:
 
@@ -566,6 +608,7 @@ Other references: [docs/gbrain-sync.md](docs/gbrain-sync.md) (sync-specific guid
 
 | Doc | What it covers |
 |-----|---------------|
+| [GStack 2 install](docs/gstack-2/INSTALL.md) | What works skills-only, what needs the optional runtime, and how to add and verify it |
 | [GStack 2 status](docs/gstack-2/STATUS.md) | Release gates, blockers, and evidence links; the authoritative completion state |
 | [GStack 2 architecture](docs/gstack-2/ARCHITECTURE.md) | Five-skill judgment layer, lazy modules, runtime, browser, iOS, and Context.dev boundaries |
 | [GStack 2 host compatibility](docs/gstack-2/HOST-COMPATIBILITY.md) | Portable / Verified / Native definitions and install matrix |
@@ -606,7 +649,11 @@ Data is stored in [Supabase](https://supabase.com) (open source Firebase alterna
 
 ## Troubleshooting
 
-For GStack 2, run `gstack doctor --capability browser|design|diagram|pdf|ios`
+**`gstack`, `browse`, or `make-pdf` "command not found"?** You installed skills
+only. See [`docs/gstack-2/INSTALL.md`](docs/gstack-2/INSTALL.md) — the runtime is
+a separate consent-gated install, and it is never put on your `PATH`.
+
+For GStack 2, run `gstack doctor --capability browser|ios`
 (optionally `--json`) for a focused, non-mutating readiness result. It reports
 pure-judgment availability, platform support, preview consent, install consent,
 and runtime readiness separately; see
