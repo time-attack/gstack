@@ -41,6 +41,18 @@ That installs the five judgment skills plus `make-pdf`. Install a subset with
 the installer's `--skill` option, or use `-g` for its global scope. GStack does
 not silently enroll detected hosts.
 
+Keep the `/skills` on the end. It names the folder inside the repository that
+holds the six shipping skills. Dropping it and passing a select-everything flag
+(`-s "*"` or `--all`) installs 96 folders and about 36 MB of the retired 1.x tree.
+See [Install](docs/gstack-2/INSTALL.md) for the measured numbers.
+
+The command above is the canonical one, subpath included. The public listing at
+[skills.sh/time-attack/gstack](https://skills.sh/time-attack/gstack) currently
+shows two retired skills and a bare-repository install command; the installer
+itself resolves exactly six skills either way. See
+[the storefront record](docs/gstack-2/STOREFRONT.md) for the measurements and the
+correction in flight.
+
 ### Read this before you try QA or a PDF
 
 **`npx skills add` installs skills only. It ships no binaries.** Every judgment

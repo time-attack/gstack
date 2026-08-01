@@ -8,6 +8,16 @@ work needs a binary.
 npx skills add time-attack/gstack/skills
 ```
 
+**The `/skills` path at the end is required.** It is the subpath, the folder
+inside the repository that holds the six shipping skills. Installing from the
+bare repository root instead (`time-attack/gstack`, with no `/skills`) still
+gives you the right six by default, but adding a select-everything flag to that
+form does not. `-s "*"` or its `--all` shorthand on the bare root installs 96
+skill folders, 695 files, and about 36 MB, because it un-hides the retired 1.x tree
+that still sits at the repository root. With `/skills` on the end, the same
+flags install 6 folders and 237 files. Name the subpath and the wrong install
+is not reachable.
+
 That is skills only: `/plan`, `/qa`, `/debug`, `/review`, `/ship`, and
 `make-pdf`. **It ships no binaries.** If you install it and then ask for a
 rendered PDF or a browser-driven QA pass, you are hitting a seam, not a bug.

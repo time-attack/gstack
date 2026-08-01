@@ -1,0 +1,21 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "The judgment surface (five skills)",
+      "description": "All engineering judgment gstack ships routes through these five dispatchers.",
+      "skills": ["plan", "qa", "debug", "review", "ship"]
+    },
+    {
+      "title": "Tool skill",
+      "description": "Installs from the same tree. Rendering a document needs the optional runtime.",
+      "skills": ["make-pdf"]
+    },
+    {
+      "title": "Retired, not installable",
+      "description": "Registry entries left over from past installs. Neither skill exists in the current tree, so the skills CLI does not offer them. Delete this group once the registry drops them.",
+      "skills": ["design", "gstack"]
+    }
+  ]
+}
