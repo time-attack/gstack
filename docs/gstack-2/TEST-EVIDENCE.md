@@ -1,5 +1,151 @@
 # GStack 2.0 test evidence
 
+## Paid gate tier — NEVER COMPLETED (forensics, 2026-08-01)
+
+The paid gate tier (`bun run test:gate`) **has never completed a run in this
+project's history.** Every attempt on record died before Bun printed a terminal
+summary. There is therefore no gate-tier pass, no gate-tier failure census, and
+no gate-tier regression baseline. Nothing in this section is a pass, and no green
+claim in this document or in [STATUS.md](./STATUS.md) is backed by the gate tier.
+
+Every agent-launched eval run keeps a run-scoped log under
+`~/.gstack-dev/eval-runs/` ending in a `### gstack-detach EXIT=<code> ###`
+sentinel, so a dead run is always distinguishable from a passing one. Three of
+those logs are gate-tier attempts:
+
+| Gate attempt (log under `~/.gstack-dev/eval-runs/`) | Sentinel | Outcome |
+|---|---|---|
+| `evals-gate-wave-test-infra-…-20260713-215623-1014.log` | `EXIT=1` | **Never started.** Acquired the `gstack-evals` lock 82 minutes after launch, then `bun` refused: its working directory had been deleted. Five log lines total. |
+| `evals-gate-gstack-main-20260731-180335-45029.log` (v1.65.0.0) | `EXIT=timeout` | **Killed by the per-tier watchdog** at 2026-07-31T19:03:41Z. 25 distinct test failures recorded before the kill; no terminal summary. |
+| `evals-gate-c4-gstack-main-20260801-113955-27619.log` (v1.66.0.0, commit `3ebde802`) | `EXIT=-15` | **Killed by an external SIGTERM** at 2026-08-01T14:03:16Z after 2h23m21s. Teardown logged `killed 1 dangling process`. No terminal summary. |
+
+### What the 2026-08-01 attempt actually executed
+
+- Declared gate surface: **85** entries marked `'gate'` in `E2E_TIERS`
+  (`test/helpers/touchfiles.ts:414`), across the 70 test files the `test:gate`
+  glob selected at commit `3ebde802`.
+- Executed: **22 of 85 (26%)**. **59 of the 70 files emitted nothing at all** —
+  no pass, no fail, no skip.
+- Seven suites saved an eval file (`~/.gstack-dev/evals/1.66.0.0-main-e2e-*`):
+  `session-intelligence`, `gemini`, `browse`, `qa-ask-contract`, `plan`,
+  `office-hours` (0/0 tests), `plan-tune`. The last save was at 11:55:04Z.
+- Those per-suite totals are **not** a test census: they double-count `--retry 2`
+  attempts. `e2e-browse` prints `6/9 passed`, where the three non-passes are
+  three attempts at one test.
+
+### The silent stall — 89% of wall clock produced nothing
+
+The run's last output was the 11:55:04Z eval-file save. It then produced **zero
+output for 2h08m12s (89% of the 2h23m21s wall clock)** until the external
+SIGTERM.
+
+Throughput went to zero rather than degrading, which is the signature of a hung
+child holding its concurrency slot forever: with the run's configured
+concurrency, the 600s per-test timeout, and `--retry 2`, several full waves
+should have completed in that window. None did. Teardown's
+`killed 1 dangling process` is the direct receipt that a child outlived the run.
+
+Nothing in the log distinguishes "hung" from "working." Until that changes, a
+gate run cannot be trusted to fail loudly, and a gate run that is still
+executing cannot be reported as progressing.
+
+### The five observed failures — all pre-existing, none attributable
+
+| Failure | Site | Observed cause |
+|---|---|---|
+| `Session Intelligence E2E > timeline-event-flow` | `test/skill-e2e-session-intelligence.test.ts:92` | `timeline.jsonl` was never written. |
+| `Skill E2E tests > operational-learning` | `test/skill-e2e-bws.test.ts:284` | Child returned **0 turns / $0.00 in 35s** against a 30s timeout — no model output at all. |
+| `Codex Offering E2E > (unnamed)` | `test/skill-e2e-plan.test.ts:790` | `ENOENT` copying `plan-design-review/SKILL.md`. |
+| `/plan-ceo-review AskUserQuestion floor (gate)` | `test/skill-e2e-plan-ceo-finding-floor.test.ts:28` | Host replied `Unknown command: /plan-ceo-review`. |
+| `plan-design-review plan-mode smoke (gate)` | `test/skill-e2e-plan-design-plan-mode.test.ts:29` | Host replied `Unknown command: /plan-design-review`. |
+
+**Pre-existing.** The same five appear with the same names in the same order in
+the v1.65.0.0 run (`…20260731-180335-45029.log`, lines 48, 212, 290, 354, 421).
+
+**Not attributable to in-flight work.** All five exhausted their third attempt
+inside the run's first 15m15s (11:39:55Z → 11:55:04Z). The earliest commit landed
+during the run is `7da6b8f6` at 12:41:46Z, 46 minutes after the last of them
+failed, so no committed change of that wave could have caused any of the five.
+
+### Retired-skill cause: three failures plus one dead file
+
+`plan-design-review/` was deleted in commit `d8b4a061` ("phase3: delete design
+sources, binary, tests") and does not exist on this tree. The canonical judgment
+surface is exactly `/plan`, `/qa`, `/debug`, `/review`, `/ship`, so 1.x slash
+names are not registered either.
+
+- `test/skill-e2e-plan.test.ts:790` copies `plan-design-review/SKILL.md` from a
+  hardcoded list of four 1.x skill directories → `ENOENT`.
+- `test/skill-e2e-plan-design-plan-mode.test.ts:29` drives
+  `/plan-design-review` → `Unknown command`.
+- `test/skill-e2e-plan-ceo-finding-floor.test.ts:28` drives `/plan-ceo-review` →
+  `Unknown command`. The directory survives at the repo root; the slash name
+  does not.
+- `test/skill-e2e-plan-design-finding-floor.test.ts` was a **dead file**: the
+  design retirement removed its `describeE2E(` opening line and left a dangling
+  `});`, so Bun raised `error: Unexpected }` at line 34 and the file could not
+  load. It also targeted `plan-design-review`.
+
+The other two failures (`skill-e2e-bws.test.ts:284`,
+`skill-e2e-session-intelligence.test.ts:92`) have separate, **undiagnosed**
+causes and must not be folded into the retired-skill story. The bws failure's
+zero-turn/zero-cost shape resembles the stall's no-model-output signature, but
+that resemblance is a lead, not a diagnosis.
+
+### The harness's "no regressions" line was a self-comparison
+
+Six of the seven suites printed a `vs previous:` block whose baseline timestamp
+equals their **own** save minute, with every metric byte-identical, followed by
+`Stable run — no significant efficiency changes, no regressions.` Example: the
+suite saved `…e2e-session-intelligence-2026-08-01-1142.json`, then compared
+against `previous: main/eval (2026-08-01 11:42)` reporting
+`$0.11→$0.11 4→4t 27→27s` on all three tests.
+
+`findPreviousRun` accepted the run's own in-progress `_partial` accumulator as a
+completed baseline. That accumulator carries the current tier, the current
+branch, and the freshest timestamp, so it always won the sort.
+
+Consequence: **every historical "no regressions" or "stable run" line printed by
+this harness is a self-comparison and carries no information.** No such line may
+be cited as evidence, here or anywhere else, for any prior release.
+
+### What the project actually has today
+
+One thing, and it is real: **the free suite (`bun test`) is green — 25/25 shards,
+~5,300 tests, recorded on clean `main` on 2026-08-01.** The shard and file counts
+are independently reproducible from the runner's own enumeration
+(`bun run scripts/test-free-shards.ts --list` → 333 files, 25 shards). The suite
+is free, offline, and deterministic, and it covers skill validation, browse
+integration, `make-pdf`, and the iOS daemon.
+
+Two honest caveats on that number:
+
+- It is a **clean-`main`** measurement. A re-run against a working tree with
+  uncommitted edits in flight is not the same measurement, and must not be
+  reported as one. A `bun test` re-run during the 2026-08-01 fix wave failed
+  `template ↔ fixture parity > StateServer.swift.template matches fixture copy`
+  on in-flight template/fixture drift — expected for a dirty tree, and not a
+  contradiction of the clean-`main` result.
+- The historical broad-suite counts recorded further down this document (6,255
+  pass / 384 files) predate later tree removals. They are history, not the
+  current measurement.
+
+### What remains unproven
+
+- Any gate-tier result whatsoever: pass, fail count, or regression status. 63 of
+  85 declared gate tests have no execution record from the most recent attempt,
+  and no attempt has ever produced a terminal summary.
+- Any claim of the form "evals pass," "no regressions," or "gate green" for this
+  release or any prior one.
+- Whether the 22 tests that did execute are representative. They are the ones
+  that happened to schedule first, not a chosen subset.
+- Whether the remaining periodic tier is any healthier. It has not been measured
+  under these forensics.
+
+Fixing the four retired-skill tests and the dead file removes five known
+failures. It does not produce gate evidence: the stall, not the failures, is why
+the tier has never finished.
+
 ## Candidate checkpoint — 2026-07-20
 
 These results describe the working tree at the documentation checkpoint. They
@@ -48,7 +194,9 @@ pass from deterministic, offline, or filesystem-only evidence.
 | Live local-browser SIGINT aggregate | **PASS.** An isolated local-file journey completed `goto`, `status`, and `snapshot`; SIGINT produced an in-memory authenticated `503`, reduced five owned processes to zero, and left no listener, root credential state, credential-shaped file, or device session. The unrelated browser daemon survived. Focused regression: 34 pass / 0 fail, 62 assertions. | Closes the requested aggregate process/listener/state/credential cleanup gate without claiming device interaction. Artifact: [`evals/browser/cancellation-2026-07-17.json`](../../evals/browser/cancellation-2026-07-17.json). |
 | Native CI run `29615621805`, commit `a8a5fa1a` | **PASS:** installer 470/470; macOS 150/0/1,189; Ubuntu 150/0/1,189; native Windows 150/0/1,145; Dev Container 150/0/1,188. All native installer-discovery steps found exactly six skills. | Complete native matrix evidence. Sanitized artifact: [`evals/ci/native-2026-07-17.json`](../../evals/ci/native-2026-07-17.json). Runs `29608904265`, `29611504979`, `29611757175`, `29612056517` (cancelled), `29613668419`, `29614448170`, and `29614899434` remain superseded diagnostics. |
 | Earlier `bun test` strict singleton checkpoint | **Exit 0: 6,240 pass / 226 expected skips / 0 fail**, 25,449 assertions across 383 files. Log: `/tmp/gstack2-full-singleton-final-committed.log` (expired; counts retained as history, unverifiable). | Historical broad checkpoint retained rather than overwritten. |
-| Current `bun test` through the strict singleton runner | **Exit 0: 6,255 pass / 226 expected skips / 0 fail**, 25,509 assertions; 384/384 shard headers and terminal single-file summaries. | One uninterrupted current-head macOS broad pass. Expected skips are provider, credential, Poppler-environment, paid, or model-sidecar gates declared by their tests; external/live evidence remains separate. |
+| Current `bun test` through the strict singleton runner | **Exit 0: 6,255 pass / 226 expected skips / 0 fail**, 25,509 assertions; 384/384 shard headers and terminal single-file summaries. | **Historical:** recorded before later tree removals. The current-head measurement is the row below. Expected skips are provider, credential, Poppler-environment, paid, or model-sidecar gates declared by their tests; external/live evidence remains separate. |
+| Current free suite `bun test` (`scripts/test-free-shards.ts`), 2026-08-01 | **Green: 25/25 shards, ~5,300 tests across 333 files** on macOS, clean `main`. Shard/file counts reproducible via `bun run scripts/test-free-shards.ts --list`. | The only tier the project can currently claim green. Free, deterministic, offline. It proves nothing about paid-eval behavior: the paid gate tier has never completed a run (see the forensics section at the top of this document). |
+| Paid gate tier `bun run test:gate` | **NEVER COMPLETED.** Three attempts on record: `EXIT=1` (never started), `EXIT=timeout` (watchdog), `EXIT=-15` (external SIGTERM after 2h23m21s having executed 22 of 85 declared tests and then produced no output for 2h08m12s). | No gate-tier pass, failure census, or regression baseline exists. The harness's historical "no regressions" lines were self-comparisons against the run's own `_partial` accumulator and carry no information. Full forensics: [Paid gate tier — NEVER COMPLETED](#paid-gate-tier--never-completed-forensics-2026-08-01). |
 | Earlier local `bun run test:windows` singleton checkpoint | **Exit 0: 2,815 pass / 57 expected skips / 0 fail**, 8,586 assertions across 213 files. Log: `/tmp/gstack2-windows-singleton-final-committed.log` (expired; counts retained as history, unverifiable). | Historical curated-lane checkpoint retained rather than overwritten. |
 | Current local `bun run test:windows` through singleton shards | **Exit 0: 2,829 pass / 57 expected skips / 0 fail**, 8,648 assertions; all 214 selected files completed. | The current curated Windows-safe subset is locally green. Native Windows is independently green in run `29615621805`. |
 | Forbidden production-scope audit | Production dependencies and the 110-component managed bundle contain no cloud-browser provider, Hugging Face/ONNX inference runtime, model weights, or alternative physical-iOS backend. Transformers remains development-only for retained tests; CoreDevice/`devicectl` is the sole physical-iOS path. | Deterministic dependency/bundle/backend evidence. It does not substitute for native-platform, signed-device, or live-provider behavior. |
@@ -63,7 +211,8 @@ aggregate counts, environment/version metadata, and artifact/log locations for
 all of the following before changing status to `DONE`:
 
 ```text
-bun test                                    # free suite via scripts/test-free-shards.ts (browse/test, test, make-pdf/test, ios-qa/daemon/test)
+bun test                                    # free suite via scripts/test-free-shards.ts (browse/test, test, make-pdf/test, ios-qa/daemon/test) — GREEN 25/25 shards
+bun run test:gate                           # paid gate tier — NEVER COMPLETED; no attempt has reached a terminal summary
 bun test test/gstack2-skills.test.ts        # six-skill discovery surface + at-least-70%-below-1.x-baseline ceiling
 bun run test:windows                        # Windows-safe curated lane
 bun test make-pdf/test                      # retained strict PDF suite

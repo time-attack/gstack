@@ -18,6 +18,18 @@ installer-verified only pending host availability. Native CI is green on
 macOS, Ubuntu, Windows, and the Dev Container. No release-branch push, draft
 PR, or PR-ready claim is authorized by this status.
 
+**The paid gate tier has never completed a run in this project's history.** Three
+attempts are on record and none produced a terminal summary; the most recent
+(2026-08-01) executed 22 of 85 declared gate tests before going silent for 89% of
+its wall clock. Its five failures are pre-existing, reproducing identically in
+the prior release's run. The harness's historical "no regressions" output was a
+self-comparison against each run's own in-progress accumulator, so no prior
+release's green-eval claim is meaningful. Today the project's only green tier is
+the free suite (`bun test`: 25/25 shards, ~5,300 tests across 333 files). Read
+the receipts in
+[TEST-EVIDENCE.md](./TEST-EVIDENCE.md#paid-gate-tier--never-completed-forensics-2026-08-01)
+before citing any eval result.
+
 ## Implemented candidate surface
 
 - [x] Pinned audit base:
@@ -193,11 +205,15 @@ PR, or PR-ready claim is authorized by this status.
   daemon survived. The focused server-factory regression passed 34/0 with 62
   assertions. Artifact:
   [`evals/browser/cancellation-2026-07-17.json`](../../evals/browser/cancellation-2026-07-17.json).
-- [x] The uninterrupted macOS broad suite is green under singleton isolation:
-  6,255 pass / 226 expected skips / 0 fail and 25,509 assertions across all
-  384 files. This includes the complete local-browser suite. The local
-  Windows-safe singleton lane is also green at 2,829 pass / 57 expected skips
-  / 0 fail and 8,648 assertions across all 214 selected files.
+- [x] The free suite (`bun test`) is green on clean `main`: **25/25 shards,
+  ~5,300 tests across 333 files** (macOS, 2026-08-01; shard/file counts
+  reproducible via `bun run scripts/test-free-shards.ts --list`). This is the only
+  tier the project can claim green today; it is free, offline, and deterministic,
+  and it says nothing about paid-eval behavior. The earlier 6,255 pass / 226 expected
+  skips / 0 fail / 25,509 assertions / 384-file singleton record predates later
+  tree removals and is retained as history. The local Windows-safe singleton lane
+  was green at 2,829 pass / 57 expected skips / 0 fail and 8,648 assertions
+  across 214 selected files.
 - [x] Native CI run
   [`29615621805`](https://github.com/time-attack/gstack/actions/runs/29615621805)
   passed at commit `a8a5fa1a`: macOS 150/0/1,189, Ubuntu 150/0/1,189,
@@ -211,6 +227,41 @@ PR, or PR-ready claim is authorized by this status.
 
 ## Blocking or incomplete P0 evidence
 
+- [ ] **The paid gate tier has produced no evidence, ever.** `bun run test:gate`
+  has never run to a terminal summary. Attempts on record: `EXIT=1` (2026-07-13,
+  never started — working directory deleted), `EXIT=timeout` (2026-07-31,
+  watchdog kill, 25 failures recorded before the kill), `EXIT=-15` (2026-08-01,
+  external SIGTERM after 2h23m21s). The 2026-08-01 attempt executed **22 of the
+  85 tests declared `'gate'` in `E2E_TIERS`** — 59 of its 70 selected files
+  emitted nothing — then produced zero output for 2h08m12s while a hung child
+  held its concurrency slot (teardown: `killed 1 dangling process`). Four
+  distinct defects block this gate:
+  1. The hang. Throughput went to zero rather than degrading, and nothing in the
+     log distinguishes hung from working, so the tier cannot fail loudly.
+  2. Tests driving skills retired in `d8b4a061`: `skill-e2e-plan.test.ts:790`
+     (`ENOENT` on `plan-design-review/SKILL.md`),
+     `skill-e2e-plan-design-plan-mode.test.ts:29` and
+     `skill-e2e-plan-ceo-finding-floor.test.ts:28` (host replies
+     `Unknown command`).
+  3. `test/skill-e2e-plan-design-finding-floor.test.ts` was unparseable — the
+     design retirement left a dangling `});`, so Bun raised `Unexpected }` and
+     the file never loaded.
+  4. The self-comparison: `findPreviousRun` accepted each run's own in-progress
+     `_partial` accumulator as its baseline, so **every historical "no
+     regressions" / "stable run" line this harness printed is meaningless** and
+     may not be cited for this release or any prior one.
+
+  The five failures the 2026-08-01 attempt did observe are **pre-existing** —
+  identical names in identical order in the v1.65.0.0 run — and all five
+  exhausted their retries inside the first 15m15s (11:39:55Z–11:55:04Z), 46
+  minutes before the earliest commit landed during the run (`7da6b8f6`,
+  12:41:46Z), so none is attributable to work in flight. Fixing items 2 and 3
+  removes five known failures but produces no gate evidence: item 1 is why the
+  tier never finishes. Two of the five failures
+  (`skill-e2e-bws.test.ts:284`, `skill-e2e-session-intelligence.test.ts:92`)
+  remain undiagnosed and must not be folded into the retired-skill story. Full
+  receipts:
+  [TEST-EVIDENCE.md](./TEST-EVIDENCE.md#paid-gate-tier--never-completed-forensics-2026-08-01).
 - [x] RESOLVED: the paid live v3 installed-host adversarial gate now **passes
   4/4** one-shot (`2026-07-22T21-33-20-053Z-84fcb74b.json`). All four canonical
   fixtures (debug, qa, review, ship) pass with recorded read/snapshot evidence
@@ -261,6 +312,8 @@ PR, or PR-ready claim is authorized by this status.
 
 | Evidence | Path | State |
 |---|---|---|
+| **Paid gate tier (`bun run test:gate`)** | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md#paid-gate-tier--never-completed-forensics-2026-08-01) | **NEVER COMPLETED — no evidence.** Three attempts on record, zero terminal summaries: `EXIT=1` (never started), `EXIT=timeout` (watchdog), `EXIT=-15` (external SIGTERM after 2h23m21s). The last attempt executed **22 of 85 declared gate tests (26%)**, then produced no output for 2h08m12s (89% of wall clock) while a hung child held its concurrency slot. Its 5 failures are pre-existing (identical names and order in the v1.65.0.0 run) and 3 of them plus 1 unparseable dead file target skills retired in `d8b4a061`. The harness's historical "no regressions" lines were self-comparisons against the run's own `_partial` accumulator and carry no information. |
+| **Free suite (`bun test`)** | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md) | **Green — 25/25 shards, ~5,300 tests across 333 files** (macOS, current head, 2026-08-01). The only tier the project can claim green today. |
 | Measured baseline | [BASELINE.md](./BASELINE.md) | Recorded |
 | Candidate and baseline command ledger | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md) | Runtime-absent, SIGINT, and native matrix pass; live v3 passed 4/4 on 2026-07-22 |
 | Native CI matrix | [native-2026-07-17.json](../../evals/ci/native-2026-07-17.json) | macOS, Ubuntu, Windows, installer, and Dev Container green |
