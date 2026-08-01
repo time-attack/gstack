@@ -1,12 +1,18 @@
 /**
  * gstack context-bill — token bill-of-materials for an installed gstack skills tree.
  *
- * Read-only, offline, deterministic. Three ledgers over pure file reads:
+ * Read-only, offline, deterministic. Four ledgers over pure file reads:
  *   ALWAYS-ON  per-skill YAML frontmatter bytes (what every session's skill
  *              scanner loads), flagging frontmatter keys the router never
  *              reads (#2286) and foreign-host files in scanner scope (#1694).
  *   EAGER      SKILL.md + the forced-read references the dispatch protocol
  *              mandates "for every invocation" (the shared triad).
+ *   CONDITIONAL the references the dispatcher mandates under a stated condition
+ *              (QUESTION-FORMAT before the first question, RUNTIME before
+ *              capability work, CODE-INTELLIGENCE once per repo target, ...).
+ *              Most real invocations hit several, so an EAGER-only number
+ *              understates what an invocation actually pays. The per-invocation
+ *              ceiling (eager + conditional) is reported alongside.
  *   LAZY       per mode/alias table row, which references/legacy/*.md modules
  *              activate and what each costs.
  *
@@ -20,6 +26,8 @@ import path from "node:path";
 
 const FORCED_PHRASE = "for every invocation";
 const LEGACY_REF = /references\/legacy\/[^`|)\s]+\.md/g;
+// Backticked non-legacy reference in prose. Legacy modules belong to LAZY.
+const PROSE_REF = /`(references\/(?!legacy\/)[^`]+\.md)`/g;
 const ROUTER_KEYS = new Set(["name", "description"]);
 // Skill-shaped files other hosts drop into scanner scope (#1694).
 const FOREIGN_SKILL_FILE = /^(skill\.(ya?ml|json)|agents?\.md|\.cursorrules|\.windsurfrules)$/i;
@@ -44,6 +52,19 @@ function refEntry(skillDir, rel) {
 
 function sumBytes(entries) {
   return entries.reduce((n, e) => n + e.bytes, 0);
+}
+
+/** The dispatcher's own words for when a conditional read fires, trimmed to one line. */
+function conditionOf(clause) {
+  const text = clause
+    // Basename, not stripped: a clause mandating two references ("RUNTIME
+    // before capability work and WEB-CONTEXT before public-web work") reads
+    // wrong once the paths are gone.
+    .replace(PROSE_REF, (_m, p) => path.basename(p))
+    .replace(/^\s*\d+\.\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > 96 ? `${text.slice(0, 93)}...` : text;
 }
 
 function parseFrontmatter(text) {
@@ -84,19 +105,40 @@ export function parseSkill(skillDir, name) {
   const fm = parseFrontmatter(text);
   const deadKeys = fm.keys.filter((k) => !ROUTER_KEYS.has(k));
 
-  // EAGER: backticked references/*.md inside sentences that mandate a read
-  // "for every invocation" (generator-owned, parity-pinned phrasing).
+  // Every prose clause outside a routing table, paired with the references it
+  // mandates. A clause carrying "for every invocation" is EAGER; any other
+  // clause that mandates a reference is CONDITIONAL — real, just gated.
+  const clauses = [];
+  for (const line of text.split("\n")) {
+    if (line.trim().startsWith("|")) continue; // routing tables are LAZY
+    for (const clause of line.split(/(?<=[.;])\s+/)) {
+      const paths = [...new Set([...clause.matchAll(PROSE_REF)].map((m) => m[1]))];
+      if (paths.length) clauses.push({ clause, paths });
+    }
+  }
+
+  // EAGER: the forced-read triad ("for every invocation" — parity-pinned phrasing).
   const forcedRefs = [];
   const seenForced = new Set();
-  for (const line of text.split("\n")) {
-    if (!line.includes(FORCED_PHRASE)) continue;
-    for (const sentence of line.split(/(?<=\.)\s+/)) {
-      if (!sentence.includes(FORCED_PHRASE)) continue;
-      for (const m of sentence.matchAll(/`(references\/[^`]+\.md)`/g)) {
-        if (seenForced.has(m[1])) continue;
-        seenForced.add(m[1]);
-        forcedRefs.push(refEntry(skillDir, m[1]));
-      }
+  for (const { clause, paths } of clauses) {
+    if (!clause.includes(FORCED_PHRASE)) continue;
+    for (const p of paths) {
+      if (seenForced.has(p)) continue;
+      seenForced.add(p);
+      forcedRefs.push(refEntry(skillDir, p));
+    }
+  }
+
+  // CONDITIONAL: mandated under a stated condition. The condition text comes
+  // from the dispatcher's own clause so the reader can judge how often it fires.
+  const conditionalRefs = [];
+  const seenConditional = new Set();
+  for (const { clause, paths } of clauses) {
+    if (clause.includes(FORCED_PHRASE)) continue;
+    for (const p of paths) {
+      if (seenForced.has(p) || seenConditional.has(p)) continue;
+      seenConditional.add(p);
+      conditionalRefs.push({ ...refEntry(skillDir, p), condition: conditionOf(clause) });
     }
   }
 
@@ -145,6 +187,10 @@ export function parseSkill(skillDir, name) {
     skillMdBytes,
     forcedRefs,
     eagerBytes: skillMdBytes + sumBytes(forcedRefs),
+    conditionalRefs,
+    conditionalBytes: sumBytes(conditionalRefs),
+    // What an invocation that hits every stated condition actually pays.
+    perInvocationBytes: skillMdBytes + sumBytes(forcedRefs) + sumBytes(conditionalRefs),
     lazy,
     orphans,
     foreignFiles,
@@ -194,6 +240,7 @@ export function buildBill(root) {
       skillCount: skills.length,
       alwaysOnBytes: skills.reduce((n, s) => n + s.frontmatterBytes, 0),
       eagerBytesBySkill: Object.fromEntries(skills.map((s) => [s.name, s.eagerBytes])),
+      perInvocationBytesBySkill: Object.fromEntries(skills.map((s) => [s.name, s.perInvocationBytes])),
       lazyBytes,
       totalMdBytes: total,
       lazyPercent: total ? Math.round((lazyBytes / total) * 100) : 0,
@@ -212,6 +259,7 @@ export function diffBills(a, b) {
     const sb = b.skills.find((s) => s.name === name);
     push("always-on", name, sa?.frontmatterBytes ?? 0, sb?.frontmatterBytes ?? 0);
     push("eager", name, sa?.eagerBytes ?? 0, sb?.eagerBytes ?? 0);
+    push("conditional", name, sa?.conditionalBytes ?? 0, sb?.conditionalBytes ?? 0);
     const labels = [...new Set([...(sa?.lazy ?? []), ...(sb?.lazy ?? [])].map((r) => r.label))];
     for (const label of labels) {
       push(
@@ -225,13 +273,16 @@ export function diffBills(a, b) {
   rows.sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
   const grew =
     b.totals.alwaysOnBytes > a.totals.alwaysOnBytes ||
-    rows.some((r) => r.ledger === "eager" && r.delta > 0);
+    rows.some((r) => (r.ledger === "eager" || r.ledger === "conditional") && r.delta > 0);
   return { rows, grew };
 }
 
 /**
  * Budget file: user-authored plain JSON, ceilings in ~tokens.
- *   { "alwaysOnTotal": 4000, "eagerPerInvocation": { "plan": 5000 } }
+ *   { "alwaysOnTotal": 4000, "eagerPerInvocation": { "plan": 5000 },
+ *     "perInvocation": { "plan": 9000 } }
+ * `eagerPerInvocation` gates the forced-read floor; `perInvocation` gates the
+ * eager + conditional ceiling, which is what a real invocation pays.
  */
 export function checkBudget(bill, budget) {
   const violations = [];
@@ -246,23 +297,29 @@ export function checkBudget(bill, budget) {
       });
     }
   }
-  for (const [name, limit] of Object.entries(budget.eagerPerInvocation ?? {})) {
-    const skill = bill.skills.find((s) => s.name === name);
-    if (!skill) {
-      violations.push({ ceiling: `eagerPerInvocation.${name}`, limit, actual: null, files: ["<skill not found in tree>"] });
-      continue;
-    }
-    const actual = estimateTokens(skill.eagerBytes);
-    if (actual > limit) {
-      violations.push({
-        ceiling: `eagerPerInvocation.${name}`,
-        limit,
-        actual,
-        files: [
-          `${skill.name}/SKILL.md (${skill.skillMdBytes}B)`,
-          ...skill.forcedRefs.map((r) => `${skill.name}/${r.path} (${r.bytes}B)`),
-        ],
-      });
+  for (const key of ["eagerPerInvocation", "perInvocation"]) {
+    const withConditional = key === "perInvocation";
+    for (const [name, limit] of Object.entries(budget[key] ?? {})) {
+      const skill = bill.skills.find((s) => s.name === name);
+      if (!skill) {
+        violations.push({ ceiling: `${key}.${name}`, limit, actual: null, files: ["<skill not found in tree>"] });
+        continue;
+      }
+      const actual = estimateTokens(withConditional ? skill.perInvocationBytes : skill.eagerBytes);
+      if (actual > limit) {
+        violations.push({
+          ceiling: `${key}.${name}`,
+          limit,
+          actual,
+          files: [
+            `${skill.name}/SKILL.md (${skill.skillMdBytes}B)`,
+            ...skill.forcedRefs.map((r) => `${skill.name}/${r.path} (${r.bytes}B)`),
+            ...(withConditional
+              ? skill.conditionalRefs.map((r) => `${skill.name}/${r.path} (${r.bytes}B, conditional)`)
+              : []),
+          ],
+        });
+      }
     }
   }
   return violations;
@@ -305,6 +362,24 @@ export function renderBill(bill, { skill, mode } = {}) {
   }
   lines.push("");
 
+  lines.push("CONDITIONAL (per invocation, when the stated condition holds)");
+  for (const s of skills) {
+    if (!s.conditionalRefs.length) {
+      lines.push(`  ${s.name.padEnd(12)} none`);
+      continue;
+    }
+    lines.push(`  ${s.name.padEnd(12)} +${size(s.conditionalBytes)} across ${s.conditionalRefs.length} reference(s)`);
+    for (const r of s.conditionalRefs) {
+      lines.push(`      ${path.basename(r.path).padEnd(24)} +${size(r.bytes)}  ${r.condition}`);
+      if (r.missing) lines.push(`  ! ${s.name}: conditional reference missing on disk: ${r.path}`);
+    }
+    lines.push(
+      `  = ${s.name} per-invocation ceiling (eager + all conditional): ${size(s.perInvocationBytes)}` +
+        `, ${(s.perInvocationBytes / (s.eagerBytes || 1)).toFixed(1)}x the eager figure`,
+    );
+  }
+  lines.push("");
+
   lines.push("LAZY (per mode/alias): activates only when routed");
   for (const s of skills) {
     const rows = mode ? s.lazy.filter((r) => r.label.toLowerCase().includes(mode.toLowerCase())) : s.lazy;
@@ -316,8 +391,10 @@ export function renderBill(bill, { skill, mode } = {}) {
       lines.push(`  ${s.name} / (unrouted on disk)   +${size(sumBytes(s.orphans))}  [${s.orphans.map((o) => path.basename(o.path)).join(", ")}]`);
     }
     if (mode) {
-      const invocation = s.eagerBytes + rows.reduce((n, r) => n + r.bytes, 0);
-      lines.push(`  ${s.name} / mode "${mode}" invocation total: ${size(invocation)} (eager + routed modules)`);
+      const invocation = s.perInvocationBytes + rows.reduce((n, r) => n + r.bytes, 0);
+      lines.push(
+        `  ${s.name} / mode "${mode}" invocation total: ${size(invocation)} (eager + conditional + routed modules)`,
+      );
     }
   }
   lines.push("");
@@ -335,19 +412,34 @@ export function renderDiff(diff) {
   for (const r of diff.rows) {
     const sign = r.delta > 0 ? "+" : "-";
     lines.push(
-      `  ${r.ledger.padEnd(9)} ${r.label.padEnd(28)} ${sign}${fmtBytes(Math.abs(r.delta))} (${sign}${estimateTokens(Math.abs(r.delta))} tok)  ${fmtBytes(r.before)} -> ${fmtBytes(r.after)}`,
+      `  ${r.ledger.padEnd(11)} ${r.label.padEnd(28)} ${sign}${fmtBytes(Math.abs(r.delta))} (${sign}${estimateTokens(Math.abs(r.delta))} tok)  ${fmtBytes(r.before)} -> ${fmtBytes(r.after)}`,
     );
   }
   lines.push("");
-  lines.push(diff.grew ? "RESULT: context cost GREW (always-on or eager)." : "RESULT: no always-on or eager growth.");
+  lines.push(
+    diff.grew
+      ? "RESULT: context cost GREW (always-on, eager, or conditional)."
+      : "RESULT: no always-on, eager, or conditional growth.",
+  );
   return lines.join("\n") + "\n";
 }
 
+// Where `npx skills add ...` actually puts a tree: `.agents/skills` (the
+// host-neutral canonical path) alongside `.claude/skills`, project then user.
+const DEFAULT_TREES = [
+  ["cwd", "skills"],
+  ["cwd", ".agents", "skills"],
+  ["cwd", ".claude", "skills"],
+  ["home", ".agents", "skills"],
+  ["home", ".claude", "skills"],
+];
+
+function defaultTreeCandidates(cwd, homeDir) {
+  return DEFAULT_TREES.map(([base, ...rest]) => path.join(base === "cwd" ? cwd : homeDir, ...rest));
+}
+
 function detectDefaultTree(cwd, homeDir) {
-  for (const candidate of [path.join(cwd, "skills"), path.join(homeDir, ".claude", "skills")]) {
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  return null;
+  return defaultTreeCandidates(cwd, homeDir).find((c) => fs.existsSync(c)) ?? null;
 }
 
 const USAGE =
@@ -393,7 +485,9 @@ export async function contextBillMain(argv, options = {}) {
 
     const tree = positional[0] ? path.resolve(cwd, positional[0]) : detectDefaultTree(cwd, homeDir);
     if (!tree) {
-      stderr.write("No skills tree found (tried ./skills and ~/.claude/skills). Pass a path.\n");
+      stderr.write(
+        `No skills tree found (tried ${defaultTreeCandidates(cwd, homeDir).join(", ")}). Pass a path.\n`,
+      );
       return 2;
     }
     const bill = buildBill(tree);

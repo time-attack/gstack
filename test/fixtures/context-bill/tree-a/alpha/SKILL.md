@@ -10,6 +10,7 @@ triggers: dead-key-the-router-never-reads
 
 1. Infer the mode from the request.
 2. Read `references/CORE.md` and `references/POLICY.md` for every invocation. Read `references/OPTIONAL.md` before public-web work.
+3. When the target is a repository, read `references/CORE.md` once before specialist work; it is already billed eagerly.
 
 ## Top-level modes
 

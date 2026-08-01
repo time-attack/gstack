@@ -6,6 +6,8 @@
  *     foreign-host file flag (#1694)
  *   - EAGER ledger: SKILL.md + forced-read refs discovered from the
  *     "for every invocation" dispatch sentence
+ *   - CONDITIONAL ledger: refs the dispatcher mandates under a stated condition,
+ *     plus the eager + conditional per-invocation ceiling
  *   - LAZY ledger: mode/alias table rows resolved to references/legacy/*.md,
  *     orphan (unrouted) module listing
  *   - bytes/4 token estimate, --json shape, --diff (the #2362 replay),
@@ -97,6 +99,43 @@ describe("eager ledger", () => {
   });
 });
 
+describe("conditional ledger", () => {
+  const bill = buildBill(TREE_A);
+  const alpha = bill.skills.find((s) => s.name === "alpha")!;
+
+  it("bills the refs the dispatcher mandates under a stated condition", () => {
+    expect(alpha.conditionalRefs.map((r) => r.path)).toEqual(["references/OPTIONAL.md"]);
+    expect(alpha.conditionalBytes).toBe(fileBytes(TREE_A, "alpha", "references", "OPTIONAL.md"));
+  });
+
+  it("carries the dispatcher's own condition text so the reader can judge how often it fires", () => {
+    expect(alpha.conditionalRefs[0].condition).toBe("Read OPTIONAL.md before public-web work.");
+  });
+
+  it("never double-bills a ref that is already eager", () => {
+    // alpha step 3 re-mandates CORE.md under a repository condition.
+    expect(alpha.conditionalRefs.some((r) => r.path.includes("CORE"))).toBe(false);
+  });
+
+  it("per-invocation ceiling = eager + conditional, above the eager figure", () => {
+    expect(alpha.perInvocationBytes).toBe(alpha.eagerBytes + alpha.conditionalBytes);
+    expect(alpha.perInvocationBytes).toBeGreaterThan(alpha.eagerBytes);
+    expect(bill.totals.perInvocationBytesBySkill.alpha).toBe(alpha.perInvocationBytes);
+  });
+
+  it("routing-table module rows never leak into the conditional tier", () => {
+    for (const s of bill.skills) {
+      expect(s.conditionalRefs.every((r) => !r.path.includes("legacy/"))).toBe(true);
+    }
+  });
+
+  it("a skill with no mandated reads has an empty conditional tier", () => {
+    const beta = bill.skills.find((s) => s.name === "beta")!;
+    expect(beta.conditionalRefs).toEqual([]);
+    expect(beta.perInvocationBytes).toBe(beta.eagerBytes);
+  });
+});
+
 describe("lazy ledger", () => {
   const bill = buildBill(TREE_A);
   const alpha = bill.skills.find((s) => s.name === "alpha")!;
@@ -125,10 +164,12 @@ describe("token estimate and rendering", () => {
     expect(estimateTokens(5)).toBe(1);
   });
 
-  it("text output carries all three ledgers plus flags", () => {
+  it("text output carries all four ledgers plus flags", () => {
     const text = renderBill(buildBill(TREE_A));
     expect(text).toContain("ALWAYS-ON (every session): 2 skills");
     expect(text).toContain("EAGER (per invocation)");
+    expect(text).toContain("CONDITIONAL (per invocation, when the stated condition holds)");
+    expect(text).toContain("alpha per-invocation ceiling (eager + all conditional)");
     expect(text).toContain("LAZY (per mode/alias)");
     expect(text).toContain("frontmatter key(s) the router never reads: triggers");
     expect(text).toContain("foreign-host file in scanner scope: agents.md");
@@ -147,11 +188,12 @@ describe("token estimate and rendering", () => {
       "eagerBytesBySkill",
       "lazyBytes",
       "lazyPercent",
+      "perInvocationBytesBySkill",
       "skillCount",
       "totalMdBytes",
     ]);
     const skill = bill.skills[0];
-    for (const key of ["name", "frontmatterBytes", "deadKeys", "skillMdBytes", "forcedRefs", "eagerBytes", "lazy", "orphans", "foreignFiles"]) {
+    for (const key of ["name", "frontmatterBytes", "deadKeys", "skillMdBytes", "forcedRefs", "eagerBytes", "conditionalRefs", "conditionalBytes", "perInvocationBytes", "lazy", "orphans", "foreignFiles"]) {
       expect(skill).toHaveProperty(key);
     }
   });
@@ -164,6 +206,7 @@ describe("token estimate and rendering", () => {
     });
     expect(code).toBe(0);
     expect(out.text()).toContain('alpha / mode "Discovery" invocation total');
+    expect(out.text()).toContain("(eager + conditional + routed modules)");
     expect(out.text()).not.toContain("Full chain");
   });
 });
@@ -185,6 +228,30 @@ describe("--diff (the #2362 replay: silently inlined preamble)", () => {
     expect(code).toBe(2);
     expect(out.text()).toContain("eager");
     expect(out.text()).toContain("GREW");
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it("a newly mandated conditional read is growth too (exit 2)", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "context-bill-cond-"));
+    const treeB = path.join(tmp, "tree-b");
+    fs.cpSync(TREE_A, treeB, { recursive: true });
+    // A new heavy reference, mandated only under a condition: the pre-fix
+    // eager-only ledger reported this as free.
+    fs.writeFileSync(path.join(treeB, "alpha", "references", "HEAVY.md"), "x".repeat(40000));
+    fs.appendFileSync(
+      path.join(treeB, "alpha", "SKILL.md"),
+      "\n4. Read `references/HEAVY.md` before deploy work.\n",
+    );
+
+    const diff = diffBills(buildBill(TREE_A), buildBill(treeB));
+    const conditional = diff.rows.find((r) => r.ledger === "conditional")!;
+    expect(conditional).toMatchObject({ label: "alpha", delta: 40000 });
+    expect(diff.grew).toBe(true);
+
+    const out = capture();
+    const code = await contextBillMain(["--diff", TREE_A, treeB], { stdout: out.stream, stderr: out.stream });
+    expect(code).toBe(2);
+    expect(out.text()).toContain("conditional");
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 
@@ -216,6 +283,18 @@ describe("--budget", () => {
     expect(over.text()).toContain("alpha/SKILL.md");
     expect(over.text()).toContain("references/CORE.md");
     fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it("perInvocation gates the eager + conditional ceiling, not just the eager floor", () => {
+    const bill = buildBill(TREE_A);
+    const alpha = bill.skills.find((s) => s.name === "alpha")!;
+    const ceiling = estimateTokens(alpha.perInvocationBytes);
+    // A budget the eager floor clears but the real per-invocation cost blows.
+    expect(checkBudget(bill, { eagerPerInvocation: { alpha: ceiling } })).toEqual([]);
+    const violations = checkBudget(bill, { perInvocation: { alpha: alphaEagerTok } });
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ ceiling: "perInvocation.alpha", actual: ceiling });
+    expect(violations[0].files.some((f: string) => f.includes("OPTIONAL.md") && f.includes("conditional"))).toBe(true);
   });
 
   it("checkBudget flags a budgeted skill missing from the tree", () => {
@@ -256,6 +335,74 @@ describe("ground-truth cross-check against the real skills/ tree", () => {
   it("finds all six canonical skills (five dispatchers + make-pdf)", () => {
     const names = buildBill(SKILLS).skills.map((s) => s.name).sort();
     expect(names).toEqual(["debug", "make-pdf", "plan", "qa", "review", "ship"]);
+  });
+
+  it("every dispatcher's conditional tier carries the mandated reads the eager row ignores", () => {
+    const bill = buildBill(SKILLS);
+    for (const name of ["plan", "qa", "debug", "review", "ship"]) {
+      const s = bill.skills.find((x) => x.name === name)!;
+      const basenames = s.conditionalRefs.map((r) => path.basename(r.path));
+      // The receipted misses: each is mandated under a condition a normal run hits.
+      expect(basenames).toContain("QUESTION-FORMAT.md");
+      expect(basenames).toContain("RUNTIME.md");
+      expect(basenames).toContain("WEB-CONTEXT.md");
+      expect(basenames).toContain("CODE-INTELLIGENCE.md");
+      expect(s.conditionalRefs.every((r) => !r.missing)).toBe(true);
+      expect(s.perInvocationBytes).toBeGreaterThan(s.eagerBytes);
+    }
+  });
+
+  it("qa's real per-invocation cost is well above its eager row", () => {
+    const qa = buildBill(SKILLS).skills.find((s) => s.name === "qa")!;
+    // The eager-only figure was the receipted understatement; the ceiling is
+    // more than double it, and system-functional is part of why.
+    expect(qa.conditionalRefs.map((r) => path.basename(r.path))).toContain("SYSTEM-FUNCTIONAL.md");
+    expect(qa.perInvocationBytes).toBeGreaterThan(qa.eagerBytes * 2);
+  });
+});
+
+describe("auto-detected default trees", () => {
+  it("prefers ./skills, then the canonical .agents/skills, then .claude/skills, project before user", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "context-bill-detect-"));
+    const home = path.join(tmp, "home");
+    const proj = path.join(tmp, "proj");
+
+    const plant = (dir: string, name: string) => {
+      fs.mkdirSync(path.join(dir, name), { recursive: true });
+      fs.cpSync(TREE_A, path.join(dir, name), { recursive: true });
+      return path.join(dir, name);
+    };
+    const homeClaude = plant(home, path.join(".claude", "skills"));
+    const homeAgents = plant(home, path.join(".agents", "skills"));
+    const projClaude = plant(proj, path.join(".claude", "skills"));
+    const projAgents = plant(proj, path.join(".agents", "skills"));
+
+    const run = async () => {
+      const out = capture();
+      const code = await contextBillMain([], { cwd: proj, homeDir: home, stdout: out.stream, stderr: out.stream });
+      expect(code).toBe(0);
+      return out.text().split("\n")[0];
+    };
+
+    // .agents/skills is the canonical install path and was invisible pre-fix.
+    expect(await run()).toContain(projAgents);
+    fs.rmSync(projAgents, { recursive: true, force: true });
+    expect(await run()).toContain(projClaude);
+    fs.rmSync(projClaude, { recursive: true, force: true });
+    expect(await run()).toContain(homeAgents);
+    fs.rmSync(homeAgents, { recursive: true, force: true });
+    expect(await run()).toContain(homeClaude);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it("names every candidate it tried when no tree exists", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "context-bill-none-"));
+    const out = capture();
+    const code = await contextBillMain([], { cwd: tmp, homeDir: tmp, stdout: out.stream, stderr: out.stream });
+    expect(code).toBe(2);
+    expect(out.text()).toContain(path.join(tmp, ".agents", "skills"));
+    expect(out.text()).toContain(path.join(tmp, ".claude", "skills"));
+    fs.rmSync(tmp, { recursive: true, force: true });
   });
 });
 
