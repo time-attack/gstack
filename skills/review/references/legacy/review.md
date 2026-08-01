@@ -16,12 +16,21 @@ BUN_CMD="$GSTACK_BIN/bun"
 B="$GSTACK_BIN/browse"
 P="$GSTACK_BIN/make-pdf"
 ```
+
+**Every `$GSTACK_BIN/...` helper in this module is optional.** The canonical
+`npx skills add` install ships no runtime, so run a helper only when
+`[ -x "$GSTACK_BIN/<helper>" ]` passes; otherwise skip that step silently and
+continue. The review itself is pure judgment — a missing helper costs a
+persistence or recall nicety, never a finding.
+
 ## Step 0: Detect platform and base branch
 
-First, detect the git hosting platform from the remote URL:
+First, detect the git hosting platform from the remote URL. Do not assume the
+remote is named `origin`, and do not assume there is a remote at all:
 
 ```bash
-git remote get-url origin 2>/dev/null
+REMOTE=$(git remote 2>/dev/null | grep -x origin || git remote 2>/dev/null | head -1)
+[ -n "$REMOTE" ] && git remote get-url "$REMOTE" 2>/dev/null || echo "NO_REMOTE"
 ```
 
 - If the URL contains "github.com" → platform is **GitHub**
@@ -43,15 +52,31 @@ PR/MR exists. Use the result as "the base branch" in all subsequent steps.
 2. `glab repo view -F json 2>/dev/null` and extract the `default_branch` field — if succeeds, use it
 
 **Git-native fallback (if unknown platform, or CLI commands fail):**
-1. `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`
-2. If that fails: `git rev-parse --verify origin/main 2>/dev/null` → use `main`
-3. If that fails: `git rev-parse --verify origin/master 2>/dev/null` → use `master`
+1. The repo's own default, no remote required: `git symbolic-ref --short HEAD` is the
+   current branch, so read the default from `git config --get init.defaultBranch`, then
+   `git rev-parse --verify main 2>/dev/null` → use `main`, then
+   `git rev-parse --verify master 2>/dev/null` → use `master`
+2. If a `$REMOTE` exists: `git symbolic-ref "refs/remotes/$REMOTE/HEAD" 2>/dev/null | sed "s|refs/remotes/$REMOTE/||"`,
+   then `git rev-parse --verify "$REMOTE/main" 2>/dev/null` → `main`, then `"$REMOTE/master"` → `master`
+3. If the current branch has an upstream, use its branch part:
+   `git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null`
 
-If all fail, fall back to `main`.
+If none of these resolve, there is **no base branch** — a single-branch local repo
+(fresh `git init`, no remote) is the common case, not an error. Do not fall back to a
+`main` that doesn't exist; record "no base branch" and let Step 1 review the working diff.
 
-Print the detected base branch name. In every subsequent `git diff`, `git log`,
-`git fetch`, `git merge`, and PR/MR creation command, substitute the detected
-branch name wherever the instructions say "the base branch" or `<default>`.
+Print the detected base branch name, the remote name (or `none`), and the
+**comparison ref** — the concrete ref to diff against:
+
+1. `$REMOTE/<base>` when a remote exists and that remote-tracking ref is present
+2. otherwise the local `<base>` branch, when it exists and is not the current branch
+3. otherwise empty — no base branch, review the working diff
+
+In every subsequent `git diff`, `git log`, `git fetch`, `git merge`, and PR/MR
+creation command, substitute the detected branch name wherever the instructions say
+"the base branch" or `<default>`, and the comparison ref wherever they say
+`<base-ref>`. Only `git fetch` when a remote exists, and never treat a failed fetch
+as fatal — offline and remote-less are both normal.
 
 ---
 
@@ -64,8 +89,26 @@ You are running the `/review` workflow. Analyze the current branch's diff agains
 ## Step 1: Check branch
 
 1. Run `git branch --show-current` to get the current branch.
-2. If on the base branch, output: **"Nothing to review — you're on the base branch or have no changes against it."** and stop.
-3. Run `git fetch origin <base> --quiet && DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" --stat` to check if there's a diff. If no diff, output the same message and stop.
+2. **No comparison ref, or you are on the base branch itself** (single-branch local repo,
+   solo work committed straight to `main`): do not stop on that alone. Check for work with
+   `git status --porcelain` and `git log --oneline -1`.
+   - Working changes exist → review the working diff: `git diff HEAD` plus the untracked
+     files from `git status --porcelain`. If HEAD has no parent, use `git show HEAD` for
+     the initial commit.
+   - Working tree clean → review the most recent commit: `git show HEAD`.
+   - Nothing at all (no commits, nothing staged) → output **"Nothing to review — no commits
+     and no working changes."** and stop.
+
+   State it once in the output: **"No base branch — reviewing the working tree diff."** (or
+   "the last commit"). Then continue with the rest of the workflow, reading every
+   `<base-ref>` command as its working-tree equivalent: `git diff HEAD` for the diff,
+   `git log --oneline -20` for intent.
+3. Otherwise (a comparison ref exists and you are not on the base branch): fetch first when
+   a remote exists — `git fetch <remote> <base> --quiet || true` — then
+   `DIFF_BASE=$(git merge-base <base-ref> HEAD) && git diff "$DIFF_BASE" --stat`. If
+   `git merge-base` fails (unrelated histories), fall back to `git diff <base-ref> --stat`.
+   If there is no diff and `git status --porcelain` is empty, output **"Nothing to review —
+   you're on the base branch or have no changes against it."** and stop.
 
 ---
 
@@ -74,10 +117,10 @@ You are running the `/review` workflow. Analyze the current branch's diff agains
 Before reviewing code quality, check: **did they build what was requested — nothing more, nothing less?**
 
 1. Read `TODOS.md` (if it exists). Read PR description (`gh pr view --json body --jq .body 2>/dev/null || true`).
-   Read commit messages (`git log origin/<base>..HEAD --oneline`).
+   Read commit messages (`git log <base-ref>..HEAD --oneline`).
    **If no PR exists:** rely on commit messages and TODOS.md for stated intent — this is the common case since /review runs before /ship creates the PR.
 2. Identify the **stated intent** — what was this branch supposed to accomplish?
-3. Run `DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" --stat` and compare the files changed against the stated intent.
+3. Run `DIFF_BASE=$(git merge-base <base-ref> HEAD) && git diff "$DIFF_BASE" --stat` and compare the files changed against the stated intent.
 
 4. Evaluate with skepticism (incorporating plan completion results if available from an earlier step or adjacent section):
 
@@ -115,7 +158,7 @@ setopt +o nomatch 2>/dev/null || true  # zsh compat
 BRANCH=$(git branch --show-current 2>/dev/null | tr '/' '-')
 REPO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)")
 # Compute project slug for "${GSTACK_HOME:-$HOME/.gstack}"/projects/ lookup
-_PLAN_SLUG=$(git remote get-url origin 2>/dev/null | sed 's|.*[:/]\([^/]*/[^/]*\)\.git$|\1|;s|.*[:/]\([^/]*/[^/]*\)$|\1|' | tr '/' '-' | tr -cd 'a-zA-Z0-9._-') || true
+_PLAN_SLUG=$(git remote get-url "${REMOTE:-origin}" 2>/dev/null | sed 's|.*[:/]\([^/]*/[^/]*\)\.git$|\1|;s|.*[:/]\([^/]*/[^/]*\)$|\1|' | tr '/' '-' | tr -cd 'a-zA-Z0-9._-') || true
 _PLAN_SLUG="${_PLAN_SLUG:-$(basename "$PWD" | tr -cd 'a-zA-Z0-9._-')}"
 # Search common plan file locations (project designs first, then personal/local)
 for PLAN_DIR in "${GSTACK_HOME:-$HOME/.gstack}/projects/${PROJECT_ID:-unknown}" "$HOME/.claude/plans" "$HOME/.codex/plans" ".gstack/plans"; do
@@ -184,7 +227,7 @@ Before judging completion, classify HOW each item can be verified. The diff alon
 
 ### Cross-Reference Against Diff
 
-Run `git diff origin/<base>...HEAD` and `git log origin/<base>..HEAD --oneline` to understand what was implemented.
+Run `git diff <base-ref>...HEAD` and `git log <base-ref>..HEAD --oneline` to understand what was implemented.
 
 For each extracted plan item, run the verification dispatch from the previous section, then classify:
 
@@ -232,7 +275,7 @@ COMPLETION: 5/9 DONE, 1 PARTIAL, 1 NOT DONE, 1 CHANGED, 2 UNVERIFIABLE
 
 When no plan file is detected, use these secondary intent sources:
 
-1. **Commit messages:** Run `git log origin/<base>..HEAD --oneline`. Use judgment to extract real intent:
+1. **Commit messages:** Run `git log <base-ref>..HEAD --oneline`. Use judgment to extract real intent:
    - Commits with actionable verbs ("add", "implement", "fix", "create", "remove", "update") are intent signals
    - Skip noise: "WIP", "tmp", "squash", "merge", "chore", "typo", "fixup"
    - Extract the intent behind the commit, not the literal message
@@ -245,7 +288,7 @@ When no plan file is detected, use these secondary intent sources:
 
 For each PARTIAL or NOT DONE item, investigate WHY:
 
-1. Check `git log origin/<base>..HEAD --oneline` for commits that suggest the work was started, attempted, or reverted
+1. Check `git log <base-ref>..HEAD --oneline` for commits that suggest the work was started, attempted, or reverted
 2. Read the relevant code to understand what was built instead
 3. Determine the likely reason from this list:
    - **Scope cut** — evidence of intentional removal (revert commit, removed TODO)
@@ -266,14 +309,14 @@ IMPACT: {HIGH|MEDIUM|LOW} — {what breaks or degrades if this stays undelivered
 **Only for discrepancies sourced from plan files** (not commit messages or TODOS.md), log a learning so future sessions know this pattern occurred:
 
 ```bash
-$GSTACK_BIN/gstack-learnings-log '{
+[ -x "$GSTACK_BIN/gstack-learnings-log" ] && $GSTACK_BIN/gstack-learnings-log '{
   "type": "pitfall",
   "key": "plan-delivery-gap-KEBAB_SUMMARY",
   "insight": "Planned X but delivered Y because Z",
   "confidence": 8,
   "source": "observed",
   "files": ["PLAN_FILE_PATH"]
-}'
+}' || true
 ```
 
 Replace KEBAB_SUMMARY with a kebab-case summary of the gap, and fill in the actual values.
@@ -326,20 +369,21 @@ Read `references/artifacts/review/greptile-triage.md` and follow the fetch, filt
 
 ## Step 3: Get the diff
 
-Fetch the latest base branch to avoid false positives from stale local state:
+Fetch the latest base branch to avoid false positives from stale local state. Skip the
+fetch entirely when there is no remote, and never let it fail the step:
 
 ```bash
-git fetch origin <base> --quiet
+[ -n "$REMOTE" ] && git fetch "$REMOTE" <base> --quiet 2>/dev/null || true
 ```
 
 Compute the merge base, then diff the working tree against that point:
 
 ```bash
-DIFF_BASE=$(git merge-base origin/<base> HEAD)
-git diff "$DIFF_BASE"
+DIFF_BASE=$(git merge-base <base-ref> HEAD 2>/dev/null)
+git diff "${DIFF_BASE:-HEAD}"
 ```
 
-This includes both committed and uncommitted changes while excluding commits that landed on the base branch after this branch was created.
+This includes both committed and uncommitted changes while excluding commits that landed on the base branch after this branch was created. With no base branch (Step 1's working-diff path), `git diff HEAD` is the diff.
 
 ## Step 3.4: Workspace-aware queue status (advisory)
 
@@ -347,12 +391,16 @@ Check whether this PR's claimed VERSION still points at a free slot in the queue
 
 ```bash
 BRANCH_VERSION=$(git show HEAD:VERSION 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
-BASE_BRANCH=$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || echo main)
-BASE_VERSION=$(git show origin/$BASE_BRANCH:VERSION 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
-QUEUE_JSON=$($GSTACK_BIN/gstack-next-version \
-  --base "$BASE_BRANCH" \
-  --bump patch \
-  --current-version "$BASE_VERSION" 2>/dev/null || echo '{"offline":true}')
+BASE_BRANCH=<base>   # the base branch detected in Step 0
+BASE_VERSION=$(git show "<base-ref>:VERSION" 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
+if [ -x "$GSTACK_BIN/gstack-next-version" ]; then
+  QUEUE_JSON=$($GSTACK_BIN/gstack-next-version \
+    --base "$BASE_BRANCH" \
+    --bump patch \
+    --current-version "$BASE_VERSION" 2>/dev/null || echo '{"offline":true}')
+else
+  QUEUE_JSON='{"offline":true}'
+fi
 NEXT_SLOT=$(echo "$QUEUE_JSON" | jq -r '.version // empty')
 CLAIMED_COUNT=$(echo "$QUEUE_JSON" | jq -r '.claimed | length // 0')
 OFFLINE=$(echo "$QUEUE_JSON" | jq -r '.offline // false')
@@ -369,7 +417,7 @@ Run a slop scan on changed files to catch AI code quality issues (empty catches,
 redundant `return await`, overcomplicated abstractions):
 
 ```bash
-bun run slop:diff origin/<base> 2>/dev/null || true
+bun run slop:diff <base-ref> 2>/dev/null || true
 ```
 
 If findings are reported, include them in the review output as an informational
@@ -383,8 +431,10 @@ available (e.g., slop-scan not installed), skip this step silently.
 Search for relevant learnings from previous sessions on this project:
 
 ```bash
-$GSTACK_BIN/gstack-learnings-search --limit 10 2>/dev/null || true
+[ -x "$GSTACK_BIN/gstack-learnings-search" ] && $GSTACK_BIN/gstack-learnings-search --limit 10 2>/dev/null || true
 ```
+
+Without the optional runtime there are no stored learnings — skip silently and review on the diff alone.
 
 If learnings are found, incorporate them into your analysis. When a review finding
 matches a past learning, note it: "Prior learning applied: [key] (confidence N, from [date])"
@@ -484,8 +534,11 @@ higher confidence.
 Before classifying findings, check if any were previously skipped by the user in a prior review on this branch.
 
 ```bash
-$GSTACK_BIN/gstack-review-read
+[ -x "$GSTACK_BIN/gstack-review-read" ] && $GSTACK_BIN/gstack-review-read || echo "NO_REVIEW_HISTORY"
 ```
+
+`NO_REVIEW_HISTORY` (helper absent, no optional runtime installed) means there is
+nothing to dedup against — skip this step silently and classify every finding fresh.
 
 Parse the output: only lines BEFORE `---CONFIG---` are JSONL entries (the output also contains `---CONFIG---` and `---HEAD---` footer sections that are not JSONL — ignore those).
 
@@ -637,8 +690,11 @@ recognize that Eng Review was run on this branch.
 Run:
 
 ```bash
-$GSTACK_BIN/gstack-review-log '{"skill":"review","timestamp":"TIMESTAMP","status":"STATUS","issues_found":N,"critical":N,"informational":N,"quality_score":SCORE,"specialists":SPECIALISTS_JSON,"findings":FINDINGS_JSON,"commit":"COMMIT"}'
+[ -x "$GSTACK_BIN/gstack-review-log" ] && $GSTACK_BIN/gstack-review-log '{"skill":"review","timestamp":"TIMESTAMP","status":"STATUS","issues_found":N,"critical":N,"informational":N,"quality_score":SCORE,"specialists":SPECIALISTS_JSON,"findings":FINDINGS_JSON,"commit":"COMMIT"}' || true
 ```
+
+If the helper is absent, the review still stands — say so in one line ("review not
+persisted: optional runtime not installed") so `/ship` knows to re-run it.
 
 Substitute:
 - `TIMESTAMP` = ISO 8601 datetime
@@ -657,7 +713,7 @@ If you discovered a non-obvious pattern, pitfall, or architectural insight durin
 this session, log it for future sessions:
 
 ```bash
-$GSTACK_BIN/gstack-learnings-log '{"skill":"review","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}'
+[ -x "$GSTACK_BIN/gstack-learnings-log" ] && $GSTACK_BIN/gstack-learnings-log '{"skill":"review","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}' || true
 ```
 
 **Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`

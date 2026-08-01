@@ -16,42 +16,75 @@ BUN_CMD="$GSTACK_BIN/bun"
 B="$GSTACK_BIN/browse"
 P="$GSTACK_BIN/make-pdf"
 ```
+
+The runtime is optional — the canonical install ships no `$GSTACK_BIN`. Before
+invoking any `$GSTACK_BIN/<tool>` in the steps below (including the Codex
+sandbox probe), check `[ -x "$GSTACK_BIN/<tool>" ]`. If it is missing, print one
+line naming the skipped helper, do that step's judgment inline with plain git and
+platform CLI commands, and continue. A missing helper never aborts a ship.
+
 ## Step 0: Detect platform and base branch
 
-First, detect the git hosting platform from the remote URL:
+First resolve the repository's own remote — never assume `origin` exists:
 
 ```bash
-git remote get-url origin 2>/dev/null
+git remote 2>/dev/null | grep -qx origin && echo "origin" || git remote 2>/dev/null | head -1
+```
+
+Call that result `<remote>`. Empty output means the repo is local-only: a
+supported case, not a failure.
+
+Detect the platform from **this repository's remote URL**, not from a globally
+logged-in CLI:
+
+```bash
+git remote get-url <remote> 2>/dev/null
 ```
 
 - If the URL contains "github.com" → platform is **GitHub**
 - If the URL contains "gitlab" → platform is **GitLab**
-- Otherwise, check CLI availability:
-  - `gh auth status 2>/dev/null` succeeds → platform is **GitHub** (covers GitHub Enterprise)
-  - `glab auth status 2>/dev/null` succeeds → platform is **GitLab** (covers self-hosted)
-  - Neither → **unknown** (use git-native commands only)
+- Otherwise, ask the CLIs about *this remote* (not about global auth):
+  - `gh repo view --json name 2>/dev/null` succeeds → **GitHub** (covers GitHub Enterprise)
+  - `glab repo view 2>/dev/null` succeeds → **GitLab** (covers self-hosted)
+  - Neither, or no remote at all → **unknown** (use git-native commands only)
 
-Determine which branch this PR/MR targets, or the repo's default branch if no
-PR/MR exists. Use the result as "the base branch" in all subsequent steps.
+A logged-in `gh` or `glab` says nothing about this repository, so global
+`auth status` never sets the platform on its own.
 
-**If GitHub:**
-1. `gh pr view --json baseRefName -q .baseRefName` — if succeeds, use it
-2. `gh repo view --json defaultBranchRef -q .defaultBranchRef.name` — if succeeds, use it
+Determine which branch this PR/MR targets, or the repo's own default branch if no
+PR/MR exists. Use the result as "the base branch" in all subsequent steps. Resolve
+it from the repository itself, in this order, and stop at the first hit that names
+a ref that actually exists (`git rev-parse --verify`):
 
-**If GitLab:**
-1. `glab mr view -F json 2>/dev/null` and extract the `target_branch` field — if succeeds, use it
-2. `glab repo view -F json 2>/dev/null` and extract the `default_branch` field — if succeeds, use it
+1. **Open PR/MR target.** GitHub: `gh pr view --json baseRefName -q .baseRefName`.
+   GitLab: `glab mr view -F json 2>/dev/null`, `target_branch` field.
+2. **The remote's own HEAD** (only when `<remote>` is non-empty):
+   `git symbolic-ref refs/remotes/<remote>/HEAD 2>/dev/null | sed 's|refs/remotes/<remote>/||'`.
+   If that ref is missing, run `git remote set-head <remote> -a 2>/dev/null` once and retry.
+3. **Platform CLI default branch.** GitHub: `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`.
+   GitLab: `glab repo view -F json 2>/dev/null`, `default_branch` field.
+4. **The local default branch.** `git config --get init.defaultBranch`, then the
+   repo's own local branches (`git branch --format='%(refname:short)'`) — pick the
+   local branch other than the current one that HEAD actually forks from
+   (`git merge-base --is-ancestor <candidate> HEAD`, nearest merge-base wins).
+5. **Nothing resolved, or the resolved name is the current branch.** Then this
+   repo has no separate base branch — a fresh local-only repo, or a default branch
+   that is also checked out (`trunk`, `develop`, anything). The current branch IS
+   the base: Step 1's "ship from a feature branch" abort applies. Say that in one
+   line and stop there.
 
-**Git-native fallback (if unknown platform, or CLI commands fail):**
-1. `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`
-2. If that fails: `git rev-parse --verify origin/main 2>/dev/null` → use `main`
-3. If that fails: `git rev-parse --verify origin/master 2>/dev/null` → use `master`
+Never substitute a hardcoded `main`, `master`, or `origin/main`. A base ref that
+does not exist turns every later `git diff`/`git log` into a hard failure, which
+is worse than a clean abort.
 
-If all fail, fall back to `main`.
-
-Print the detected base branch name. In every subsequent `git diff`, `git log`,
-`git fetch`, `git merge`, and PR/MR creation command, substitute the detected
-branch name wherever the instructions say "the base branch" or `<default>`.
+Print `<remote>` (or "none") and the detected base branch name. In every
+subsequent `git diff`, `git log`, `git fetch`, `git merge`, and PR/MR creation
+command, substitute the detected branch name wherever the instructions say "the
+base branch" or `<default>`, and the detected remote wherever they say
+`<remote>`. When `<remote>` is none: `<remote>/<base>` means the local `<base>`
+ref, `git fetch` is skipped, and Step 17's push plus PR/MR creation have nowhere
+to go — print "no remote configured: skipping push and PR" and finish the local
+steps (version, CHANGELOG, TODOS, docs) instead of erroring.
 
 ---
 
@@ -115,8 +148,11 @@ Never skip a verification step because a prior `/ship` run already performed it.
 After completing the review, read the review log and config to display the dashboard.
 
 ```bash
-$GSTACK_BIN/gstack-review-read
+[ -x "$GSTACK_BIN/gstack-review-read" ] && $GSTACK_BIN/gstack-review-read || echo "NO_REVIEW_LOG"
 ```
+
+`NO_REVIEW_LOG` means the optional runtime isn't installed, so there is no review
+log to read: render the dashboard with every row UNKNOWN and continue.
 
 Parse the output. Find the most recent entry for each skill (plan-ceo-review, plan-eng-review, review, adversarial-review, codex-review, codex-plan-review). Ignore entries with timestamps older than 7 days. For the Eng Review row, show whichever is more recent between `review` (diff-scoped pre-landing review) and `plan-eng-review` (plan-stage architecture review). Append "(DIFF)" or "(PLAN)" to the status to distinguish. For the Adversarial row, show whichever is more recent between `adversarial-review` (new auto-scaled) and `codex-review` (legacy). For the Outside Voice row, show the most recent `codex-plan-review` entry — this captures outside voices from both $plan --mode Product --module plan-ceo-review and $plan --mode Engineering --module plan-eng-review.
 
@@ -178,7 +214,7 @@ service with existing deployment — verify that a distribution pipeline exists.
 
 1. Check if the diff adds a new `cmd/` directory, `main.go`, or `bin/` entry point:
    ```bash
-   git diff origin/<base> --name-only | grep -E '(cmd/.*/main\.go|bin/|Cargo\.toml|setup\.py|package\.json)' | head -5
+   git diff <remote>/<base> --name-only | grep -E '(cmd/.*/main\.go|bin/|Cargo\.toml|setup\.py|package\.json)' | head -5
    ```
 
 2. If new artifact detected, check for a release workflow:
@@ -204,8 +240,11 @@ service with existing deployment — verify that a distribution pipeline exists.
 Fetch and merge the base branch into the feature branch so tests run against the merged state:
 
 ```bash
-git fetch origin <base> && git merge origin/<base> --no-edit
+git fetch <remote> <base> && git merge <remote>/<base> --no-edit
 ```
+
+**If `<remote>` is none:** there is nothing to fetch — merge the local base ref
+(`git merge <base>`), or skip the step entirely when the base is the current branch.
 
 **If there are merge conflicts:** Try to auto-resolve if they are simple (VERSION, schema.rb, CHANGELOG ordering). If conflicts are complex or ambiguous, **STOP** and show them.
 
@@ -247,8 +286,14 @@ stay agent judgment; the slot pick stays `gstack-next-version`.
 
 1. **Classify state** — pure reader, never writes:
    ```bash
-   $GSTACK_BIN/gstack-version-bump classify --base <base>
+   [ -x "$GSTACK_BIN/gstack-version-bump" ] && $GSTACK_BIN/gstack-version-bump classify --base <base> || echo "NO_RUNTIME"
    ```
+   On `NO_RUNTIME`, classify by hand: read VERSION and package.json's `version`,
+   compare against the base branch's VERSION (`git show <base>:VERSION`), and treat
+   them as FRESH when they match, ALREADY_BUMPED when the branch's is higher, and
+   DRIFT when VERSION and package.json disagree. Then write the bump with a plain
+   file edit to both. Same dispatch either way.
+
    Read the JSON `state` and dispatch:
    - **FRESH** → do the bump (steps 2-4).
    - **ALREADY_BUMPED** → skip the bump, but run the queue-drift check (step 3) with the reported `currentVersion`. If the queue moved (next free version differs), **AskUserQuestion**: rebump to the new version (rewrites CHANGELOG header + PR title) or keep current (CI version-gate will reject until resolved).
@@ -374,7 +419,7 @@ Option 1 (preferred, if there are non-WIP commits mixed in):
 ```bash
 # Interactive rebase with automated WIP squashing.
 # Mark every WIP commit as 'fixup' (drop its message, fold changes into prior commit).
-git rebase -i $(git merge-base HEAD origin/<base>) \
+git rebase -i $(git merge-base HEAD <remote>/<base>) \
   --exec 'true' \
   -X ours 2>/dev/null || {
     echo "Rebase conflict. Aborting: git rebase --abort"
@@ -390,7 +435,7 @@ Option 2 (simpler, if the branch is ALL WIP commits so far — no landed work):
 # nothing non-WIP to preserve. Verify first.
 NON_WIP=$(git log <base>..HEAD --oneline --invert-grep --grep="^WIP:" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$NON_WIP" -eq 0 ]; then
-  git reset --soft $(git merge-base HEAD origin/<base>)
+  git reset --soft $(git merge-base HEAD <remote>/<base>)
   echo "WIP-only branch, reset-soft to merge base. Step 15.1 will create clean commits."
 fi
 ```
@@ -529,9 +574,9 @@ Branch on the echoed values:
 **Idempotency check:** Check if the branch is already pushed and up to date.
 
 ```bash
-git fetch origin <branch-name> 2>/dev/null
+git fetch <remote> <branch-name> 2>/dev/null
 LOCAL=$(git rev-parse HEAD)
-REMOTE=$(git rev-parse origin/<branch-name> 2>/dev/null || echo "none")
+REMOTE=$(git rev-parse <remote>/<branch-name> 2>/dev/null || echo "none")
 echo "LOCAL: $LOCAL  REMOTE: $REMOTE"
 [ "$LOCAL" = "$REMOTE" ] && echo "ALREADY_PUSHED" || echo "PUSH_NEEDED"
 ```
@@ -539,14 +584,14 @@ echo "LOCAL: $LOCAL  REMOTE: $REMOTE"
 If `ALREADY_PUSHED`, skip the push but continue to Step 18. Otherwise push with upstream tracking:
 
 ```bash
-git push -u origin <branch-name>
+git push -u <remote> <branch-name>
 ```
 
 **You are NOT done.** The code is pushed but documentation sync and PR creation are mandatory final steps. Continue to Step 18.
 
 ---
 
-**PR/MR title invariant (always applies — do not skip even if you don't open the section below):** Any PR or MR you create OR update in the next step MUST have a title that starts with `v$NEW_VERSION` (the version bumped in Step 12), in the format `v<NEW_VERSION> <type>: <summary>`. Never create or edit a PR/MR title without this prefix. Compute the correct title with the single source of truth helper: `$GSTACK_BIN/gstack-pr-title-rewrite.sh "$NEW_VERSION" "<current title>"`. The full create/update procedure (idempotency, redaction scan, self-check) is in the section below.
+**PR/MR title invariant (always applies — do not skip even if you don't open the section below):** Any PR or MR you create OR update in the next step MUST have a title that starts with `v$NEW_VERSION` (the version bumped in Step 12), in the format `v<NEW_VERSION> <type>: <summary>`. Never create or edit a PR/MR title without this prefix. Compute the correct title with the single source of truth helper: `$GSTACK_BIN/gstack-pr-title-rewrite.sh "$NEW_VERSION" "<current title>"` — and when that helper isn't installed, apply the same format by hand. The full create/update procedure (idempotency, redaction scan, self-check) is in the section below.
 
 ## Lazy specialist phase: pr-body
 
