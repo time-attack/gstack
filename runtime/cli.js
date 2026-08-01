@@ -1,6 +1,8 @@
 import readline from "node:readline/promises";
 import fs from "node:fs/promises";
+import { realpathSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { stdin as processStdin, stdout as processStdout, stderr as processStderr } from "node:process";
 import { assertPathInside, resolveGstackHome, resolveRuntimePaths, shellQuote } from "./paths.js";
@@ -120,6 +122,40 @@ export async function main(argv = process.argv.slice(2), options = {}) {
     }
     return exitCodeFor(error);
   }
+}
+
+/**
+ * Two entrypoints, one behavior. `bin/gstack` imports main(); running this file
+ * directly (`node runtime/cli.js doctor --json`, as .github/workflows/
+ * windows-setup-e2e.yml does) has to parse argv and run it too. Export-only
+ * exits 0 with no output, which reads as "the documented command did nothing"
+ * and quietly writes empty files in CI.
+ *
+ * Symlinks on both sides: the managed runtime bundle links launchers at this
+ * file, so process.argv[1] is often the link, not the target.
+ */
+function isDirectExecution() {
+  const invoked = process.argv[1];
+  if (!invoked) return false;
+  const canonical = (target) => {
+    let resolved;
+    try {
+      resolved = realpathSync(target);
+    } catch {
+      resolved = path.resolve(target);
+    }
+    // Windows argv[1] can disagree with import.meta.url on drive-letter case.
+    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  };
+  return canonical(invoked) === canonical(fileURLToPath(import.meta.url));
+}
+
+if (isDirectExecution()) {
+  // exitCode (not process.exit) so buffered stdout flushes before we leave.
+  process.exitCode = await main().catch((error) => {
+    write(processStderr, `gstack: ${redactSensitiveText(error?.message ?? String(error))}\n`);
+    return exitCodeFor(error);
+  });
 }
 
 async function runtimeCommand({ args, home, stdout }) {
