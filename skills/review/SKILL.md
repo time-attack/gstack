@@ -40,14 +40,7 @@ Gloss these header words on first use, for a reader who has not seen them before
 
 A trivial change is a small diff with no risk surface: a rename or move, a comment, doc, or copy edit, a formatting or version-string bump, a test-only addition, or a few lines whose whole effect is visible in the diff itself. Classify from the prompt plus one cheap probe before reading any reference file or specialist module: `git diff <base>...HEAD --stat`, then read the diff itself when the stat says it is small (roughly a handful of files and under ~100 changed lines). Reading a tiny diff IS the review; do not load the specialist apparatus to confirm that there is nothing for it to work on.
 
-On the trivial path:
-
-- Print the required header with `Depth: readiness (trivial diff)`, `Active modules: none (trivial-change fast path)`, and `Skipped modules: all (trivial diff — nothing for a specialist to work on)`. Skip every specialist module and every per-invocation reference from dispatch step 4; the probe already answered everything a module would ask.
-- The review is the findings themselves: file, line, what is wrong, what to do. Nothing else. If nothing is wrong, say the diff is clean and name what you checked in one line.
-- Suppress the ceremony entirely: no pre-mortem, no severity scores or grades, no coverage diagram, no review-army roster, no outside voices, no depth or mode upsell. A 48-line diff does not need a report; it needs the read.
-- Report-only versus mutation authority is unchanged. A typo you were authorized to fix, you fix; anything outside the authorized boundary is reported, not edited.
-
-The change is not trivial if the probe shows it touches authentication, secrets, money, permissions, data shape or migrations, concurrency, or a published API; loosens a check or input that unchanged code elsewhere still consumes; or is large enough that the risk lives in the interaction between files rather than in the lines themselves. Fall back to normal dispatch and say why in one line.
+When that trigger fires, read `references/FAST-PATH.md` and follow it. It is binding, it carries the whole path, and it is the only file this path reads.
 
 ## Top-level modes
 

@@ -45,7 +45,16 @@ describe('verification contract: presence and wiring', () => {
 
   test('`none` stays a legal header value so the line is not answered by bluffing', () => {
     expect(contract).toContain('`none`');
-    expect(planSkill).toContain('`Verification: none`');
+    // The header offers it; the treatment of when `none` is correct lives in
+    // whichever reference the dispatcher routes to, so assert the surface the
+    // agent actually reads rather than one file's current wording.
+    expect(planSkill).toContain('`none (reason)`');
+    const planSurface = fs
+      .readdirSync(path.join(ROOT, 'skills', 'plan', 'references'))
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => fs.readFileSync(path.join(ROOT, 'skills', 'plan', 'references', f), 'utf8'))
+      .join('\n');
+    expect(`${planSkill}\n${planSurface}`).toContain('`Verification: none`');
   });
 });
 

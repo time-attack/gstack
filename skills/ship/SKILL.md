@@ -41,15 +41,7 @@ Web context: <none, optional, local-browser, or production>
 
 A trivial release carries no release surface: a copy, content, comment, doc, test, or single-value config edit across a handful of files, landing on a repository branch, with no public interface change, no schema or data migration, no dependency or build change, no auth/secret/payment path, and no deploy, canary, or store distribution in the ask. Classify from the prompt plus one cheap probe (the branch diffstat against the base, `git status --short` alongside it) before reading any reference file or specialist module. If the diffstat is enumerable and every changed path is content the probe can read at a glance, the release is trivial; do not load the release apparatus to confirm that.
 
-On the trivial path:
-
-- Print the required header with `Depth: readiness (trivial change)` and `Active modules: none (trivial-change fast path)`. Skip every specialist module and every per-invocation reference from dispatch step 4 — the diffstat already answered everything a module would ask.
-- Run the project's own declared checks once, read from the project's config (CLAUDE.md, package scripts, CI workflow), never a guessed command. If the project declares none, say so in one line and proceed. The hard rule stands: a failing check ends the fast path, it is not shipped past.
-- Honor the repository's existing release convention at the smallest size that convention allows — one line in the CHANGELOG's existing style if the repo keeps one, one bump if the repo version-stamps. If the repo keeps neither, do not invent them for a two-file change.
-- Commit, push, and open or update the PR inside the mutation boundary the user authorized; dispatch step 6 still governs that authority and dispatch step 9 still governs the irreversible stage.
-- Suppress the ceremony entirely: no pre-mortem, no review army, no readiness dashboard, no scores, no coverage diagram, no queue table, no mode upsell. The report is what changed, which checks ran, and what landed or is waiting on whom.
-
-If the probe surfaces real release surface — a public interface, a migration, a dependency or deploy-config change, more files than the diffstat can enumerate at a glance, or an ask that reaches deploy, canary, or store distribution (an App Store or TestFlight release is never trivial; dispatch step 10 owns it) — the release is not trivial. Fall back to normal dispatch and say why in one line.
+When that trigger fires, read `references/FAST-PATH.md` and follow it. It is binding, it carries the whole path, and it is the only file this path reads.
 
 ## Top-level modes
 

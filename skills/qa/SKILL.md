@@ -40,15 +40,7 @@ Web context: <none, optional, local-browser, or production>
 
 A trivial check is one narrow observation fully specified by the prompt against a single surface: does this endpoint still answer, did that one string change land, does this command still exit clean. No journey to walk, no baseline to establish, no regression surface to map. Classify from the prompt plus one cheap probe (a grep for the string, a file listing, one run of a command the project already declares) before reading any reference file or specialist module. If the observation is single and its verdict is pass or fail with nothing left to triage, the ask is trivial; do not load the specialist apparatus to confirm that.
 
-On the trivial path:
-
-- Print the required header with `Depth: readiness (trivial check)`, `Active modules: none (trivial-change fast path)`, and `Skipped modules: all (trivial-change fast path)`. Skip every specialist module and every per-invocation reference from dispatch step 4 — the probe already answered everything a module would ask.
-- Do the small thing and report the observation: what was run, what came back, pass or fail. Nothing else.
-- Ask at most one clarifier, and only for genuine ambiguity the probe surfaced (two routes match that path, no declared command for this check). Reversible defaults are decided, not asked, and named in one line. The project-owned-command rule still binds: read the command from project config or ask, never probe-run a framework guess.
-- Suppress the ceremony entirely: no pre-mortem, no coverage audit or diagram, no severity table, no scores, no evidence-package assembly, no deeper-mode upsell. A one-line check does not need a QA report; it needs the check.
-- Mutation is unchanged by this path. A fix that is obvious and inside an already-authorized mutation boundary is applied and reported; without that authorization the check stays report-only and still fails closed.
-
-If the probe surfaces real surface — the check crosses a user journey, the first observation fails in a way that needs triage, or the single target turns out to be a fleet — the ask is not trivial. Fall back to normal dispatch and say why in one line.
+When that trigger fires, read `references/FAST-PATH.md` and follow it. It is binding, it carries the whole path, and it is the only file this path reads.
 
 ## Top-level modes
 

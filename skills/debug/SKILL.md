@@ -38,14 +38,7 @@ Web context: <none, optional, local-browser, or production>
 
 Some defects arrive already diagnosed: an off-by-one in a named loop, an inverted comparison, a wrong constant, a misspelled identifier, a missing guard on one line. Classify from the prompt plus one cheap probe (read the named file, grep the symbol) before reading any reference file or specialist module. The change is trivial when that single probe shows the failing line, the wrong value, and the right value. The probe IS the root-cause demonstration, so the no-fix-before-root-cause rule is satisfied here, never waived; do not load the investigation apparatus to reconfirm what one read already proved.
 
-On the trivial path:
-
-- Print the required header with `Depth: readiness (single-probe root cause)` and `Active modules: none (trivial-change fast path)`. Skip every specialist module and every per-invocation reference from dispatch step 4 — the probe already answered everything a module would ask.
-- State the root cause in one line: file, line, wrong value → right value. When the prompt is itself the fix instruction ("fix the off-by-one in `paginate`"), that is affirmative mutation authority: print it on the Mutation line, apply the edit, and report. Without it, report the line and stop.
-- Ask at most one clarifier, and only for genuine ambiguity the probe surfaced (two symbols with that name, an intended bound that could go either way). Reversible defaults are decided, not asked: extend the regression check the repo already has for that code, follow the repo's existing test habits, and say what you chose in one line. Never stand up a test harness for a one-line fix.
-- Suppress the ceremony entirely: no pre-mortem, no reproduction ladder, no evidence table, no coverage diagram, no scores, no bisect plan, no mode upsell. A one-line fix does not need a report; it needs the line.
-
-If the probe does not pin the cause — the symptom is not where the prompt says it is, the "off-by-one" is a disagreement about intended behavior, the failure is intermittent, or more than one call site could produce it — the defect is not trivial. Fall back to normal dispatch and say why in one line.
+When that trigger fires, read `references/FAST-PATH.md` and follow it. It is binding, it carries the whole path, and it is the only file this path reads.
 
 ## Top-level modes
 
