@@ -63,6 +63,39 @@ describe("gstack-decision-log", () => {
     const r = log("not json", true);
     expect(r.code).toBe(1);
   });
+  test("--supersede with a replacement body records the replacement, linked to the old id", () => {
+    const id = log('{"decision":"old-call","scope":"repo","source":"user"}').out;
+    const out = logFlag(
+      `--supersede ${id} '{"decision":"new-call","rationale":"better","scope":"repo","source":"user"}'`,
+    );
+    expect(out).toContain(id);
+    expect(search()).toContain("new-call"); // the replacement is NOT silently dropped
+    expect(search()).not.toContain("old-call");
+    const arr = JSON.parse(search("--json"));
+    expect(arr.find((d: any) => d.decision === "new-call")?.supersedes).toBe(id);
+  });
+  test("--supersede with an INVALID replacement persists nothing (old stays active)", () => {
+    const id = log('{"decision":"keep-me","scope":"repo","source":"user"}').out;
+    let code = 0;
+    try {
+      logFlag(`--supersede ${id} '{"decision":""}'`);
+    } catch (e: any) {
+      code = e.status || 1;
+    }
+    expect(code).toBe(1);
+    expect(search()).toContain("keep-me"); // not retired by a failed replacement
+  });
+  test("--redact refuses a replacement body instead of dropping it", () => {
+    const id = log('{"decision":"redact-target","scope":"repo","source":"user"}').out;
+    let code = 0;
+    try {
+      logFlag(`--redact ${id} '{"decision":"would-be-lost","scope":"repo","source":"user"}'`);
+    } catch (e: any) {
+      code = e.status || 1;
+    }
+    expect(code).toBe(1);
+    expect(search()).toContain("redact-target"); // nothing happened at all
+  });
 });
 
 describe("gstack-decision-search", () => {
@@ -98,8 +131,20 @@ describe("gstack-decision-search", () => {
     expect(Array.isArray(arr)).toBe(true);
     expect(arr.some((d: any) => d.decision === "json-call")).toBe(true);
   });
-  test("empty store → silent (no output)", () => {
-    expect(search()).toBe("");
+  test("empty store → clean stdout, but an explicit note naming the resolved slug", () => {
+    expect(search()).toBe(""); // stdout stays clean (--json consumers unaffected)
+    const both = search("2>&1");
+    expect(both).toContain("no decisions for project");
+    expect(both).toContain("decisions.jsonl");
+    // the note names the RESOLVED slug (the same one in the store path it read)
+    const slug = both.match(/project "([^"]+)"/)?.[1];
+    expect(slug).toBeTruthy();
+    expect(both).toContain(path.join("projects", slug!, "decisions.jsonl"));
+  });
+  test("a query that matches nothing says so (not a silent empty)", () => {
+    log('{"decision":"present-call","scope":"repo","source":"user"}');
+    expect(search("--query nomatchxyz 2>&1")).toContain("no decisions for project");
+    expect(JSON.parse(search("--query nomatchxyz --json"))).toEqual([]);
   });
 });
 

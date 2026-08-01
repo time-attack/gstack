@@ -10,7 +10,9 @@
  * Reads the BOUNDED active snapshot (decisions.active.json) — O(active), not a full
  * history scan — and rebuilds it from the event log if missing. Scope-filtered to the
  * current branch/issue context (recency != relevance). NON-INTERACTIVE. `--all` shows
- * superseded decisions too (from the full log). Exit 0 silently when there are none.
+ * superseded decisions too (from the full log). Exit 0 when there are none, with an
+ * explicit stderr note naming the resolved project slug + filters (stdout stays clean,
+ * so `--json` still emits `[]`) — a silent empty read looked identical to "wrong cwd".
  *
  * `--semantic` (with `--query`) appends an OPTIONAL "related from memory" block from
  * gbrain semantic recall. It is a pure enhancement: when gbrain is off/unconfigured/
@@ -74,6 +76,21 @@ if (query) {
 }
 rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)); // newest first
 if (recent && recent > 0) rows = rows.slice(0, recent);
+
+if (!rows.length) {
+  // Explicit empty (stderr, so --json stdout stays pure): a silent exit 0 was
+  // indistinguishable from "resolved a different project" when run from an
+  // unexpected cwd. Name the slug, the filters, and the store file.
+  const filters = [
+    `scope=${scope ?? "any"}`,
+    branch ? `branch=${datamark(branch)}` : "",
+    issue ? `issue=${datamark(issue)}` : "",
+    queryRaw ? `query="${datamark(queryRaw)}"` : "",
+  ].filter(Boolean);
+  process.stderr.write(
+    `gstack-decision-search: no decisions for project "${projectId}" (${filters.join(", ")}) — store ${paths.log}${existsSync(paths.log) ? "" : " (none yet)"}\n`,
+  );
+}
 
 if (asJson) {
   // --json stays reliable-only (semantic recall is a human-facing supplement).
