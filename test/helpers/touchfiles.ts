@@ -216,6 +216,12 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // fast path must not load the specialist stack or hard-block)
   'plan-proportionality':      ['skills/plan/**', 'test/skill-e2e-plan-proportionality.test.ts'],
 
+  // Same fast path in the other four dispatchers (one parameterized file)
+  'qa-fast-path':              ['skills/qa/**', 'test/skill-e2e-dispatcher-fast-path.test.ts'],
+  'review-fast-path':          ['skills/review/**', 'test/skill-e2e-dispatcher-fast-path.test.ts'],
+  'ship-fast-path':            ['skills/ship/**', 'test/skill-e2e-dispatcher-fast-path.test.ts'],
+  'debug-fast-path':           ['skills/debug/**', 'test/skill-e2e-dispatcher-fast-path.test.ts'],
+
   // /plan-tune (v1 observational)
   'plan-tune-inspect':         ['plan-tune/**', 'scripts/question-registry.ts', 'scripts/psychographic-signals.ts', 'scripts/one-way-doors.ts', 'bin/gstack-question-log', 'bin/gstack-question-preference', 'bin/gstack-developer-profile'],
 
@@ -577,6 +583,12 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   // /plan proportionality — gate (deterministic functional guardrail: trivial
   // rename must stay on the fast path, not hard-block or load the module stack)
   'plan-proportionality': 'gate',
+
+  // Same fast path in the other four dispatchers — gate for the same reason
+  'qa-fast-path': 'gate',
+  'review-fast-path': 'gate',
+  'ship-fast-path': 'gate',
+  'debug-fast-path': 'gate',
 
   // /plan-tune — gate (core v1 DX promise: plain-English intent routing)
   'plan-tune-inspect': 'gate',
