@@ -7,6 +7,10 @@
  *              reads (#2286) and foreign-host files in scanner scope (#1694).
  *   EAGER      SKILL.md + the forced-read references the dispatch protocol
  *              mandates "for every invocation" (the shared triad).
+ *   FAST-PATH  what a trivial ask costs when the dispatcher's fast path
+ *              explicitly overrides that forced-read step: SKILL.md alone, no
+ *              forced refs, no modules. Reported next to EAGER so the eager
+ *              number is not mistaken for the floor of every invocation.
  *   CONDITIONAL the references the dispatcher mandates under a stated condition
  *              (QUESTION-FORMAT before the first question, RUNTIME before
  *              capability work, CODE-INTELLIGENCE once per repo target, ...).
@@ -28,6 +32,10 @@ const FORCED_PHRASE = "for every invocation";
 const LEGACY_REF = /references\/legacy\/[^`|)\s]+\.md/g;
 // Backticked non-legacy reference in prose. Legacy modules belong to LAZY.
 const PROSE_REF = /`(references\/(?!legacy\/)[^`]+\.md)`/g;
+// A dispatcher that says its fast path overrides the forced-read step pays
+// SKILL.md alone on that path. Named paths come from the section headings.
+const FAST_PATH_OVERRIDE = /fast paths? overrides? this step/i;
+const FAST_PATH_HEADING = /^#{2,}\s+(\S.*? fast path)\s*$/i;
 const ROUTER_KEYS = new Set(["name", "description"]);
 // Skill-shaped files other hosts drop into scanner scope (#1694).
 const FOREIGN_SKILL_FILE = /^(skill\.(ya?ml|json)|agents?\.md|\.cursorrules|\.windsurfrules)$/i;
@@ -109,7 +117,12 @@ export function parseSkill(skillDir, name) {
   // mandates. A clause carrying "for every invocation" is EAGER; any other
   // clause that mandates a reference is CONDITIONAL — real, just gated.
   const clauses = [];
+  let fastPathOverrides = false;
+  const fastPathNames = [];
   for (const line of text.split("\n")) {
+    if (line.includes(FORCED_PHRASE) && FAST_PATH_OVERRIDE.test(line)) fastPathOverrides = true;
+    const heading = FAST_PATH_HEADING.exec(line.trim());
+    if (heading) fastPathNames.push(heading[1]);
     if (line.trim().startsWith("|")) continue; // routing tables are LAZY
     for (const clause of line.split(/(?<=[.;])\s+/)) {
       const paths = [...new Set([...clause.matchAll(PROSE_REF)].map((m) => m[1]))];
@@ -187,6 +200,9 @@ export function parseSkill(skillDir, name) {
     skillMdBytes,
     forcedRefs,
     eagerBytes: skillMdBytes + sumBytes(forcedRefs),
+    // What a trivial ask pays: SKILL.md only. null when no fast path overrides
+    // the forced-read step, i.e. every invocation really does pay the eager row.
+    fastPath: fastPathOverrides ? { paths: fastPathNames, bytes: skillMdBytes } : null,
     conditionalRefs,
     conditionalBytes: sumBytes(conditionalRefs),
     // What an invocation that hits every stated condition actually pays.
@@ -240,6 +256,7 @@ export function buildBill(root) {
       skillCount: skills.length,
       alwaysOnBytes: skills.reduce((n, s) => n + s.frontmatterBytes, 0),
       eagerBytesBySkill: Object.fromEntries(skills.map((s) => [s.name, s.eagerBytes])),
+      fastPathBytesBySkill: Object.fromEntries(skills.map((s) => [s.name, s.fastPath?.bytes ?? null])),
       perInvocationBytesBySkill: Object.fromEntries(skills.map((s) => [s.name, s.perInvocationBytes])),
       lazyBytes,
       totalMdBytes: total,
@@ -359,6 +376,21 @@ export function renderBill(bill, { skill, mode } = {}) {
       : "";
     lines.push(`  ${s.name.padEnd(12)} ${size(s.eagerBytes)}${refs}`);
     for (const r of s.forcedRefs.filter((r) => r.missing)) lines.push(`  ! ${s.name}: forced-read reference missing on disk: ${r.path}`);
+  }
+  lines.push("");
+
+  lines.push("FAST-PATH (trivial ask): SKILL.md only, no forced refs, no modules");
+  for (const s of skills) {
+    if (!s.fastPath) {
+      lines.push(`  ${s.name.padEnd(12)} none (no fast path overrides the forced reads; a trivial ask pays the eager row)`);
+      continue;
+    }
+    const saved = s.eagerBytes - s.fastPath.bytes;
+    lines.push(
+      `  ${s.name.padEnd(12)} ${size(s.fastPath.bytes)}` +
+        `, ${saved > 0 ? `-${size(saved)} vs eager` : "same as eager"}` +
+        `  [${s.fastPath.paths.join(", ") || "fast path"}]`,
+    );
   }
   lines.push("");
 

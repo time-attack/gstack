@@ -6,6 +6,8 @@
  *     foreign-host file flag (#1694)
  *   - EAGER ledger: SKILL.md + forced-read refs discovered from the
  *     "for every invocation" dispatch sentence
+ *   - FAST-PATH ledger: what a trivial ask pays when the dispatcher's fast path
+ *     overrides that forced-read step (SKILL.md alone)
  *   - CONDITIONAL ledger: refs the dispatcher mandates under a stated condition,
  *     plus the eager + conditional per-invocation ceiling
  *   - LAZY ledger: mode/alias table rows resolved to references/legacy/*.md,
@@ -99,6 +101,56 @@ describe("eager ledger", () => {
   });
 });
 
+describe("fast-path ledger (what a trivial ask actually pays)", () => {
+  /** TREE_A's alpha, with the dispatcher clause that overrides the forced reads. */
+  function treeWithFastPath(): string {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "context-bill-fastpath-"));
+    const tree = path.join(tmp, "tree");
+    fs.cpSync(TREE_A, tree, { recursive: true });
+    const skillMd = path.join(tree, "alpha", "SKILL.md");
+    const patched = fs
+      .readFileSync(skillMd, "utf8")
+      .replace(
+        "for every invocation.",
+        "for every invocation. The trivial-change fast path overrides this step: when it fires, read only what that path directs.",
+      );
+    fs.writeFileSync(skillMd, `${patched}\n## Trivial-change fast path\n\nMechanical and fully specified by the prompt.\n`);
+    return tree;
+  }
+
+  it("bills SKILL.md alone — no forced refs, no modules — and names the paths", () => {
+    const tree = treeWithFastPath();
+    const alpha = buildBill(tree).skills.find((s) => s.name === "alpha")!;
+    expect(alpha.fastPath).toEqual({ paths: ["Trivial-change fast path"], bytes: alpha.skillMdBytes });
+    // The receipted overstatement: the eager row charges the forced refs the
+    // fast path explicitly skips.
+    expect(alpha.fastPath!.bytes).toBeLessThan(alpha.eagerBytes);
+    expect(alpha.eagerBytes - alpha.fastPath!.bytes).toBe(
+      fileBytes(tree, "alpha", "references", "CORE.md") + fileBytes(tree, "alpha", "references", "POLICY.md"),
+    );
+    // The normal path still pays them.
+    expect(alpha.forcedRefs).toHaveLength(2);
+    fs.rmSync(path.dirname(tree), { recursive: true, force: true });
+  });
+
+  it("renders the fast-path row next to the eager row, with the saving", () => {
+    const tree = treeWithFastPath();
+    const text = renderBill(buildBill(tree));
+    expect(text).toContain("FAST-PATH (trivial ask): SKILL.md only, no forced refs, no modules");
+    expect(text).toContain("[Trivial-change fast path]");
+    expect(text).toContain("vs eager");
+    expect(text.indexOf("EAGER (per invocation)")).toBeLessThan(text.indexOf("FAST-PATH (trivial ask)"));
+    fs.rmSync(path.dirname(tree), { recursive: true, force: true });
+  });
+
+  it("no override clause means no fast-path row, so the eager figure is not undersold", () => {
+    const bill = buildBill(TREE_A);
+    expect(bill.skills.find((s) => s.name === "alpha")!.fastPath).toBeNull();
+    expect(bill.totals.fastPathBytesBySkill.alpha).toBeNull();
+    expect(renderBill(bill)).toContain("none (no fast path overrides the forced reads");
+  });
+});
+
 describe("conditional ledger", () => {
   const bill = buildBill(TREE_A);
   const alpha = bill.skills.find((s) => s.name === "alpha")!;
@@ -164,10 +216,11 @@ describe("token estimate and rendering", () => {
     expect(estimateTokens(5)).toBe(1);
   });
 
-  it("text output carries all four ledgers plus flags", () => {
+  it("text output carries every ledger plus flags", () => {
     const text = renderBill(buildBill(TREE_A));
     expect(text).toContain("ALWAYS-ON (every session): 2 skills");
     expect(text).toContain("EAGER (per invocation)");
+    expect(text).toContain("FAST-PATH (trivial ask)");
     expect(text).toContain("CONDITIONAL (per invocation, when the stated condition holds)");
     expect(text).toContain("alpha per-invocation ceiling (eager + all conditional)");
     expect(text).toContain("LAZY (per mode/alias)");
@@ -186,6 +239,7 @@ describe("token estimate and rendering", () => {
     expect(Object.keys(bill.totals).sort()).toEqual([
       "alwaysOnBytes",
       "eagerBytesBySkill",
+      "fastPathBytesBySkill",
       "lazyBytes",
       "lazyPercent",
       "perInvocationBytesBySkill",
@@ -193,7 +247,7 @@ describe("token estimate and rendering", () => {
       "totalMdBytes",
     ]);
     const skill = bill.skills[0];
-    for (const key of ["name", "frontmatterBytes", "deadKeys", "skillMdBytes", "forcedRefs", "eagerBytes", "conditionalRefs", "conditionalBytes", "perInvocationBytes", "lazy", "orphans", "foreignFiles"]) {
+    for (const key of ["name", "frontmatterBytes", "deadKeys", "skillMdBytes", "forcedRefs", "eagerBytes", "fastPath", "conditionalRefs", "conditionalBytes", "perInvocationBytes", "lazy", "orphans", "foreignFiles"]) {
       expect(skill).toHaveProperty(key);
     }
   });
@@ -350,6 +404,29 @@ describe("ground-truth cross-check against the real skills/ tree", () => {
       expect(s.conditionalRefs.every((r) => !r.missing)).toBe(true);
       expect(s.perInvocationBytes).toBeGreaterThan(s.eagerBytes);
     }
+  });
+
+  it("every dispatcher's trivial path drops the forced triad; make-pdf has no fast path", () => {
+    const bill = buildBill(SKILLS);
+    const triad =
+      fileBytes(SKILLS, "plan", "references", "EXECUTION-PROFILES.md") +
+      fileBytes(SKILLS, "plan", "references", "SHARED-JUDGMENT.md") +
+      fileBytes(SKILLS, "plan", "references", "AUTHORITY-POLICY.md");
+    for (const name of ["plan", "qa", "debug", "review", "ship"]) {
+      const s = bill.skills.find((x) => x.name === name)!;
+      // The overstatement this closes: ~1.8K tok of forced refs charged to a
+      // trivial ask that the dispatcher explicitly tells the agent to skip.
+      expect(s.fastPath).not.toBeNull();
+      expect(s.fastPath!.bytes).toBe(s.skillMdBytes);
+      expect(s.eagerBytes - s.fastPath!.bytes).toBe(triad);
+      expect(s.fastPath!.paths.some((p) => /fast path$/.test(p))).toBe(true);
+    }
+    expect(bill.skills.find((s) => s.name === "plan")!.fastPath!.paths).toEqual([
+      "Empty-target fast path",
+      "Trivial-change fast path",
+    ]);
+    // A tool skill, not a dispatcher: no fast path, so its eager row stands.
+    expect(bill.skills.find((s) => s.name === "make-pdf")!.fastPath).toBeNull();
   });
 
   it("qa's real per-invocation cost is well above its eager row", () => {

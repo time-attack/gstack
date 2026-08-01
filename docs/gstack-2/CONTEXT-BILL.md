@@ -16,7 +16,7 @@ With no argument it takes the first of these that exists, project before user:
 time-attack/gstack/skills` puts a host-neutral install, so the common case
 needs no path. When none exist it names every candidate it tried.
 
-Four ledgers:
+Five ledgers:
 
 - **ALWAYS-ON** — per-skill YAML frontmatter bytes (what every session's skill
   scanner loads). Flags frontmatter keys the router never reads (#2286) and
@@ -24,7 +24,14 @@ Four ledgers:
 - **EAGER (per invocation)** — SKILL.md plus the forced-read references the
   dispatch protocol mandates for every invocation (the shared triad), parsed
   from the dispatcher's own "for every invocation" sentence. This is the
-  **floor**, not the bill.
+  **floor of a full invocation**, not the bill, and not what a trivial ask pays.
+- **FAST-PATH (trivial ask)** — every dispatcher's fast path (trivial-change,
+  trivial-check, empty-target) explicitly overrides the forced-read step, so a
+  trivial ask pays SKILL.md alone: no forced references, no specialist modules.
+  Printed as its own row, with the saving against the eager row and the names of
+  the paths that fire it, read from the dispatcher's own override clause and
+  section headings. Skills with no such clause print `none`, and their eager row
+  stands for every invocation.
 - **CONDITIONAL (per invocation)** — the references a dispatcher mandates under
   a stated condition, each printed with the dispatcher's own words for when it
   fires: `QUESTION-FORMAT.md` before the first question to the user,
@@ -38,20 +45,25 @@ Four ledgers:
   tables, which `references/legacy/*.md` modules activate and what each costs.
   Unrouted on-disk modules and missing (phantom) modules are flagged.
 
-The real cost of one run sits between the eager floor and the ceiling plus
-whatever modules the chosen mode routes to. `--skill X --mode Y` prints that
-sum directly.
+The real cost of one run sits between the trivial-path figure and the ceiling
+plus whatever modules the chosen mode routes to. `--skill X --mode Y` prints
+that sum directly.
 
-Against `skills/` today, the ceilings run 1.8x to 3.6x the eager figure:
+Against `skills/` today, a trivial ask costs roughly half the eager row, and the
+ceilings run 1.8x to 3.6x it:
 
-| Skill | Eager floor | Conditional | Per-invocation ceiling |
-|---|---|---|---|
-| `plan` | ~4.9K tok | +~5.5K tok | ~10.5K tok (2.1x) |
-| `qa` | ~4.1K tok | +~7.0K tok | ~11.1K tok (2.7x) |
-| `debug` | ~3.9K tok | +~5.3K tok | ~9.2K tok (2.4x) |
-| `review` | ~3.9K tok | +~5.9K tok | ~9.7K tok (2.5x) |
-| `ship` | ~4.1K tok | +~10.6K tok | ~14.7K tok (3.6x) |
-| `make-pdf` | ~2.4K tok | +~1.9K tok | ~4.4K tok (1.8x) |
+| Skill | Fast path (trivial ask) | Eager floor | Conditional | Per-invocation ceiling |
+|---|---|---|---|---|
+| `plan` | ~3.2K tok | ~5.0K tok | +~5.5K tok | ~10.5K tok (2.1x) |
+| `qa` | ~2.4K tok | ~4.2K tok | +~7.0K tok | ~11.2K tok (2.7x) |
+| `debug` | ~2.1K tok | ~3.9K tok | +~5.3K tok | ~9.2K tok (2.4x) |
+| `review` | ~2.1K tok | ~3.9K tok | +~5.9K tok | ~9.8K tok (2.5x) |
+| `ship` | ~2.3K tok | ~4.1K tok | +~10.6K tok | ~14.7K tok (3.6x) |
+| `make-pdf` | none | ~2.4K tok | +~1.9K tok | ~4.4K tok (1.8x) |
+
+The fast-path column is the same ~1.8K tok of forced references in every
+dispatcher (the shared triad), dropped because the dispatcher tells the agent
+to drop it.
 
 Run the tool for current numbers; the table above is a snapshot, not a pin.
 
@@ -60,7 +72,9 @@ Token counts are estimates, bytes/4, the same convention as
 nobody mistakes an estimate for a measurement. The ceiling is an estimate in a
 second sense too: it assumes every stated condition fires. A run that never
 asks a question and never touches a capability pays less. The condition text
-next to each row is there so you can judge which ones apply to your run.
+next to each row is there so you can judge which ones apply to your run. The
+fast-path row is an estimate in that second sense as well: it is what the
+dispatcher's fast path directs, for the asks that classify as trivial.
 
 ## Upgrade preflight
 
@@ -99,6 +113,8 @@ budget with the offending files listed (conditional ones marked as such).
 ## Other flags
 
 - `--json` — machine-readable output (works with the default, --diff, and --budget forms).
+  Each skill carries `fastPath` (`{ paths, bytes }`, or `null` when no fast path
+  overrides its forced reads).
 - `--skill plan --mode Discovery` — single-invocation simulation: eager plus
   conditional cost, plus the modules that mode routes to.
 
