@@ -40,10 +40,22 @@ describe('GStack 2 skill surface', () => {
   });
 
   test('keeps the six-skill discovery surface at least 70 percent below the 1.x baseline', () => {
-    // Measured 1.x always-loaded catalog: ~1,100 token-equivalents (bytes/4).
-    // The six-skill surface (make-pdf's description is frozen and counted)
-    // must stay at or below 30% of that.
-    const baselineTokenEquivalents = 1_100;
+    // 1.x always-loaded catalog baseline. Re-derive it, do not trust the number:
+    //   ref     bb57306d98c97011b0919c6132705a15b1579781 (the pre-2.0 tree audited
+    //           in docs/gstack-2/BASELINE.md; 53 top-level `<skill>/SKILL.md` files)
+    //   method  for each file, run parseFrontmatter() below and sum
+    //           Buffer.byteLength(name) + Buffer.byteLength(description);
+    //           token-equivalents = ceil(bytes / 4). Same parser both sides, so the
+    //           comparison is apples-to-apples.
+    //   result  4,371 bytes = 1,093 token-equivalents (measured 2026-08-01)
+    // Do NOT measure a mid-migration ref. 228d8b72^ yields 3,810 bytes / 953
+    // token-equivalents, but that tree has the 7 design skills already deleted and
+    // carries dev-only `gstack-1-` name prefixes. It is not 1.x.
+    // Current surface: 1,255 bytes = 314 token-equivalents = 71.3% below baseline.
+    // The 30% cap is 327, so headroom is 13 token-equivalents (~4%). That is thin:
+    // adding ~52 bytes of description across the six skills trips this gate.
+    // make-pdf alone is 434 of the 1,255 bytes (35%) and its description is frozen.
+    const baselineTokenEquivalents = 1_093;
     const surfaceBytes = CANONICAL_SKILLS
       .map((skill) => readFileSync(join(SKILLS_DIR, skill, 'SKILL.md'), 'utf8'))
       .reduce((total, body) => {
