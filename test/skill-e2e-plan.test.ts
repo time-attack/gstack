@@ -764,11 +764,11 @@ This review report at the bottom of the plan is the MOST IMPORTANT deliverable o
 
 // --- Codex Offering E2E ---
 // Verifies that Codex is properly offered (with availability check, user prompt,
-// and fallback) in office-hours, plan-ceo-review, plan-design-review, plan-eng-review.
+// and fallback) in office-hours, plan-ceo-review, plan-eng-review.
 
 describeIfSelected('Codex Offering E2E', [
   'codex-offered-office-hours', 'codex-offered-ceo-review',
-  'codex-offered-design-review', 'codex-offered-eng-review',
+  'codex-offered-eng-review',
 ], () => {
   let testDir: string;
 
@@ -784,8 +784,8 @@ describeIfSelected('Codex Offering E2E', [
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'init']);
 
-    // Copy all 4 SKILL.md files
-    for (const skill of ['office-hours', 'plan-ceo-review', 'plan-design-review', 'plan-eng-review']) {
+    // Copy the SKILL.md files under test
+    for (const skill of ['office-hours', 'plan-ceo-review', 'plan-eng-review']) {
       fs.mkdirSync(path.join(testDir, skill), { recursive: true });
       fs.copyFileSync(
         path.join(ROOT, skill, 'SKILL.md'),
@@ -845,10 +845,6 @@ Write your summary to ${testDir}/${testName}-summary.md`,
 
   testConcurrentIfSelected('codex-offered-ceo-review', async () => {
     await checkCodexOffering('plan-ceo-review', 'codex-offered-ceo-review', 'outside voice');
-  }, 180_000);
-
-  testConcurrentIfSelected('codex-offered-design-review', async () => {
-    await checkCodexOffering('plan-design-review', 'codex-offered-design-review', 'design outside voices');
   }, 180_000);
 
   testConcurrentIfSelected('codex-offered-eng-review', async () => {
