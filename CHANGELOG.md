@@ -7,6 +7,56 @@
 > completion state and remaining P0 gates. No GStack 2 release claim is made
 > here while that status holds.
 
+## [1.66.0.0] - 2026-08-01
+
+**87 hostile users tried to break gstack. Here is everything they broke, fixed.**
+
+We handed 87 agents a brief: build a real app, install gstack the way a stranger would, and try to make it fail. They built Next.js SaaS apps, Django blogs, Go services, Rust CLIs, FastAPI backends, Svelte dashboards. They planted bugs and vulnerabilities. They audited every token. They found 418 problems, 7 of them blockers. Not one of them said they would refuse to use it. This release is their list, closed. Two new tools also ship: `gstack context-bill`, which prints exactly what gstack costs your context window before you invoke anything, and `gstack egress`, which keeps hash-chained local receipts of everything that leaves your machine.
+
+### The numbers that matter
+
+Source: the 87-user field run (transcripts and receipts under the run journal), `bun run test:free`, and `gstack context-bill skills` on the shipped tree.
+
+| Metric | Before | After | Δ |
+|---|---|---|---|
+| Users who would refuse to use it | — | 0 of 87 | — |
+| Blockers found / fixed | 7 | 0 | all closed |
+| Dispatchers with a proportional fast path | 1 of 5 | 5 of 5 | +4 |
+| Cost of a trivial ask (per dispatcher) | ~3.9K tok | ~2.1K tok | −47% |
+| Hardcoded base-branch sites in `skills/` | 15 | 0 | −15 |
+| Free suite | 5,311 pass | 5,318 pass / 0 fail | green |
+
+The trivial-ask number is the one to feel. Asking `/review` to look at a one-line change used to load the same machinery as a full audit. Now it classifies from one cheap probe, loads nothing, and answers.
+
+### What this means for you
+
+The first five minutes stopped lying to you. `npx skills add` gives you judgment, not binaries, and the README now says so instead of letting you discover it when make-pdf faceplants. Every git comparison resolves the base branch from your actual repository, so a local-only repo on a `trunk` default works exactly like a GitHub repo on `main`. And when you want to know what any of this costs you, run `gstack context-bill` and it will tell you, including the parts that make it look bad.
+
+### Itemized changes
+
+### Added
+
+- `gstack context-bill`: offline token bill-of-materials for a skills tree, in four tiers — always-on (365 tokens for all six skills), fast-path (a trivial ask), eager (a full invocation), and conditional (references loaded when a stated condition holds). Supports `--json`, `--diff <a> <b>` for regression gating, `--budget`, and per-skill/per-mode filters.
+- `gstack egress`: hash-chained local receipts for every off-machine send, with `list` (what did leave), `grants` (what can leave, plus each revoke command), and `verify` (recompute the chain, exit 3 on tamper). A static tripwire fails CI if a new network call ships without a receipt.
+- `skills/*/references/BASE-DETECTION.md`: one canonical base-branch and remote resolution order, replacing the probe that had been copy-pasted into 15 modules.
+- Trivial-change fast paths in `/qa`, `/review`, `/ship`, and `/debug` (`/plan` already had one), with gate-tier regression tests for all five.
+
+### Fixed
+
+- `node runtime/cli.js <cmd>` ran nothing and exited 0 — a silent no-op that also wrote empty files in Windows CI without failing it.
+- make-pdf spawned a bare `browse` from `PATH`, so an unrelated binary of that name (or none) broke PDF generation out of the box; it now prefers its sibling binary and fails with an actionable error.
+- `/ship` and `/review` assumed `origin/main` and halted on a local-only repo or a non-`main` default branch.
+- Test-command detection was blind to Django and to config-less projects with working tests.
+- `gstack-decision-log --supersede` silently discarded the replacement decision.
+- The fast path leaked: dispatch step 3 told the agent to read every active module with no exception, so the specialist tree loaded anyway.
+- context-bill undercounted per-invocation cost by up to 4x (conditional reads counted as lazy) and overstated trivial-path cost (charged the forced-reference triad the fast path skips).
+- `/review` and `/debug` dispatcher prose glossed jargon on first use, per the project's own writing-style rule.
+
+### For contributors
+
+- `test/skill-base-detection.test.ts` pins the shared reference byte-identical across skills and fails on any hardcoded base branch or remote in command position.
+- `test/runtime-cli-direct-exec.test.ts` pins the direct-execution guard, exit-code propagation, and JSON validity on empty ledgers.
+
 ## [1.65.0.0] - 2026-07-31
 
 **Dead scaffolding out, hardcoded assumptions out. What remains actually runs.**
