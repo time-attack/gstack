@@ -51,15 +51,13 @@ PR/MR exists. Use the result as "the base branch" in all subsequent steps.
 1. `glab mr view -F json 2>/dev/null` and extract the `target_branch` field — if succeeds, use it
 2. `glab repo view -F json 2>/dev/null` and extract the `default_branch` field — if succeeds, use it
 
-**Git-native fallback (if unknown platform, or CLI commands fail):**
-1. The repo's own default, no remote required: `git symbolic-ref --short HEAD` is the
-   current branch, so read the default from `git config --get init.defaultBranch`, then
-   `git rev-parse --verify main 2>/dev/null` → use `main`, then
-   `git rev-parse --verify master 2>/dev/null` → use `master`
-2. If a `$REMOTE` exists: `git symbolic-ref "refs/remotes/$REMOTE/HEAD" 2>/dev/null | sed "s|refs/remotes/$REMOTE/||"`,
-   then `git rev-parse --verify "$REMOTE/main" 2>/dev/null` → `main`, then `"$REMOTE/master"` → `master`
-3. If the current branch has an upstream, use its branch part:
-   `git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null`
+**Git-native fallback (if unknown platform, or CLI commands fail):** follow the
+order in `references/BASE-DETECTION.md` — the remote's own HEAD when a `$REMOTE`
+exists, then the local default branch (`git config --get init.defaultBranch`, then
+the local branch HEAD actually forks from), then the current branch's upstream
+(`git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null`).
+Every candidate must pass `git rev-parse --verify`; never probe a hardcoded
+`main`, `master`, or `origin/main`.
 
 If none of these resolve, there is **no base branch** — a single-branch local repo
 (fresh `git init`, no remote) is the common case, not an error. Do not fall back to a

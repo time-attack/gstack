@@ -18,10 +18,13 @@ P="$GSTACK_BIN/make-pdf"
 ```
 ## Step 0: Detect platform and base branch
 
-First, detect the git hosting platform from the remote URL:
+First resolve the repository's own remote as `<remote>` using
+`references/BASE-DETECTION.md` — never assume `origin` exists, and empty means a
+local-only repo, which is a supported case. Then detect the git hosting platform
+from that remote's URL:
 
 ```bash
-git remote get-url origin 2>/dev/null
+git remote get-url <remote> 2>/dev/null
 ```
 
 - If the URL contains "github.com" → platform is **GitHub**
@@ -34,24 +37,19 @@ git remote get-url origin 2>/dev/null
 Determine which branch this PR/MR targets, or the repo's default branch if no
 PR/MR exists. Use the result as "the base branch" in all subsequent steps.
 
-**If GitHub:**
-1. `gh pr view --json baseRefName -q .baseRefName` — if succeeds, use it
-2. `gh repo view --json defaultBranchRef -q .defaultBranchRef.name` — if succeeds, use it
+Resolve the remote and the base branch with the order in
+`references/BASE-DETECTION.md`: a base the user named, then the open PR/MR
+target, the remote's own HEAD, the platform CLI's default branch, the local
+default branch, the current branch's upstream, and finally "no separate base
+branch" scoped to the working tree. Stop at the first candidate that
+`git rev-parse --verify` confirms exists. Never substitute a hardcoded `main`,
+`master`, or `origin/main`, and never assume the remote is named `origin`.
 
-**If GitLab:**
-1. `glab mr view -F json 2>/dev/null` and extract the `target_branch` field — if succeeds, use it
-2. `glab repo view -F json 2>/dev/null` and extract the `default_branch` field — if succeeds, use it
-
-**Git-native fallback (if unknown platform, or CLI commands fail):**
-1. `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`
-2. If that fails: `git rev-parse --verify origin/main 2>/dev/null` → use `main`
-3. If that fails: `git rev-parse --verify origin/master 2>/dev/null` → use `master`
-
-If all fail, fall back to `main`.
-
-Print the detected base branch name. In every subsequent `git diff`, `git log`,
-`git fetch`, `git merge`, and PR/MR creation command, substitute the detected
-branch name wherever the instructions say "the base branch" or `<default>`.
+Print the detected remote (or "none") and the detected base branch name. In every
+subsequent `git diff`, `git log`, `git fetch`, `git merge`, and PR/MR creation
+command, substitute the detected branch name wherever the instructions say "the
+base branch" or `<default>`, and the detected remote wherever they say
+`<remote>`.
 
 ---
 
@@ -118,15 +116,15 @@ If `RETRO_CONTEXT_FOUND`: read `"${GSTACK_HOME:-$HOME/.gstack}"/retro-context.md
 
 ### Step 0.5: Stale-base + bad-today-anchor pre-flight guard
 
-The retro skill computes a window from "today" and queries `git log --since=<window> origin/<default>`. If "today" drifts (model session-context error) or the local worktree's `origin/<default>` is materially behind the actual remote, the window can return zero or near-zero commits and the retro will fabricate a coherent-looking narrative from nothing. This guard prevents silent confidently-wrong output.
+The retro skill computes a window from "today" and queries `git log --since=<window> <remote>/<default>`. If "today" drifts (model session-context error) or the local worktree's `<remote>/<default>` is materially behind the actual remote, the window can return zero or near-zero commits and the retro will fabricate a coherent-looking narrative from nothing. This guard prevents silent confidently-wrong output.
 
 Run the pre-flight in this exact order. The first branch that matches wins:
 
 ```bash
 # Pre-check A: no remote configured?
-_RETRO_HAS_REMOTE=$(git remote 2>/dev/null | grep -c '^origin$' || echo 0)
+_RETRO_HAS_REMOTE=$(git remote 2>/dev/null | wc -l | tr -d ' ')
 if [ "$_RETRO_HAS_REMOTE" = "0" ]; then
-  echo "RETRO_GUARD: no 'origin' remote, base freshness not verified — proceeding"
+  echo "RETRO_GUARD: no remote configured, base freshness not verified — proceeding"
   _RETRO_GUARD_VERDICT="skip-no-remote"
 fi
 
@@ -139,45 +137,45 @@ if [ -z "$_RETRO_GUARD_VERDICT" ]; then
   fi
 fi
 
-# Pre-check C: fetch origin <default>; if it fails, warn but proceed.
+# Pre-check C: fetch <remote> <default>; if it fails, warn but proceed.
 if [ -z "$_RETRO_GUARD_VERDICT" ]; then
-  if ! git fetch origin <default> --quiet 2>/dev/null; then
-    echo "RETRO_GUARD: 'git fetch origin <default>' failed (offline?) — proceeding against last-known origin/<default>"
+  if ! git fetch <remote> <default> --quiet 2>/dev/null; then
+    echo "RETRO_GUARD: 'git fetch <remote> <default>' failed (offline?) — proceeding against last-known <remote>/<default>"
     _RETRO_GUARD_VERDICT="warn-fetch-failed"
   fi
 fi
 
-# Pre-check D: BLOCK only when fetch succeeded AND the latest origin/<default>
+# Pre-check D: BLOCK only when fetch succeeded AND the latest <remote>/<default>
 # commit predates the retro window. Today's date should be loaded from the
 # user-visible "## currentDate" tag in the session reminder; if the gap between
-# origin/<default>'s newest commit and today exceeds the window, the model's
+# <remote>/<default>'s newest commit and today exceeds the window, the model's
 # "today" is almost certainly stale (or the worktree is wildly behind).
 if [ -z "$_RETRO_GUARD_VERDICT" ]; then
-  _RETRO_LATEST_ISO=$(git log -1 --format=%ci origin/<default> 2>/dev/null | awk '{print $1}')
+  _RETRO_LATEST_ISO=$(git log -1 --format=%ci <remote>/<default> 2>/dev/null | awk '{print $1}')
   if [ -n "$_RETRO_LATEST_ISO" ]; then
     # The model computes today from the session reminder (NEVER from `date` —
     # the system clock can be hours off in containerized harnesses).
     # Compute window in DAYS (default 7): if today - latest-commit-date > window-days,
     # BLOCK. If the model cannot reliably compute "today", it MUST stop here and
     # ask the user via AskUserQuestion rather than proceeding.
-    echo "RETRO_GUARD: latest origin/<default> commit on $_RETRO_LATEST_ISO"
+    echo "RETRO_GUARD: latest <remote>/<default> commit on $_RETRO_LATEST_ISO"
     _RETRO_GUARD_VERDICT="check-gap"
   fi
 fi
 ```
 
-After running the bash block, the model evaluates `RETRO_GUARD: latest origin/<default> commit on <DATE>` against today and the window:
+After running the bash block, the model evaluates `RETRO_GUARD: latest <remote>/<default> commit on <DATE>` against today and the window:
 
-- If the **latest-commit date is older than (today − window-days)**, BLOCK with: "Retro window is stale. Latest commit on `origin/<default>` was `<DATE>`, but the window covers `<since>` to `<today>`. This usually means either (a) today's date is wrong in this session or (b) `origin/<default>` is materially behind the remote. Confirm today's date via the session reminder; if today is correct, run `git fetch origin <default>` manually and re-run $plan --mode Discovery --module retro." Stop the skill until the user resolves.
+- If the **latest-commit date is older than (today − window-days)**, BLOCK with: "Retro window is stale. Latest commit on `<remote>/<default>` was `<DATE>`, but the window covers `<since>` to `<today>`. This usually means either (a) today's date is wrong in this session or (b) `<remote>/<default>` is materially behind the remote. Confirm today's date via the session reminder; if today is correct, run `git fetch <remote> <default>` manually and re-run $plan --mode Discovery --module retro." Stop the skill until the user resolves.
 - Otherwise, write: "RETRO_GUARD: latest commit `<DATE>` within window — proceeding."
 
 Skip paths (`skip-no-remote`, `skip-detached`, `warn-fetch-failed`) all proceed to Step 1 with the cited reason on a single stderr line so the retro narrative carries the disclosure ("offline run, window not freshness-verified") rather than silently misreporting.
 
 ### Step 1: Gather Raw Data
 
-First, fetch origin and identify the current user:
+First, fetch `<remote>` (skip when there is none) and identify the current user:
 ```bash
-git fetch origin <default> --quiet
+git fetch <remote> <default> --quiet
 # Identify who is running the retro
 git config user.name
 git config user.email
@@ -189,27 +187,27 @@ Run ALL of these git commands in parallel (they are independent):
 
 ```bash
 # 1. All commits in window with timestamps, subject, hash, AUTHOR, files changed, insertions, deletions
-git log origin/<default> --since="<window>" --format="%H|%aN|%ae|%ai|%s" --shortstat
+git log <remote>/<default> --since="<window>" --format="%H|%aN|%ae|%ai|%s" --shortstat
 
 # 2. Per-commit test vs total LOC breakdown with author
 #    Each commit block starts with COMMIT:<hash>|<author>, followed by numstat lines.
 #    Separate test files (matching test/|spec/|__tests__/) from production files.
-git log origin/<default> --since="<window>" --format="COMMIT:%H|%aN" --numstat
+git log <remote>/<default> --since="<window>" --format="COMMIT:%H|%aN" --numstat
 
 # 3. Commit timestamps for session detection and hourly distribution (with author)
-git log origin/<default> --since="<window>" --format="%at|%aN|%ai|%s" | sort -n
+git log <remote>/<default> --since="<window>" --format="%at|%aN|%ai|%s" | sort -n
 
 # 4. Files most frequently changed (hotspot analysis)
-git log origin/<default> --since="<window>" --format="" --name-only | grep -v '^$' | sort | uniq -c | sort -rn
+git log <remote>/<default> --since="<window>" --format="" --name-only | grep -v '^$' | sort | uniq -c | sort -rn
 
 # 5. PR/MR numbers from commit messages (GitHub #NNN, GitLab !NNN)
-git log origin/<default> --since="<window>" --format="%s" | grep -oE '[#!][0-9]+' | sort -t'#' -k1 | uniq
+git log <remote>/<default> --since="<window>" --format="%s" | grep -oE '[#!][0-9]+' | sort -t'#' -k1 | uniq
 
 # 6. Per-author file hotspots (who touches what)
-git log origin/<default> --since="<window>" --format="AUTHOR:%aN" --name-only
+git log <remote>/<default> --since="<window>" --format="AUTHOR:%aN" --name-only
 
 # 7. Per-author commit counts (quick summary)
-git shortlog origin/<default> --since="<window>" -sn --no-merges
+git shortlog <remote>/<default> --since="<window>" -sn --no-merges
 
 # 8. Greptile triage history (if available)
 cat "${GSTACK_HOME:-$HOME/.gstack}"/greptile-history.md 2>/dev/null || true
@@ -221,13 +219,13 @@ cat TODOS.md 2>/dev/null || true
 find . -name '*.test.*' -o -name '*.spec.*' -o -name '*_test.*' -o -name '*_spec.*' 2>/dev/null | grep -v node_modules | wc -l
 
 # 11. Regression test commits in window
-git log origin/<default> --since="<window>" --oneline --grep="test(qa):" --grep="test(design):" --grep="test: coverage"
+git log <remote>/<default> --since="<window>" --oneline --grep="test(qa):" --grep="test(design):" --grep="test: coverage"
 
 # 12. gstack skill usage telemetry (if available)
 cat "${GSTACK_HOME:-$HOME/.gstack}"/analytics/skill-usage.jsonl 2>/dev/null || true
 
 # 12. Test files changed in window
-git log origin/<default> --since="<window>" --format="" --name-only | grep -E '\.(test|spec)\.' | sort -u | wc -l
+git log <remote>/<default> --since="<window>" --format="" --name-only | grep -E '\.(test|spec)\.' | sort -u | wc -l
 ```
 
 ### Step 2: Compute Metrics
@@ -439,14 +437,14 @@ If the time window is 14 days or more, split into weekly buckets and show trends
 
 ### Step 11: Streak Tracking
 
-Count consecutive days with at least 1 commit to origin/<default>, going back from today. Track both team streak and personal streak:
+Count consecutive days with at least 1 commit to <remote>/<default>, going back from today. Track both team streak and personal streak:
 
 ```bash
 # Team streak: all unique commit dates (local time) — no hard cutoff
-git log origin/<default> --format="%ad" --date=format:"%Y-%m-%d" | sort -u
+git log <remote>/<default> --format="%ad" --date=format:"%Y-%m-%d" | sort -u
 
 # Personal streak: only the current user's commits
-git log origin/<default> --author="<user_name>" --format="%ad" --date=format:"%Y-%m-%d" | sort -u
+git log <remote>/<default> --author="<user_name>" --format="%ad" --date=format:"%Y-%m-%d" | sort -u
 ```
 
 Count backward from today — how many consecutive days have at least one commit? This queries the full history so streaks of any length are reported accurately. Display both:
@@ -715,28 +713,28 @@ If `total_sessions` is 0, say: "No AI coding sessions found in the last <window>
 
 For each repo in the discovery JSON's `repos` array, find the first valid path in `paths[]` (directory exists with `.git/`). If no valid path exists, skip the repo and note it.
 
-**For local-only repos** (where `remote` starts with `local:`): skip `git fetch` and use the local default branch. Use `git log HEAD` instead of `git log origin/$DEFAULT`.
+**For local-only repos** (where `remote` starts with `local:`): skip `git fetch` and use the local default branch. Use `git log HEAD` instead of `git log $REMOTE/$DEFAULT`.
 
 **For repos with remotes:**
 
 ```bash
-git -C <path> fetch origin --quiet 2>/dev/null
+git -C <path> fetch $REMOTE --quiet 2>/dev/null
 ```
 
-Detect the default branch for each repo: first try `git symbolic-ref refs/remotes/origin/HEAD`, then check common branch names (`main`, `master`), then fall back to `git rev-parse --abbrev-ref HEAD`. Use the detected branch as `<default>` in the commands below.
+Detect each repo's own remote and default branch with the order in `references/BASE-DETECTION.md`, run per repo (`git -C <path> remote | head -1` for `$REMOTE`, the remote's own HEAD, then the local default branch); if nothing resolves, use `git -C <path> rev-parse --abbrev-ref HEAD`. Use the results as `$REMOTE` and `<default>`/`$DEFAULT` in the commands below.
 
 ```bash
 # Commits with stats
-git -C <path> log origin/$DEFAULT --since="<start_date>T00:00:00" --format="%H|%aN|%ai|%s" --shortstat
+git -C <path> log $REMOTE/$DEFAULT --since="<start_date>T00:00:00" --format="%H|%aN|%ai|%s" --shortstat
 
 # Commit timestamps for session detection, streak, and context switching
-git -C <path> log origin/$DEFAULT --since="<start_date>T00:00:00" --format="%at|%aN|%ai|%s" | sort -n
+git -C <path> log $REMOTE/$DEFAULT --since="<start_date>T00:00:00" --format="%at|%aN|%ai|%s" | sort -n
 
 # Per-author commit counts
-git -C <path> shortlog origin/$DEFAULT --since="<start_date>T00:00:00" -sn --no-merges
+git -C <path> shortlog $REMOTE/$DEFAULT --since="<start_date>T00:00:00" -sn --no-merges
 
 # PR/MR numbers from commit messages (GitHub #NNN, GitLab !NNN)
-git -C <path> log origin/$DEFAULT --since="<start_date>T00:00:00" --format="%s" | grep -oE '[#!][0-9]+' | sort -t'#' -k1 | uniq
+git -C <path> log $REMOTE/$DEFAULT --since="<start_date>T00:00:00" --format="%s" | grep -oE '[#!][0-9]+' | sort -t'#' -k1 | uniq
 ```
 
 For repos that fail (deleted paths, network errors): skip and note "N repos could not be reached."
@@ -746,7 +744,7 @@ For repos that fail (deleted paths, network errors): skip and note "N repos coul
 For each repo, get commit dates (capped at 365 days):
 
 ```bash
-git -C <path> log origin/$DEFAULT --since="365 days ago" --format="%ad" --date=format:"%Y-%m-%d" | sort -u
+git -C <path> log $REMOTE/$DEFAULT --since="365 days ago" --format="%ad" --date=format:"%Y-%m-%d" | sort -u
 ```
 
 Union all dates across all repos. Count backward from today — how many consecutive days have at least one commit to ANY repo? If the streak hits 365 days, display as "365+ days".
@@ -994,7 +992,7 @@ When the user runs `$plan --mode Discovery --module retro compare` (or `$plan --
 ## Important Rules
 
 - ALL narrative output goes directly to the user in the conversation. The ONLY file written is the `.context/retros/` JSON snapshot.
-- Use `origin/<default>` for all git queries (not local main which may be stale)
+- Use `<remote>/<default>` for all git queries (not the local `<default>`, which may be stale; with no remote, query the local `<default>` and say so)
 - Display all timestamps in the user's local timezone (do not override `TZ`)
 - If the window has zero commits, say so and suggest a different window
 - Round LOC/hour to nearest 50

@@ -96,10 +96,13 @@ Before falling back to git diff heuristics, check for richer test plan sources:
 
 This is the **primary mode** for developers verifying their work. When the user says `/qa` without a URL and the repo is on a feature branch, automatically:
 
-1. **Analyze the branch diff** to understand what changed:
+1. **Analyze the branch diff** to understand what changed. Resolve `<base>` with
+   `references/BASE-DETECTION.md`; when that order resolves no separate base
+   branch, diff the working tree instead (`git status --porcelain`,
+   `git diff HEAD`) and say so:
    ```bash
-   git diff main...HEAD --name-only
-   git log main..HEAD --oneline
+   git diff <base>...HEAD --name-only
+   git log <base>..HEAD --oneline
    ```
 
 2. **Identify affected pages/routes** from the changed files:

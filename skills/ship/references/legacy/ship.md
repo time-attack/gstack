@@ -56,22 +56,15 @@ PR/MR exists. Use the result as "the base branch" in all subsequent steps. Resol
 it from the repository itself, in this order, and stop at the first hit that names
 a ref that actually exists (`git rev-parse --verify`):
 
-1. **Open PR/MR target.** GitHub: `gh pr view --json baseRefName -q .baseRefName`.
-   GitLab: `glab mr view -F json 2>/dev/null`, `target_branch` field.
-2. **The remote's own HEAD** (only when `<remote>` is non-empty):
-   `git symbolic-ref refs/remotes/<remote>/HEAD 2>/dev/null | sed 's|refs/remotes/<remote>/||'`.
-   If that ref is missing, run `git remote set-head <remote> -a 2>/dev/null` once and retry.
-3. **Platform CLI default branch.** GitHub: `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`.
-   GitLab: `glab repo view -F json 2>/dev/null`, `default_branch` field.
-4. **The local default branch.** `git config --get init.defaultBranch`, then the
-   repo's own local branches (`git branch --format='%(refname:short)'`) — pick the
-   local branch other than the current one that HEAD actually forks from
-   (`git merge-base --is-ancestor <candidate> HEAD`, nearest merge-base wins).
-5. **Nothing resolved, or the resolved name is the current branch.** Then this
-   repo has no separate base branch — a fresh local-only repo, or a default branch
-   that is also checked out (`trunk`, `develop`, anything). The current branch IS
-   the base: Step 1's "ship from a feature branch" abort applies. Say that in one
-   line and stop there.
+Use the order in `references/BASE-DETECTION.md`: a base the user named, then the
+open PR/MR target, the remote's own HEAD, the platform CLI's default branch, the
+local default branch, and the current branch's upstream.
+
+When that order resolves nothing, or the name it resolves is the current branch,
+this repo has no separate base branch — a fresh local-only repo, or a default
+branch that is also checked out (`trunk`, `develop`, anything). The current
+branch IS the base: Step 1's "ship from a feature branch" abort applies. Say
+that in one line and stop there.
 
 Never substitute a hardcoded `main`, `master`, or `origin/main`. A base ref that
 does not exist turns every later `git diff`/`git log` into a hard failure, which

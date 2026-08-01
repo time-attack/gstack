@@ -66,9 +66,10 @@ mkdir -p .gstack/benchmark-reports/baselines
 
 Same as $qa --mode Report --module canary — auto-discover from navigation or use `--pages`.
 
-If `--diff` mode:
+If `--diff` mode, resolve `<base>` with `references/BASE-DETECTION.md` (with no
+separate base branch, compare the working tree and say so):
 ```bash
-git diff $(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || echo main)...HEAD --name-only
+git diff <base>...HEAD --name-only
 ```
 
 ### Phase 3: Performance Data Collection

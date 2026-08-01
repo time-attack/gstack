@@ -18,10 +18,13 @@ P="$GSTACK_BIN/make-pdf"
 ```
 ## Step 0: Detect platform and base branch
 
-First, detect the git hosting platform from the remote URL:
+First resolve the repository's own remote as `<remote>` using
+`references/BASE-DETECTION.md` — never assume `origin` exists, and empty means a
+local-only repo, which is a supported case. Then detect the git hosting platform
+from that remote's URL:
 
 ```bash
-git remote get-url origin 2>/dev/null
+git remote get-url <remote> 2>/dev/null
 ```
 
 - If the URL contains "github.com" → platform is **GitHub**
@@ -34,24 +37,19 @@ git remote get-url origin 2>/dev/null
 Determine which branch this PR/MR targets, or the repo's default branch if no
 PR/MR exists. Use the result as "the base branch" in all subsequent steps.
 
-**If GitHub:**
-1. `gh pr view --json baseRefName -q .baseRefName` — if succeeds, use it
-2. `gh repo view --json defaultBranchRef -q .defaultBranchRef.name` — if succeeds, use it
+Resolve the remote and the base branch with the order in
+`references/BASE-DETECTION.md`: a base the user named, then the open PR/MR
+target, the remote's own HEAD, the platform CLI's default branch, the local
+default branch, the current branch's upstream, and finally "no separate base
+branch" scoped to the working tree. Stop at the first candidate that
+`git rev-parse --verify` confirms exists. Never substitute a hardcoded `main`,
+`master`, or `origin/main`, and never assume the remote is named `origin`.
 
-**If GitLab:**
-1. `glab mr view -F json 2>/dev/null` and extract the `target_branch` field — if succeeds, use it
-2. `glab repo view -F json 2>/dev/null` and extract the `default_branch` field — if succeeds, use it
-
-**Git-native fallback (if unknown platform, or CLI commands fail):**
-1. `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`
-2. If that fails: `git rev-parse --verify origin/main 2>/dev/null` → use `main`
-3. If that fails: `git rev-parse --verify origin/master 2>/dev/null` → use `master`
-
-If all fail, fall back to `main`.
-
-Print the detected base branch name. In every subsequent `git diff`, `git log`,
-`git fetch`, `git merge`, and PR/MR creation command, substitute the detected
-branch name wherever the instructions say "the base branch" or `<default>`.
+Print the detected remote (or "none") and the detected base branch name. In every
+subsequent `git diff`, `git log`, `git fetch`, `git merge`, and PR/MR creation
+command, substitute the detected branch name wherever the instructions say "the
+base branch" or `<default>`, and the detected remote wherever they say
+`<remote>`.
 
 ---
 
@@ -324,10 +322,13 @@ Before falling back to git diff heuristics, check for richer test plan sources:
 
 This is the **primary mode** for developers verifying their work. When the user says `/qa` without a URL and the repo is on a feature branch, automatically:
 
-1. **Analyze the branch diff** to understand what changed:
+1. **Analyze the branch diff** to understand what changed. `<base>` is the base
+   branch detected in Step 0 (`references/BASE-DETECTION.md`); when that order
+   resolves no separate base branch, diff the working tree instead
+   (`git status --porcelain`, `git diff HEAD`) and say so:
    ```bash
-   git diff main...HEAD --name-only
-   git log main..HEAD --oneline
+   git diff <base>...HEAD --name-only
+   git log <base>..HEAD --oneline
    ```
 
 2. **Identify affected pages/routes** from the changed files:

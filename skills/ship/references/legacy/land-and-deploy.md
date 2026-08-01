@@ -37,10 +37,13 @@ If `NEEDS_SETUP`:
 
 ## Step 0: Detect platform and base branch
 
-First, detect the git hosting platform from the remote URL:
+First resolve the repository's own remote as `<remote>` using
+`references/BASE-DETECTION.md` — never assume `origin` exists, and empty means a
+local-only repo, which is a supported case. Then detect the git hosting platform
+from that remote's URL:
 
 ```bash
-git remote get-url origin 2>/dev/null
+git remote get-url <remote> 2>/dev/null
 ```
 
 - If the URL contains "github.com" → platform is **GitHub**
@@ -53,24 +56,19 @@ git remote get-url origin 2>/dev/null
 Determine which branch this PR/MR targets, or the repo's default branch if no
 PR/MR exists. Use the result as "the base branch" in all subsequent steps.
 
-**If GitHub:**
-1. `gh pr view --json baseRefName -q .baseRefName` — if succeeds, use it
-2. `gh repo view --json defaultBranchRef -q .defaultBranchRef.name` — if succeeds, use it
+Resolve the remote and the base branch with the order in
+`references/BASE-DETECTION.md`: a base the user named, then the open PR/MR
+target, the remote's own HEAD, the platform CLI's default branch, the local
+default branch, the current branch's upstream, and finally "no separate base
+branch" scoped to the working tree. Stop at the first candidate that
+`git rev-parse --verify` confirms exists. Never substitute a hardcoded `main`,
+`master`, or `origin/main`, and never assume the remote is named `origin`.
 
-**If GitLab:**
-1. `glab mr view -F json 2>/dev/null` and extract the `target_branch` field — if succeeds, use it
-2. `glab repo view -F json 2>/dev/null` and extract the `default_branch` field — if succeeds, use it
-
-**Git-native fallback (if unknown platform, or CLI commands fail):**
-1. `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`
-2. If that fails: `git rev-parse --verify origin/main 2>/dev/null` → use `main`
-3. If that fails: `git rev-parse --verify origin/master 2>/dev/null` → use `master`
-
-If all fail, fall back to `main`.
-
-Print the detected base branch name. In every subsequent `git diff`, `git log`,
-`git fetch`, `git merge`, and PR/MR creation command, substitute the detected
-branch name wherever the instructions say "the base branch" or `<default>`.
+Print the detected remote (or "none") and the detected base branch name. In every
+subsequent `git diff`, `git log`, `git fetch`, `git merge`, and PR/MR creation
+command, substitute the detected branch name wherever the instructions say "the
+base branch" or `<default>`, and the detected remote wherever they say
+`<remote>`.
 
 ---
 
@@ -415,8 +413,8 @@ Before gathering readiness evidence, verify that the VERSION this PR claims is s
 
 ```bash
 BRANCH_VERSION=$(git show HEAD:VERSION 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
-BASE_BRANCH=$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || echo main)
-BASE_VERSION=$(git show origin/$BASE_BRANCH:VERSION 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
+BASE_BRANCH=<base>   # the base branch detected in Step 0 (references/BASE-DETECTION.md)
+BASE_VERSION=$(git show <remote>/$BASE_BRANCH:VERSION 2>/dev/null | tr -d '\r\n[:space:]' || echo "")
 
 # Imply bump level by comparing branch VERSION to base (crude but good enough for drift detection)
 # We don't need the exact original level — we just need "a level" that passes to the util.
@@ -580,9 +578,10 @@ Read the current PR body:
 gh pr view --json body -q .body
 ```
 
-Read the current diff summary:
+Read the current diff summary, against the base branch detected in Step 0
+(`references/BASE-DETECTION.md`) as `<base>`:
 ```bash
-git log --oneline $(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || echo main)..HEAD | head -20
+git log --oneline <base>..HEAD | head -20
 ```
 
 Compare the PR body against the actual commits. Check for:
@@ -598,12 +597,12 @@ changes.** List what's missing or stale.
 Check if documentation was updated on this branch:
 
 ```bash
-git log --oneline --all-match --grep="docs:" $(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || echo main)..HEAD | head -5
+git log --oneline --all-match --grep="docs:" <base>..HEAD | head -5
 ```
 
 Also check if key doc files were modified:
 ```bash
-git diff --name-only $(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || echo main)...HEAD -- README.md CHANGELOG.md ARCHITECTURE.md CONTRIBUTING.md CLAUDE.md VERSION
+git diff --name-only <base>...HEAD -- README.md CHANGELOG.md ARCHITECTURE.md CONTRIBUTING.md CLAUDE.md VERSION
 ```
 
 If CHANGELOG.md and VERSION were NOT modified on this branch and the diff includes
@@ -831,7 +830,7 @@ If you want to persist deploy settings for future runs, suggest the user run `$s
 Then run `gstack-diff-scope` to classify the changes:
 
 ```bash
-eval $($GSTACK_BIN/gstack-diff-scope $(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || echo main) 2>/dev/null)
+eval $($GSTACK_BIN/gstack-diff-scope <base> 2>/dev/null)
 echo "FRONTEND=$SCOPE_FRONTEND BACKEND=$SCOPE_BACKEND DOCS=$SCOPE_DOCS CONFIG=$SCOPE_CONFIG"
 ```
 

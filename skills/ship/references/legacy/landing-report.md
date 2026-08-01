@@ -34,12 +34,13 @@ Think of it as `gh pr list` for VERSION numbers.
 
 ## Step 1: Detect platform and base branch
 
-Same detection as other gstack skills.
+Same detection as other gstack skills: resolve the remote and the base branch
+with the order in `references/BASE-DETECTION.md`, and use its `<remote>` and
+`<base>` below. No base branch resolved means a single-branch local repo — report
+the current branch's own VERSION and say there is nothing to compare against.
 
 ```bash
-BASE_BRANCH=$(gh pr view --json baseRefName -q .baseRefName 2>/dev/null || \
-              gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || \
-              echo main)
+BASE_BRANCH=<base>
 echo "Base branch: $BASE_BRANCH"
 ```
 
@@ -49,9 +50,9 @@ echo "Base branch: $BASE_BRANCH"
 
 ```bash
 CURRENT_VERSION=$(cat VERSION 2>/dev/null | tr -d '[:space:]' || echo "0.0.0.0")
-git fetch origin "$BASE_BRANCH" --quiet 2>/dev/null || true
-BASE_VERSION=$(git show "origin/$BASE_BRANCH:VERSION" 2>/dev/null | tr -d '[:space:]' || echo "$CURRENT_VERSION")
-echo "origin/$BASE_BRANCH VERSION: $BASE_VERSION"
+git fetch <remote> "$BASE_BRANCH" --quiet 2>/dev/null || true
+BASE_VERSION=$(git show "<remote>/$BASE_BRANCH:VERSION" 2>/dev/null | tr -d '[:space:]' || echo "$CURRENT_VERSION")
+echo "<remote>/$BASE_BRANCH VERSION: $BASE_VERSION"
 echo "branch HEAD VERSION: $CURRENT_VERSION"
 ```
 
