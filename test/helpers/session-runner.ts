@@ -12,6 +12,7 @@ import * as os from 'os';
 import { getProjectEvalDir } from './eval-store';
 import { hermeticChildEnv, isHermeticEnabled } from './hermetic-env';
 import { resolveEvalModel } from './eval-model';
+import { resolveClaudeBinary } from '../../browse/src/claude-bin';
 
 const GSTACK_DEV_DIR = path.join(os.homedir(), '.gstack-dev');
 const HEARTBEAT_PATH = path.join(GSTACK_DEV_DIR, 'e2e-live.json'); // heartbeat stays global
@@ -181,16 +182,26 @@ export async function runSkillTest(options: {
   const promptFile = path.join(os.tmpdir(), `.prompt-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   fs.writeFileSync(promptFile, prompt);
 
-  const proc = Bun.spawn(['sh', '-c', `cat "${promptFile}" | claude ${args.map(a => `"${a}"`).join(' ')}`], {
+  // Hermetic by default (see test/helpers/hermetic-env.ts): operator
+  // session context (CONDUCTOR_*, CLAUDECODE, ~/.claude config, ~/.gstack)
+  // never reaches the child; EVALS_HERMETIC=0 restores the legacy env.
+  // Default GSTACK_HEADLESS=1 so eval/E2E runs classify as headless (BLOCK on an
+  // AskUserQuestion failure rather than emit a prose question no human reads). A
+  // suite exercising the INTERACTIVE prose-fallback path opts out by passing
+  // `env: { GSTACK_HEADLESS: '' }` — extraEnv wins because it spreads last.
+  const childEnv = hermeticChildEnv({ GSTACK_HEADLESS: '1', ...extraEnv });
+
+  // No `sh -c` wrapper and no `cat |` pipeline: the prompt file IS stdin and
+  // argv is passed verbatim. Previously the pid we held was the shell's, so
+  // kill() left the real `claude` alive as an orphan (it inherited our pipes
+  // and showed up as a dangling process at teardown, still holding an API
+  // slot). Resolved against the CHILD's PATH so a test can point at a fixture
+  // binary via `env: { PATH }`.
+  const claudeBin = resolveClaudeBinary(childEnv) ?? 'claude';
+  const proc = Bun.spawn([claudeBin, ...args], {
+    stdin: Bun.file(promptFile),
     cwd: workingDirectory,
-    // Hermetic by default (see test/helpers/hermetic-env.ts): operator
-    // session context (CONDUCTOR_*, CLAUDECODE, ~/.claude config, ~/.gstack)
-    // never reaches the child; EVALS_HERMETIC=0 restores the legacy env.
-    // Default GSTACK_HEADLESS=1 so eval/E2E runs classify as headless (BLOCK on an
-    // AskUserQuestion failure rather than emit a prose question no human reads). A
-    // suite exercising the INTERACTIVE prose-fallback path opts out by passing
-    // `env: { GSTACK_HEADLESS: '' }` — extraEnv wins because it spreads last.
-    env: hermeticChildEnv({ GSTACK_HEADLESS: '1', ...extraEnv }),
+    env: childEnv,
     stdout: 'pipe',
     stderr: 'pipe',
   });
@@ -202,12 +213,16 @@ export async function runSkillTest(options: {
 
   const timeoutId = setTimeout(() => {
     timedOut = true;
-    proc.kill();
-    // proc.kill() only signals the `sh -c` wrapper. The claude child it
-    // spawned can survive as an orphan that inherited our stdout/stderr
-    // pipes, so without cancel() the read loop below blocks until the
-    // orphan finally exits (observed: a 600s timeout stretching past 1400s
-    // and tripping bun's per-test timeout instead of returning a result).
+    // SIGKILL, not SIGTERM: this is the last-resort path and a child that is
+    // already wedged is exactly the one that ignores a polite signal.
+    proc.kill('SIGKILL');
+    // `claude` can still leave background grandchildren of its own that
+    // inherited our stdout/stderr pipes, so without cancel() the read loop
+    // below blocks until they exit (observed: a 600s timeout stretching past
+    // 1400s and tripping bun's per-test timeout instead of returning a
+    // result).
+    // ponytail: pipe-cancel + a dead direct child is enough today. If
+    // grandchild orphans ever matter, spawn under setsid and kill the pgid.
     reader.cancel().catch(() => { /* stream already closed */ });
   }, timeout);
 

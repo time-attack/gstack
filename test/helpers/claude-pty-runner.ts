@@ -91,6 +91,17 @@ export interface ClaudePtyOptions {
   env?: Record<string, string>;
   /** Total run timeout (ms). Default 240000 (4 min). */
   timeoutMs?: number;
+  /**
+   * Idle-stall timeout (ms): if the PTY emits no bytes at all for this long,
+   * kill the child and record a stall reason. Default 120000 (2 min).
+   *
+   * Distinct from timeoutMs on purpose. An interactive `claude` repaints
+   * constantly while it works (spinner frames), so total silence means wedged,
+   * not busy — and a PTY read on a child that never writes blocks for the
+   * whole budget (up to 25 min in runPlanSkillCounting) while holding an API
+   * slot. Set 0 to disable.
+   */
+  idleTimeoutMs?: number;
 }
 
 export interface ClaudePtySession {
@@ -131,6 +142,12 @@ export interface ClaudePtySession {
   exited(): boolean;
   /** Exit code, if known. */
   exitCode(): number | null;
+  /**
+   * Why the harness killed the child, or null if it died on its own / is
+   * alive. Set by the wall-clock and idle-stall timers so an 'exited' outcome
+   * carries a reason instead of a bare exit code.
+   */
+  stallReason(): string | null;
   /**
    * The hermetic CLAUDE_CONFIG_DIR this session's claude was pointed at, or
    * null when EVALS_HERMETIC=0. Forensics: hermetic plan files live under
@@ -338,7 +355,6 @@ export function isNumberedOptionListVisible(visible: string): boolean {
 // ~/.gstack/analytics/pty-judge.jsonl for offline analysis.
 // ────────────────────────────────────────────────────────────────────────────
 
-import { spawnSync as nodeSpawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 export interface PtyStateVerdict {
@@ -388,21 +404,33 @@ export function logPtySnapshot(visible: string, ctx: { testName: string; elapsed
   }
 }
 
+/** Hard ceiling for one judge call. Kills the child; never blocks past this. */
+const JUDGE_TIMEOUT_MS = 30_000;
+
 /**
  * Ask Claude Haiku 4.5 to classify a TTY snapshot as waiting/working/hung.
  *
- * Implementation: spawns `claude -p --model claude-haiku-4-5` synchronously
+ * Implementation: spawns `claude -p --model claude-haiku-4-5` ASYNCHRONOUSLY
  * with the prompt piped via stdin. Uses subscription auth (no API key env
- * required). 30-second timeout; returns 'unknown' on any failure mode
- * (timeout, malformed JSON, missing claude binary).
+ * required), so the operator env is intentionally inherited; MCP servers are
+ * not (`--strict-mcp-config`) since classifying text needs no tools and
+ * loading them is pure latency. 30-second ceiling that kills the child;
+ * returns 'unknown' on any failure mode (timeout, malformed JSON, missing
+ * claude binary).
+ *
+ * Async on purpose. This used to be `spawnSync`, which parks the WHOLE bun
+ * process — every concurrent test's timers, every PTY data callback, and the
+ * runner's own per-test timeouts — for up to 30s per call, on a loop that
+ * repeats every 30s for the length of the polling budget (up to 25 min). A
+ * suite that cannot run a timer cannot time anything out.
  *
  * Cache: identical snapshot hashes return the cached verdict without
  * re-calling. Cache lives in-process; resets between test runs.
  */
-export function judgePtyState(
+export async function judgePtyState(
   visible: string,
   ctx?: { testName?: string },
-): PtyStateVerdict {
+): Promise<PtyStateVerdict> {
   // Normalize: strip trailing whitespace lines + take last 4KB. Hash the
   // normalized form so spinner-frame-only diffs (which all look "working")
   // don't bust the cache and rack up cost.
@@ -438,21 +466,43 @@ ${tail}
   };
 
   try {
-    const result = nodeSpawnSync(
-      'claude',
-      ['-p', '--model', 'claude-haiku-4-5', '--max-turns', '1'],
+    const proc = Bun.spawn(
+      ['claude', '-p', '--model', 'claude-haiku-4-5', '--max-turns', '1', '--strict-mcp-config'],
       {
-        input: prompt,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        timeout: 30_000,
-        encoding: 'utf-8',
+        stdin: new TextEncoder().encode(prompt),
+        stdout: 'pipe',
+        // Ignored, not piped: a piped stderr held open by a grandchild is one
+        // more drain that can outlive the kill. The exit code is diagnostic
+        // enough for a best-effort classifier.
+        stderr: 'ignore',
       },
     );
+    let killedByTimeout = false;
+    const timer = setTimeout(() => {
+      killedByTimeout = true;
+      try {
+        proc.kill('SIGKILL');
+      } catch {
+        /* already gone */
+      }
+    }, JUDGE_TIMEOUT_MS);
+    // Race the drain against child-exit + a short grace so an orphan holding
+    // stdout can never park this await (same hazard session-runner.ts guards).
+    const stdout = await Promise.race([
+      new Response(proc.stdout).text(),
+      (async () => {
+        await proc.exited;
+        await Bun.sleep(2_000);
+        return '';
+      })(),
+    ]);
+    const status = await proc.exited;
+    clearTimeout(timer);
     const elapsedMs = Date.now() - judgeStart;
-    if (result.status === 0 && result.stdout) {
+    if (!killedByTimeout && status === 0 && stdout) {
       // Pull the first {...} JSON object out of stdout. Haiku occasionally
       // wraps in ```json ...``` despite the prompt; tolerate that.
-      const match = result.stdout.match(/\{[\s\S]*?"state"[\s\S]*?\}/);
+      const match = stdout.match(/\{[\s\S]*?"state"[\s\S]*?\}/);
       if (match) {
         try {
           const parsed = JSON.parse(match[0]);
@@ -474,7 +524,9 @@ ${tail}
     } else {
       verdict = {
         state: 'unknown',
-        reasoning: `claude exited ${result.status} (${(result.stderr ?? '').slice(0, 80)})`,
+        reasoning: killedByTimeout
+          ? `judge child killed after ${JUDGE_TIMEOUT_MS}ms with no verdict`
+          : `claude exited ${status}`,
         hash,
         elapsedMs,
       };
@@ -1210,10 +1262,13 @@ export async function launchClaudePty(
   const cols = opts.cols ?? 120;
   const rows = opts.rows ?? 40;
   const timeoutMs = opts.timeoutMs ?? 240_000;
+  const idleTimeoutMs = opts.idleTimeoutMs ?? 120_000;
 
   let buffer = '';
   let exited = false;
   let exitCodeCaptured: number | null = null;
+  let lastDataAt = Date.now();
+  let stallReason: string | null = null;
 
   const args: string[] = [];
   // Pin the model so smokes don't inherit the operator's settings.json model
@@ -1245,6 +1300,7 @@ export async function launchClaudePty(
       rows,
       data(_t: unknown, chunk: Buffer) {
         buffer += chunk.toString('utf-8');
+        lastDataAt = Date.now();
       },
     },
     cwd,
@@ -1264,14 +1320,43 @@ export async function launchClaudePty(
       });
   }
 
-  // Top-level timeout. If a test forgets to close, this kills it eventually.
-  const wallTimer = setTimeout(() => {
+  /** SIGKILL the PTY leader. Closing the pty master SIGHUPs whatever it spawned. */
+  function hardKill(reason: string): void {
+    if (stallReason === null) stallReason = reason;
     try {
       proc.kill?.('SIGKILL');
     } catch {
-      /* ignore */
+      /* already gone */
     }
+  }
+
+  // Top-level timeout. If a test forgets to close, this kills it eventually.
+  const wallTimer = setTimeout(() => {
+    hardKill(`killed after ${timeoutMs}ms wall clock`);
   }, timeoutMs);
+
+  // Idle-stall watchdog (defense in depth): a child that produces NO bytes
+  // trips no other timer here — the wall clock treats silence and work
+  // identically, and every polling loop below just keeps polling an empty
+  // buffer. Killing it flips exited(), which every loop already checks, so the
+  // test FAILS with a reason instead of burning its whole budget in silence.
+  let stallTimer: ReturnType<typeof setInterval> | null = null;
+  if (idleTimeoutMs > 0) {
+    stallTimer = setInterval(() => {
+      // Self-clearing: an interval that outlives the child would keep the
+      // event loop alive if a test forgets close().
+      if (exited) {
+        if (stallTimer) clearInterval(stallTimer);
+        return;
+      }
+      const idleMs = Date.now() - lastDataAt;
+      if (idleMs >= idleTimeoutMs) {
+        hardKill(
+          `killed after ${idleMs}ms with no PTY output (idle-stall limit ${idleTimeoutMs}ms, ${buffer.length} bytes total)`,
+        );
+      }
+    }, Math.min(2_000, idleTimeoutMs));
+  }
 
   // Auto-handle the workspace-trust dialog. Runs once during the boot
   // window; idempotent (only fires if the phrase is still on screen).
@@ -1336,7 +1421,7 @@ export async function launchClaudePty(
     while (Date.now() - start < wTimeout) {
       if (exited) {
         throw new Error(
-          `claude exited (code=${exitCodeCaptured}) before any pattern matched. ` +
+          `claude exited (code=${exitCodeCaptured}${stallReason ? `, ${stallReason}` : ''}) before any pattern matched. ` +
             `Last visible:\n${stripAnsi(buffer).slice(-2000)}`,
         );
       }
@@ -1370,6 +1455,7 @@ export async function launchClaudePty(
     clearTimeout(wallTimer);
     clearTimeout(trustWatcherStop);
     clearInterval(trustWatcher);
+    if (stallTimer) clearInterval(stallTimer);
     if (exited) return;
     try {
       proc.kill?.('SIGINT');
@@ -1400,6 +1486,7 @@ export async function launchClaudePty(
     pid: () => proc.pid as number | undefined,
     exited: () => exited,
     exitCode: () => exitCodeCaptured,
+    stallReason: () => stallReason,
     hermeticConfigDir: hermetic ? childEnv.CLAUDE_CONFIG_DIR ?? null : null,
     close,
   };
@@ -1629,7 +1716,9 @@ export async function runPlanSkillObservation(opts: {
       if (session.exited()) {
         return {
           outcome: 'exited',
-          summary: `claude exited (code=${session.exitCode()}) before reaching a terminal outcome`,
+          summary:
+            `claude exited (code=${session.exitCode()}) before reaching a terminal outcome` +
+            (session.stallReason() ? ` — ${session.stallReason()}` : ''),
           evidence: visible.slice(-2000),
           elapsedMs: Date.now() - startedAt,
         };
@@ -1686,7 +1775,7 @@ export async function runPlanSkillObservation(opts: {
       if (elapsed > JUDGE_AFTER_MS && Date.now() - lastJudgeAt > JUDGE_INTERVAL_MS) {
         lastJudgeAt = Date.now();
         logPtySnapshot(visible, { testName: opts.skillName, elapsedMs: elapsed, tag: 'judge-tick' });
-        lastJudgeVerdict = judgePtyState(visible, { testName: opts.skillName });
+        lastJudgeVerdict = await judgePtyState(visible, { testName: opts.skillName });
         if (lastJudgeVerdict.state === 'waiting') {
           waitingEverObserved = true;
           return {
@@ -1897,7 +1986,8 @@ export async function runPlanSkillCounting(opts: {
       if (session.exited()) {
         return snapshot(
           'exited',
-          `claude exited (code=${session.exitCode()}) during counting (step0=${step0Count}, review=${reviewCount})`,
+          `claude exited (code=${session.exitCode()}) during counting (step0=${step0Count}, review=${reviewCount})` +
+            (session.stallReason() ? ` — ${session.stallReason()}` : ''),
           visible,
         );
       }
@@ -2110,7 +2200,9 @@ export async function runPlanSkillFloorCheck(opts: {
         return {
           auqObserved: false,
           outcome: 'exited',
-          summary: `claude exited (code=${session.exitCode()}) before any AUQ render`,
+          summary:
+            `claude exited (code=${session.exitCode()}) before any AUQ render` +
+            (session.stallReason() ? ` — ${session.stallReason()}` : ''),
           evidence: visible.slice(-3000),
           elapsedMs: Date.now() - startedAt,
         };
@@ -2154,7 +2246,7 @@ export async function runPlanSkillFloorCheck(opts: {
       if (elapsed > JUDGE_AFTER_MS && Date.now() - lastJudgeAt > JUDGE_INTERVAL_MS) {
         lastJudgeAt = Date.now();
         logPtySnapshot(visible, { testName: opts.skillName, elapsedMs: elapsed, tag: 'floor-judge-tick' });
-        lastJudgeVerdict = judgePtyState(visible, { testName: opts.skillName });
+        lastJudgeVerdict = await judgePtyState(visible, { testName: opts.skillName });
         if (lastJudgeVerdict.state === 'waiting') {
           return {
             auqObserved: true,

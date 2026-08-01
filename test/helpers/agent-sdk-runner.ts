@@ -127,6 +127,98 @@ export interface RunAgentSdkOptions {
    * to auto-allow them.
    */
   canUseTool?: CanUseTool;
+  /**
+   * Wall-clock ceiling for ONE attempt's message stream, in ms. Default
+   * GSTACK_SDK_TIMEOUT_MS or 600_000. Also caps how long `sem.acquire()` will
+   * wait for a concurrency slot.
+   */
+  timeoutMs?: number;
+  /**
+   * Idle-stall ceiling, in ms: no SDK event at all for this long means the
+   * child is wedged (it may never have emitted a single byte). Default
+   * GSTACK_SDK_IDLE_TIMEOUT_MS or 300_000. A total-duration timer alone does
+   * not cover the "spawned, then silent forever" case cheaply — a healthy run
+   * and a dead one both look like "still going" until the full budget burns.
+   */
+  idleTimeoutMs?: number;
+}
+
+/**
+ * Thrown when a child produced no events within its idle-stall or wall-clock
+ * ceiling. Terminal, never retried: a wedged child is a harness/environment
+ * fault, and retrying it just re-spends the budget.
+ */
+export class ChildStallError extends Error {
+  readonly kind: 'idle' | 'wall';
+  constructor(label: string, kind: 'idle' | 'wall', ms: number, detail = '') {
+    super(
+      `[${label}] SDK child stalled: ${
+        kind === 'idle' ? `no output for ${ms}ms` : `exceeded ${ms}ms wall clock`
+      } — aborted and failed the test instead of hanging${detail}`,
+    );
+    this.name = 'ChildStallError';
+    this.kind = kind;
+  }
+}
+
+/**
+ * Iterate an SDK message stream under two ceilings that BOTH actually fire:
+ * a per-event idle-stall timer and a total wall clock.
+ *
+ * Why this exists: `for await (const ev of query(...))` never settles when the
+ * CLI child wedges (spawn that never writes, stdout held open with no result
+ * event). The awaiting test then hangs past its own runner timeout, and the
+ * `finally` that returns this call's semaphore token never runs — so one
+ * wedged child silently consumed a concurrency slot for the rest of the
+ * process. Both ceilings abort the SDK (its documented cancellation path:
+ * stdin EOF -> ~2s grace -> kill of the CLI child) and throw, so the caller's
+ * `finally` always runs.
+ *
+ * ponytail: teardown of anything the CLI itself spawned is the SDK's job via
+ * abort; if MCP-server orphans ever show up in teardown counts, escalate to a
+ * pgid kill here.
+ */
+async function* boundedStream<T>(
+  src: AsyncIterable<T>,
+  opts: {
+    label: string;
+    idleMs: number;
+    wallMs: number;
+    abort: () => void;
+    detail?: () => string;
+  },
+): AsyncGenerator<T> {
+  const it = src[Symbol.asyncIterator]();
+  const deadline = Date.now() + opts.wallMs;
+  for (;;) {
+    const budget = Math.max(0, Math.min(opts.idleMs, deadline - Date.now()));
+    const next = it.next();
+    // The abandoned next() rejects once we abort. Keep it handled so it can't
+    // resurface as an unhandled rejection and fail an unrelated later test.
+    next.catch(() => { /* abandoned on stall */ });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stalled = new Promise<'stalled'>((resolve) => {
+      timer = setTimeout(() => resolve('stalled'), budget);
+    });
+    const step = await Promise.race([next, stalled]);
+    clearTimeout(timer);
+    if (step === 'stalled') {
+      const kind = Date.now() >= deadline ? 'wall' : 'idle';
+      opts.abort();
+      // Fire-and-forget: never await a dead child's teardown, that is the
+      // hang we are fixing.
+      const ret = it.return?.(undefined as never);
+      if (ret && typeof ret.catch === 'function') ret.catch(() => { /* already dead */ });
+      throw new ChildStallError(
+        opts.label,
+        kind,
+        kind === 'wall' ? opts.wallMs : opts.idleMs,
+        opts.detail?.() ?? '',
+      );
+    }
+    if (step.done) return;
+    yield step.value;
+  }
 }
 
 /**
@@ -180,12 +272,41 @@ class Semaphore {
   constructor(capacity: number) {
     this.available = capacity;
   }
-  async acquire(): Promise<void> {
+  /**
+   * Take a token, waiting at most `timeoutMs`. Returns 'token' when one was
+   * taken (caller MUST release) or 'timeout' when the wait expired (caller
+   * must NOT release, and proceeds anyway).
+   *
+   * Bounded on purpose: this bucket is a rate-limit courtesy, not a
+   * correctness invariant. An unbounded wait turned any single token leak into
+   * a permanent wedge of every later SDK test in the process. Overshooting
+   * concurrency for one call is strictly cheaper than a stalled suite.
+   */
+  async acquire(timeoutMs: number): Promise<'token' | 'timeout'> {
     if (this.available > 0) {
       this.available--;
-      return;
+      return 'token';
     }
-    await new Promise<void>((resolve) => this.queue.push(resolve));
+    let entry!: () => void;
+    const waited = new Promise<'token'>((resolve) => {
+      entry = () => resolve('token');
+      this.queue.push(entry);
+    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<'timeout'>((resolve) => {
+      timer = setTimeout(() => resolve('timeout'), timeoutMs);
+    });
+    const outcome = await Promise.race([waited, expired]);
+    clearTimeout(timer);
+    if (outcome === 'timeout') {
+      const i = this.queue.indexOf(entry);
+      // Still queued: drop ourselves so release() never hands a token to a
+      // waiter that walked away. Already dequeued: release() handed us a
+      // token we no longer want, so put it back.
+      if (i >= 0) this.queue.splice(i, 1);
+      else this.available++;
+    }
+    return outcome;
   }
   release(): void {
     const next = this.queue.shift();
@@ -203,6 +324,9 @@ class Semaphore {
 }
 
 const DEFAULT_SDK_CONCURRENCY = Number(process.env.GSTACK_SDK_MAX_CONCURRENCY ?? 3);
+/** Wall-clock + idle-stall ceilings for one SDK attempt. See RunAgentSdkOptions. */
+const DEFAULT_SDK_WALL_MS = Number(process.env.GSTACK_SDK_TIMEOUT_MS ?? 600_000);
+const DEFAULT_SDK_IDLE_MS = Number(process.env.GSTACK_SDK_IDLE_TIMEOUT_MS ?? 300_000);
 let _apiSemaphore: Semaphore | null = null;
 function getApiSemaphore(): Semaphore {
   if (!_apiSemaphore) _apiSemaphore = new Semaphore(DEFAULT_SDK_CONCURRENCY);
@@ -316,9 +440,17 @@ export async function runAgentSdkTest(
 
   let attempt = 0;
   let lastErr: unknown = null;
+  const label = opts.testName ?? 'agent-sdk';
+  const wallMs = opts.timeoutMs ?? DEFAULT_SDK_WALL_MS;
+  const idleMs = opts.idleTimeoutMs ?? DEFAULT_SDK_IDLE_MS;
 
   while (attempt <= maxRetries) {
-    await sem.acquire();
+    const slot = await sem.acquire(wallMs);
+    if (slot === 'timeout') {
+      process.stderr.write(
+        `  [${label}] SDK concurrency slot not free after ${wallMs}ms — running anyway (slot leak?)\n`,
+      );
+    }
     const startMs = Date.now();
 
     // Hoisted so the max-turns catch branch can synthesize a result from
@@ -353,8 +485,13 @@ export async function runAgentSdkTest(
           ? [...baseTools, 'AskUserQuestion']
           : baseTools;
 
+      // Cancellation handle for the stall ceilings below. Without it the only
+      // way out of a wedged stream is process exit.
+      const abortController = new AbortController();
+
       const sdkOpts: Options = {
         model,
+        abortController,
         cwd: opts.workingDirectory,
         maxTurns: opts.maxTurns ?? 5,
         tools: resolvedTools,
@@ -378,7 +515,16 @@ export async function runAgentSdkTest(
         options: sdkOpts,
       });
 
-      for await (const ev of q) {
+      const stream = boundedStream(q, {
+        label,
+        idleMs,
+        wallMs,
+        abort: () => abortController.abort(),
+        detail: () =>
+          ` (events=${events.length}, last event +${lastEventMs - startMs}ms)`,
+      });
+
+      for await (const ev of stream) {
         const now = Date.now();
         if (firstResponseMs === 0) firstResponseMs = now - startMs;
         const interTurn = now - lastEventMs;
@@ -465,6 +611,11 @@ export async function runAgentSdkTest(
     } catch (err) {
       lastErr = err;
 
+      // A stalled child is terminal: retrying re-spends the budget on the same
+      // wedge. Explicit so it can never be misread as retryable (an elapsed-ms
+      // figure like "4290ms" would otherwise trip the rate-limit /429/ probe).
+      if (err instanceof ChildStallError) throw err;
+
       // "Max turns reached" is the SDK's way of saying "this session ran
       // out of turns." It's thrown from the generator instead of emitted
       // as a result message. Treat as a successful-but-capped trial: the
@@ -508,7 +659,8 @@ export async function runAgentSdkTest(
         opts.onRetry(opts.workingDirectory);
       }
     } finally {
-      sem.release();
+      // Only release what we took — an acquire that timed out holds no token.
+      if (slot === 'token') sem.release();
     }
   }
 
