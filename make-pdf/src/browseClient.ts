@@ -10,9 +10,14 @@
  * Binary resolution order (Codex round 2 #4, v1.24-aligned):
  *   1. $GSTACK_BROWSE_BIN env override (preferred, matches v1.24 GSTACK_*_BIN pattern)
  *   2. $BROWSE_BIN env override (back-compat alias)
- *   3. sibling dir: dirname(argv[0])/../browse/dist/browse[.exe]
- *   4. ~/.claude/skills/gstack/browse/dist/browse[.exe]
- *   5. PATH lookup via Bun.which('browse') — handles Windows PATHEXT natively
+ *   3. sibling / repo-local build, probed from the running make-pdf executable
+ *      AND from this module's dir (argv[0] is the bun interpreter on a source
+ *      run): <dir>/browse, <dir>/../browse/dist/browse, <dir>/../../browse/dist/browse
+ *   4. $GSTACK_HOME/bin/browse (managed runtime, default ~/.gstack), then the
+ *      legacy ~/.claude/skills/gstack/browse/dist/browse[.exe]
+ *   5. PATH lookup via Bun.which('browse') — last resort, handles Windows
+ *      PATHEXT natively. An unrelated `browse` on PATH must never win over a
+ *      real gstack build, hence steps 3-4 first.
  *   6. error with setup hint
  *
  * Windows quirks:
@@ -98,35 +103,72 @@ export function findExecutable(base: string): string | null {
 }
 
 /**
+ * Directories to probe for a co-located browse build, most-specific first.
+ */
+export function selfDirs(): string[] {
+  // argv[0] is the make-pdf binary when compiled, but the bun interpreter when
+  // running from source — so import.meta.dir (make-pdf/src) is what finds the
+  // repo-local browse build. execPath covers hosts that rewrite argv[0].
+  const dirs = [process.argv[0], process.execPath]
+    .filter((p): p is string => !!p)
+    .map((p) => path.dirname(p));
+  dirs.push(import.meta.dir);
+  return dirs.filter((d, i) => d && dirs.indexOf(d) === i);
+}
+
+/**
+ * Sibling / repo-local browse candidates for a set of self-directories.
+ * Order per base: same dir (managed `$GSTACK_HOME/bin` layout, where the
+ * make-pdf and browse launchers sit side by side), then the repo/dist layouts.
+ */
+export function siblingBrowseCandidates(bases: string[] = selfDirs()): string[] {
+  const out: string[] = [];
+  for (const base of bases) {
+    for (const rel of ["browse", "../browse/dist/browse", "../../browse/dist/browse", "../browse"]) {
+      const candidate = path.resolve(base, rel);
+      if (!out.includes(candidate)) out.push(candidate);
+    }
+  }
+  return out;
+}
+
+/**
  * Locate the browse binary. Throws a BrowseClientError with a
  * canonical setup message if not found. See header for resolution order.
  */
-export function resolveBrowseBin(env: NodeJS.ProcessEnv = process.env): string {
+export function resolveBrowseBin(
+  env: NodeJS.ProcessEnv = process.env,
+  bases: string[] = selfDirs(),
+): string {
   // 1 + 2: env overrides (GSTACK_BROWSE_BIN preferred, BROWSE_BIN back-compat).
   const overrideRaw = env.GSTACK_BROWSE_BIN ?? env.BROWSE_BIN;
   const override = resolveOverride(overrideRaw, env);
   if (override) return override;
 
-  // 3: sibling — make-pdf and browse co-located in dist/.
-  const selfDir = path.dirname(process.argv[0]);
-  const siblingCandidates = [
-    path.resolve(selfDir, "../browse/dist/browse"),
-    path.resolve(selfDir, "../../browse/dist/browse"),
-    path.resolve(selfDir, "../browse"),
-  ];
+  // 3: sibling / repo-local build — always preferred over PATH, so an unrelated
+  // `browse` on PATH can't hijack the render.
+  const siblingCandidates = siblingBrowseCandidates(bases);
   for (const candidate of siblingCandidates) {
     const found = findExecutable(candidate);
     if (found) return found;
   }
 
-  // 4: global install.
+  // 4: managed runtime bundle ($GSTACK_HOME defaults to ~/.gstack) and the
+  // legacy 1.x global install.
   const home = os.homedir();
-  const globalPath = path.join(home, ".claude/skills/gstack/browse/dist/browse");
-  const globalFound = findExecutable(globalPath);
-  if (globalFound) return globalFound;
+  const gstackHome = env.GSTACK_HOME?.trim() || path.join(home, ".gstack");
+  const globalPaths = [
+    path.join(gstackHome, "bin/browse"),
+    path.join(home, ".claude/skills/gstack/browse/dist/browse"),
+  ];
+  for (const candidate of globalPaths) {
+    const found = findExecutable(candidate);
+    if (found) return found;
+  }
 
   // 5: PATH lookup via Bun.which — handles Windows PATHEXT natively (no `which`
-  // dependency on cmd.exe / PowerShell, no `where`-vs-`which` branch).
+  // dependency on cmd.exe / PowerShell, no `where`-vs-`which` branch). Last
+  // resort: whatever `browse` means on this machine may not be gstack's.
   const PATH = env.PATH ?? env.Path ?? '';
   const onPath = Bun.which('browse', { PATH });
   if (onPath) return onPath;
@@ -141,12 +183,14 @@ export function resolveBrowseBin(env: NodeJS.ProcessEnv = process.env): string {
       "Tried:",
       `  - $GSTACK_BROWSE_BIN (${env.GSTACK_BROWSE_BIN || "unset"})`,
       `  - $BROWSE_BIN (${env.BROWSE_BIN || "unset"})`,
-      `  - sibling: ${siblingCandidates.join(", ")}`,
-      `  - global: ${globalPath}`,
+      ...siblingCandidates.map((c) => `  - sibling: ${c}`),
+      ...globalPaths.map((c) => `  - global: ${c}`),
       "  - PATH: `browse`",
       "",
-      "To fix: run gstack setup from the gstack repo:",
-      "  cd ~/.claude/skills/gstack && ./setup",
+      "To fix: run ./setup from your gstack checkout — it builds browse and",
+      "installs the managed runtime under $GSTACK_HOME (default ~/.gstack).",
+      "Skills-only installs: follow the `pdf` capability handoff in the",
+      "make-pdf skill's references/RUNTIME.md.",
       "",
       "Or set GSTACK_BROWSE_BIN explicitly:",
       process.platform === "win32"

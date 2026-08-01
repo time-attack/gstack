@@ -12,7 +12,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { BrowseClientError } from "../src/types";
-import { resolveBrowseBin, findExecutable } from "../src/browseClient";
+import {
+  resolveBrowseBin,
+  findExecutable,
+  siblingBrowseCandidates,
+  selfDirs,
+} from "../src/browseClient";
 
 // A real, always-present executable for the test platform — `cmd.exe` on
 // Windows (System32 is on every install) and `/bin/sh` on POSIX. Lets the
@@ -119,6 +124,115 @@ describe("resolveBrowseBin", () => {
   test("strips wrapping double quotes from override values", () => {
     const resolved = withEnv({ GSTACK_BROWSE_BIN: `"${REAL_EXE}"` }, () => resolveBrowseBin());
     expect(resolved).toBe(REAL_EXE);
+  });
+});
+
+/**
+ * Regression: PATH must never beat a real gstack build. Field reports had
+ * `pdf generate x.md x.pdf` exiting 4 with no PDF on machines carrying an
+ * unrelated `browse` on PATH, because the sibling probe only looked next to
+ * argv[0] (the bun interpreter on a source run) and skipped the same-directory
+ * managed layout ($GSTACK_HOME/bin/{browse,make-pdf}).
+ */
+describe("resolveBrowseBin — sibling-preferred resolution", () => {
+  function fakeBrowse(dir: string, name = "browse"): string {
+    fs.mkdirSync(dir, { recursive: true });
+    const p = path.join(dir, process.platform === "win32" ? `${name}.exe` : name);
+    fs.writeFileSync(p, process.platform === "win32" ? "" : "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    return p;
+  }
+
+  test("same-directory sibling wins over an unrelated browse on PATH", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "mkpdf-sibling-"));
+    const sibling = fakeBrowse(path.join(tmp, "bin"));
+    const decoy = path.join(tmp, "decoy");
+    fakeBrowse(decoy);
+
+    const resolved = withEnv(
+      { GSTACK_BROWSE_BIN: undefined, BROWSE_BIN: undefined, GSTACK_HOME: tmp, PATH: decoy, Path: decoy },
+      () => resolveBrowseBin(process.env, [path.join(tmp, "bin")]),
+    );
+    expect(resolved).toBe(sibling);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  test("repo-local browse/dist/browse wins over an unrelated browse on PATH", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "mkpdf-repolocal-"));
+    const repoLocal = fakeBrowse(path.join(tmp, "browse", "dist"));
+    const decoy = path.join(tmp, "decoy");
+    fakeBrowse(decoy);
+
+    // Base mirrors make-pdf/src (source run) and make-pdf/dist (compiled).
+    for (const base of [path.join(tmp, "make-pdf", "src"), path.join(tmp, "make-pdf", "dist")]) {
+      const resolved = withEnv(
+        { GSTACK_BROWSE_BIN: undefined, BROWSE_BIN: undefined, GSTACK_HOME: tmp, PATH: decoy, Path: decoy },
+        () => resolveBrowseBin(process.env, [base]),
+      );
+      expect(resolved).toBe(repoLocal);
+    }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  test("PATH is still the last resort when no sibling exists", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "mkpdf-pathonly-"));
+    const onPath = fakeBrowse(path.join(tmp, "decoy"));
+    const resolved = withEnv(
+      {
+        GSTACK_BROWSE_BIN: undefined,
+        BROWSE_BIN: undefined,
+        GSTACK_HOME: path.join(tmp, "empty"),
+        HOME: path.join(tmp, "empty"),
+        PATH: path.join(tmp, "decoy"),
+        Path: path.join(tmp, "decoy"),
+      },
+      () => resolveBrowseBin(process.env, [path.join(tmp, "empty")]),
+    );
+    expect(resolved).toBe(onPath);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  test("nothing found → actionable error naming the install path, not a spawn error", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "mkpdf-missing-"));
+    let thrown: unknown = null;
+    try {
+      withEnv(
+        {
+          GSTACK_BROWSE_BIN: undefined,
+          BROWSE_BIN: undefined,
+          GSTACK_HOME: tmp,
+          HOME: tmp,
+          PATH: "",
+          Path: "",
+        },
+        () => resolveBrowseBin(process.env, [tmp]),
+      );
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(BrowseClientError);
+    const err = thrown as BrowseClientError;
+    expect(err.exitCode).toBe(127);
+    expect(err.message).toContain("browse binary not found");
+    expect(err.message).toContain("./setup");
+    expect(err.message).toContain("GSTACK_BROWSE_BIN");
+    // Names every place it looked, so the user can see which one to populate.
+    expect(err.message).toContain(path.join(tmp, "bin/browse"));
+    expect(err.message).toContain(path.resolve(tmp, "browse"));
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  test("candidate list probes the same dir first, then repo/dist layouts", () => {
+    const c = siblingBrowseCandidates(["/x/make-pdf/dist"]);
+    expect(c[0]).toBe(path.resolve("/x/make-pdf/dist/browse"));
+    expect(c).toContain(path.resolve("/x/browse/dist/browse"));
+    // Deduped across bases.
+    expect(new Set(c).size).toBe(c.length);
+  });
+
+  test("selfDirs includes make-pdf/src so source runs find the repo build", () => {
+    // argv[0] on a source run is the bun interpreter; without the module dir
+    // the repo-local browse/dist/browse is unreachable.
+    expect(selfDirs()).toContain(path.resolve(import.meta.dir, "../src"));
   });
 });
 
