@@ -22,11 +22,18 @@ import os from "node:os";
 import path from "node:path";
 import {
   buildBill,
+  calibrationTable,
   checkBudget,
+  contentClass,
   contextBillMain,
   diffBills,
   estimateTokens,
+  measureExactTokens,
   renderBill,
+  tokenDisclaimer,
+  ExactModeError,
+  TOKEN_DIVISOR,
+  TOKEN_DIVISORS,
 } from "../runtime/context-bill.js";
 
 const ROOT = path.join(import.meta.dir, "..");
@@ -101,27 +108,31 @@ describe("eager ledger", () => {
   });
 });
 
-describe("fast-path ledger (what a trivial ask actually pays)", () => {
-  /** TREE_A's alpha, with the dispatcher clause that overrides the forced reads. */
-  function treeWithFastPath(): string {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "context-bill-fastpath-"));
-    const tree = path.join(tmp, "tree");
-    fs.cpSync(TREE_A, tree, { recursive: true });
-    const skillMd = path.join(tree, "alpha", "SKILL.md");
-    const patched = fs
-      .readFileSync(skillMd, "utf8")
-      .replace(
-        "for every invocation.",
-        "for every invocation. The trivial-change fast path overrides this step: when it fires, read only what that path directs.",
-      );
-    fs.writeFileSync(skillMd, `${patched}\n## Trivial-change fast path\n\nMechanical and fully specified by the prompt.\n`);
-    return tree;
-  }
+/** TREE_A's alpha, with the dispatcher clause that overrides the forced reads. */
+function treeWithFastPath(): string {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "context-bill-fastpath-"));
+  const tree = path.join(tmp, "tree");
+  fs.cpSync(TREE_A, tree, { recursive: true });
+  const skillMd = path.join(tree, "alpha", "SKILL.md");
+  const patched = fs
+    .readFileSync(skillMd, "utf8")
+    .replace(
+      "for every invocation.",
+      "for every invocation. The trivial-change fast path overrides this step: when it fires, read only what that path directs.",
+    );
+  fs.writeFileSync(skillMd, `${patched}\n## Trivial-change fast path\n\nMechanical and fully specified by the prompt.\n`);
+  return tree;
+}
 
+describe("fast-path ledger (what a trivial ask actually pays)", () => {
   it("bills SKILL.md alone — no forced refs, no modules — and names the paths", () => {
     const tree = treeWithFastPath();
     const alpha = buildBill(tree).skills.find((s) => s.name === "alpha")!;
-    expect(alpha.fastPath).toEqual({ paths: ["Trivial-change fast path"], bytes: alpha.skillMdBytes });
+    expect(alpha.fastPath).toEqual({
+      paths: ["Trivial-change fast path"],
+      bytes: alpha.skillMdBytes,
+      tokens: alpha.skillMdTokens,
+    });
     // The receipted overstatement: the eager row charges the forced refs the
     // fast path explicitly skips.
     expect(alpha.fastPath!.bytes).toBeLessThan(alpha.eagerBytes);
@@ -209,12 +220,56 @@ describe("lazy ledger", () => {
   });
 });
 
-describe("token estimate and rendering", () => {
-  it("estimates tokens as bytes/4, rounded", () => {
-    expect(estimateTokens(4000)).toBe(1000);
-    expect(estimateTokens(6)).toBe(2); // 1.5 rounds to 2
-    expect(estimateTokens(5)).toBe(1);
+describe("token estimate calibration", () => {
+  it("uses the corpus-wide divisor for path-less callers, rounded", () => {
+    expect(estimateTokens(3900)).toBe(1000);
+    expect(estimateTokens(TOKEN_DIVISOR * 2)).toBe(2);
   });
+
+  it("charges each content class its own measured divisor", () => {
+    // The defect this closes: one divisor for every class billed legacy
+    // specialist modules ~19% under while billing SKILL.md about right.
+    expect(contentClass("/x/plan/SKILL.md")).toBe("skillmd");
+    expect(contentClass("/x/plan/references/legacy/office.md")).toBe("legacy");
+    expect(contentClass("/x/plan/references/RUNTIME.md")).toBe("reference");
+    expect(contentClass("/x/plan/references/artifacts/qa/t.md")).toBe("artifact");
+    expect(contentClass("/x/plan/SKILL.md#frontmatter")).toBe("frontmatter");
+    // Distinct divisors, so identical byte counts in different roles cost differently.
+    expect(TOKEN_DIVISORS.legacy).toBeLessThan(TOKEN_DIVISORS.skillmd);
+    const bill = buildBill(TREE_A);
+    const alpha = bill.skills.find((s) => s.name === "alpha")!;
+    const legacyRow = alpha.lazy.find((r) => r.label === "Discovery")!;
+    expect(legacyRow.tokens).toBeCloseTo(legacyRow.bytes / TOKEN_DIVISORS.legacy, 6);
+    expect(alpha.skillMdTokens).toBeCloseTo(alpha.skillMdBytes / TOKEN_DIVISORS.skillmd, 6);
+  });
+
+  it("never claims more precision than it has: no divisor is a measurement", () => {
+    // A flat divisor cancels out of any ratio, so a byte-derived percentage
+    // reports the same saving regardless of calibration. Token shares must not.
+    const bill = buildBill(TREE_A);
+    expect(bill.tokenEstimateErrorPct).toBeGreaterThan(0);
+    expect(bill.tokenSource).toContain("estimate");
+    expect(bill.calibration).toBeUndefined();
+  });
+
+  it("names the measured error band rather than a vague 'estimates'", () => {
+    const text = tokenDisclaimer(buildBill(TREE_A));
+    expect(text).toContain("ESTIMATES");
+    expect(text).toMatch(/worst single file 40%/);
+    expect(text).toContain("bias under 0.5%");
+    expect(text).toContain("--exact");
+    expect(text).toContain("Bytes are always exact");
+    // An exact bill must not carry the estimate's error band.
+    const exactText = tokenDisclaimer({
+      tokenEstimateErrorPct: 0,
+      tokenSource: "count_tokens (claude-opus-4-5)",
+    } as never);
+    expect(exactText).toContain("measured with count_tokens");
+    expect(exactText).not.toContain("ESTIMATES");
+  });
+});
+
+describe("rendering", () => {
 
   it("text output carries every ledger plus flags", () => {
     const text = renderBill(buildBill(TREE_A));
@@ -227,7 +282,26 @@ describe("token estimate and rendering", () => {
     expect(text).toContain("frontmatter key(s) the router never reads: triggers");
     expect(text).toContain("foreign-host file in scanner scope: agents.md");
     expect(text).toContain("(unrouted on disk)");
-    expect(text).toContain("estimates (bytes/4)");
+    expect(text).toContain("Token source: estimate");
+    expect(text).toContain("Token counts are ESTIMATES");
+  });
+
+  it("states the always-on row's exclusion of the host's per-skill wrapper", () => {
+    // The row is frontmatter bytes only. Claude Code wraps each skill in its own
+    // available_skills XML element, which this tree cannot measure, so the
+    // omission is declared rather than silently folded in.
+    const text = renderBill(buildBill(TREE_A));
+    const alwaysOn = text.slice(text.indexOf("ALWAYS-ON"), text.indexOf("EAGER ("));
+    expect(alwaysOn).toContain("excludes the host's per-skill available_skills XML wrapper");
+  });
+
+  it("quotes the fast-path saving as a token share, not a byte share", () => {
+    // A byte share is divisor-invariant: it prints the same number no matter how
+    // the estimate is calibrated, which is how a wrong multiplier hid.
+    const tree = treeWithFastPath();
+    const text = renderBill(buildBill(tree));
+    expect(text).toMatch(/-\d+% of eager tokens/);
+    fs.rmSync(path.dirname(tree), { recursive: true, force: true });
   });
 
   it("--json shape is stable", async () => {
@@ -235,21 +309,33 @@ describe("token estimate and rendering", () => {
     const code = await contextBillMain([TREE_A, "--json"], { stdout: out.stream, stderr: out.stream });
     expect(code).toBe(0);
     const bill = JSON.parse(out.text());
-    expect(bill.tokenEstimate).toBe("bytes/4");
+    expect(bill.tokenEstimate).toEqual(TOKEN_DIVISORS);
+    expect(bill.tokenEstimateErrorPct).toBe(40);
     expect(Object.keys(bill.totals).sort()).toEqual([
       "alwaysOnBytes",
+      "alwaysOnTokens",
       "eagerBytesBySkill",
+      "eagerTokensBySkill",
       "fastPathBytesBySkill",
+      "fastPathTokensBySkill",
       "lazyBytes",
       "lazyPercent",
+      "lazyTokenPercent",
+      "lazyTokens",
       "perInvocationBytesBySkill",
+      "perInvocationTokensBySkill",
       "skillCount",
       "totalMdBytes",
+      "totalMdTokens",
     ]);
     const skill = bill.skills[0];
-    for (const key of ["name", "frontmatterBytes", "deadKeys", "skillMdBytes", "forcedRefs", "eagerBytes", "fastPath", "conditionalRefs", "conditionalBytes", "perInvocationBytes", "lazy", "orphans", "foreignFiles"]) {
+    for (const key of ["name", "frontmatterBytes", "frontmatterTokens", "deadKeys", "skillMdBytes", "skillMdTokens", "forcedRefs", "eagerBytes", "eagerTokens", "fastPath", "conditionalRefs", "conditionalBytes", "conditionalTokens", "perInvocationBytes", "perInvocationTokens", "lazy", "orphans", "foreignFiles", "totalMdTokens"]) {
       expect(skill).toHaveProperty(key);
     }
+    // Every priced entry carries its own token count, so sums never re-derive
+    // tokens from a byte total and lose the per-class divisor.
+    for (const r of skill.forcedRefs) expect(typeof r.tokens).toBe("number");
+    for (const row of skill.lazy) expect(typeof row.tokens).toBe("number");
   });
 
   it("--skill/--mode simulates a single invocation", async () => {
@@ -318,7 +404,9 @@ describe("--diff (the #2362 replay: silently inlined preamble)", () => {
 });
 
 describe("--budget", () => {
-  const alphaEagerTok = estimateTokens(buildBill(TREE_A).skills.find((s) => s.name === "alpha")!.eagerBytes);
+  // Read the ceiling off the bill's own token figure. Re-deriving it from bytes
+  // would silently re-introduce the flat divisor the budget no longer uses.
+  const alphaEagerTok = Math.round(buildBill(TREE_A).skills.find((s) => s.name === "alpha")!.eagerTokens);
 
   it("exits 0 under budget, 2 over budget with offending files listed", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "context-bill-budget-"));
@@ -342,7 +430,7 @@ describe("--budget", () => {
   it("perInvocation gates the eager + conditional ceiling, not just the eager floor", () => {
     const bill = buildBill(TREE_A);
     const alpha = bill.skills.find((s) => s.name === "alpha")!;
-    const ceiling = estimateTokens(alpha.perInvocationBytes);
+    const ceiling = Math.round(alpha.perInvocationTokens);
     // A budget the eager floor clears but the real per-invocation cost blows.
     expect(checkBudget(bill, { eagerPerInvocation: { alpha: ceiling } })).toEqual([]);
     const violations = checkBudget(bill, { perInvocation: { alpha: alphaEagerTok } });
@@ -355,6 +443,203 @@ describe("--budget", () => {
     const violations = checkBudget(buildBill(TREE_A), { eagerPerInvocation: { ghost: 100 } });
     expect(violations).toHaveLength(1);
     expect(violations[0].ceiling).toBe("eagerPerInvocation.ghost");
+  });
+});
+
+describe("--exact (opt-in measurement; offline here via an injected fetch)", () => {
+  const ENVELOPE = 7;
+  /** Deterministic stand-in for count_tokens: 1 token per 3 chars, plus envelope. */
+  function fakeFetch(calls: { body: string }[] = []) {
+    return async (_url: string, init: { body: string }) => {
+      calls.push({ body: init.body });
+      const { messages } = JSON.parse(init.body);
+      const text: string = messages[0].content;
+      return {
+        ok: true,
+        json: async () => ({ input_tokens: Math.ceil(text.length / 3) + ENVELOPE }),
+      };
+    };
+  }
+
+  it("subtracts the request envelope so small files are not overcharged", async () => {
+    const calls: { body: string }[] = [];
+    const measured = await measureExactTokens(TREE_A, {
+      model: "test-model",
+      apiKey: "sk-test",
+      fetchImpl: fakeFetch(calls) as never,
+    });
+    expect(measured.tokenSource).toBe("count_tokens (test-model)");
+    const core = path.join(TREE_A, "alpha", "references", "CORE.md");
+    const text = fs.readFileSync(core, "utf8");
+    // Content tokens only: the envelope every request pays is not billed to the file.
+    expect(measured.tokensOf(core, text.length)).toBe(Math.ceil(text.length / 3));
+    // One probe call for the envelope, then one per measured text.
+    expect(calls.length).toBe(measured.measuredFiles + 1);
+  });
+
+  it("measures the frontmatter block, not the whole SKILL.md, for the always-on row", async () => {
+    const measured = await measureExactTokens(TREE_A, {
+      model: "m",
+      apiKey: "sk-test",
+      fetchImpl: fakeFetch() as never,
+    });
+    const skillMd = path.join(TREE_A, "alpha", "SKILL.md");
+    const fmTokens = measured.tokensOf(`${skillMd}#frontmatter`, 0);
+    const bodyTokens = measured.tokensOf(skillMd, 0);
+    expect(fmTokens).toBeGreaterThan(0);
+    expect(fmTokens).toBeLessThan(bodyTokens);
+  });
+
+  it("exact tokens replace the estimate everywhere the bill prices content", async () => {
+    const measured = await measureExactTokens(TREE_A, {
+      model: "m",
+      apiKey: "sk-test",
+      fetchImpl: fakeFetch() as never,
+    });
+    const bill = buildBill(TREE_A, { tokensOf: measured.tokensOf, tokenSource: measured.tokenSource });
+    const alpha = bill.skills.find((s) => s.name === "alpha")!;
+    // Measured content runs ~3 bytes/token here, well off any estimate divisor,
+    // so an unconverted path would be obvious. Per-file ceil() adds at most one
+    // token per file, hence the small upper slack.
+    expect(alpha.eagerTokens).toBeGreaterThanOrEqual(alpha.eagerBytes / 3);
+    expect(alpha.eagerTokens).toBeLessThan(alpha.eagerBytes / 3 + 4);
+    expect(alpha.eagerTokens / (alpha.eagerBytes / TOKEN_DIVISOR)).toBeGreaterThan(1.2);
+    expect(alpha.eagerTokens).toBe(alpha.skillMdTokens + alpha.forcedRefs.reduce((n, r) => n + r.tokens, 0));
+    expect(alpha.perInvocationTokens).toBe(alpha.eagerTokens + alpha.conditionalTokens);
+    expect(bill.tokenEstimateErrorPct).toBe(0);
+    expect(renderBill(bill)).toContain("Token counts measured with count_tokens");
+    // Exact figures drop the "~" the estimate wears.
+    expect(renderBill(bill)).not.toMatch(/\(~\d/);
+  });
+
+  it("measures against a relative root too, instead of silently estimating", async () => {
+    // The trap: buildBill resolves its root, so keying measurements by an
+    // unresolved path made every lookup miss and quietly fall back to the
+    // estimate -- exact mode degrading into the thing it exists to replace,
+    // while still labelling itself "measured".
+    const relative = path.relative(process.cwd(), TREE_A);
+    const measured = await measureExactTokens(relative, {
+      model: "m",
+      apiKey: "sk-test",
+      fetchImpl: fakeFetch() as never,
+    });
+    const bill = buildBill(relative, { tokensOf: measured.tokensOf, tokenSource: measured.tokenSource });
+    for (const s of bill.skills) {
+      // The fake meters ~3 bytes/token; any estimate divisor is >= 3.47.
+      expect(s.totalMdBytes / s.totalMdTokens).toBeLessThan(3.2);
+    }
+    expect(bill.totals.alwaysOnBytes / bill.totals.alwaysOnTokens).toBeLessThan(3.2);
+    expect(measured.missedKeys.size).toBe(0);
+  });
+
+  it("counts anything it could not measure instead of passing it off as measured", async () => {
+    const measured = await measureExactTokens(TREE_A, {
+      model: "m",
+      apiKey: "sk-test",
+      fetchImpl: fakeFetch() as never,
+    });
+    expect(measured.missedKeys.size).toBe(0);
+    // An unmeasured key still gets a number, but is recorded as estimated.
+    const ghost = path.join(TREE_A, "alpha", "nope.md");
+    expect(measured.tokensOf(ghost, 4150)).toBeGreaterThan(0);
+    expect(measured.missedKeys.has(ghost)).toBe(true);
+  });
+
+  it("grades its own estimate: calibrationTable reports the residual per file", async () => {
+    const measured = await measureExactTokens(TREE_A, {
+      model: "m",
+      apiKey: "sk-test",
+      fetchImpl: fakeFetch() as never,
+    });
+    const table = calibrationTable(measured.counts, TREE_A);
+    expect(table.rows.length).toBeGreaterThan(0);
+    for (const row of table.rows) {
+      expect(row).toHaveProperty("contentClass");
+      expect(row.estimatedTokens).toBeGreaterThan(0);
+      expect(row.tokens).toBeGreaterThan(0);
+      // errorPct must describe estimate-vs-measured, signed.
+      expect(row.errorPct).toBeCloseTo(((row.estimatedTokens - row.tokens) / row.tokens) * 100, 1);
+    }
+    expect(typeof table.worstErrorPct).toBe("number");
+    expect(typeof table.biasPct).toBe("number");
+  });
+
+  it("refuses to go to the network without a key, and says nothing was sent", async () => {
+    let called = false;
+    await expect(
+      measureExactTokens(TREE_A, {
+        model: "m",
+        apiKey: "",
+        fetchImpl: (() => ((called = true), Promise.reject(new Error("should not run")))) as never,
+      }),
+    ).rejects.toMatchObject({ code: "exact_missing_api_key" });
+    expect(called).toBe(false);
+  });
+
+  it("maps HTTP failures to typed codes", async () => {
+    const status = (code: number) => async () => ({ ok: false, status: code, text: async () => "nope" });
+    for (const [code, expected] of [
+      [401, "exact_auth_rejected"],
+      [403, "exact_auth_rejected"],
+      [500, "exact_request_failed"],
+    ] as const) {
+      await expect(
+        measureExactTokens(TREE_A, { model: "m", apiKey: "k", fetchImpl: status(code) as never }),
+      ).rejects.toMatchObject({ code: expected });
+    }
+    await expect(
+      measureExactTokens(TREE_A, {
+        model: "m",
+        apiKey: "k",
+        fetchImpl: (() => Promise.reject(new Error("offline"))) as never,
+      }),
+    ).rejects.toBeInstanceOf(ExactModeError);
+  });
+
+  it("offline by default: no --exact means no network call at all", async () => {
+    const out = capture();
+    let called = false;
+    const code = await contextBillMain([TREE_A, "--json"], {
+      stdout: out.stream,
+      stderr: out.stream,
+      fetchImpl: (() => ((called = true), Promise.reject(new Error("no")))) as never,
+      apiKey: "sk-test",
+    } as never);
+    expect(code).toBe(0);
+    expect(called).toBe(false);
+    expect(JSON.parse(out.text()).tokenSource).toContain("estimate");
+  });
+
+  it("discloses what --exact sends before sending it", async () => {
+    const stdout = capture();
+    const stderr = capture();
+    const code = await contextBillMain([TREE_A, "--exact", "--json"], {
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      apiKey: "sk-test",
+      fetchImpl: fakeFetch() as never,
+    } as never);
+    expect(code).toBe(0);
+    expect(stderr.text()).toContain("api.anthropic.com");
+    expect(stderr.text()).toMatch(/sending the content of \d+ \.md file\(s\)/);
+    const bill = JSON.parse(stdout.text());
+    expect(bill.tokenSource).toContain("count_tokens");
+    expect(bill.calibration.rows.length).toBeGreaterThan(0);
+  });
+
+  it("degrades to the estimate when exact mode is unavailable, naming the code", async () => {
+    const stdout = capture();
+    const stderr = capture();
+    const code = await contextBillMain([TREE_A, "--exact", "--json"], {
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      apiKey: "",
+      fetchImpl: (() => Promise.reject(new Error("should not run"))) as never,
+    } as never);
+    // A missing key is not a crash: the offline estimate still answers.
+    expect(code).toBe(0);
+    expect(stderr.text()).toContain("exact_missing_api_key");
+    expect(JSON.parse(stdout.text()).tokenSource).toContain("estimate");
   });
 });
 
