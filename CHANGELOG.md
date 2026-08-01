@@ -15,18 +15,38 @@ We handed 87 agents a brief: build a real app, install gstack the way a stranger
 
 ### The numbers that matter
 
-Source: the 87-user field run (transcripts and receipts under the run journal), `bun run test:free`, and `gstack context-bill skills` on the shipped tree.
+Source: the 87-user field run (transcripts and receipts under the run journal),
+`bun run test:free`, and token counts measured with Anthropic's `count_tokens`
+against `claude-opus-4-5` on the shipped tree. Token counts are real tokenizer
+counts, not byte estimates.
 
 | Metric | Before | After | Δ |
 |---|---|---|---|
 | Users who would refuse to use it | — | 0 of 87 | — |
 | Blockers found / fixed | 7 | 0 | all closed |
 | Dispatchers with a proportional fast path | 1 of 5 | 5 of 5 | +4 |
-| Cost of a trivial ask (per dispatcher) | ~3.9K tok | ~2.1K tok | −47% |
+| Cost of a trivial ask (five dispatchers) | 17,602 tok | 12,800 tok | −27.3% |
+| Cost of a normal ask (five dispatchers) | 17,602 tok | 18,714 tok | +6.3% |
+| Trivial share needed to break even | — | ~19% | — |
 | Hardcoded base-branch sites in `skills/` | 15 | 0 | −15 |
 | Free suite | 5,311 pass | 5,318 pass / 0 fail | green |
 
-The trivial-ask number is the one to feel. Asking `/review` to look at a one-line change used to load the same machinery as a full audit. Now it classifies from one cheap probe, loads nothing, and answers.
+Read those two token rows together, because they are a trade and not a pure
+win. The baseline is today's tree with the fast paths removed, which is the
+only comparison that isolates this change. Asking `/review` to look at a
+one-line change used to load the same machinery as a full audit. Now it
+classifies from one cheap probe, loads nothing, and answers, and a trivial ask
+costs 27.3% less.
+
+A normal ask costs 6.3% more, and that residual is the classification trigger
+itself. The trigger has to sit inline, because the request must be
+classifiable before anything is read. The rest of the fast-path detail moved
+into a reference that only a trivial ask opens, which is what brought the
+normal-ask cost down from the +18.5% this release originally shipped at. The
+trade comes out ahead once roughly one ask in five is trivial. Nothing in
+gstack measures that share, so the break-even is unverified, and if almost
+none of your asks are small this release costs you about 6%. Run
+`gstack context-bill` on the shipped tree to see both tiers for yourself.
 
 ### What this means for you
 
@@ -36,7 +56,7 @@ The first five minutes stopped lying to you. `npx skills add` gives you judgment
 
 ### Added
 
-- `gstack context-bill`: offline token bill-of-materials for a skills tree, in four tiers — always-on (365 tokens for all six skills), fast-path (a trivial ask), eager (a full invocation), and conditional (references loaded when a stated condition holds). Supports `--json`, `--diff <a> <b>` for regression gating, `--budget`, and per-skill/per-mode filters.
+- `gstack context-bill`: offline token bill-of-materials for a skills tree, in four tiers — always-on (~365 tokens for all six skills), fast-path (a trivial ask), eager (a full invocation), and conditional (references loaded when a stated condition holds). Because it runs offline with no API call, its token figures are byte-derived estimates that run low on prose-heavy files; count with `count_tokens` when a number has to be exact. Supports `--json`, `--diff <a> <b>` for regression gating, `--budget`, and per-skill/per-mode filters.
 - `gstack egress`: hash-chained local receipts for every off-machine send, with `list` (what did leave), `grants` (what can leave, plus each revoke command), and `verify` (recompute the chain, exit 3 on tamper). A static tripwire fails CI if a new network call ships without a receipt.
 - `skills/*/references/BASE-DETECTION.md`: one canonical base-branch and remote resolution order, replacing the probe that had been copy-pasted into 15 modules.
 - Trivial-change fast paths in `/qa`, `/review`, `/ship`, and `/debug` (`/plan` already had one), with gate-tier regression tests for all five.
