@@ -103,16 +103,16 @@ describe('selectTests', () => {
     // also depends on plan-ceo-review/** (autoplan-auto-mode test was
     // removed in v1.28 — see commit message for the rationale).
     expect(result.selected).toContain('auto-decide-preserved');
-    // v1.27+ gate-tier reviewCount-floor regression for transcript bug
-    expect(result.selected).toContain('plan-ceo-finding-floor');
+    // 'plan-ceo-finding-floor' is deliberately NOT here: that gate test drives
+    // the public /plan surface, so it hangs off 'skills/plan/**' instead.
     // garrytan/askuserquestion-split-on-overflow: split-overflow periodic
     // E2E test also depends on plan-ceo-review/** (5-option scope decision
     // regression for the "drop to fit 4 options" failure mode).
     expect(result.selected).toContain('plan-ceo-split-overflow');
     // v2 plan Phase B carve: the section-loading E2E depends on plan-ceo-review/**.
     expect(result.selected).toContain('plan-ceo-section-loading');
-    expect(result.selected.length).toBe(23);
-    expect(result.skipped.length).toBe(Object.keys(E2E_TOUCHFILES).length - 23);
+    expect(result.selected.length).toBe(22);
+    expect(result.skipped.length).toBe(Object.keys(E2E_TOUCHFILES).length - 22);
   });
 
   test('global touchfile triggers ALL tests', () => {
