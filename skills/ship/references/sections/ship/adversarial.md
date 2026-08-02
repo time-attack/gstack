@@ -4,7 +4,7 @@ If you discovered a non-obvious pattern, pitfall, or architectural insight durin
 this session, log it for future sessions:
 
 ```bash
-$GSTACK_BIN/gstack-learnings-log '{"skill":"ship","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}'
+$GSTACK_BIN/gstack-learnings-log '{"skill":"ship","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}' 2>/dev/null || echo "GSTACK_RUNTIME_ABSENT: gstack-learnings-log skipped"
 ```
 
 **Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`

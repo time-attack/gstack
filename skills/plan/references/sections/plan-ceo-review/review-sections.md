@@ -434,95 +434,9 @@ this run (an empty file means "ran, no findings" — distinct from "didn't run")
 ### Unresolved Decisions
 If any AskUserQuestion goes unanswered, note it here. Never silently default.
 
-## Handoff Note Cleanup
-
-After producing the Completion Summary, clean up any handoff notes for this branch —
-the review is complete and the context is no longer needed.
-
-```bash
-setopt +o nomatch 2>/dev/null || true  # zsh compat
-eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)"
-rm -f "${GSTACK_HOME:-$HOME/.gstack}"/projects/${PROJECT_ID:-unknown}/*-$BRANCH-ceo-handoff-*.md 2>/dev/null || true
-```
-
-## Review Log
-
-After producing the Completion Summary above, persist the review result.
-
-**PLAN MODE EXCEPTION — ALWAYS RUN:** This command writes review metadata to
-`"${GSTACK_HOME:-$HOME/.gstack}"/` (user config directory, not project files). The skill preamble
-already writes to `"${GSTACK_HOME:-$HOME/.gstack}"/sessions/` and `"${GSTACK_HOME:-$HOME/.gstack}"/analytics/` — this is
-the same pattern. The review dashboard depends on this data. Skipping this
-command breaks the review readiness dashboard in /ship.
-
-```bash
-$GSTACK_BIN/gstack-review-log '{"skill":"plan-ceo-review","timestamp":"TIMESTAMP","status":"STATUS","unresolved":N,"critical_gaps":N,"mode":"MODE","scope_proposed":N,"scope_accepted":N,"scope_deferred":N,"commit":"COMMIT"}'
-$GSTACK_BIN/gstack-decision-log '{"decision":"CEO review (MODE): SCOPE_SUMMARY","rationale":"VERDICT","scope":"branch","source":"skill","confidence":8}' 2>/dev/null || true
-```
-
-The second command records the accepted scope as a durable cross-session decision so the next session sees what was settled (and why) without re-litigating it. It writes to `"${GSTACK_HOME:-$HOME/.gstack}"/` (same pattern as review-log), is non-interactive, and is best-effort (`|| true` — never blocks the review). Substitute `SCOPE_SUMMARY` (e.g. "accepted 4 of 6 proposals" for expansion, or "held scope" / "cut 3 items" for HOLD/REDUCTION) and `VERDICT` (the one-line verdict from the summary).
-
-Before running this command, substitute the placeholder values from the Completion Summary you just produced:
-- **TIMESTAMP**: current ISO 8601 datetime (e.g., 2026-03-16T14:30:00)
-- **STATUS**: "clean" if 0 unresolved decisions AND 0 critical gaps; otherwise "issues_open"
-- **unresolved**: number from "Unresolved decisions" in the summary
-- **critical_gaps**: number from "Failure modes: ___ CRITICAL GAPS" in the summary
-- **MODE**: the mode the user selected (SCOPE_EXPANSION / SELECTIVE_EXPANSION / HOLD_SCOPE / SCOPE_REDUCTION)
-- **scope_proposed**: number from "Scope proposals: ___ proposed" in the summary (0 for HOLD/REDUCTION)
-- **scope_accepted**: number from "Scope proposals: ___ accepted" in the summary (0 for HOLD/REDUCTION)
-- **scope_deferred**: number of items deferred to TODOS.md from scope decisions (0 for HOLD/REDUCTION)
-- **COMMIT**: output of `git rev-parse --short HEAD`
-
-## Review Readiness Dashboard
-
-After completing the review, read the review log and config to display the dashboard.
-
-```bash
-$GSTACK_BIN/gstack-review-read
-```
-
-Parse the output. Find the most recent entry for each skill (plan-ceo-review, plan-eng-review, review, adversarial-review, codex-review, codex-plan-review). Ignore entries with timestamps older than 7 days. For the Eng Review row, show whichever is more recent between `review` (diff-scoped pre-landing review) and `plan-eng-review` (plan-stage architecture review). Append "(DIFF)" or "(PLAN)" to the status to distinguish. For the Adversarial row, show whichever is more recent between `adversarial-review` (new auto-scaled) and `codex-review` (legacy). For the Outside Voice row, show the most recent `codex-plan-review` entry — this captures outside voices from both $plan --mode Product --module plan-ceo-review and $plan --mode Engineering --module plan-eng-review.
-
-**Source attribution:** If the most recent entry for a skill has a \`"via"\` field, append it to the status label in parentheses. Examples: `plan-eng-review` with `via:"autoplan"` shows as "CLEAR (PLAN via $plan --mode Full chain --module autoplan)". `review` with `via:"ship"` shows as "CLEAR (DIFF via /ship)". Entries without a `via` field show as "CLEAR (PLAN)" or "CLEAR (DIFF)" as before.
-
-Note: `autoplan-voices` entries are audit-trail-only (forensic data for cross-model consensus analysis). They do not appear in the dashboard and are not checked by any consumer.
-
-Display:
-
-```
-+====================================================================+
-|                    REVIEW READINESS DASHBOARD                       |
-+====================================================================+
-| Review          | Runs | Last Run            | Status    | Required |
-|-----------------|------|---------------------|-----------|----------|
-| Eng Review      |  1   | 2026-03-16 15:00    | CLEAR     | YES      |
-| CEO Review      |  0   | —                   | —         | no       |
-| Adversarial     |  0   | —                   | —         | no       |
-| Outside Voice   |  0   | —                   | —         | no       |
-+--------------------------------------------------------------------+
-| VERDICT: CLEARED — Eng Review passed                                |
-+====================================================================+
-```
-
-**Review tiers:**
-- **Eng Review (required by default):** The only review that gates shipping. Covers architecture, code quality, tests, performance. Can be disabled globally with \`gstack-config set skip_eng_review true\` (the "don't bother me" setting).
-- **CEO Review (optional):** Use your judgment. Recommend it for big product/business changes, new user-facing features, or scope decisions. Skip for bug fixes, refactors, infra, and cleanup.
-- **Adversarial Review (automatic):** Always-on for every review. Every diff gets both Claude adversarial subagent and Codex adversarial challenge. Large diffs (200+ lines) additionally get Codex structured review with P1 gate. No configuration needed.
-- **Outside Voice (optional):** Independent plan review from a different AI model. Offered after all review sections complete in $plan --mode Product --module plan-ceo-review and $plan --mode Engineering --module plan-eng-review. Falls back to Claude subagent if Codex is unavailable. Never gates shipping.
-
-**Verdict logic:**
-- **CLEARED**: Eng Review has >= 1 entry within 7 days from either \`review\` or \`plan-eng-review\` with status "clean" (or \`skip_eng_review\` is \`true\`)
-- **NOT CLEARED**: Eng Review missing, stale (>7 days), or has open issues
-- CEO and Codex reviews are shown for context but never block shipping
-- If \`skip_eng_review\` config is \`true\`, Eng Review shows "SKIPPED (global)" and verdict is CLEARED
-
-**Staleness detection:** After displaying the dashboard, check if any existing reviews may be stale:
-- Parse the \`---HEAD---\` section from the bash output to get the current HEAD commit hash
-- For each review entry that has a \`commit\` field: compare it against the current HEAD. If different, count elapsed commits: \`git rev-list --count STORED_COMMIT..HEAD\`. Display: "Note: {skill} review from {date} may be stale — {N} commits since review"
-- For entries without a \`commit\` field (legacy entries): display "Note: {skill} review from {date} has no commit tracking — consider re-running for accurate staleness detection"
-- If all reviews match the current HEAD, do not display any staleness notes
-
 ## Plan File Review Report
+
+The Review Readiness Dashboard is rendered from `references/sections/review-dashboard.md` by the runtime tail named at the end of this file; every mention of it below means that render. On `GSTACK_RUNTIME_ABSENT` there is no review log, so there is no dashboard, and every step below that reads one is skipped.
 
 After displaying the Review Readiness Dashboard in conversation output, also update the
 **plan file** itself so review status is visible to anyone reading the plan.
@@ -643,33 +557,6 @@ If promoted, copy the CEO plan content to `docs/designs/{FEATURE}.md` (create th
 * After each section, pause and wait for feedback.
 * Use **CRITICAL GAP** / **WARNING** / **OK** for scannability.
 
-## Capture Learnings
-
-If you discovered a non-obvious pattern, pitfall, or architectural insight during
-this session, log it for future sessions:
-
-```bash
-$GSTACK_BIN/gstack-learnings-log '{"skill":"plan-ceo-review","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}'
-```
-
-**Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`
-(user stated), `architecture` (structural decision), `tool` (library/framework insight),
-`operational` (project environment/CLI/workflow knowledge).
-
-**Sources:** `observed` (you found this in the code), `user-stated` (user told you),
-`inferred` (AI deduction), `cross-model` (both Claude and Codex agree).
-
-**Confidence:** 1-10. Be honest. An observed pattern you verified in the code is 8-9.
-An inference you're not sure about is 4-5. A user preference they explicitly stated is 10.
-
-**files:** Include the specific file paths this learning references. This enables
-staleness detection: if those files are later deleted, the learning can be flagged.
-
-**Only log genuine discoveries.** Don't log obvious things. Don't log things the user
-already knows. A good test: would this insight save time in a future session? If yes, log it.
-
-
-
 ## Brain Calibration Write-Back (Phase 2 / gated)
 
 When the skill makes a typed prediction worth tracking (scope decision,
@@ -707,19 +594,6 @@ eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)" 2>/dev/null || true
   $GSTACK_BIN/gstack-brain-cache invalidate product --project "$SLUG" 2>/dev/null || true
   $GSTACK_BIN/gstack-brain-cache invalidate goals --project "$SLUG" 2>/dev/null || true
   $GSTACK_BIN/gstack-brain-cache invalidate competitive-intel --project "$SLUG" 2>/dev/null || true
-```
-
-
-## Brain Cache Background Refresh
-
-After the skill's work completes (and telemetry has logged), kick a
-background refresh of any cache digest that's getting close to its TTL.
-This is non-blocking — the user doesn't wait. Next invocation benefits
-from the warm cache.
-
-```bash
-eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)" 2>/dev/null || true
-($GSTACK_BIN/gstack-brain-cache refresh --project "$SLUG" 2>/dev/null &) || true
 ```
 
 
@@ -761,3 +635,7 @@ eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)" 2>/dev/null || true
   │ (Sec 11)    │  UI review   │  detected    │  detected    │                    │
   └─────────────┴──────────────┴──────────────┴──────────────┴────────────────────┘
 ```
+
+## Runtime tail
+
+When `references/RUNTIME.md` reports `GSTACK_RUNTIME_PRESENT`, follow `references/sections/plan-ceo-review/runtime-tail.md`. It holds the review-log and learnings-log commands, which only exist when the optional runtime is installed. On `GSTACK_RUNTIME_ABSENT` skip it entirely: the canonical `npx skills add` install ships no `$GSTACK_BIN`, and nothing in that file changes the review itself.

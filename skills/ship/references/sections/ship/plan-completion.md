@@ -86,7 +86,7 @@ Before judging completion, classify HOW each item can be verified. The diff alon
 
 ### Cross-Reference Against Diff
 
-Run `git diff origin/<base>...HEAD` and `git log origin/<base>..HEAD --oneline` to understand what was implemented.
+Run `git diff <remote>/<base>...HEAD` and `git log <remote>/<base>..HEAD --oneline` to understand what was implemented.
 
 For each extracted plan item, run the verification dispatch from the previous section, then classify:
 
@@ -260,10 +260,10 @@ matches a past learning, note it: "Prior learning applied: [key] (confidence N, 
 Before reviewing code quality, check: **did they build what was requested — nothing more, nothing less?**
 
 1. Read `TODOS.md` (if it exists). Read PR description (`gh pr view --json body --jq .body 2>/dev/null || true`).
-   Read commit messages (`git log origin/<base>..HEAD --oneline`).
+   Read commit messages (`git log <remote>/<base>..HEAD --oneline`).
    **If no PR exists:** rely on commit messages and TODOS.md for stated intent — this is the common case since /review runs before /ship creates the PR.
 2. Identify the **stated intent** — what was this branch supposed to accomplish?
-3. Run `DIFF_BASE=$(git merge-base origin/<base> HEAD) && git diff "$DIFF_BASE" --stat` and compare the files changed against the stated intent.
+3. Run `DIFF_BASE=$(git merge-base <remote>/<base> HEAD) && git diff "$DIFF_BASE" --stat` and compare the files changed against the stated intent.
 
 4. Evaluate with skepticism (incorporating plan completion results if available from an earlier step or adjacent section):
 

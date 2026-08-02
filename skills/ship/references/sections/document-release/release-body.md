@@ -245,9 +245,12 @@ glab mr view -F json 2>/dev/null | python3 -c "import sys,json; print(json.load(
 ```bash
 REDACT_VIS=$($GSTACK_BIN/gstack-config get redact_repo_visibility 2>/dev/null)
 [ -z "$REDACT_VIS" ] && REDACT_VIS=$(gh repo view --json visibility -q .visibility 2>/dev/null | tr 'A-Z' 'a-z')
-$GSTACK_BIN/gstack-redact --from-file /tmp/gstack-pr-body-$$.md --repo-visibility "${REDACT_VIS:-unknown}" --json
+[ -x "$GSTACK_BIN/gstack-redact" ] || echo "GSTACK_RUNTIME_ABSENT: gstack-redact skipped, no scan ran"
+[ -x "$GSTACK_BIN/gstack-redact" ] && $GSTACK_BIN/gstack-redact --from-file /tmp/gstack-pr-body-$$.md --repo-visibility "${REDACT_VIS:-unknown}" --json
 # exit 3 (HIGH) → do NOT edit, rotate+redact; exit 2 (MEDIUM) → confirm per finding.
 ```
+
+The existence test is deliberate: never collapse a redaction failure into a runtime-absent message. Exit 3 means a credential is in the body and the edit must not happen. On `GSTACK_RUNTIME_ABSENT` no scan ran at all, so read the body yourself for credentials, personal data, and legal content before sending it.
 
 **If GitHub:**
 ```bash

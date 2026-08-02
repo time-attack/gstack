@@ -565,3 +565,7 @@ On C, log declined and stop:
 ```
 
 The design doc at `"${GSTACK_HOME:-$HOME/.gstack}"/projects/` is automatically discoverable by downstream skills — they will read it during their pre-review system audit.
+
+## Runtime tail
+
+When `references/RUNTIME.md` reports `GSTACK_RUNTIME_PRESENT`, follow `references/sections/office-hours/runtime-tail.md`. It holds the review-log and learnings-log commands, which only exist when the optional runtime is installed. On `GSTACK_RUNTIME_ABSENT` skip it entirely: the canonical `npx skills add` install ships no `$GSTACK_BIN`, and nothing in that file changes the review itself.

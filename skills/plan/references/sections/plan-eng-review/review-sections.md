@@ -26,7 +26,7 @@ Evaluate:
 * For each new codepath or integration point, describe one realistic production failure scenario and whether the plan accounts for it.
 * **Distribution architecture:** If this introduces a new artifact (binary, package, container), how does it get built, published, and updated? Is the CI/CD pipeline part of the plan or deferred?
 
-For each issue found in this section, call AskUserQuestion individually. One issue per call. Present options, state your recommendation, explain WHY. Do NOT batch multiple issues into one AskUserQuestion. Use `references/QUESTION-FORMAT.md`. The AskUserQuestion call is a tool_use, not prose — call the tool directly.
+Raise every issue found in this section in ONE batched AskUserQuestion round: up to four questions per round, one issue per question. Never one round per finding. More than four issues in a section means a second round, not a round each. Each question presents options, states your recommendation, and explains WHY. Use `references/QUESTION-FORMAT.md`. The AskUserQuestion call is a tool_use, not prose — call the tool directly.
 
 **STOP.** Do NOT proceed to the next review section, edit the plan file with the proposed fix, or call ExitPlanMode until the user responds. An issue with an "obvious fix" is still an issue and still needs explicit user approval before it lands in the plan. Loading the AskUserQuestion schema via ToolSearch and then writing the recommendation as chat prose is the failure mode this gate exists to prevent.
 
@@ -102,7 +102,7 @@ Evaluate:
 * Areas that are over-engineered or under-engineered relative to my preferences.
 * Existing ASCII diagrams in touched files — are they still accurate after this change?
 
-For each issue found in this section, call AskUserQuestion individually. One issue per call. Present options, state your recommendation, explain WHY. Do NOT batch multiple issues into one AskUserQuestion. Use `references/QUESTION-FORMAT.md`. The AskUserQuestion call is a tool_use, not prose — call the tool directly.
+Raise every issue found in this section in ONE batched AskUserQuestion round: up to four questions per round, one issue per question. Never one round per finding. More than four issues in a section means a second round, not a round each. Each question presents options, states your recommendation, and explains WHY. Use `references/QUESTION-FORMAT.md`. The AskUserQuestion call is a tool_use, not prose — call the tool directly.
 
 **STOP.** Do NOT proceed to the next review section, edit the plan file with the proposed fix, or call ExitPlanMode until the user responds. An issue with an "obvious fix" is still an issue and still needs explicit user approval before it lands in the plan. Loading the AskUserQuestion schema via ToolSearch and then writing the recommendation as chat prose is the failure mode this gate exists to prevent.
 
@@ -286,7 +286,7 @@ This file is consumed by `/qa` and `$qa --mode Report --module qa-only` as prima
 
 For LLM/prompt changes: check the "Prompt/LLM changes" file patterns listed in CLAUDE.md. If this plan touches ANY of those patterns, state which eval suites must be run, which cases should be added, and what baselines to compare against. Then use AskUserQuestion to confirm the eval scope with the user.
 
-For each issue found in this section, call AskUserQuestion individually. One issue per call. Present options, state your recommendation, explain WHY. Do NOT batch multiple issues into one AskUserQuestion. Use `references/QUESTION-FORMAT.md`. The AskUserQuestion call is a tool_use, not prose — call the tool directly.
+Raise every issue found in this section in ONE batched AskUserQuestion round: up to four questions per round, one issue per question. Never one round per finding. More than four issues in a section means a second round, not a round each. Each question presents options, states your recommendation, and explains WHY. Use `references/QUESTION-FORMAT.md`. The AskUserQuestion call is a tool_use, not prose — call the tool directly.
 
 **STOP.** Do NOT proceed to the next review section, edit the plan file with the proposed fix, or call ExitPlanMode until the user responds. An issue with an "obvious fix" is still an issue and still needs explicit user approval before it lands in the plan. Loading the AskUserQuestion schema via ToolSearch and then writing the recommendation as chat prose is the failure mode this gate exists to prevent.
 
@@ -297,7 +297,7 @@ Evaluate:
 * Caching opportunities.
 * Slow or high-complexity code paths.
 
-For each issue found in this section, call AskUserQuestion individually. One issue per call. Present options, state your recommendation, explain WHY. Do NOT batch multiple issues into one AskUserQuestion. Use `references/QUESTION-FORMAT.md`. The AskUserQuestion call is a tool_use, not prose — call the tool directly.
+Raise every issue found in this section in ONE batched AskUserQuestion round: up to four questions per round, one issue per question. Never one round per finding. More than four issues in a section means a second round, not a round each. Each question presents options, states your recommendation, and explains WHY. Use `references/QUESTION-FORMAT.md`. The AskUserQuestion call is a tool_use, not prose — call the tool directly.
 
 **STOP.** Do NOT proceed to the next review section, edit the plan file with the proposed fix, or call ExitPlanMode until the user responds. An issue with an "obvious fix" is still an issue and still needs explicit user approval before it lands in the plan. Loading the AskUserQuestion schema via ToolSearch and then writing the recommendation as chat prose is the failure mode this gate exists to prevent.
 
@@ -479,82 +479,9 @@ Check the git log for this branch. If there are prior commits suggesting a previ
 * One sentence max per option. Pick in under 5 seconds.
 * After each review section, pause and ask for feedback before moving on.
 
-## Review Log
-
-After producing the Completion Summary above, persist the review result.
-
-**PLAN MODE EXCEPTION — ALWAYS RUN:** This command writes review metadata to
-`"${GSTACK_HOME:-$HOME/.gstack}"/` (user config directory, not project files). The skill preamble
-already writes to `"${GSTACK_HOME:-$HOME/.gstack}"/sessions/` and `"${GSTACK_HOME:-$HOME/.gstack}"/analytics/` — this is
-the same pattern. The review dashboard depends on this data. Skipping this
-command breaks the review readiness dashboard in /ship.
-
-```bash
-$GSTACK_BIN/gstack-review-log '{"skill":"plan-eng-review","timestamp":"TIMESTAMP","status":"STATUS","unresolved":N,"critical_gaps":N,"issues_found":N,"mode":"MODE","commit":"COMMIT"}'
-$GSTACK_BIN/gstack-decision-log '{"decision":"Eng review (MODE): ARCH_SUMMARY","rationale":"KEY_DECISION","scope":"branch","source":"skill","confidence":8}' 2>/dev/null || true
-```
-
-The second command records the architecture verdict as a durable cross-session decision (so a future session inherits the chosen approach and what was hardened, not just the count). Same `"${GSTACK_HOME:-$HOME/.gstack}"/` write pattern as review-log, non-interactive, best-effort (`|| true`). Substitute `ARCH_SUMMARY` (e.g. "N findings, all folded" or "M unresolved") and `KEY_DECISION` (the load-bearing architecture call from the report, one line — omit if the review found nothing durable).
-
-Substitute values from the Completion Summary:
-- **TIMESTAMP**: current ISO 8601 datetime
-- **STATUS**: "clean" if 0 unresolved decisions AND 0 critical gaps; otherwise "issues_open"
-- **unresolved**: number from "Unresolved decisions" count
-- **critical_gaps**: number from "Failure modes: ___ critical gaps flagged"
-- **issues_found**: total issues found across all review sections (Architecture + Code Quality + Performance + Test gaps)
-- **MODE**: FULL_REVIEW / SCOPE_REDUCED
-- **COMMIT**: output of `git rev-parse --short HEAD`
-
-## Review Readiness Dashboard
-
-After completing the review, read the review log and config to display the dashboard.
-
-```bash
-$GSTACK_BIN/gstack-review-read
-```
-
-Parse the output. Find the most recent entry for each skill (plan-ceo-review, plan-eng-review, review, adversarial-review, codex-review, codex-plan-review). Ignore entries with timestamps older than 7 days. For the Eng Review row, show whichever is more recent between `review` (diff-scoped pre-landing review) and `plan-eng-review` (plan-stage architecture review). Append "(DIFF)" or "(PLAN)" to the status to distinguish. For the Adversarial row, show whichever is more recent between `adversarial-review` (new auto-scaled) and `codex-review` (legacy). For the Outside Voice row, show the most recent `codex-plan-review` entry — this captures outside voices from both $plan --mode Product --module plan-ceo-review and $plan --mode Engineering --module plan-eng-review.
-
-**Source attribution:** If the most recent entry for a skill has a \`"via"\` field, append it to the status label in parentheses. Examples: `plan-eng-review` with `via:"autoplan"` shows as "CLEAR (PLAN via $plan --mode Full chain --module autoplan)". `review` with `via:"ship"` shows as "CLEAR (DIFF via /ship)". Entries without a `via` field show as "CLEAR (PLAN)" or "CLEAR (DIFF)" as before.
-
-Note: `autoplan-voices` entries are audit-trail-only (forensic data for cross-model consensus analysis). They do not appear in the dashboard and are not checked by any consumer.
-
-Display:
-
-```
-+====================================================================+
-|                    REVIEW READINESS DASHBOARD                       |
-+====================================================================+
-| Review          | Runs | Last Run            | Status    | Required |
-|-----------------|------|---------------------|-----------|----------|
-| Eng Review      |  1   | 2026-03-16 15:00    | CLEAR     | YES      |
-| CEO Review      |  0   | —                   | —         | no       |
-| Adversarial     |  0   | —                   | —         | no       |
-| Outside Voice   |  0   | —                   | —         | no       |
-+--------------------------------------------------------------------+
-| VERDICT: CLEARED — Eng Review passed                                |
-+====================================================================+
-```
-
-**Review tiers:**
-- **Eng Review (required by default):** The only review that gates shipping. Covers architecture, code quality, tests, performance. Can be disabled globally with \`gstack-config set skip_eng_review true\` (the "don't bother me" setting).
-- **CEO Review (optional):** Use your judgment. Recommend it for big product/business changes, new user-facing features, or scope decisions. Skip for bug fixes, refactors, infra, and cleanup.
-- **Adversarial Review (automatic):** Always-on for every review. Every diff gets both Claude adversarial subagent and Codex adversarial challenge. Large diffs (200+ lines) additionally get Codex structured review with P1 gate. No configuration needed.
-- **Outside Voice (optional):** Independent plan review from a different AI model. Offered after all review sections complete in $plan --mode Product --module plan-ceo-review and $plan --mode Engineering --module plan-eng-review. Falls back to Claude subagent if Codex is unavailable. Never gates shipping.
-
-**Verdict logic:**
-- **CLEARED**: Eng Review has >= 1 entry within 7 days from either \`review\` or \`plan-eng-review\` with status "clean" (or \`skip_eng_review\` is \`true\`)
-- **NOT CLEARED**: Eng Review missing, stale (>7 days), or has open issues
-- CEO and Codex reviews are shown for context but never block shipping
-- If \`skip_eng_review\` config is \`true\`, Eng Review shows "SKIPPED (global)" and verdict is CLEARED
-
-**Staleness detection:** After displaying the dashboard, check if any existing reviews may be stale:
-- Parse the \`---HEAD---\` section from the bash output to get the current HEAD commit hash
-- For each review entry that has a \`commit\` field: compare it against the current HEAD. If different, count elapsed commits: \`git rev-list --count STORED_COMMIT..HEAD\`. Display: "Note: {skill} review from {date} may be stale — {N} commits since review"
-- For entries without a \`commit\` field (legacy entries): display "Note: {skill} review from {date} has no commit tracking — consider re-running for accurate staleness detection"
-- If all reviews match the current HEAD, do not display any staleness notes
-
 ## Plan File Review Report
+
+The Review Readiness Dashboard is rendered from `references/sections/review-dashboard.md` by the runtime tail named at the end of this file; every mention of it below means that render. On `GSTACK_RUNTIME_ABSENT` there is no review log, so there is no dashboard, and every step below that reads one is skipped.
 
 After displaying the Review Readiness Dashboard in conversation output, also update the
 **plan file** itself so review status is visible to anyone reading the plan.
@@ -647,33 +574,6 @@ prior versions to leave the report mid-file when an older report already lived
 there — the user then sees a plan whose review report is not at the bottom and
 (correctly) rejects it.
 
-## Capture Learnings
-
-If you discovered a non-obvious pattern, pitfall, or architectural insight during
-this session, log it for future sessions:
-
-```bash
-$GSTACK_BIN/gstack-learnings-log '{"skill":"plan-eng-review","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}'
-```
-
-**Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`
-(user stated), `architecture` (structural decision), `tool` (library/framework insight),
-`operational` (project environment/CLI/workflow knowledge).
-
-**Sources:** `observed` (you found this in the code), `user-stated` (user told you),
-`inferred` (AI deduction), `cross-model` (both Claude and Codex agree).
-
-**Confidence:** 1-10. Be honest. An observed pattern you verified in the code is 8-9.
-An inference you're not sure about is 4-5. A user preference they explicitly stated is 10.
-
-**files:** Include the specific file paths this learning references. This enables
-staleness detection: if those files are later deleted, the learning can be flagged.
-
-**Only log genuine discoveries.** Don't log obvious things. Don't log things the user
-already knows. A good test: would this insight save time in a future session? If yes, log it.
-
-
-
 ## Brain Calibration Write-Back (Phase 2 / gated)
 
 When the skill makes a typed prediction worth tracking (scope decision,
@@ -712,19 +612,6 @@ eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)" 2>/dev/null || true
 ```
 
 
-## Brain Cache Background Refresh
-
-After the skill's work completes (and telemetry has logged), kick a
-background refresh of any cache digest that's getting close to its TTL.
-This is non-blocking — the user doesn't wait. Next invocation benefits
-from the warm cache.
-
-```bash
-eval "$($GSTACK_BIN/gstack-slug 2>/dev/null)" 2>/dev/null || true
-($GSTACK_BIN/gstack-brain-cache refresh --project "$SLUG" 2>/dev/null &) || true
-```
-
-
 ## Next Steps — Review Chaining
 
 After displaying the Review Readiness Dashboard, check if additional reviews would be valuable. Read the dashboard output to see which reviews have already been run and whether they are stale.
@@ -741,3 +628,7 @@ Use AskUserQuestion with only the applicable options:
 
 ## Unresolved decisions
 If the user does not respond to an AskUserQuestion or interrupts to move on, note which decisions were left unresolved. At the end of the review, list these as "Unresolved decisions that may bite you later" — never silently default to an option.
+
+## Runtime tail
+
+When `references/RUNTIME.md` reports `GSTACK_RUNTIME_PRESENT`, follow `references/sections/plan-eng-review/runtime-tail.md`. It holds the review-log and learnings-log commands, which only exist when the optional runtime is installed. On `GSTACK_RUNTIME_ABSENT` skip it entirely: the canonical `npx skills add` install ships no `$GSTACK_BIN`, and nothing in that file changes the review itself.

@@ -4,7 +4,7 @@ Review the diff for structural issues that tests don't catch.
 
 1. Read `references/artifacts/review/checklist.md`. If the file cannot be read, **STOP** and report the error.
 
-2. Run `git diff origin/<base>` to get the full diff (scoped to feature changes against the freshly-fetched base branch).
+2. Run `git diff <remote>/<base>` to get the full diff (scoped to feature changes against the freshly-fetched base branch).
 
 3. Apply the review checklist in two passes:
    - **Pass 1 (CRITICAL):** SQL & Data Safety, LLM Output Trust Boundary
@@ -79,8 +79,10 @@ higher confidence.
 Before classifying findings, check if any were previously skipped by the user in a prior review on this branch.
 
 ```bash
-$GSTACK_BIN/gstack-review-read
+$GSTACK_BIN/gstack-review-read 2>/dev/null || echo "GSTACK_RUNTIME_ABSENT: gstack-review-read skipped"
 ```
+
+On `GSTACK_RUNTIME_ABSENT` there is no review log to read, so skip this dedup step: no finding was previously skipped, and every finding below is treated as new.
 
 Parse the output: only lines BEFORE `---CONFIG---` are JSONL entries (the output also contains `---CONFIG---` and `---HEAD---` footer sections that are not JSONL — ignore those).
 
@@ -130,7 +132,7 @@ Output a summary header: `Pre-Landing Review: N issues (X critical, Y informatio
 
 9. Persist the review result to the review log:
 ```bash
-$GSTACK_BIN/gstack-review-log '{"skill":"review","timestamp":"TIMESTAMP","status":"STATUS","issues_found":N,"critical":N,"informational":N,"quality_score":SCORE,"specialists":SPECIALISTS_JSON,"findings":FINDINGS_JSON,"commit":"'"$(git rev-parse --short HEAD)"'","via":"ship"}'
+$GSTACK_BIN/gstack-review-log '{"skill":"review","timestamp":"TIMESTAMP","status":"STATUS","issues_found":N,"critical":N,"informational":N,"quality_score":SCORE,"specialists":SPECIALISTS_JSON,"findings":FINDINGS_JSON,"commit":"'"$(git rev-parse --short HEAD)"'","via":"ship"}' 2>/dev/null || echo "GSTACK_RUNTIME_ABSENT: gstack-review-log skipped"
 ```
 Substitute TIMESTAMP (ISO 8601), STATUS ("clean" if no issues, "issues_found" otherwise),
 and N values from the summary counts above. The `via:"ship"` distinguishes from standalone `/review` runs.

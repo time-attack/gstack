@@ -266,3 +266,63 @@ describe('restored design-judgment ports (#1777, #1920, #2189)', () => {
     }
   });
 });
+
+describe('no dead generator markers in the static tree', () => {
+  test('nothing points contributors at the deleted scripts/gstack2 generator', () => {
+    expect(fs.existsSync(path.join(ROOT, 'scripts', 'gstack2'))).toBe(false);
+    expect(findings((line) => line.includes('scripts/gstack2'))).toEqual([]);
+  });
+
+  test('no generator internals leak into shipped skill files', () => {
+    // Bug-fix anchors stay: they are the port ledger the tests above read.
+    const internals = /GSTACK2_(PROVENANCE|ROUTING|LEGACY_BODY_(START|END))/;
+    expect(findings((line) => internals.test(line))).toEqual([]);
+  });
+});
+
+describe('contradicting mandatory rules', () => {
+  test('every dispatcher states the precedence rule', () => {
+    for (const skill of ['plan', 'qa', 'debug', 'review', 'ship']) {
+      const contract = fs.readFileSync(
+        path.join(ROOT, 'skills', skill, 'references', 'SHARED-JUDGMENT.md'),
+        'utf8',
+      );
+      expect(contract).toContain('When two mandatory instructions conflict');
+      expect(contract).toContain('`SKILL.md` outranks any module');
+    }
+  });
+
+  test('no command hardcodes the remote as origin', () => {
+    // BASE-DETECTION resolves <remote>; `git diff origin/<base>` exits 128 on a
+    // repo whose remote is named anything else. Prose naming `origin/main` as a
+    // guess to avoid is fine — only the placeholder form is a command.
+    expect(findings((line) => line.includes('origin/<base>'))).toEqual([]);
+  });
+
+  test('the eng-review sections no longer forbid the batching the module requires', () => {
+    const sections = fs.readFileSync(
+      path.join(ROOT, 'skills', 'plan', 'references', 'sections', 'plan-eng-review', 'review-sections.md'),
+      'utf8',
+    );
+    expect(sections).not.toContain('Do NOT batch multiple issues');
+    expect(sections).not.toContain('One issue per call');
+  });
+
+  test('qa lane conditions the system-functional read in the file that states it', () => {
+    const systemFunctional = fs.readFileSync(
+      path.join(ROOT, 'skills', 'qa', 'references', 'SYSTEM-FUNCTIONAL.md'),
+      'utf8',
+    );
+    expect(systemFunctional).not.toContain('- Always: exactly one of');
+    expect(fs.readFileSync(path.join(ROOT, 'skills', 'qa', 'SKILL.md'), 'utf8')).not.toContain(
+      "overrides that file's always-read line",
+    );
+  });
+
+  test('report-only and no-runtime paths are carved, not contradicted', () => {
+    const cso = fs.readFileSync(path.join(ROOT, 'skills', 'review', 'references', 'legacy', 'cso.md'), 'utf8');
+    expect(cso).toContain('change no file except the Phase 14 report artifact');
+    const ship = fs.readFileSync(path.join(ROOT, 'skills', 'ship', 'references', 'legacy', 'ship.md'), 'utf8');
+    expect(ship).not.toContain('never hand-roll the VERSION/package.json write');
+  });
+});

@@ -219,7 +219,7 @@ For each failing test:
 
 1. **Get the files changed on this branch:**
    ```bash
-   git diff origin/<base>...HEAD --name-only
+   git diff <remote>/<base>...HEAD --name-only
    ```
 
 2. **Classify the failure:**
@@ -333,7 +333,7 @@ Read the project's CLAUDE.md for an eval command and any documented trigger patt
 **2. Check if the diff touches eval-covered files:**
 
 ```bash
-git diff origin/<base> --name-only
+git diff <remote>/<base> --name-only
 ```
 
 Match the changed files against the project's documented trigger patterns. Also treat changes to the eval infrastructure itself (runners, judges, shared fixtures) as affecting ALL suites that depend on them.
@@ -359,7 +359,7 @@ session, serializes against other worktrees via a machine lock (no API
 saturation), and writes a guaranteed `### gstack-detach EXIT=<code> ###` sentinel:
 
 ```bash
-$GSTACK_BIN/gstack-detach --label ship-evals --lock gstack-evals --timeout 5400 -- <project eval command>
+$GSTACK_BIN/gstack-detach --label ship-evals --lock gstack-evals --timeout 5400 -- <project eval command> 2>/dev/null || echo "GSTACK_RUNTIME_ABSENT: gstack-detach skipped, run the project eval command directly and stay with it until it exits"
 ```
 
 Then poll the printed log path; break on the `EXIT=` sentinel (covers both pass

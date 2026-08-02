@@ -39,7 +39,7 @@ find . -name '*.test.*' -o -name '*.spec.*' -o -name '*_test.*' -o -name '*_spec
 
 Store this number for the PR body.
 
-**1. Trace every codepath changed** using `git diff origin/<base>...HEAD`:
+**1. Trace every codepath changed** using `git diff <remote>/<base>...HEAD`:
 
 Read every changed file. For each one, trace how data flows through the code — don't just list functions, actually follow the execution:
 
