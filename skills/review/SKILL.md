@@ -22,6 +22,8 @@ Skipped modules: <comma-separated non-active mandatory modules with compact reas
 Web context: <none, optional, local-browser, or production>
 ```
 
+This exact-labels rule does not bind the trivial-change fast path. That path prints the reduced header its own file names, which is a subset of the labels above.
+
 Gloss these header words on first use, for a reader who has not seen them before. A *diff* is the set of lines this change adds and removes. *Depth* is how much evidence the review owes you: `readiness` is a fast pre-landing pass, `standard` is the normal pass, `deep` adds health evidence and independent second opinions. *Mutation* is what this run is allowed to change: report-only means it writes findings and edits nothing, and a mutation boundary is the exact set of files or fixes the user authorized. *Modules* are the preserved specialist review workflows this dispatcher loads from `references/`; *active* ones run, *skipped* ones are named with the reason they did not. An *outside voice* is a second reviewer that is genuinely a different model, never this one re-reading its own work. A *STOP gate* is a point where the workflow stops and waits for your explicit approval before continuing.
 
 ## Dispatch protocol

@@ -25,6 +25,8 @@ Skipped modules: <comma-separated non-active mandatory modules with compact reas
 Web context: <none, optional, local-browser, or production>
 ```
 
+This exact-labels rule does not bind the empty-target or trivial-change fast paths. Those paths print the reduced header their own file names, which is a subset of the labels above.
+
 ## Dispatch protocol
 
 1. Infer the mode from product stage, surface, requested artifact, mutation authorization, evidence needs, and deployment state. Do not route by keyword alone.
@@ -46,7 +48,7 @@ Probe the target directory with one cheap listing (`ls -A`) before reading any r
 
 A trivial change is mechanical and fully specified by the prompt: a rename, move, or inline across a small surface, with no design decision to make and no new capability to shape. The same path also opens for oracle-backed work, where a reference this run may not edit already exists or can be captured before the first edit (the pre-change tree, a committed baseline, a recorded trace, a failing repro), so the check decides whether the work is right and no amount of prescription adds to it. Classify from the prompt plus one cheap probe (a grep for the symbol, a file listing) before reading any reference file or specialist module — the same probe budget as the empty-target path. If the edits are enumerable from the probe and none of them is a judgment call, the change is trivial; do not load the specialist apparatus to confirm that.
 
-When either entry fires, read `references/FAST-PATH.md` and follow its trivial-change section. It is binding, it carries the whole path, and it names the one other reference the oracle-backed entry reads. Nothing else is read on either entry.
+When either entry fires, read `references/FAST-PATH.md` and follow its trivial-change section. It is binding, it carries the whole path, and it inlines the rules the oracle-backed entry needs. Nothing else is read on either entry.
 
 ## Build scale
 

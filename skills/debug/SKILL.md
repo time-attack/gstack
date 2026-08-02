@@ -22,6 +22,8 @@ Skipped modules: <comma-separated non-active mandatory modules with compact reas
 Web context: <none, optional, local-browser, or production>
 ```
 
+This exact-labels rule does not bind the trivial-change fast path. That path prints the reduced header its own file names, which is a subset of the labels above.
+
 ## Dispatch protocol
 
 1. Infer the mode from product stage, surface, requested artifact, mutation authorization, evidence needs, and deployment state. Do not route by keyword alone.
