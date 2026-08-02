@@ -9,6 +9,14 @@
  * runtime/identity.js; unlike SLUG, it separates linked Git worktrees.
  * Every emitted value is restricted to [a-zA-Z0-9._-] so the output remains
  * safe to consume with eval/source.
+ *
+ * Callers run this as `eval "$(gstack-slug 2>/dev/null)"` and then key their
+ * state directory off PROJECT_ID. An identity we cannot resolve must therefore
+ * never reach them as a usable-looking value: a placeholder such as "unknown"
+ * is the same string in every repository, so two repositories would share one
+ * state bucket and read each other's history. When identity cannot be
+ * resolved this exits nonzero and emits no assignment at all, which is what
+ * lets callers trip their own `${PROJECT_ID:?...}` guard and stop.
  */
 
 import fs from "node:fs/promises";
@@ -20,7 +28,12 @@ import { resolveGstackHome } from "../runtime/paths.js";
 
 const execFile = promisify(execFileCallback);
 const cwd = await canonicalPath(process.cwd());
-const identity = await discoverProjectIdentity(cwd);
+const identity = await discoverProjectIdentity(cwd).catch((error) => {
+  // A stack trace on stderr is invisible here (callers redirect it away), so
+  // say what failed in one line and leave stdout empty.
+  process.stderr.write(`gstack-slug: cannot resolve project identity for ${cwd}: ${error?.message ?? error}\n`);
+  process.exit(1);
+});
 const home = resolveGstackHome({ cwd });
 const cacheDir = path.join(home, "slug-cache");
 
@@ -42,14 +55,21 @@ await writeCache(cacheDir, cacheFile, slug);
 const rawBranch = await git(["rev-parse", "--abbrev-ref", "HEAD"], cwd).catch(() => "");
 const branch = sanitize(rawBranch === "HEAD" ? "" : rawBranch) || "unknown";
 
+// SLUG and BRANCH are display values, so "unknown" is an acceptable answer for
+// them. The three identity keys are state-directory names, so "unknown" is not:
+// it would merge separate repositories into one bucket. Fail loudly instead.
 for (const [name, value] of [
-  ["SLUG", slug],
-  ["BRANCH", branch],
-  ["PROJECT_ID", identity.projectId],
-  ["REPO_ID", identity.repoId],
-  ["WORKTREE_ID", identity.worktreeId],
+  ["SLUG", sanitize(slug) || "unknown"],
+  ["BRANCH", sanitize(branch) || "unknown"],
+  ["PROJECT_ID", sanitize(identity.projectId)],
+  ["REPO_ID", sanitize(identity.repoId)],
+  ["WORKTREE_ID", sanitize(identity.worktreeId)],
 ]) {
-  process.stdout.write(`${name}=${sanitize(value) || "unknown"}\n`);
+  if (!value) {
+    process.stderr.write(`gstack-slug: could not resolve ${name} for ${cwd}\n`);
+    process.exit(1);
+  }
+  process.stdout.write(`${name}=${value}\n`);
 }
 
 function sanitize(value) {
