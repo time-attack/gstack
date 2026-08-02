@@ -18,6 +18,35 @@ that still sits at the repository root. With `/skills` on the end, the same
 flags install 6 folders and 237 files. Name the subpath and the wrong install
 is not reachable.
 
+## What it writes into your repository
+
+Project scope is the directory you run it in. In a fresh `git init` repository,
+`skills` CLI 1.5.21 leaves three untracked entries:
+
+| Entry | What it is |
+|---|---|
+| `.agents/` | The skills themselves. 2.9 MB, 244 files. |
+| `.claude/skills/` | Six relative symlinks into `../../.agents/skills`. |
+| `skills-lock.json` | The installer's lockfile. |
+
+Nothing gitignores them, and the installer's closing line is `Done!  Review
+skills before use; they run with full agent permissions.` — no mention of the
+write. A `git add -A` after that commits 2.9 MB of vendored skills into your
+product history, and the six symlinks resolve to nothing for anyone who checks
+that commit out on CI or another machine.
+
+This is the installer's behaviour, not GStack's, and GStack does not own it.
+What GStack can tell you is the fix. Run it before your next commit:
+
+```bash
+printf '.agents/\n.claude/skills/\nskills-lock.json\n' >> .gitignore
+```
+
+`.claude/skills/` rather than `.claude/`, so your own tracked `.claude/`
+configuration stays tracked. With those three lines, `git status` reports only
+`.gitignore`, which you commit. If you never want the repository touched at all,
+install to global scope with `-g`; that leaves `git status` empty.
+
 That is skills only: `/plan`, `/qa`, `/debug`, `/review`, `/ship`, and
 `make-pdf`. **It ships no binaries.** If you install it and then ask for a
 rendered PDF or a browser-driven QA pass, you are hitting a seam, not a bug.

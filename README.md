@@ -46,7 +46,26 @@ holds the six shipping skills. Dropping it and passing a select-everything flag
 (`-s "*"` or `--all`) installs 96 folders and about 36 MB of the retired 1.x tree.
 See [Install](docs/gstack-2/INSTALL.md) for the measured numbers.
 
-The command above is the canonical one, subpath included. The public listing at
+### Ignore what the installer writes into your repository
+
+Project scope means your repository root. The installer writes `.agents/`
+(2.9 MB, 244 files), `.claude/skills/` (six relative symlinks into
+`../../.agents/skills`), and `skills-lock.json`, ignores none of it, and closes
+with `Done!` without mentioning any of it. The next `git add -A` commits all of
+it, and the symlinks dangle for anyone who checks out that commit.
+
+Add the three lines before your next commit:
+
+```bash
+printf '.agents/\n.claude/skills/\nskills-lock.json\n' >> .gitignore
+```
+
+That leaves `git status` clean except for `.gitignore` itself, which you commit.
+Prefer `-g` if you would rather install once for every project and leave the
+repository untouched.
+
+`npx skills add time-attack/gstack/skills` is the canonical install command,
+subpath included. The public listing at
 [skills.sh/time-attack/gstack](https://skills.sh/time-attack/gstack) currently
 shows two retired skills and a bare-repository install command; the installer
 itself resolves exactly six skills either way. See
