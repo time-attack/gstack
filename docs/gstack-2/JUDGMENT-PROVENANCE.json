@@ -199,7 +199,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/plan/references/legacy/office-hours.md",
-      "parity_test": "evals/parity/contracts/office-hours.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/office-hours.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "f9dc3e03dbf193c96111c6e79e9ec0fd97505f5edecb79fd94fbe0de4622e721",
+      "routing": {
+        "invocation": "$plan --mode Discovery --module office-hours",
+        "visibility": "primary",
+        "depth": "deep",
+        "mutation": "design-doc-only",
+        "web": "optional"
+      }
     },
     {
       "source": "plan-ceo-review",
@@ -697,7 +705,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/plan/references/legacy/autoplan.md",
-      "parity_test": "evals/parity/contracts/autoplan.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/autoplan.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "8367e4f8d4bb5a9427f46f47bc327cdc8f481d2ae097f5a6747cd3eefa103653",
+      "routing": {
+        "invocation": "$plan --mode Full chain --module autoplan",
+        "visibility": "primary",
+        "depth": "deep",
+        "mutation": "plan-only",
+        "web": "optional"
+      }
     },
     {
       "source": "spec",
@@ -832,7 +848,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/plan/references/legacy/spec.md",
-      "parity_test": "evals/parity/contracts/spec.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/spec.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "0a2be9d256d347193b69a6b542de7bde5f4aff9b18983654ab8852bdfac61d60",
+      "routing": {
+        "invocation": "$plan --mode Specification --module spec",
+        "visibility": "primary",
+        "depth": "deep",
+        "mutation": "spec-and-issue",
+        "web": "optional"
+      }
     },
     {
       "source": "plan-tune",
@@ -912,7 +936,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/plan/references/legacy/plan-tune.md",
-      "parity_test": "evals/parity/contracts/plan-tune.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/plan-tune.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "906afb95787873a7fad1a71f54db620c774f2665b86b091202e6aaad97ce763f",
+      "routing": {
+        "invocation": "$plan --mode Discovery --module plan-tune",
+        "visibility": "primary",
+        "depth": "standard",
+        "mutation": "profile-only",
+        "web": "none"
+      }
     },
     {
       "source": "context-save",
@@ -988,7 +1020,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/plan/references/legacy/context-save.md",
-      "parity_test": "evals/parity/contracts/context-save.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/context-save.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "847b2ef6964b5e2839f7ce37e956ffcaa9cd85069d2e5d12dd1a3f026eb38ca8",
+      "routing": {
+        "invocation": "$plan --mode Discovery --module context-save",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "state-only",
+        "web": "none"
+      }
     },
     {
       "source": "context-restore",
@@ -1061,7 +1101,18 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/plan/references/legacy/context-restore.md",
-      "parity_test": "evals/parity/contracts/context-restore.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/context-restore.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "e431da4e5f0639e81b899a280cc92ccc759bb32f4f26e6ffaf2aad02253147bf",
+      "routing": {
+        "invocation": "$plan --mode Discovery --module context-restore",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "state-only",
+        "web": "none"
+      },
+      "mirrored_targets": [
+        "skills/ship/references/legacy/context-restore.md"
+      ]
     },
     {
       "source": "learn",
@@ -1135,7 +1186,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/plan/references/legacy/learn.md",
-      "parity_test": "evals/parity/contracts/learn.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/learn.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "6faffb5e7eafbe66828cfa6d363d0e676162a64e7ba0487da952c2c343bfda79",
+      "routing": {
+        "invocation": "$plan --mode Discovery --module learn",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "state-only",
+        "web": "none"
+      }
     },
     {
       "source": "retro",
@@ -1263,7 +1322,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/plan/references/legacy/retro.md",
-      "parity_test": "evals/parity/contracts/retro.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/retro.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "cadf3aa3bbed16ce62179dd1cbd80a864a4eee2ba23afda9c5e750a66f1d6318",
+      "routing": {
+        "invocation": "$plan --mode Discovery --module retro",
+        "visibility": "internal",
+        "depth": "deep",
+        "mutation": "source-defined",
+        "web": "none"
+      }
     },
     {
       "source": "setup-gbrain",
@@ -1364,7 +1431,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/plan/references/legacy/setup-gbrain.md",
-      "parity_test": "evals/parity/contracts/setup-gbrain.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/setup-gbrain.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "5339a256e1d193c198b70387a3f3e0125070807036d2e161f29a640331e6dd73",
+      "routing": {
+        "invocation": "$plan --mode Discovery --module setup-gbrain",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "configuration",
+        "web": "none"
+      }
     },
     {
       "source": "sync-gbrain",
@@ -1441,7 +1516,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/plan/references/legacy/sync-gbrain.md",
-      "parity_test": "evals/parity/contracts/sync-gbrain.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/sync-gbrain.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "8f58e6f0dcf18968590db858c7e3f1050d1729cacc573430df6f18bffaee74bf",
+      "routing": {
+        "invocation": "$plan --mode Discovery --module sync-gbrain",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "state-only",
+        "web": "none"
+      }
     },
     {
       "source": "qa",
@@ -1569,7 +1652,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/qa/references/legacy/qa.md",
-      "parity_test": "evals/parity/contracts/qa.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/qa.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "07e2c6a841c6701d186b3b6536cfdb87af49566029971502065f636576ba071c",
+      "routing": {
+        "invocation": "$qa --mode Fix --module qa",
+        "visibility": "primary",
+        "depth": "deep",
+        "mutation": "fix-safe",
+        "web": "local-browser"
+      }
     },
     {
       "source": "qa-only",
@@ -1672,7 +1763,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/qa/references/legacy/qa-only.md",
-      "parity_test": "evals/parity/contracts/qa-only.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/qa-only.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "7f8c42379e748156bf131a5bae121ab9a3f307e57619e261f5db7865eead3029",
+      "routing": {
+        "invocation": "$qa --mode Report --module qa-only",
+        "visibility": "primary",
+        "depth": "deep",
+        "mutation": "report-only",
+        "web": "local-browser"
+      }
     },
     {
       "source": "ios-qa",
@@ -1850,7 +1949,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/qa/references/legacy/devex-review.md",
-      "parity_test": "evals/parity/contracts/devex-review.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/devex-review.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "a2156cd5e73769e8b6818cfd9f77ef7e340e8cd9f8423f111b2eac782ffee7f1",
+      "routing": {
+        "invocation": "$qa --mode Report --module devex-review",
+        "visibility": "primary",
+        "depth": "deep",
+        "mutation": "report-only",
+        "web": "optional"
+      }
     },
     {
       "source": "benchmark",
@@ -2386,7 +2493,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/qa/references/legacy/scrape.md",
-      "parity_test": "evals/parity/contracts/scrape.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/scrape.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "fc2f222a75825e92458b3503bc122edda87cfe9d92a41c4e87e89fc68d5bdcd5",
+      "routing": {
+        "invocation": "$qa --mode Report --module scrape",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "report-only",
+        "web": "production"
+      }
     },
     {
       "source": "skillify",
@@ -2470,7 +2585,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/qa/references/legacy/skillify.md",
-      "parity_test": "evals/parity/contracts/skillify.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/skillify.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "dae4eabf35e1e8f5cadf5e238774d3ccdfdf48bff526f9d902a564af79ecd49a",
+      "routing": {
+        "invocation": "$qa --mode Report --module skillify",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "code-generation",
+        "web": "local-browser"
+      }
     },
     {
       "source": "benchmark-models",
@@ -2610,7 +2733,18 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/debug/references/legacy/investigate.md",
-      "parity_test": "evals/parity/contracts/investigate.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/investigate.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "e570ad1683d87ce10bb4603f942a3e80bc35b1e56a7e8a7df0ff46c1f551f5d9",
+      "routing": {
+        "invocation": "$debug --mode Diagnose-only --module investigate",
+        "visibility": "primary",
+        "depth": "deep",
+        "mutation": "investigate-only",
+        "web": "optional"
+      },
+      "mirrored_targets": [
+        "skills/qa/references/legacy/investigate.md"
+      ]
     },
     {
       "source": "ios-fix",
@@ -2775,7 +2909,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/debug/references/legacy/freeze.md",
-      "parity_test": "evals/parity/contracts/freeze.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/freeze.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "f033b466da6f43edbdb57c23664bb544317a1c11a253701a35edc14986ebddfc",
+      "routing": {
+        "invocation": "$debug --mode Diagnose-only --module freeze",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "safety-policy",
+        "web": "none"
+      }
     },
     {
       "source": "guard",
@@ -2819,7 +2961,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/debug/references/legacy/guard.md",
-      "parity_test": "evals/parity/contracts/guard.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/guard.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "fb2609e8e305dfceb554442c4c5a8717b9f77efd8bf9c7166b9ec6335b06f481",
+      "routing": {
+        "invocation": "$debug --mode Diagnose-only --module guard",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "safety-policy",
+        "web": "none"
+      }
     },
     {
       "source": "unfreeze",
@@ -2862,7 +3012,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/debug/references/legacy/unfreeze.md",
-      "parity_test": "evals/parity/contracts/unfreeze.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/unfreeze.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "8debfd573af54e7caf4a73b13f775d9b9189b932b7b61afbaf1b8590d5647a9f",
+      "routing": {
+        "invocation": "$debug --mode Diagnose-only --module unfreeze",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "safety-policy",
+        "web": "none"
+      }
     },
     {
       "source": "review",
@@ -3076,7 +3234,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/review/references/legacy/cso.md",
-      "parity_test": "evals/parity/contracts/cso.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/cso.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "1878443a5ffe2b5535bb39106a97b9003e180501c0dfd4fd77ce873cdb737e79",
+      "routing": {
+        "invocation": "$review --mode Security --module cso",
+        "visibility": "primary",
+        "depth": "deep",
+        "mutation": "report-only",
+        "web": "optional"
+      }
     },
     {
       "source": "health",
@@ -3236,7 +3402,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/review/references/legacy/codex.md",
-      "parity_test": "evals/parity/contracts/codex.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/codex.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "75fc747e7597ec494fbef974b5d12e31b411e72a8b27c93c4c0eba4b92aa707d",
+      "routing": {
+        "invocation": "$review --mode Deep --module codex",
+        "visibility": "primary",
+        "depth": "standard",
+        "mutation": "report-only",
+        "web": "none"
+      }
     },
     {
       "source": "claude",
@@ -3453,7 +3627,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/ship/references/legacy/ship.md",
-      "parity_test": "evals/parity/contracts/ship.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/ship.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "80d00ed7032c85bdce177b5e60893e54f334b73b60812c76618902471c4ae9a7",
+      "routing": {
+        "invocation": "$ship --mode Prepare --module ship",
+        "visibility": "primary",
+        "depth": "deep",
+        "mutation": "commit-push-pr",
+        "web": "optional"
+      }
     },
     {
       "source": "land-and-deploy",
@@ -3877,7 +4059,15 @@
       "voice": "Direct builder voice; match the user language and retain source-specific tone constraints.",
       "response_posture": "Direct, evidence-first builder language; preserve source-specific recommendations and constructive pressure.",
       "new_location": "skills/ship/references/legacy/document-generate.md",
-      "parity_test": "evals/parity/contracts/document-generate.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks"
+      "parity_test": "evals/parity/contracts/document-generate.json + scripts/gstack2/run-parity.ts canonical specialist render, excluded-wrapper, lazy-section, and pinned-source provenance checks",
+      "baseline_render_sha256": "5412105d826c409192d420311f05f9d6549c993e5d425b4cea37c93235624a15",
+      "routing": {
+        "invocation": "$ship --mode Prepare --module document-generate",
+        "visibility": "internal",
+        "depth": "standard",
+        "mutation": "docs-only",
+        "web": "none"
+      }
     },
     {
       "source": "gstack-upgrade",
@@ -6523,5 +6713,6 @@
       ],
       "anchor": "GSTACK2_FIX_9109_OUTSIDE_VOICE_REDACT_SCAN"
     }
-  ]
+  ],
+  "marker_migration": "The in-tree GSTACK2_PROVENANCE / GSTACK2_ROUTING comments were removed from skills/ when the generator was deleted and skills/ became the static source of truth. Their audit trail lives here: baseline_render_sha256 is the pre-overlay render hash, normalized_render_sha256 is the ported (post-overlay) hash, routing holds the dispatcher invocation and its visibility/depth/mutation/web attributes, and mirrored_targets lists byte-identical copies of a source under a second tree."
 }
