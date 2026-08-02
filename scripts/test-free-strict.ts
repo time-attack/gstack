@@ -195,7 +195,7 @@ export function exactTestFileSelectors(files: string[], rootDir = ROOT): string[
   return files.map((file) => path.isAbsolute(file) ? path.normalize(file) : path.resolve(rootDir, file));
 }
 
-function forwardAndClassify(
+export function forwardAndClassify(
   stream: NodeJS.ReadableStream,
   destination: NodeJS.WriteStream,
   classifier: BunTestOutputClassifier,
