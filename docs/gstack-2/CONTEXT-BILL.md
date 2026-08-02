@@ -16,7 +16,7 @@ With no argument it takes the first of these that exists, project before user:
 time-attack/gstack/skills` puts a host-neutral install, so the common case
 needs no path. When none exist it names every candidate it tried.
 
-Five ledgers:
+Six ledgers and two ceilings:
 
 - **ALWAYS-ON** — per-skill YAML frontmatter bytes (what every session's skill
   scanner loads). Flags frontmatter keys the router never reads (#2286) and
@@ -44,34 +44,149 @@ Five ledgers:
   public-web work, `CODE-INTELLIGENCE.md` once when the target is a repository,
   `SYSTEM-FUNCTIONAL.md` when that lane is active, and so on. A normal run hits
   several of these, so an eager-only number understates what an invocation
-  actually pays. Each dispatcher's **per-invocation ceiling** (eager + every
-  conditional) is printed with its multiple of the eager figure.
+  actually pays.
+- **TRANSITIVE (pulled in by a file above)** — what the eager and conditional
+  files themselves order read. `RUNTIME.md` orders `BROWSER-PROVIDERS.md` and
+  two machine-readable contracts, `QUESTION-FORMAT.md` orders the two
+  AskUserQuestion docs, `TOTAL-VERIFICATION.md` orders its worked examples. The
+  dispatcher names none of them, so a ledger that stops at the dispatcher's own
+  sentence billed every one at zero. Each row prints the file that pulled it in.
+  It is a separate tier rather than folded into EAGER on purpose: the dispatcher
+  never ordered these directly, and a floor that quietly absorbs them stops
+  meaning "floor".
 - **LAZY (per mode/alias)** — for each mode and legacy alias in the routing
-  tables, which `references/legacy/*.md` modules activate and what each costs.
-  Unrouted on-disk modules and missing (phantom) modules are flagged.
+  tables, which `references/legacy/*.md` modules activate and what each costs,
+  plus everything those modules order read: the `references/sections/` phases,
+  the `references/artifacts/` files, and plain references like
+  `BASE-DETECTION.md`. Unrouted on-disk modules and missing (phantom) modules
+  are flagged.
+- **ROUTE CEILING** — per-invocation plus the heaviest mode that dispatcher can
+  route to. This is the figure an audited run gets compared against, so it is
+  printed last and named plainly.
 
-The real cost of one run sits between the trivial-path figure and the ceiling
-plus whatever modules the chosen mode routes to. `--skill X --mode Y` prints
-that sum directly.
+Nothing is charged twice. Each tier is seeded with what the tier above already
+paid, so a file two modules both name, or a reference a module points back at,
+is billed once and the ceiling stays a true sum.
 
-Against `skills/` today, a trivial ask costs roughly half the eager row, and the
-ceilings run 1.6x to 4.2x it. These are **measured** with `count_tokens`
-(`claude-opus-4-5`), not estimated — reproduce with `--exact`:
+The real cost of one run sits between the trivial-path figure and the route
+ceiling. `--skill X --mode Y` prints the exact sum for one mode.
 
-| Skill | Fast path (trivial ask) | Eager floor | Conditional | Per-invocation ceiling |
-|---|---|---|---|---|
-| `plan` | 2.8K tok | 4.5K tok | +7.8K tok | 12.3K tok (2.7x) |
-| `qa` | 2.0K tok | 3.7K tok | +8.0K tok | 11.7K tok (3.1x) |
-| `debug` | 1.7K tok | 3.4K tok | +5.8K tok | 9.1K tok (2.7x) |
-| `review` | 1.8K tok | 3.4K tok | +6.7K tok | 10.1K tok (2.9x) |
-| `ship` | 1.9K tok | 3.6K tok | +11.5K tok | 15.1K tok (4.2x) |
-| `make-pdf` | none | 2.7K tok | +1.7K tok | 4.4K tok (1.6x) |
+Against `skills/` today (offline estimate; run `--exact` for measured counts).
+Every figure below comes from one command, so re-render it rather than trusting
+the digits:
 
-The fast-path column is the same 1,675 tok of forced references in every
-dispatcher (the shared triad), dropped because the dispatcher tells the agent
-to drop it. Whole tree: 521,607 tok on disk, 58% lazy by bytes but 60% by tokens.
+```bash
+gstack context-bill skills
+```
+
+
+| Skill | Fast path | Eager floor | Conditional | Transitive | Per-invocation | Route ceiling |
+|---|---|---|---|---|---|---|
+| `plan` | 4.1K tok | 4.8K tok | +11.7K tok | +7.9K tok | 24.4K tok (5.1x) | 53.7K tok (Product) |
+| `qa` | 2.6K tok | 4.0K tok | +7.6K tok | +6.6K tok | 18.1K tok (4.6x) | 49.8K tok (Report) |
+| `debug` | 2.3K tok | 3.7K tok | +5.8K tok | +6.4K tok | 15.9K tok (4.3x) | 21.4K tok (Fix) |
+| `review` | 2.4K tok | 3.8K tok | +6.3K tok | +6.4K tok | 16.5K tok (4.3x) | 66.7K tok (Deep) |
+| `ship` | 2.4K tok | 3.8K tok | +10.9K tok | +6.4K tok | 21.1K tok (5.6x) | 72.1K tok (Prepare) |
+| `make-pdf` | none | 2.3K tok | +2.1K tok | +3.7K tok | 8.1K tok (3.5x) | none routed |
+
+Whole tree: ~525K tok on disk, 77% lazy by bytes but 80% by tokens.
 
 Run the tool for current numbers; the table above is a snapshot, not a pin.
+
+### Why the ceiling moved
+
+An audited `/plan` Engineering run read eight files totalling 101,951 B. The
+pre-walk tool printed a 66,889 B ceiling for `/plan`, so the run came in 52%
+over it. The gap was structural, not arithmetic. The bill walked
+`references/*.md` only where a dispatcher sentence named the file, and never
+followed what those files, or a routed module, ordered read next. A 46 KB
+`references/sections/` file was read on that run and priced by no ledger at all.
+
+**That run cannot be recomputed from this repository.** The 101,951 B total is
+the only thing anyone wrote down. The eight file paths were not recorded, and
+neither was a token count, so nothing here can re-derive either one and no
+bytes-per-token ratio can be read off it. Treat it as a single observation in
+bytes. Do not quote a token figure for it, and do not use it to calibrate a
+divisor.
+
+Both halves of the walk are priced now, and the ceiling that gets quoted is the
+route one:
+
+```bash
+gstack context-bill skills --skill plan --mode Engineering
+```
+
+That prints 174,950 B against the audited run's 101,951 B, which is 72%
+**above** it. That is not a tight fit and it is not evidence of accuracy. A
+ceiling assumes every stated condition fires and the heaviest mode routes; a
+real run hits some conditions and one mode. So the tool traded a 52%
+understatement of that one run for a 72% overstatement in the other direction.
+A bound is what a bound is for. If you need what a run cost, measure the run.
+
+The before column comes from the tool as it stood at `6565c194`
+(`git archive 6565c194 | tar -x -C "$(mktemp -d)"`, then run its
+`bin/gstack-context-bill` against its own `skills/`). Bytes are exact; the token
+figures beside them carry the estimate's error band.
+
+| Figure for `/plan` | Before | After |
+|---|---|---|
+| Per-invocation ceiling | 66,889 B (~16.1K tok) | 98,803 B (~24.1K tok) |
+| Engineering route total | not printed | 174,950 B (~45.3K tok) |
+| Route ceiling (heaviest mode) | not printed | 204,644 B (~53.6K tok) |
+
+The other direction matters as much. A cost tool this project already caught
+over-reporting by 11% does not get to fix under-reporting by over-reporting, so
+the walk skips table rows outside the LAZY tier. `ASSETS.md` is a manifest whose
+rows map an old asset path to a current one for lookup; following those rows
+would charge a skill's whole `artifacts/` tree the moment anything mentions
+`ASSETS.md`. Module tables are dispatch tables (`review`'s specialist rows say
+when to read each one), so those are followed.
+
+### Savings this bill cannot see
+
+Two recent context cuts do not show up in any row here. A doc that let you infer
+they did would be claiming a number the tool never produced.
+
+**The `/qa` DX-audit gate is prose, not routing.** `devex-review.md` is the
+largest module in the tree, about 29 KB. `/qa` now loads it on the presence of a
+developer-experience surface rather than on the depth of the pass, and records
+`no developer-experience surface` on the Skipped modules line when it does not.
+The bill cannot see that. It prices route membership from the routing tables, and
+`devex-review.md` is still a member of the `qa` / `Report` route, so the row
+charges it before and after:
+
+```bash
+gstack context-bill skills --json \
+  | jq '.skills[]|select(.name=="qa")|.lazy[]|select(.label=="Report")
+        |.modules[]|select(.path|test("devex"))'
+```
+
+The ceiling is behaving correctly. It assumes every stated condition fires, and
+this is a stated condition. The saving is real for an API, CLI, worker, or
+webhook target with no DX surface, and it is worth roughly what that row says,
+but you will see it in what a run actually reads, not in the printed ceiling. A
+`Report` ceiling that moves across this change moved for some other reason.
+`test/qa-devex-conditional.test.ts` is what holds the gate in place.
+
+**The dead-runtime-prose pass was mostly a relocation.** Runtime-only prose moved
+out of the modules that ordered it and into
+`skills/plan/references/sections/**/runtime-tail.md` and
+`skills/plan/references/sections/review-dashboard.md`. Those five files total
+18,282 B, they ship, and the bill charges them: they appear in the `plan` /
+`Engineering` LAZY row next to the module that pulls them in. Net change to the
+tree is a rounding error:
+
+```bash
+b=$(mktemp -d) && git archive 6565c194 | tar -x -C "$b"
+find "$b/skills" -name '*.md' -exec cat {} + | wc -c   # before
+find    skills   -name '*.md' -exec cat {} + | wc -c   # after
+```
+
+1,946,457 B before, 1,940,423 B after. That is -6,034 B, or **-0.31%** of the
+tree. So it is not a size win and should not be sold as one. The reason to do it is
+per-run, not on disk: a runtime-only section is now skipped whole on a machine
+with no `$GSTACK_BIN` instead of being read in full to execute nothing. The read
+is the cost. `test/runtime-absence-guard.test.ts` pins both halves of that.
 
 ## How accurate are the token numbers?
 
@@ -216,11 +331,13 @@ gstack context-bill --diff <old-tree> <new-tree>
 ```
 
 Prints only changed rows with signed deltas, sorted by |delta|. Exits 2 if any
-always-on, eager, or conditional cost grew, so you see the `/plan` bill get
-heavier BEFORE you upgrade. This is exactly the class of regression in #2362 (a
-template bug that silently added ~11K tokens to every /spec load). Conditional
-counts as growth: a newly mandated read that fires on most runs is a real
-regression even though no line says "for every invocation".
+always-on, eager, conditional, or transitive cost grew, so you see the `/plan`
+bill get heavier BEFORE you upgrade. This is exactly the class of regression in
+#2362 (a template bug that silently added ~11K tokens to every /spec load).
+Conditional counts as growth: a newly mandated read that fires on most runs is a
+real regression even though no line says "for every invocation". So does
+transitive: a reference that starts ordering a new file read costs the same
+tokens whether or not the dispatcher mentions it.
 
 ## Budget gating (CI-friendly)
 
@@ -234,25 +351,30 @@ gstack context-bill <tree> --budget budget.json
 {
   "alwaysOnTotal": 500,
   "eagerPerInvocation": { "plan": 5000, "ship": 4500 },
-  "perInvocation": { "plan": 11000, "ship": 15000 }
+  "perInvocation": { "plan": 25000, "ship": 22000 },
+  "routeCeiling": { "plan": 55000, "ship": 75000 }
 }
 ```
 
 `eagerPerInvocation` gates the forced-read floor. `perInvocation` gates the
-eager + conditional ceiling, which is the number a real invocation pays, so
-that is usually the one you want in CI. Exit 0 within budget; exit 2 over
-budget with the offending files listed (conditional ones marked as such).
+eager + conditional + transitive ceiling before anything routes.
+`routeCeiling` adds the heaviest mode, which is the number a routed run
+actually pays, so that is usually the one you want in CI. Exit 0 within budget;
+exit 2 over budget with the offending files listed (conditional, transitive,
+and routed-module ones each marked with why they are there).
 
 ## Other flags
 
 - `--json` — machine-readable output (works with the default, --diff, and --budget forms).
   Each skill carries `fastPath` (`{ paths, bytes, tokens }`, or `null` when no fast
-  path overrides its forced reads). Every priced entry carries both `bytes` and
+  path overrides its forced reads), `transitiveRefs` (each with a `via` naming the
+  file that pulled it in), and `routeCeiling` (`{ label, bytes, tokens }`, or `null`
+  when nothing routes). Every priced entry carries both `bytes` and
   `tokens`, so a consumer never has to re-derive tokens from a byte total and lose
   the per-class divisor. `tokenSource` names where the token figures came from.
 - `--exact`, `--exact-model <id>` — see the accuracy section above. Off by default;
   `--exact` sends file content to `api.anthropic.com`.
 - `--skill plan --mode Discovery` — single-invocation simulation: eager plus
-  conditional cost, plus the modules that mode routes to.
+  conditional plus transitive cost, plus everything that mode routes to.
 
 Tests: `bun test test/context-bill.test.ts` (free tier, offline).

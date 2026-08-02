@@ -8,10 +8,13 @@
  *     "for every invocation" dispatch sentence
  *   - FAST-PATH ledger: what a trivial ask pays when the dispatcher's fast path
  *     overrides that forced-read step (SKILL.md alone)
- *   - CONDITIONAL ledger: refs the dispatcher mandates under a stated condition,
- *     plus the eager + conditional per-invocation ceiling
+ *   - CONDITIONAL ledger: refs the dispatcher mandates under a stated condition
+ *   - TRANSITIVE ledger: what those files pull in on their own, plus the
+ *     per-invocation ceiling that sums all three
  *   - LAZY ledger: mode/alias table rows resolved to references/legacy/*.md,
- *     orphan (unrouted) module listing
+ *     everything those modules order read, orphan (unrouted) module listing
+ *   - ROUTE CEILING: per-invocation plus the heaviest mode, the figure an
+ *     audited run is measured against
  *   - bytes/4 token estimate, --json shape, --diff (the #2362 replay),
  *     --budget exit codes, and a ground-truth cross-check against the real
  *     skills/ tree (plan's forced triad).
@@ -130,6 +133,9 @@ describe("fast-path ledger (what a trivial ask actually pays)", () => {
     const alpha = buildBill(tree).skills.find((s) => s.name === "alpha")!;
     expect(alpha.fastPath).toEqual({
       paths: ["Trivial-change fast path"],
+      // This fixture's fast-path section names no reference of its own, so the
+      // path really is SKILL.md alone. A section that names one pays for it.
+      refs: [],
       bytes: alpha.skillMdBytes,
       tokens: alpha.skillMdTokens,
     });
@@ -147,7 +153,7 @@ describe("fast-path ledger (what a trivial ask actually pays)", () => {
   it("renders the fast-path row next to the eager row, with the saving", () => {
     const tree = treeWithFastPath();
     const text = renderBill(buildBill(tree));
-    expect(text).toContain("FAST-PATH (trivial ask): SKILL.md only, no forced refs, no modules");
+    expect(text).toContain("FAST-PATH (trivial ask): SKILL.md + what that path itself binds");
     expect(text).toContain("[Trivial-change fast path]");
     expect(text).toContain("vs eager");
     expect(text.indexOf("EAGER (per invocation)")).toBeLessThan(text.indexOf("FAST-PATH (trivial ask)"));
@@ -196,6 +202,146 @@ describe("conditional ledger", () => {
     const beta = bill.skills.find((s) => s.name === "beta")!;
     expect(beta.conditionalRefs).toEqual([]);
     expect(beta.perInvocationBytes).toBe(beta.eagerBytes);
+  });
+});
+
+/**
+ * TREE_A's alpha, plus the two shapes the pre-fix bill could not see: a chain
+ * (a conditional reference that orders another file read, which orders a third)
+ * and a manifest (a table that maps paths for lookup rather than ordering reads).
+ */
+function treeWithTransitiveReads(): string {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "context-bill-transitive-"));
+  const tree = path.join(tmp, "tree");
+  fs.cpSync(TREE_A, tree, { recursive: true });
+  const refs = path.join(tree, "alpha", "references");
+  fs.appendFileSync(
+    path.join(refs, "OPTIONAL.md"),
+    "\nRead `references/DEEP.md` in full before continuing.\n",
+  );
+  fs.writeFileSync(
+    path.join(refs, "DEEP.md"),
+    `${"d".repeat(9000)}\n\nThen read \`references/support/notes.md\` and \`references/support/tool.ts\`.\n`,
+  );
+  fs.mkdirSync(path.join(refs, "support"), { recursive: true });
+  fs.writeFileSync(path.join(refs, "support", "notes.md"), "n".repeat(3000));
+  fs.writeFileSync(path.join(refs, "support", "tool.ts"), "t".repeat(1500));
+  // The manifest: rows that MAP old names to current paths. Following them
+  // would charge the whole tree on a lookup nobody performed.
+  fs.appendFileSync(
+    path.join(refs, "CORE.md"),
+    "\n| old | new |\n|---|---|\n| `huge.md` | `references/HUGE.md` |\n",
+  );
+  fs.writeFileSync(path.join(refs, "HUGE.md"), "h".repeat(500000));
+  return tree;
+}
+
+describe("transitive ledger (what a priced file pulls in on its own)", () => {
+  it("prices the chain a conditional reference starts, and names who pulled each file", () => {
+    const tree = treeWithTransitiveReads();
+    const alpha = buildBill(tree).skills.find((s) => s.name === "alpha")!;
+    // The receipted miss: DEEP.md is ordered read by OPTIONAL.md, and its own
+    // two support files after that. The dispatcher names none of the three, so
+    // a ledger that stops at the dispatcher's sentence billed all of it at zero.
+    expect(alpha.transitiveRefs.map((r) => [r.path, r.via])).toEqual([
+      ["references/DEEP.md", "references/OPTIONAL.md"],
+      ["references/support/notes.md", "references/DEEP.md"],
+      // Any extension: a support script a file orders read costs what it costs.
+      ["references/support/tool.ts", "references/DEEP.md"],
+    ]);
+    expect(alpha.transitiveBytes).toBe(
+      fileBytes(tree, "alpha", "references", "DEEP.md") +
+        fileBytes(tree, "alpha", "references", "support", "notes.md") +
+        fileBytes(tree, "alpha", "references", "support", "tool.ts"),
+    );
+    fs.rmSync(path.dirname(tree), { recursive: true, force: true });
+  });
+
+  it("the per-invocation ceiling covers the transitive tier, not just what the dispatcher names", () => {
+    const tree = treeWithTransitiveReads();
+    const alpha = buildBill(tree).skills.find((s) => s.name === "alpha")!;
+    expect(alpha.perInvocationBytes).toBe(
+      alpha.eagerBytes + alpha.conditionalBytes + alpha.transitiveBytes,
+    );
+    // Pre-fix this ceiling stopped at eager + conditional and understated the
+    // run by the whole chain. 13.5KB of pulled-in reads is not a rounding error.
+    expect(alpha.perInvocationBytes - alpha.eagerBytes - alpha.conditionalBytes).toBeGreaterThan(13000);
+    fs.rmSync(path.dirname(tree), { recursive: true, force: true });
+  });
+
+  it("does not follow an asset-manifest row, so the bill cannot over-report either", () => {
+    const tree = treeWithTransitiveReads();
+    const alpha = buildBill(tree).skills.find((s) => s.name === "alpha")!;
+    // HUGE.md is 500KB and appears only as a lookup target in CORE.md's mapping
+    // table. Charging it would be a 500KB fiction, the same failure mode in the
+    // other direction. Nothing reads it, so nothing pays for it.
+    expect(alpha.transitiveRefs.some((r) => r.path.includes("HUGE"))).toBe(false);
+    expect(alpha.perInvocationBytes).toBeLessThan(100000);
+    fs.rmSync(path.dirname(tree), { recursive: true, force: true });
+  });
+
+  it("renders the transitive tier separately, with the file that pulled each entry in", () => {
+    const tree = treeWithTransitiveReads();
+    const text = renderBill(buildBill(tree));
+    expect(text).toContain("TRANSITIVE (pulled in by a file above, not named by the dispatcher)");
+    expect(text).toContain("pulled in by OPTIONAL.md");
+    expect(text).toContain("tool.ts");
+    // Reported in its own tier, never folded into the eager floor: the
+    // dispatcher did not order these directly and the floor must stay a floor.
+    const eager = text.slice(text.indexOf("EAGER ("), text.indexOf("FAST-PATH ("));
+    expect(eager).not.toContain("DEEP.md");
+    fs.rmSync(path.dirname(tree), { recursive: true, force: true });
+  });
+
+  it("bills each pulled-in file once across the whole route, so the ceiling is a sum", () => {
+    const tree = treeWithTransitiveReads();
+    // A routed module that also orders DEEP.md read. It is already charged
+    // upstream, so charging it again would inflate the route ceiling.
+    fs.appendFileSync(
+      path.join(tree, "alpha", "references", "legacy", "office.md"),
+      "\nRead `references/DEEP.md` before the interview.\n",
+    );
+    const alpha = buildBill(tree).skills.find((s) => s.name === "alpha")!;
+    const discovery = alpha.lazy.find((r) => r.label === "Discovery")!;
+    expect(discovery.modules.some((m) => m.path === "references/DEEP.md")).toBe(false);
+    expect(alpha.routeCeiling!.bytes).toBe(alpha.perInvocationBytes + discovery.bytes);
+    fs.rmSync(path.dirname(tree), { recursive: true, force: true });
+  });
+});
+
+describe("route ceiling (per invocation + the heaviest mode)", () => {
+  const bill = buildBill(TREE_A);
+  const alpha = bill.skills.find((s) => s.name === "alpha")!;
+
+  it("adds the heaviest routable mode, because a dispatcher exists to route", () => {
+    const heaviest = alpha.lazy.reduce((a, b) => (a.bytes >= b.bytes ? a : b));
+    expect(alpha.routeCeiling).toEqual({
+      label: heaviest.label,
+      bytes: alpha.perInvocationBytes + heaviest.bytes,
+      tokens: alpha.perInvocationTokens + heaviest.tokens,
+    });
+    expect(alpha.routeCeiling!.bytes).toBeGreaterThan(alpha.perInvocationBytes);
+    expect(bill.totals.routeCeilingBytesBySkill.alpha).toBe(alpha.routeCeiling!.bytes);
+  });
+
+  it("falls back to the per-invocation figure when nothing is routed", () => {
+    const beta = bill.skills.find((s) => s.name === "beta")!;
+    expect(beta.routeCeiling).toBeNull();
+    expect(bill.totals.routeCeilingBytesBySkill.beta).toBeNull();
+    expect(renderBill(bill)).toContain("nothing routed; the per-invocation ceiling stands");
+  });
+
+  it("--budget routeCeiling gates the figure an audited run is measured against", () => {
+    const ceiling = Math.round(alpha.routeCeiling!.tokens);
+    const perInvocation = Math.round(alpha.perInvocationTokens);
+    // The gap the pre-fix budget let through: a tree inside its perInvocation
+    // ceiling while every routed run blows past it.
+    expect(checkBudget(bill, { perInvocation: { alpha: perInvocation } })).toEqual([]);
+    const violations = checkBudget(bill, { routeCeiling: { alpha: perInvocation } });
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ ceiling: "routeCeiling.alpha", actual: ceiling });
+    expect(violations[0].files.some((f: string) => f.includes("mode "))).toBe(true);
+    expect(checkBudget(bill, { routeCeiling: { alpha: ceiling } })).toEqual([]);
   });
 });
 
@@ -277,8 +423,13 @@ describe("rendering", () => {
     expect(text).toContain("EAGER (per invocation)");
     expect(text).toContain("FAST-PATH (trivial ask)");
     expect(text).toContain("CONDITIONAL (per invocation, when the stated condition holds)");
-    expect(text).toContain("alpha per-invocation ceiling (eager + all conditional)");
+    expect(text).toContain("TRANSITIVE (pulled in by a file above, not named by the dispatcher)");
+    // "before modules": the figure excludes the LAZY row, and says so, because
+    // it gets quoted as if it were the whole run.
+    expect(text).toContain("alpha per-invocation ceiling before modules (eager + conditional + transitive)");
+    expect(text).toContain("Routed modules add the LAZY row on top.");
     expect(text).toContain("LAZY (per mode/alias)");
+    expect(text).toContain("ROUTE CEILING (per invocation + the heaviest mode that dispatcher can route to)");
     expect(text).toContain("frontmatter key(s) the router never reads: triggers");
     expect(text).toContain("foreign-host file in scanner scope: agents.md");
     expect(text).toContain("(unrouted on disk)");
@@ -324,12 +475,14 @@ describe("rendering", () => {
       "lazyTokens",
       "perInvocationBytesBySkill",
       "perInvocationTokensBySkill",
+      "routeCeilingBytesBySkill",
+      "routeCeilingTokensBySkill",
       "skillCount",
       "totalMdBytes",
       "totalMdTokens",
     ]);
     const skill = bill.skills[0];
-    for (const key of ["name", "frontmatterBytes", "frontmatterTokens", "deadKeys", "skillMdBytes", "skillMdTokens", "forcedRefs", "eagerBytes", "eagerTokens", "fastPath", "conditionalRefs", "conditionalBytes", "conditionalTokens", "perInvocationBytes", "perInvocationTokens", "lazy", "orphans", "foreignFiles", "totalMdTokens"]) {
+    for (const key of ["name", "frontmatterBytes", "frontmatterTokens", "deadKeys", "skillMdBytes", "skillMdTokens", "forcedRefs", "eagerBytes", "eagerTokens", "fastPath", "conditionalRefs", "conditionalBytes", "conditionalTokens", "transitiveRefs", "transitiveBytes", "transitiveTokens", "perInvocationBytes", "perInvocationTokens", "routeCeiling", "lazy", "orphans", "foreignFiles", "totalMdTokens"]) {
       expect(skill).toHaveProperty(key);
     }
     // Every priced entry carries its own token count, so sums never re-derive
@@ -346,7 +499,7 @@ describe("rendering", () => {
     });
     expect(code).toBe(0);
     expect(out.text()).toContain('alpha / mode "Discovery" invocation total');
-    expect(out.text()).toContain("(eager + conditional + routed modules)");
+    expect(out.text()).toContain("(eager + conditional + transitive + routed modules)");
     expect(out.text()).not.toContain("Full chain");
   });
 });
@@ -392,6 +545,29 @@ describe("--diff (the #2362 replay: silently inlined preamble)", () => {
     const code = await contextBillMain(["--diff", TREE_A, treeB], { stdout: out.stream, stderr: out.stream });
     expect(code).toBe(2);
     expect(out.text()).toContain("conditional");
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it("a read added one level down is growth too (exit 2)", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "context-bill-trans-"));
+    const treeB = path.join(tmp, "tree-b");
+    fs.cpSync(TREE_A, treeB, { recursive: true });
+    // Nothing in SKILL.md changes. A forced reference starts ordering a new
+    // heavy file read, which every invocation now pays. Pre-fix the diff was
+    // clean and the upgrade looked free.
+    fs.writeFileSync(path.join(treeB, "alpha", "references", "PULLED.md"), "x".repeat(38000));
+    fs.appendFileSync(
+      path.join(treeB, "alpha", "references", "CORE.md"),
+      "\nRead `references/PULLED.md` in full.\n",
+    );
+
+    const diff = diffBills(buildBill(TREE_A), buildBill(treeB));
+    expect(diff.rows.find((r) => r.ledger === "transitive")).toMatchObject({ label: "alpha", delta: 38000 });
+    expect(diff.grew).toBe(true);
+
+    const out = capture();
+    expect(await contextBillMain(["--diff", TREE_A, treeB], { stdout: out.stream, stderr: out.stream })).toBe(2);
+    expect(out.text()).toContain("transitive");
     fs.rmSync(tmp, { recursive: true, force: true });
   });
 
@@ -666,7 +842,11 @@ describe("ground-truth cross-check against the real skills/ tree", () => {
     const plan = buildBill(SKILLS).skills.find((s) => s.name === "plan")!;
     expect(plan.orphans).toEqual([]);
     for (const row of plan.lazy) for (const m of row.modules) expect(m.missing).toBe(false);
-    const routed = new Set(plan.lazy.flatMap((r) => r.modules.map((m) => path.basename(m.path))));
+    const routed = new Set(
+      plan.lazy.flatMap((r) =>
+        r.modules.filter((m) => m.path.startsWith("references/legacy/")).map((m) => path.basename(m.path)),
+      ),
+    );
     const onDisk = fs.readdirSync(path.join(SKILLS, "plan", "references", "legacy")).filter((f) => f.endsWith(".md"));
     expect([...routed].sort()).toEqual(onDisk.sort());
   });
@@ -702,8 +882,9 @@ describe("ground-truth cross-check against the real skills/ tree", () => {
       // The overstatement this closes: ~1.8K tok of forced refs charged to a
       // trivial ask that the dispatcher explicitly tells the agent to skip.
       expect(s.fastPath).not.toBeNull();
-      expect(s.fastPath!.bytes).toBe(s.skillMdBytes);
-      expect(s.eagerBytes - s.fastPath!.bytes).toBe(triad);
+      expect(s.fastPath!.bytes).toBe(s.skillMdBytes + s.fastPath!.refs.reduce((n, r) => n + r.bytes, 0));
+      expect(s.fastPath!.bytes - s.skillMdBytes).toBeGreaterThan(0); // every one binds FAST-PATH.md
+      expect(s.eagerBytes - s.skillMdBytes).toBe(triad);
       expect(s.fastPath!.paths.some((p) => /fast path$/.test(p))).toBe(true);
     }
     expect(bill.skills.find((s) => s.name === "plan")!.fastPath!.paths).toEqual([
@@ -712,6 +893,127 @@ describe("ground-truth cross-check against the real skills/ tree", () => {
     ]);
     // A tool skill, not a dispatcher: no fast path, so its eager row stands.
     expect(bill.skills.find((s) => s.name === "make-pdf")!.fastPath).toBeNull();
+  });
+
+  /**
+   * The bill's own numbers are what people quote as evidence, so every printed
+   * figure has to cover every file the route's own prose orders read. Derived
+   * here straight from the prose, independently of the implementation.
+   */
+  it("every printed route figure covers every file that route's own prose calls binding", () => {
+    const bill = buildBill(SKILLS);
+    const printed = renderBill(bill);
+    // Files a module's prose orders read as part of running the route: the
+    // package-local sections/ phases and artifacts/, transitively.
+    const bindings = (skillDir: string, rel: string, seen = new Set<string>()): string[] => {
+      if (seen.has(rel) || !fs.existsSync(path.join(skillDir, rel))) return [];
+      seen.add(rel);
+      const text = fs.readFileSync(path.join(skillDir, rel), "utf8");
+      const named = [...text.matchAll(/`(references\/(?:sections|artifacts)\/[^`]+\.md)`/g)].map((m) => m[1]);
+      return [...new Set(named)].flatMap((p) => [p, ...bindings(skillDir, p, seen)]);
+    };
+
+    let checkedSections = 0;
+    for (const s of bill.skills) {
+      for (const row of s.lazy) {
+        const billed = new Set(row.modules.map((m) => m.path));
+        const mandatory = new Set(
+          row.modules
+            .filter((m) => m.path.startsWith("references/legacy/"))
+            .flatMap((m) => bindings(s.dir, m.path)),
+        );
+        // Receipted miss before this pin: ship/Prepare priced legacy/ship.md and
+        // none of the eight sections/ship/*.md phases it orders read, so the
+        // route's biggest reads were absent from the row entirely.
+        const row_ = `${s.name} / ${row.label}`;
+        expect({ row: row_, unbilled: [...mandatory].filter((p) => !billed.has(p)) }).toEqual({
+          row: row_,
+          unbilled: [],
+        });
+        checkedSections += [...mandatory].filter((p) => p.startsWith("references/sections/")).length;
+        const floor = [...mandatory].reduce((n, p) => n + fileBytes(s.dir, p), 0);
+        expect(row.bytes).toBeGreaterThanOrEqual(floor);
+      }
+      // The printed fast-path figure covers the reference that path binds, and
+      // the render names it so the number is auditable from the output alone.
+      if (s.fastPath) {
+        const bound = s.fastPath.refs.reduce((n, r) => n + r.bytes, 0);
+        expect(s.fastPath.bytes).toBe(s.skillMdBytes + bound);
+        for (const r of s.fastPath.refs) expect(printed).toContain(path.basename(r.path));
+        if (bound > 0) expect(printed).toContain("+ binds");
+      }
+    }
+    // Guards the guard: a closure that silently resolved nothing would pass every
+    // assertion above. The real tree routes sections from seven legacy modules.
+    expect(checkedSections).toBeGreaterThan(10);
+  });
+
+  it("no references/sections file is priced by nothing (the 276KB the bill used to omit)", () => {
+    const bill = buildBill(SKILLS);
+    for (const s of bill.skills) {
+      const dir = path.join(s.dir, "references", "sections");
+      if (!fs.existsSync(dir)) continue;
+      const priced = new Set([
+        ...s.lazy.flatMap((r) => r.modules.map((m) => m.path)),
+        ...s.orphans.map((o) => o.path),
+      ]);
+      const onDisk = (fs.readdirSync(dir, { recursive: true }) as string[])
+        .filter((p) => p.endsWith(".md"))
+        .map((p) => path.join("references", "sections", p));
+      expect(onDisk.length).toBeGreaterThan(0);
+      expect(onDisk.filter((p) => !priced.has(p))).toEqual([]);
+    }
+  });
+
+  /**
+   * The defect this closes, in the form it was caught: an audited /plan
+   * Engineering run read eight files totalling ~102KB, which was 56% over the
+   * ceiling the tool printed. The cause was structural, not arithmetic — the
+   * sections file the Engineering module orders read, and everything the
+   * conditional references pull in, were priced by no ledger at all. Byte
+   * literals would rot as the tree changes, so the file set is rebuilt from
+   * disk and the ceiling has to cover it.
+   */
+  it("plan's printed ceiling covers every file a real Engineering run reads", () => {
+    const plan = buildBill(SKILLS).skills.find((s) => s.name === "plan")!;
+    const dir = path.join(SKILLS, "plan");
+    const engineering = plan.lazy.find((r) => r.label === "Engineering")!;
+    // What the run reads: SKILL.md, the forced triad, the question format it
+    // must load before asking, the routed module, and what that module orders.
+    const run = [
+      "SKILL.md",
+      ...plan.forcedRefs.map((r) => r.path),
+      "references/QUESTION-FORMAT.md",
+      ...engineering.modules.map((m) => m.path),
+    ];
+    const runBytes = [...new Set(run)].reduce((n, p) => n + fileBytes(dir, p), 0);
+    const routeBytes = plan.perInvocationBytes + engineering.bytes;
+    expect(runBytes).toBeGreaterThan(80000); // the run is genuinely this heavy
+    expect(routeBytes).toBeGreaterThanOrEqual(runBytes);
+    // A ceiling that a real run exceeds is not a ceiling. Pre-fix this compared
+    // ~67KB against ~102KB.
+    expect(plan.routeCeiling!.bytes).toBeGreaterThanOrEqual(runBytes);
+    expect(renderBill(buildBill(SKILLS), { skill: "plan" })).toContain("ROUTE CEILING");
+  });
+
+  it("every dispatcher prices what its own references pull in", () => {
+    const bill = buildBill(SKILLS);
+    for (const name of ["plan", "qa", "debug", "review", "ship"]) {
+      const s = bill.skills.find((x) => x.name === name)!;
+      const pulled = s.transitiveRefs.map((r) => path.basename(r.path));
+      // Receipted misses: RUNTIME.md orders BROWSER-PROVIDERS.md read and
+      // QUESTION-FORMAT.md orders the two AskUserQuestion docs. The dispatcher
+      // names none of them, so every one was billed at zero.
+      expect(pulled).toContain("BROWSER-PROVIDERS.md");
+      expect(pulled).toContain("askuserquestion-split.md");
+      for (const r of s.transitiveRefs) {
+        expect(r.missing).toBe(false);
+        expect(r.via).toBeTruthy();
+      }
+      // No file is charged twice across the three per-invocation tiers.
+      const all = [...s.forcedRefs, ...s.conditionalRefs, ...s.transitiveRefs].map((r) => r.path);
+      expect(all.length).toBe(new Set(all).size);
+    }
   });
 
   it("qa's real per-invocation cost is well above its eager row", () => {

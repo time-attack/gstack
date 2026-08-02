@@ -1,24 +1,41 @@
 /**
  * gstack context-bill — token bill-of-materials for an installed gstack skills tree.
  *
- * Read-only, offline, deterministic. Four ledgers over pure file reads:
+ * Read-only, offline, deterministic. Six ledgers over pure file reads:
  *   ALWAYS-ON  per-skill YAML frontmatter bytes (what every session's skill
  *              scanner loads), flagging frontmatter keys the router never
  *              reads (#2286) and foreign-host files in scanner scope (#1694).
  *   EAGER      SKILL.md + the forced-read references the dispatch protocol
  *              mandates "for every invocation" (the shared triad).
  *   FAST-PATH  what a trivial ask costs when the dispatcher's fast path
- *              explicitly overrides that forced-read step: SKILL.md alone, no
- *              forced refs, no modules. Reported next to EAGER so the eager
- *              number is not mistaken for the floor of every invocation.
+ *              explicitly overrides that forced-read step: SKILL.md plus the
+ *              references that path's own section calls binding (and whatever
+ *              those name in turn), no forced triad, no modules. Reported next
+ *              to EAGER so the eager number is not mistaken for the floor of
+ *              every invocation.
  *   CONDITIONAL the references the dispatcher mandates under a stated condition
  *              (QUESTION-FORMAT before the first question, RUNTIME before
  *              capability work, CODE-INTELLIGENCE once per repo target, ...).
  *              Most real invocations hit several, so an EAGER-only number
- *              understates what an invocation actually pays. The per-invocation
- *              ceiling (eager + conditional) is reported alongside.
+ *              understates what an invocation actually pays.
+ *   TRANSITIVE what the eager and conditional files order read on their own:
+ *              RUNTIME.md's BROWSER-PROVIDERS.md, QUESTION-FORMAT.md's two
+ *              AskUserQuestion docs, TOTAL-VERIFICATION.md's worked examples,
+ *              the support contracts and scripts. The dispatcher names none of
+ *              them, so a ledger that stops at the dispatcher's own sentence
+ *              billed every one of them at zero.
  *   LAZY       per mode/alias table row, which references/legacy/*.md modules
- *              activate and what each costs.
+ *              activate and what each costs — including the references/sections/
+ *              phases, references/artifacts/ files, and plain references the
+ *              modules' own prose orders read, which the agent reads as part of
+ *              running the route and which no other ledger charges.
+ *
+ * Two ceilings come out of those ledgers. The per-invocation ceiling is eager +
+ * conditional + transitive, before anything routes. The ROUTE CEILING adds the
+ * heaviest mode the dispatcher can pick, and it is the figure an audited run
+ * gets compared against: quoting the before-modules number understated one
+ * real /plan Engineering run by 56%. Nothing is charged twice — each tier is
+ * seeded with what the tier above it already paid, so a ceiling is a true sum.
  *
  * Token figures come from one of two sources, always named in the output:
  *   ESTIMATE (default, offline)  bytes / TOKEN_DIVISOR, calibrated against real
@@ -37,8 +54,15 @@ const FORCED_PHRASE = "for every invocation";
 const LEGACY_REF = /references\/legacy\/[^`|)\s]+\.md/g;
 // Backticked non-legacy reference in prose. Legacy modules belong to LAZY.
 const PROSE_REF = /`(references\/(?!legacy\/)[^`]+\.md)`/g;
-// A dispatcher that says its fast path overrides the forced-read step pays
-// SKILL.md alone on that path. Named paths come from the section headings.
+// What a file a ledger already charges pulls in on its own: the sections/
+// phases, the artifacts/, the support docs and scripts, and the plain
+// references/*.md one reference hands off to. Any extension, because a module
+// that orders a support script read pays for that script. Legacy modules are
+// the LAZY ledger, so the walk never steps into one from outside it.
+const TRANSITIVE_REF = /`(references\/(?!legacy\/)[^`\s]+\.[A-Za-z0-9]+)`/g;
+// A dispatcher that says its fast path overrides the forced-read step skips the
+// forced triad on that path, paying SKILL.md plus whatever the path's own
+// section binds. Named paths come from the section headings.
 const FAST_PATH_OVERRIDE = /fast paths? overrides? this step/i;
 const FAST_PATH_HEADING = /^#{2,}\s+(\S.*? fast path)\s*$/i;
 const ROUTER_KEYS = new Set(["name", "description"]);
@@ -126,6 +150,54 @@ function refEntry(skillDir, rel, tokensOf) {
   };
 }
 
+/**
+ * The paths a file's own prose orders read.
+ *
+ * `followTables` decides whether table rows count. A module's table is a
+ * dispatch table (review's specialist rows say when to read each one), so the
+ * LAZY walk follows it. The reference tier's table is the asset manifest, whose
+ * rows map an old path to a current one for lookup, so the transitive walk
+ * skips it: following it would charge a skill's whole artifacts tree the moment
+ * anything named ASSETS.md. A bill that over-reports gets ignored as fast as
+ * one that under-reports.
+ */
+function boundRefs(text, pattern, followTables) {
+  const out = [];
+  for (const line of text.split("\n")) {
+    if (!followTables && line.trim().startsWith("|")) continue;
+    for (const m of line.matchAll(pattern)) out.push(m[1]);
+  }
+  return out;
+}
+
+/**
+ * A file plus everything that file's own prose calls binding, transitively.
+ *
+ * `seen` is shared across a ledger so a file two callers both name is billed
+ * once, and can be seeded with what an upstream ledger already charged so the
+ * same bytes are never counted twice in one route. Each pulled-in entry carries
+ * `via`, the file that named it, so the caller can report it in its own tier
+ * instead of burying it in the direct figure.
+ */
+function refClosure(skillDir, rel, tokensOf, pattern, seen = new Set(), via = null, followTables = false) {
+  if (seen.has(rel)) return [];
+  seen.add(rel);
+  const entry = refEntry(skillDir, rel, tokensOf);
+  if (via) entry.via = via;
+  if (entry.missing) return [entry];
+  const out = [entry];
+  let text = "";
+  try {
+    text = fs.readFileSync(path.join(skillDir, rel), "utf8");
+  } catch {
+    return out;
+  }
+  for (const p of boundRefs(text, pattern, followTables)) {
+    out.push(...refClosure(skillDir, p, tokensOf, pattern, seen, rel, followTables));
+  }
+  return out;
+}
+
 function sumBytes(entries) {
   return entries.reduce((n, e) => n + e.bytes, 0);
 }
@@ -210,15 +282,18 @@ export function parseSkill(skillDir, name, tokensOf = estimateTokensOf) {
   // clause that mandates a reference is CONDITIONAL — real, just gated.
   const clauses = [];
   let fastPathOverrides = false;
+  let inFastPath = false;
   const fastPathNames = [];
   for (const line of text.split("\n")) {
     if (line.includes(FORCED_PHRASE) && FAST_PATH_OVERRIDE.test(line)) fastPathOverrides = true;
     const heading = FAST_PATH_HEADING.exec(line.trim());
     if (heading) fastPathNames.push(heading[1]);
+    // A fast path's own section is where it names the file it calls binding.
+    if (/^#{2,}\s/.test(line.trim())) inFastPath = Boolean(heading);
     if (line.trim().startsWith("|")) continue; // routing tables are LAZY
     for (const clause of line.split(/(?<=[.;])\s+/)) {
       const paths = [...new Set([...clause.matchAll(PROSE_REF)].map((m) => m[1]))];
-      if (paths.length) clauses.push({ clause, paths });
+      if (paths.length) clauses.push({ clause, paths, inFastPath });
     }
   }
 
@@ -247,7 +322,45 @@ export function parseSkill(skillDir, name, tokensOf = estimateTokensOf) {
     }
   }
 
-  // LAZY: markdown table rows whose cells route to references/legacy/*.md.
+  // TRANSITIVE: what the eager and conditional files pull in on their own.
+  // RUNTIME.md orders BROWSER-PROVIDERS.md read, TOTAL-VERIFICATION.md orders
+  // TOTAL-CRITERIA-EXAMPLES.md, QUESTION-FORMAT.md orders two support docs.
+  // None of it is named by the dispatcher, so a ledger that stops at the
+  // dispatcher's own sentence prices a run nobody has. Kept in its own tier
+  // rather than folded into eager: the dispatcher never ordered these directly,
+  // and a floor that quietly absorbs them stops meaning "floor".
+  const transitiveRefs = [];
+  const seenSkill = new Set([...seenForced, ...seenConditional]);
+  for (const parent of [...forcedRefs, ...conditionalRefs]) {
+    if (parent.missing) continue;
+    let parentText = "";
+    try {
+      parentText = fs.readFileSync(path.join(skillDir, parent.path), "utf8");
+    } catch {
+      continue;
+    }
+    for (const p of boundRefs(parentText, TRANSITIVE_REF, false)) {
+      transitiveRefs.push(...refClosure(skillDir, p, tokensOf, TRANSITIVE_REF, seenSkill, parent.path));
+    }
+  }
+
+  // FAST-PATH: SKILL.md plus the references the fast-path section itself calls
+  // binding, and whatever those name in turn (the oracle-backed entry's
+  // verification contract). Charging SKILL.md alone prices a path that does not
+  // exist: the dispatcher skips the forced triad and reads FAST-PATH.md instead.
+  const fastPathRefs = [];
+  if (fastPathOverrides) {
+    const seenFast = new Set();
+    for (const { paths, inFastPath: fast } of clauses) {
+      if (!fast) continue;
+      for (const p of paths) fastPathRefs.push(...refClosure(skillDir, p, tokensOf, TRANSITIVE_REF, seenFast));
+    }
+  }
+
+  // LAZY: markdown table rows whose cells route to references/legacy/*.md, plus
+  // everything those modules order read. Each row starts from what the skill
+  // ledgers already charge, so a module pointing at QUESTION-FORMAT.md does not
+  // bill it a second time and the route total stays a sum, not a double count.
   const lazy = [];
   const routed = new Set();
   for (const line of text.split("\n")) {
@@ -257,7 +370,8 @@ export function parseSkill(skillDir, name, tokensOf = estimateTokensOf) {
     if (modulePaths.length === 0) continue;
     const cells = row.split("|").map((c) => c.trim()).filter(Boolean);
     const label = (cells[0] ?? "").replace(/`/g, "") || "(unnamed row)";
-    const modules = modulePaths.map((p) => refEntry(skillDir, p, tokensOf));
+    const seenRow = new Set(seenSkill);
+    const modules = modulePaths.flatMap((p) => refClosure(skillDir, p, tokensOf, TRANSITIVE_REF, seenRow, null, true));
     for (const p of modulePaths) routed.add(p);
     lazy.push({ label, modules, bytes: sumBytes(modules), tokens: sumTokens(modules) });
   }
@@ -265,12 +379,13 @@ export function parseSkill(skillDir, name, tokensOf = estimateTokensOf) {
   // Legacy modules on disk that no table routes to (orphans).
   const legacyDir = path.join(skillDir, "references", "legacy");
   let orphans = [];
+  const seenOrphan = new Set(seenSkill);
   try {
     orphans = fs
       .readdirSync(legacyDir)
       .filter((f) => f.endsWith(".md") && !routed.has(`references/legacy/${f}`))
       .sort()
-      .map((f) => refEntry(skillDir, `references/legacy/${f}`, tokensOf));
+      .flatMap((f) => refClosure(skillDir, `references/legacy/${f}`, tokensOf, TRANSITIVE_REF, seenOrphan, null, true));
   } catch {
     // no legacy dir — nothing lazy on disk
   }
@@ -286,6 +401,21 @@ export function parseSkill(skillDir, name, tokensOf = estimateTokensOf) {
   }
 
   const total = totalMd(skillDir, tokensOf);
+  const perInvocationBytes =
+    skillMdBytes + sumBytes(forcedRefs) + sumBytes(conditionalRefs) + sumBytes(transitiveRefs);
+  const perInvocationTokens =
+    skillMdTokens + sumTokens(forcedRefs) + sumTokens(conditionalRefs) + sumTokens(transitiveRefs);
+  // The number an audited run is measured against. A dispatcher exists to route,
+  // so the honest ceiling includes the heaviest route it can pick: quoting the
+  // before-modules figure understates every run that routes anywhere.
+  const heaviest = lazy.reduce((best, r) => (best && best.tokens >= r.tokens ? best : r), null);
+  const routeCeiling = heaviest
+    ? {
+        label: heaviest.label,
+        bytes: perInvocationBytes + heaviest.bytes,
+        tokens: perInvocationTokens + heaviest.tokens,
+      }
+    : null;
   return {
     name,
     dir: skillDir,
@@ -298,17 +428,28 @@ export function parseSkill(skillDir, name, tokensOf = estimateTokensOf) {
     forcedRefs,
     eagerBytes: skillMdBytes + sumBytes(forcedRefs),
     eagerTokens: skillMdTokens + sumTokens(forcedRefs),
-    // What a trivial ask pays: SKILL.md only. null when no fast path overrides
-    // the forced-read step, i.e. every invocation really does pay the eager row.
+    // What a trivial ask pays: SKILL.md plus the references that path binds.
+    // null when no fast path overrides the forced-read step, i.e. every
+    // invocation really does pay the eager row.
     fastPath: fastPathOverrides
-      ? { paths: fastPathNames, bytes: skillMdBytes, tokens: skillMdTokens }
+      ? {
+          paths: fastPathNames,
+          refs: fastPathRefs,
+          bytes: skillMdBytes + sumBytes(fastPathRefs),
+          tokens: skillMdTokens + sumTokens(fastPathRefs),
+        }
       : null,
     conditionalRefs,
     conditionalBytes: sumBytes(conditionalRefs),
     conditionalTokens: sumTokens(conditionalRefs),
+    transitiveRefs,
+    transitiveBytes: sumBytes(transitiveRefs),
+    transitiveTokens: sumTokens(transitiveRefs),
     // What an invocation that hits every stated condition actually pays.
-    perInvocationBytes: skillMdBytes + sumBytes(forcedRefs) + sumBytes(conditionalRefs),
-    perInvocationTokens: skillMdTokens + sumTokens(forcedRefs) + sumTokens(conditionalRefs),
+    perInvocationBytes,
+    perInvocationTokens,
+    // ... plus the heaviest mode it can route to. Null when nothing is routed.
+    routeCeiling,
     lazy,
     orphans,
     foreignFiles,
@@ -378,6 +519,10 @@ export function buildBill(root, { tokensOf = estimateTokensOf, tokenSource, cali
       perInvocationTokensBySkill: Object.fromEntries(
         skills.map((s) => [s.name, Math.round(s.perInvocationTokens)]),
       ),
+      routeCeilingBytesBySkill: Object.fromEntries(skills.map((s) => [s.name, s.routeCeiling?.bytes ?? null])),
+      routeCeilingTokensBySkill: Object.fromEntries(
+        skills.map((s) => [s.name, s.routeCeiling ? Math.round(s.routeCeiling.tokens) : null]),
+      ),
       lazyBytes,
       lazyTokens,
       totalMdBytes: total,
@@ -419,6 +564,11 @@ export function diffBills(a, b) {
       sa?.conditionalBytes ?? 0, sb?.conditionalBytes ?? 0,
       sa?.conditionalTokens ?? 0, sb?.conditionalTokens ?? 0,
     );
+    push(
+      "transitive", name,
+      sa?.transitiveBytes ?? 0, sb?.transitiveBytes ?? 0,
+      sa?.transitiveTokens ?? 0, sb?.transitiveTokens ?? 0,
+    );
     const labels = [...new Set([...(sa?.lazy ?? []), ...(sb?.lazy ?? [])].map((r) => r.label))];
     for (const label of labels) {
       const ra = sa?.lazy.find((r) => r.label === label);
@@ -429,16 +579,18 @@ export function diffBills(a, b) {
   rows.sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
   const grew =
     b.totals.alwaysOnBytes > a.totals.alwaysOnBytes ||
-    rows.some((r) => (r.ledger === "eager" || r.ledger === "conditional") && r.delta > 0);
+    rows.some((r) => ["eager", "conditional", "transitive"].includes(r.ledger) && r.delta > 0);
   return { rows, grew };
 }
 
 /**
  * Budget file: user-authored plain JSON, ceilings in ~tokens.
  *   { "alwaysOnTotal": 4000, "eagerPerInvocation": { "plan": 5000 },
- *     "perInvocation": { "plan": 9000 } }
+ *     "perInvocation": { "plan": 9000 }, "routeCeiling": { "plan": 40000 } }
  * `eagerPerInvocation` gates the forced-read floor; `perInvocation` gates the
- * eager + conditional ceiling, which is what a real invocation pays.
+ * eager + conditional + transitive ceiling before any module; `routeCeiling`
+ * adds the heaviest mode, which is the figure an audited run is measured
+ * against.
  */
 export function checkBudget(bill, budget) {
   const violations = [];
@@ -453,15 +605,21 @@ export function checkBudget(bill, budget) {
       });
     }
   }
-  for (const key of ["eagerPerInvocation", "perInvocation"]) {
-    const withConditional = key === "perInvocation";
+  for (const key of ["eagerPerInvocation", "perInvocation", "routeCeiling"]) {
+    const withConditional = key !== "eagerPerInvocation";
     for (const [name, limit] of Object.entries(budget[key] ?? {})) {
       const skill = bill.skills.find((s) => s.name === name);
       if (!skill) {
         violations.push({ ceiling: `${key}.${name}`, limit, actual: null, files: ["<skill not found in tree>"] });
         continue;
       }
-      const actual = Math.round(withConditional ? skill.perInvocationTokens : skill.eagerTokens);
+      const tokens =
+        key === "routeCeiling"
+          ? (skill.routeCeiling?.tokens ?? skill.perInvocationTokens)
+          : withConditional
+            ? skill.perInvocationTokens
+            : skill.eagerTokens;
+      const actual = Math.round(tokens);
       if (actual > limit) {
         violations.push({
           ceiling: `${key}.${name}`,
@@ -471,7 +629,17 @@ export function checkBudget(bill, budget) {
             `${skill.name}/SKILL.md (${skill.skillMdBytes}B)`,
             ...skill.forcedRefs.map((r) => `${skill.name}/${r.path} (${r.bytes}B)`),
             ...(withConditional
-              ? skill.conditionalRefs.map((r) => `${skill.name}/${r.path} (${r.bytes}B, conditional)`)
+              ? [
+                  ...skill.conditionalRefs.map((r) => `${skill.name}/${r.path} (${r.bytes}B, conditional)`),
+                  ...skill.transitiveRefs.map(
+                    (r) => `${skill.name}/${r.path} (${r.bytes}B, pulled in by ${path.basename(r.via ?? "")})`,
+                  ),
+                ]
+              : []),
+            ...(key === "routeCeiling" && skill.routeCeiling
+              ? (skill.lazy.find((r) => r.label === skill.routeCeiling.label)?.modules ?? []).map(
+                  (m) => `${skill.name}/${m.path} (${m.bytes}B, mode ${skill.routeCeiling.label})`,
+                )
               : []),
           ],
         });
@@ -526,12 +694,15 @@ export function renderBill(bill, { skill, mode } = {}) {
   }
   lines.push("");
 
-  lines.push("FAST-PATH (trivial ask): SKILL.md only, no forced refs, no modules");
+  lines.push("FAST-PATH (trivial ask): SKILL.md + what that path itself binds, no forced triad, no modules");
   for (const s of skills) {
     if (!s.fastPath) {
       lines.push(`  ${s.name.padEnd(12)} none (no fast path overrides the forced reads; a trivial ask pays the eager row)`);
       continue;
     }
+    const bound = s.fastPath.refs.length
+      ? ` = SKILL.md ${fmtBytes(s.skillMdBytes)} + binds ${fmtBytes(sumBytes(s.fastPath.refs))} (${s.fastPath.refs.map((r) => path.basename(r.path)).join(", ")})`
+      : "";
     const saved = s.eagerBytes - s.fastPath.bytes;
     const savedTokens = s.eagerTokens - s.fastPath.tokens;
     // The saving is quoted as a share of tokens, not of bytes. A byte share is
@@ -539,11 +710,19 @@ export function renderBill(bill, { skill, mode } = {}) {
     // estimate is calibrated, even though references and SKILL.md bodies
     // tokenise at different rates.
     const pct = s.eagerTokens ? Math.round((savedTokens / s.eagerTokens) * 100) : 0;
+    // A fast path can cost MORE than the eager row when the reference it binds
+    // is larger than the triad it skips. Say so rather than rounding it away.
+    const versus =
+      saved > 0
+        ? `-${size(saved, savedTokens)} vs eager (-${pct}% of eager tokens)`
+        : saved < 0
+          ? `+${size(-saved, -savedTokens)} OVER eager (+${-pct}% of eager tokens)`
+          : "same as eager";
     lines.push(
-      `  ${s.name.padEnd(12)} ${size(s.fastPath.bytes, s.fastPath.tokens)}` +
-        `, ${saved > 0 ? `-${size(saved, savedTokens)} vs eager (-${pct}% of eager tokens)` : "same as eager"}` +
-        `  [${s.fastPath.paths.join(", ") || "fast path"}]`,
+      `  ${s.name.padEnd(12)} ${size(s.fastPath.bytes, s.fastPath.tokens)}, ${versus}` +
+        `  [${s.fastPath.paths.join(", ") || "fast path"}]${bound}`,
     );
+    for (const r of s.fastPath.refs.filter((r) => r.missing)) lines.push(`  ! ${s.name}: fast-path reference missing on disk: ${r.path}`);
   }
   lines.push("");
 
@@ -558,9 +737,31 @@ export function renderBill(bill, { skill, mode } = {}) {
       lines.push(`      ${path.basename(r.path).padEnd(24)} +${size(r.bytes, r.tokens)}  ${r.condition}`);
       if (r.missing) lines.push(`  ! ${s.name}: conditional reference missing on disk: ${r.path}`);
     }
+  }
+  lines.push("");
+
+  lines.push("TRANSITIVE (pulled in by a file above, not named by the dispatcher)");
+  for (const s of skills) {
+    if (!s.transitiveRefs.length) {
+      lines.push(`  ${s.name.padEnd(12)} none`);
+      continue;
+    }
+    lines.push(`  ${s.name.padEnd(12)} +${size(s.transitiveBytes, s.transitiveTokens)} across ${s.transitiveRefs.length} file(s)`);
+    for (const r of s.transitiveRefs) {
+      lines.push(`      ${path.basename(r.path).padEnd(24)} +${size(r.bytes, r.tokens)}  pulled in by ${path.basename(r.via ?? "")}`);
+      if (r.missing) lines.push(`  ! ${s.name}: transitive reference missing on disk: ${r.path}`);
+    }
+  }
+  lines.push("");
+
+  for (const s of skills) {
+    // Named "before modules" because it is not the ceiling of a real run: any
+    // routed module, and the package-local phases that module binds, land on
+    // top of this. A reader who quotes this as the run's total is off by the
+    // whole LAZY row, which for several routes is the larger number.
     lines.push(
-      `  = ${s.name} per-invocation ceiling (eager + all conditional): ${size(s.perInvocationBytes, s.perInvocationTokens)}` +
-        `, ${(s.perInvocationTokens / (s.eagerTokens || 1)).toFixed(1)}x the eager figure`,
+      `  = ${s.name} per-invocation ceiling before modules (eager + conditional + transitive): ${size(s.perInvocationBytes, s.perInvocationTokens)}` +
+        `, ${(s.perInvocationTokens / (s.eagerTokens || 1)).toFixed(1)}x the eager figure. Routed modules add the LAZY row on top.`,
     );
   }
   lines.push("");
@@ -579,9 +780,25 @@ export function renderBill(bill, { skill, mode } = {}) {
       const invocation = s.perInvocationBytes + rows.reduce((n, r) => n + r.bytes, 0);
       const invocationTokens = s.perInvocationTokens + rows.reduce((n, r) => n + r.tokens, 0);
       lines.push(
-        `  ${s.name} / mode "${mode}" invocation total: ${size(invocation, invocationTokens)} (eager + conditional + routed modules)`,
+        `  ${s.name} / mode "${mode}" invocation total: ${size(invocation, invocationTokens)} (eager + conditional + transitive + routed modules)`,
       );
     }
+  }
+  lines.push("");
+
+  // The headline. Every figure above it is a floor of something; this is the one
+  // an audited run gets compared against, so it is printed last and named plainly.
+  lines.push("ROUTE CEILING (per invocation + the heaviest mode that dispatcher can route to)");
+  for (const s of skills) {
+    if (!s.routeCeiling) {
+      lines.push(`  ${s.name.padEnd(12)} ${size(s.perInvocationBytes, s.perInvocationTokens)} (nothing routed; the per-invocation ceiling stands)`);
+      continue;
+    }
+    lines.push(
+      `  ${s.name.padEnd(12)} ${size(s.routeCeiling.bytes, s.routeCeiling.tokens)}` +
+        ` = ${size(s.perInvocationBytes, s.perInvocationTokens)} per invocation + mode "${s.routeCeiling.label}"` +
+        `, ${(s.routeCeiling.tokens / (s.eagerTokens || 1)).toFixed(1)}x the eager figure`,
+    );
   }
   lines.push("");
 
