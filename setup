@@ -29,6 +29,8 @@ for arg in "$@"; do
         '               [--home <path>] [--version <version>] [--json] [--quiet]' \
         '' \
         'Optional capabilities: browser, ios (iOS is macOS-only).' \
+        'Registers the Stop verification gate. Remove it with:' \
+        '  bin/gstack-settings-hook remove-source --source verify-gate' \
         'Without --install-now, non-interactive use previews and installs nothing.' \
         '--dry-run and --install-later never modify runtime state or host setup.' \
         'Installs only the optional host-neutral runtime and selected local capabilities.' \
@@ -54,6 +56,24 @@ if ! "$NODE_COMMAND" -e 'process.exit(Number(process.versions.node.split(".")[0]
   echo "gstack setup: Node 18+ is required by the managed runtime launchers." >&2
   exit 1
 fi
+
+# Stop-hook verification gate. Registered through the existing settings-hook
+# helper, which validates the Stop event, backs up settings.json, and dedupes
+# by source. Skipped for previews. Best effort: never blocks setup. Silent on
+# success so --json and --quiet output stay clean.
+case " ${ARGS[*]-} " in
+  *" --dry-run "*|*" --install-later "*) ;;
+  *)
+    if [ -x "$ROOT/bin/gstack-settings-hook" ]; then
+      "$ROOT/bin/gstack-settings-hook" add-event \
+        --event Stop \
+        --command "$ROOT/bin/gstack-verify-gate" \
+        --source verify-gate \
+        --timeout 600 >/dev/null 2>&1 ||
+        echo "gstack setup: could not register the Stop verification gate; skipped." >&2
+    fi
+    ;;
+esac
 
 if [ "${#ARGS[@]}" -gt 0 ]; then
   exec "$NODE_COMMAND" "$ROOT/runtime/install.js" --source "$ROOT" "${ARGS[@]}"
