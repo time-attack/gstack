@@ -7,7 +7,7 @@ Review the `git diff <remote>/<base>` output (where `<remote>` and `<base>` are 
 **Two-pass review:**
 - **Pass 1 (CRITICAL):** Run SQL & Data Safety, Race Conditions, LLM Output Trust Boundary, Shell Injection, and Enum Completeness first. Highest severity.
 - **Pass 2 (INFORMATIONAL):** Run remaining categories below. Lower severity but still actioned.
-- **Specialist categories (handled by parallel subagents, NOT this checklist):** Test Gaps, Dead Code, Magic Numbers, Conditional Side Effects, Performance & Bundle Impact, Crypto & Entropy. See `review/specialists/` for these.
+- **Pass 3 (SWEEP):** Access Control, Test Gaps, Performance & Bundle Impact, Crypto & Entropy, Dead Code, Magic Numbers, Conditional Side Effects. You run these yourself; nothing else picks them up.
 
 All findings get action via Fix-First Review: obvious mechanical fixes are applied automatically,
 genuinely ambiguous issues are batched into a single user question.
@@ -78,9 +78,10 @@ To do this: use Grep to find all references to the sibling values (e.g., grep fo
 - Check `.get()` calls on query results use the column name that was actually selected
 - Cross-reference with schema documentation when available
 
-#### Dead Code & Consistency (version/changelog only — other items handled by maintainability specialist)
+#### Dead Code & Consistency
 - Version mismatch between PR title and VERSION/CHANGELOG files
 - CHANGELOG entries that describe changes inaccurately (e.g., "changed from X to Y" when X never existed)
+- Comments, TODOs, and error strings that describe behavior this diff just changed
 
 #### Stale User-Facing Strings
 When the diff changes the CONDITION that guards a user-facing string (error message, toast, label, confirmation) WITHOUT changing the string itself, re-read the string — it can silently become misleading.
@@ -123,22 +124,55 @@ When the diff changes the CONDITION that guards a user-facing string (error mess
 - Internal tools not distributed outside the team
 - Test-only CI changes (adding test steps, not publish steps)
 
+### Pass 3 — SWEEP
+
+Short because a competent reviewer already knows what an N+1 query or an unused
+variable is. These are the ones that hide.
+
+#### Access Control
+- Endpoints missing auth middleware. Read the route definitions, not the handler: a handler that looks protected can be mounted on an unauthenticated route.
+- Authorization that defaults to allow. A missing role should deny, not fall through.
+- IDOR: user A reaches user B's data by changing an id in the path or body.
+- File paths built from request input (path traversal), and file reads on endpoints with no auth at all.
+- Webhook payloads processed without signature verification.
+- Uploads accepted without type, size, or content checks.
+
+#### Test Gaps
+- A permission or auth check asserted in code but never tested for the DENIED case.
+- Error branches, guard clauses, and early returns with no failure-path test.
+- Tests sharing mutable state, or passing in sequence and failing when randomized.
+
+#### Performance & Bundle Impact
+- New WHERE or ORDER BY on an unindexed column; a composite query with no composite index; a foreign key added without one.
+- Queries inside iteration that could batch, including per-field GraphQL resolvers with no dataloader.
+
+#### Crypto & Entropy
+- Secrets, tokens, or keys hardcoded or logged.
+- Weak hashing for passwords, and non-constant-time comparison of secrets.
+- Predictable randomness where the value is security-relevant.
+
+#### Conditional Side Effects
+- A condition changed while the side effect inside it was not re-read: the guard now admits cases the body was never written for.
+
+#### Magic Numbers
+- Bare thresholds, limits, and retry counts in logic that should be named constants.
+
 ---
 
 ## Severity Classification
 
 ```
-CRITICAL (highest severity):      INFORMATIONAL (main agent):      SPECIALIST (parallel subagents):
-├─ SQL & Data Safety              ├─ Async/Sync Mixing             ├─ Testing specialist
-├─ Race Conditions & Concurrency  ├─ Column/Field Name Safety      ├─ Maintainability specialist
-├─ LLM Output Trust Boundary      ├─ Dead Code (version only)      ├─ Security specialist
-├─ Shell Injection                ├─ LLM Prompt Issues             ├─ Performance specialist
-└─ Enum & Value Completeness      ├─ Completeness Gaps             ├─ Data Migration specialist
-                                   ├─ Time Window Safety            ├─ API Contract specialist
-                                   ├─ Type Coercion at Boundaries   └─ Red Team (conditional)
-                                   ├─ View/Frontend
-                                   ├─ Stale User-Facing Strings
-                                   └─ Distribution & CI/CD Pipeline
+CRITICAL (highest severity):      INFORMATIONAL:                   SWEEP:
+├─ SQL & Data Safety              ├─ Async/Sync Mixing             ├─ Access Control
+├─ Race Conditions & Concurrency  ├─ Column/Field Name Safety      ├─ Test Gaps
+├─ LLM Output Trust Boundary      ├─ Dead Code & Consistency       ├─ Performance & Bundle Impact
+├─ Shell Injection                ├─ LLM Prompt Issues             ├─ Crypto & Entropy
+├─ Access Control                 ├─ Completeness Gaps             ├─ Conditional Side Effects
+└─ Enum & Value Completeness      ├─ Time Window Safety            └─ Magic Numbers
+                                   ├─ Type Coercion at Boundaries
+                                   ├─ View/Frontend                 Every column is run by the
+                                   ├─ Stale User-Facing Strings     reviewing agent. There is no
+                                   └─ Distribution & CI/CD Pipeline separate specialist pass.
 
 All findings are actioned via Fix-First Review. Severity determines
 presentation order and classification of AUTO-FIX vs ASK — critical
