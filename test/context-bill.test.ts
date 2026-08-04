@@ -822,17 +822,23 @@ describe("--exact (opt-in measurement; offline here via an injected fetch)", () 
 describe("ground-truth cross-check against the real skills/ tree", () => {
   const SKILLS = path.join(ROOT, "skills");
 
-  it("plan's forced-read set is exactly the shared triad", () => {
+  it("plan's forced-read set is the always-binding pair, not the old triad", () => {
+    // EXECUTION-PROFILES.md moved to conditional on measured grounds: it infers
+    // depth, which a stated depth or a fast path already answers, so charging
+    // ~751 tok for it on every invocation of every skill bought nothing. It is
+    // still read, just when the condition holds. SHARED-JUDGMENT and
+    // AUTHORITY-POLICY stay forced because they bind every run: evidence for
+    // claims, no fabrication, untrusted input, approval before merge or deploy.
     const bill = buildBill(SKILLS);
     const plan = bill.skills.find((s) => s.name === "plan")!;
     expect(plan.forcedRefs.map((r) => r.path)).toEqual([
-      "references/EXECUTION-PROFILES.md",
       "references/SHARED-JUDGMENT.md",
       "references/AUTHORITY-POLICY.md",
     ]);
+    // Not merely absent from forced: it must still be reachable.
+    expect(plan.conditionalRefs.map((r) => r.path)).toContain("references/EXECUTION-PROFILES.md");
     const wc =
       fileBytes(SKILLS, "plan", "SKILL.md") +
-      fileBytes(SKILLS, "plan", "references", "EXECUTION-PROFILES.md") +
       fileBytes(SKILLS, "plan", "references", "SHARED-JUDGMENT.md") +
       fileBytes(SKILLS, "plan", "references", "AUTHORITY-POLICY.md");
     expect(plan.eagerBytes).toBe(wc);
@@ -871,20 +877,21 @@ describe("ground-truth cross-check against the real skills/ tree", () => {
     }
   });
 
-  it("every dispatcher's trivial path drops the forced triad; make-pdf has no fast path", () => {
+  it("every dispatcher's trivial path drops the forced refs; make-pdf has no fast path", () => {
     const bill = buildBill(SKILLS);
-    const triad =
-      fileBytes(SKILLS, "plan", "references", "EXECUTION-PROFILES.md") +
+    // The always-binding pair. EXECUTION-PROFILES.md is conditional now, so it
+    // is not part of what a trivial ask drops: it was never charged to it.
+    const forced =
       fileBytes(SKILLS, "plan", "references", "SHARED-JUDGMENT.md") +
       fileBytes(SKILLS, "plan", "references", "AUTHORITY-POLICY.md");
     for (const name of ["plan", "qa", "debug", "review", "ship"]) {
       const s = bill.skills.find((x) => x.name === name)!;
-      // The overstatement this closes: ~1.8K tok of forced refs charged to a
+      // The overstatement this closes: forced refs charged to a
       // trivial ask that the dispatcher explicitly tells the agent to skip.
       expect(s.fastPath).not.toBeNull();
       expect(s.fastPath!.bytes).toBe(s.skillMdBytes + s.fastPath!.refs.reduce((n, r) => n + r.bytes, 0));
       expect(s.fastPath!.bytes - s.skillMdBytes).toBeGreaterThan(0); // every one binds FAST-PATH.md
-      expect(s.eagerBytes - s.skillMdBytes).toBe(triad);
+      expect(s.eagerBytes - s.skillMdBytes).toBe(forced);
       expect(s.fastPath!.paths.some((p) => /fast path$/.test(p))).toBe(true);
     }
     expect(bill.skills.find((s) => s.name === "plan")!.fastPath!.paths).toEqual([
