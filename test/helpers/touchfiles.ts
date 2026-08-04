@@ -139,18 +139,16 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // numbered-option lists, multi-phase ordering, idempotency state echo).
   'auq-format-gate':                           ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completeness-section.ts', 'scripts/resolvers/preamble.ts', 'test/helpers/auq-sdk-capture.ts', 'test/helpers/session-runner.ts', 'test/helpers/llm-judge.ts'],
   'plan-ceo-mode-routing':       ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts', 'test/helpers/claude-pty-runner.ts'],
-  'plan-design-with-ui-scope':   ['plan-design-review/**', 'test/fixtures/plans/ui-heavy-feature.md', 'test/helpers/claude-pty-runner.ts'],
+  'plan-design-with-ui-scope':   ['test/fixtures/plans/ui-heavy-feature.md', 'test/helpers/claude-pty-runner.ts'],
   'budget-regression-pty':       ['test/helpers/eval-store.ts', 'test/skill-budget-regression.test.ts'],
   'ship-idempotency-pty':        ['ship/**', 'bin/gstack-next-version', 'bin/gstack-version-bump', 'scripts/resolvers/sections.ts', 'lib/worktree.ts', 'test/helpers/claude-pty-runner.ts'],
   'ship-section-loading':        ['ship/**', 'scripts/resolvers/sections.ts', 'scripts/gen-skill-docs.ts', 'test/helpers/auq-sdk-capture.ts', 'test/helpers/session-runner.ts'],
   'plan-ceo-section-loading':    ['plan-ceo-review/**', 'scripts/resolvers/sections.ts', 'scripts/gen-skill-docs.ts', 'test/helpers/auq-sdk-capture.ts', 'test/helpers/session-runner.ts'],
-  // Data-driven behavioral guard for the 'plan'/'prompt' carves (eng, design,
-  // devex, office-hours + future PR2 carves). One file iterating CARVE_GUARDS;
-  // the selector sets GSTACK_CARVE_SKILL=<name> to scope cost to the changed
-  // skill (D-CODEX A). Touching the registry/helper or sections.ts runs all.
-  'carve-section-loading':       ['plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'office-hours/**', 'document-release/**', 'cso/**', 'test/helpers/carve-guards.ts', 'scripts/resolvers/sections.ts', 'scripts/gen-skill-docs.ts', 'test/helpers/auq-sdk-capture.ts', 'test/helpers/session-runner.ts'],
-  'autoplan-chain-pty':          ['autoplan/**', 'plan-ceo-review/**', 'plan-design-review/**', 'plan-eng-review/**', 'plan-devex-review/**', 'test/fixtures/plans/ui-heavy-feature.md', 'test/helpers/claude-pty-runner.ts'],
-  'e2e-harness-audit':            ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-completion-status.ts', 'test/helpers/agent-sdk-runner.ts', 'test/helpers/claude-pty-runner.ts'],
+  // 'carve-section-loading' removed: test/carve-section-loading.test.ts and
+  // test/helpers/carve-guards.ts were deleted with the carve harness, so the
+  // entry could never select a runnable test again.
+  'autoplan-chain-pty':          ['autoplan/**', 'plan-ceo-review/**', 'plan-eng-review/**', 'plan-devex-review/**', 'test/fixtures/plans/ui-heavy-feature.md', 'test/helpers/claude-pty-runner.ts'],
+  'e2e-harness-audit':            ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-completion-status.ts', 'test/helpers/agent-sdk-runner.ts', 'test/helpers/claude-pty-runner.ts'],
 
   // Per-finding AskUserQuestion count + review-report-at-bottom assertion.
   // Each test drives its skill end-to-end; touchfiles include preamble +
@@ -158,7 +156,7 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // terminal output (the regression surface this test catches).
   'plan-ceo-finding-count':      ['plan-ceo-review/**', 'scripts/resolvers/preamble.ts', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completion-status.ts', 'test/helpers/claude-pty-runner.ts', 'test/skill-e2e-plan-ceo-finding-count.test.ts'],
   'plan-eng-finding-count':      ['plan-eng-review/**', 'scripts/resolvers/preamble.ts', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completion-status.ts', 'test/helpers/claude-pty-runner.ts', 'test/skill-e2e-plan-eng-finding-count.test.ts'],
-  'plan-design-finding-count':   ['plan-design-review/**', 'scripts/resolvers/preamble.ts', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completion-status.ts', 'test/helpers/claude-pty-runner.ts', 'test/skill-e2e-plan-design-finding-count.test.ts'],
+  'plan-design-finding-count':   ['scripts/resolvers/preamble.ts', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completion-status.ts', 'test/helpers/claude-pty-runner.ts', 'test/skill-e2e-plan-design-finding-count.test.ts'],
   'plan-devex-finding-count':    ['plan-devex-review/**', 'scripts/resolvers/preamble.ts', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completion-status.ts', 'test/helpers/claude-pty-runner.ts', 'test/skill-e2e-plan-devex-finding-count.test.ts'],
 
   // Gate-tier reviewCount-floor counterparts. Catch the May 2026 transcript
@@ -170,7 +168,8 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // Drives the public /plan surface (Product mode -> ceo specialist), so it
   // depends on the whole dispatcher tree, not a retired 1.x skill dir.
   'plan-ceo-finding-floor':      ['skills/plan/**', 'test/helpers/claude-pty-runner.ts', 'test/fixtures/forcing-finding-seeds.ts', 'test/skill-e2e-plan-ceo-finding-floor.test.ts'],
-  'plan-design-finding-floor':   ['plan-design-review/**', 'scripts/resolvers/preamble.ts', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completion-status.ts', 'scripts/resolvers/review.ts', 'test/helpers/claude-pty-runner.ts', 'test/fixtures/forcing-finding-seeds.ts', 'test/skill-e2e-plan-design-finding-floor.test.ts'],
+  // 'plan-design-finding-floor' removed: no test/skill-e2e-plan-design-finding-floor.test.ts
+  // exists and plan-design-review/ was deleted in d8b4a061 — nothing to select.
   'plan-devex-finding-floor':    ['plan-devex-review/**', 'scripts/resolvers/preamble.ts', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble/generate-completion-status.ts', 'scripts/resolvers/review.ts', 'test/helpers/claude-pty-runner.ts', 'test/fixtures/forcing-finding-seeds.ts', 'test/skill-e2e-plan-devex-finding-floor.test.ts'],
 
   // Multi-finding batching regression — periodic tier complement to the
@@ -204,8 +203,8 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // v1.7.0.0 Pros/Cons format cadence + format + negative-escape evals.
   // Dependencies: same as format-mode + the 4 plan-review templates.
   // All periodic-tier (non-deterministic Opus 4.7 behavior).
-  'plan-ceo-review-prosons-cadence':  ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
-  'plan-review-prosons-format':       ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-design-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'plan-ceo-review-prosons-cadence':  ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
+  'plan-review-prosons-format':       ['plan-ceo-review/**', 'plan-eng-review/**', 'plan-devex-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
   'plan-review-prosons-hardstop-neg': ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
   'plan-review-prosons-neutral-neg':  ['plan-ceo-review/**', 'scripts/resolvers/preamble/generate-ask-user-format.ts', 'scripts/resolvers/preamble.ts'],
 
@@ -240,7 +239,8 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // Codex offering verification
   'codex-offered-office-hours':  ['office-hours/**', 'scripts/gen-skill-docs.ts'],
   'codex-offered-ceo-review':    ['plan-ceo-review/**', 'scripts/gen-skill-docs.ts'],
-  'codex-offered-design-review': ['plan-design-review/**', 'scripts/gen-skill-docs.ts'],
+  // 'codex-offered-design-review' removed: both of its touchfiles
+  // (plan-design-review/**, scripts/gen-skill-docs.ts) are gone.
   'codex-offered-eng-review':    ['plan-eng-review/**', 'scripts/gen-skill-docs.ts'],
 
   // Ship
@@ -322,34 +322,18 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   'setup-deploy-workflow':         ['setup-deploy/**', 'scripts/gen-skill-docs.ts'],
 
   // Autoplan
-  'autoplan-core':  ['autoplan/**', 'plan-ceo-review/**', 'plan-eng-review/**', 'plan-design-review/**'],
+  'autoplan-core':  ['autoplan/**', 'plan-ceo-review/**', 'plan-eng-review/**'],
   'autoplan-dual-voice': ['autoplan/**', 'codex/**', 'bin/gstack-codex-probe', 'scripts/resolvers/review.ts', 'scripts/resolvers/design.ts'],
 
   // Multi-provider benchmark adapters — live API smoke against real claude/codex/gemini CLIs
   'benchmark-providers-live': ['bin/gstack-model-benchmark', 'lib/model-benchmark/**', 'test/benchmark-production-boundary.test.ts'],
 
-  // Browser-skills Phase 2a — /scrape + /skillify (v1.19.0.0). Gate-tier
-  // E2E covers the D1 (provenance guard), D3 (atomic write) contracts plus
-  // the basic loop. Shared deps: both skill templates, the D3 helper, the
-  // Phase 1 runtime, and the bundled hackernews-frontpage reference (the
-  // match-path test relies on it).
-  'scrape-match-path': [
-    'scrape/**', 'browse/src/browser-skills.ts', 'browse/src/browser-skill-commands.ts',
-    'browser-skills/hackernews-frontpage/**',
-  ],
-  'scrape-prototype-path': [
-    'scrape/**', 'browse/src/browser-skills.ts', 'browse/src/browser-skill-commands.ts',
-  ],
-  'skillify-happy-path': [
-    'skillify/**', 'scrape/**', 'browse/src/browser-skill-write.ts',
-    'browse/src/browser-skills.ts', 'browse/src/browser-skill-commands.ts',
-  ],
-  'skillify-provenance-refusal': [
-    'skillify/**', 'browse/src/browser-skill-write.ts',
-  ],
-  'skillify-approval-reject': [
-    'skillify/**', 'scrape/**', 'browse/src/browser-skill-write.ts',
-  ],
+  // Browser-skills Phase 2a — /scrape + /skillify entries removed: all five
+  // testNames (scrape-match-path, scrape-prototype-path, skillify-happy-path,
+  // skillify-provenance-refusal, skillify-approval-reject) lived in
+  // test/skill-e2e-skillify.test.ts, which was deleted with the scrape/ and
+  // skillify/ skills. The browse-side runtime (browser-skills.ts,
+  // browser-skill-write.ts) is still covered by browse/test/.
 
   // Skill routing — journey-stage tests (depend on ALL skill descriptions)
   'journey-ideation':       ['*/SKILL.md.tmpl', 'SKILL.md.tmpl', 'scripts/gen-skill-docs.ts'],
@@ -366,7 +350,7 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // /ios-qa — agent flow E2E. Daemon + stub StateServer + codegen
   // exercised end-to-end. The no-device path is gate-tier; the with-device
   // path requires GSTACK_HAS_IOS_DEVICE=1 and is periodic-tier.
-  'ios-qa-e2e':       ['ios-qa/**', 'ios-fix/**', 'ios-design-review/**', 'ios-clean/**', 'ios-sync/**', 'test/skill-e2e-ios.test.ts'],
+  'ios-qa-e2e':       ['ios-qa/**', 'ios-fix/**', 'ios-clean/**', 'ios-sync/**', 'test/skill-e2e-ios.test.ts'],
   // Swift-build invariant test — requires the Swift toolchain. Renders the
   // SHIPPED templates + gen-accessors output into a fresh package and builds
   // it (the gstack#1735 first-run gate), plus compiles the fixture SPM
@@ -524,7 +508,6 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'ship-idempotency-pty':      'periodic',   // ~$3/run, real /ship in plan mode
   'ship-section-loading':      'periodic',   // ~$3/run, real /ship; asserts section reads
   'plan-ceo-section-loading':  'periodic',   // ~$3-5/run, real /plan-ceo-review; asserts section read
-  'carve-section-loading':     'periodic',   // ~$1-2/skill, data-driven; GSTACK_CARVE_SKILL scopes to one
   'autoplan-chain-pty':        'periodic',   // ~$8/run, all 3 phases sequential
 
   // Per-finding count + review-report-at-bottom — periodic because each
@@ -537,7 +520,6 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'plan-devex-finding-count':  'periodic',
   'plan-eng-finding-floor':    'periodic',  // stochastic ask-first (see plan-mode-handshake note); periodic
   'plan-ceo-finding-floor':    'gate',
-  'plan-design-finding-floor': 'periodic',  // stochastic ask-first (see plan-mode-handshake note); periodic
   'plan-devex-finding-floor':  'gate',
   'plan-eng-multi-finding-batching': 'periodic',
   'plan-ceo-split-overflow': 'periodic',
@@ -607,7 +589,6 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   // Codex offering verification
   'codex-offered-office-hours': 'gate',
   'codex-offered-ceo-review': 'gate',
-  'codex-offered-design-review': 'gate',
   'codex-offered-eng-review': 'gate',
 
   // Session Intelligence — gate for data flow, periodic for agent integration
@@ -679,13 +660,6 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
 
   // Multi-provider benchmark — periodic (requires external CLIs + auth, paid)
   'benchmark-providers-live': 'periodic',
-
-  // Browser-skills Phase 2a — gate (D1/D3 contracts must not silently break)
-  'scrape-match-path': 'gate',
-  'scrape-prototype-path': 'gate',
-  'skillify-happy-path': 'gate',
-  'skillify-provenance-refusal': 'gate',
-  'skillify-approval-reject': 'gate',
 
   // Skill routing — periodic (LLM routing is non-deterministic)
   'journey-ideation': 'periodic',

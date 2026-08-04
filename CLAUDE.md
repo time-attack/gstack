@@ -168,9 +168,15 @@ variables. Express conditionals as numbered English steps rather than nested
 `if/elif`. Keep each block independently runnable. Don't hardcode branch names;
 detect the base branch dynamically and call it "the base branch" in prose.
 
-`test/skill-size-budget.test.ts` guards skill size. It is a watch-for-bloat
-guardrail, not a compression mandate: when a skill grows, look at WHAT grew and
-whether it belongs inline or as a reference doc.
+`test/gstack2-skills.test.ts` guards the discovery catalog (70% below the 1.x
+baseline, 40K tokens per SKILL.md) and `test/context-bill.test.ts` pins the
+eager-read tier byte-exactly and fails on an orphaned legacy module. Both are
+watch-for-bloat guardrails, not compression mandates: when a skill grows, look
+at WHAT grew and whether it belongs inline or as a reference doc.
+
+Known gap: nothing enforces a floor, so a legacy module can be gutted without
+tripping a test. The old floor lived in `skill-size-budget.test.ts`, which only
+ever measured the 1.x root tree.
 
 ## Platform-agnostic design
 

@@ -179,9 +179,9 @@ jobs:
       # a fresh CI checkout has NO registry — claude prints "Unknown command:
       # /plan-ceo-review". Mirror setup's --no-prefix registry minimally: a gstack
       # root symlink (resolves the preamble's absolute ~/.claude/skills/gstack/bin/*
-      # and ~/.claude/skills/gstack/<skill>/sections/* paths) plus a per-skill
-      # top-level dir holding SKILL.md (+ sections) symlinks for the two skills
-      # these tests invoke. No ./setup (it builds binaries, launches Chromium,
+      # paths and the dispatchers' skills/*/references/* reads) plus a per-skill
+      # top-level dir holding the compat alias SKILL.md for the two commands these
+      # tests invoke. No ./setup (it builds binaries, launches Chromium,
       # installs fonts, reads a /dev/tty prompt) and no binary build (SKILL.md +
       # bin/ + sections/ are committed). $HOME is /github/home here; the spawned
       # claude inherits it (this runner adds no HOME/CLAUDE_CONFIG_DIR override,
@@ -205,11 +205,15 @@ jobs:
           # registry recognized it, isolating the failure to the container's
           # cross-mount symlink). Copy SKILL.md + sections as real files so the TUI
           # reads them directly.
+          # Source is skills/.compat/<s>/SKILL.md: the GStack 2 alias that routes
+          # /office-hours and /plan-ceo-review to a $plan invocation. The retired
+          # 1.x root dirs are gone, and their frontmatter was `gstack-1-<name>`
+          # anyway, so the TUI never matched the bare slash command from them.
+          # Aliases carry no sections/ — the judgment lives in the dispatcher.
           for s in office-hours plan-ceo-review; do
             rm -rf "${SKILLS_DIR:?}/$s"
             mkdir -p "$SKILLS_DIR/$s"
-            cp "$REPO/$s/SKILL.md" "$SKILLS_DIR/$s/SKILL.md"
-            cp -R "$REPO/$s/sections" "$SKILLS_DIR/$s/sections"
+            cp "$REPO/skills/.compat/$s/SKILL.md" "$SKILLS_DIR/$s/SKILL.md"
           done
           # Also register PROJECT-scoped (cwd) skills. claude's interactive TUI
           # surfaces /slash commands from <cwd>/.claude/skills, and the smokes run
@@ -223,8 +227,7 @@ jobs:
           for s in office-hours plan-ceo-review; do
             rm -rf "${PROJ_SKILLS:?}/$s"
             mkdir -p "$PROJ_SKILLS/$s"
-            cp "$REPO/$s/SKILL.md" "$PROJ_SKILLS/$s/SKILL.md"
-            cp -R "$REPO/$s/sections" "$PROJ_SKILLS/$s/sections"
+            cp "$REPO/skills/.compat/$s/SKILL.md" "$PROJ_SKILLS/$s/SKILL.md"
           done
           echo "--- registry under $SKILLS_DIR ---"
           ls -la "$SKILLS_DIR/gstack" "$SKILLS_DIR/office-hours" "$SKILLS_DIR/plan-ceo-review"
@@ -234,8 +237,9 @@ jobs:
             "$SKILLS_DIR/office-hours/SKILL.md" \
             "$SKILLS_DIR/plan-ceo-review/SKILL.md" \
             "$SKILLS_DIR/gstack/bin/gstack-update-check" \
-            "$SKILLS_DIR/gstack/office-hours/sections/doc-and-handoff.md" \
-            "$SKILLS_DIR/gstack/plan-ceo-review/sections/review-sections.md"; do
+            "$SKILLS_DIR/gstack/skills/plan/SKILL.md" \
+            "$SKILLS_DIR/gstack/skills/plan/references/legacy/office-hours.md" \
+            "$SKILLS_DIR/gstack/skills/plan/references/legacy/plan-ceo-review.md"; do
             if [ ! -e "$f" ]; then
               echo "ERROR: skill-registry target missing (symlink dangles): $f" >&2
               exit 1

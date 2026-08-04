@@ -177,11 +177,11 @@ describe("install UX surfaces (#1946 / eng review D3+D10)", () => {
     expect(setup).not.toContain("install-prepush-hook");
   });
 
-  test("ship template owns per-repo install: silent-install path + one-time offer marker", () => {
-    const tmpl = fs.readFileSync(path.join(ROOT, "ship", "SKILL.md.tmpl"), "utf8");
-    expect(tmpl).toContain("install-prepush-hook");
-    expect(tmpl).toContain(".redact-prepush-prompted");
-    expect(tmpl).toContain("redact_prepush_hook");
+  test("ship module owns per-repo install: silent-install path + one-time offer marker", () => {
+    const md = fs.readFileSync(path.join(ROOT, "skills/ship/references/legacy/ship.md"), "utf8");
+    expect(md).toContain("install-prepush-hook");
+    expect(md).toContain(".redact-prepush-prompted");
+    expect(md).toContain("redact_prepush_hook");
   });
 });
 

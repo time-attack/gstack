@@ -7,6 +7,14 @@
  * skill has at least one CI-blocking check that asserts must-have
  * behavior.
  *
+ * KNOWN GAP (recorded, not fixed): both consumers discover skills by
+ * scanning REPO_ROOT for `<dir>/SKILL.md`, so this registry has never
+ * covered the shipped GStack 2 surface — `skills/` has no top-level
+ * SKILL.md, so the six dispatchers under `skills/*` are invisible to the
+ * scan. After the 1.x root-tree deletion the registry tracks only the
+ * three surviving root-level skill dirs (browse, make-pdf, ios-qa);
+ * nothing asserts "every shipped dispatcher has a named gate test."
+ *
  * Two tiers per entry:
  *   gate     CI-blocking, runs on every PR, target <$0.50/test or free.
  *   periodic Weekly cron, deeper coverage, can cost ~$1-$3/test.
@@ -37,28 +45,6 @@ export interface SkillCoverage {
  * minimum gate-tier check.
  */
 export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
-  // ─── Core loop ──────────────────────────────────────────────
-  ship: {
-    gate: ['test/skill-e2e-ship-idempotency.test.ts', 'test/skill-coverage-floor.test.ts'],
-    periodic: ['test/skill-e2e-workflow.test.ts'],
-  },
-  review: {
-    gate: ['test/skill-e2e-review.test.ts', 'test/skill-coverage-floor.test.ts'],
-    periodic: ['test/skill-e2e-review-army.test.ts'],
-  },
-  qa: {
-    gate: ['test/skill-e2e-qa-workflow.test.ts', 'test/skill-coverage-floor.test.ts'],
-    periodic: ['test/skill-e2e-qa-bugs.test.ts'],
-  },
-  'qa-only': {
-    gate: ['test/skill-coverage-floor.test.ts'],
-    periodic: [],
-    rationale: 'qa-only is qa with --report-only; behavior tested via /qa coverage.',
-  },
-  investigate: {
-    gate: ['test/skill-coverage-floor.test.ts'],
-    periodic: [],
-  },
   browse: {
     gate: ['test/skill-coverage-floor.test.ts'],
     periodic: [],
@@ -69,113 +55,7 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
     periodic: [],
     rationale: 'Standalone markdown->PDF tool skill; render/e2e behavior has its own suite under make-pdf/test/ (render.test.ts + e2e/*-gate.test.ts).',
   },
-  spec: {
-    gate: [
-      'test/spec-template-invariants.test.ts',
-      'test/skill-coverage-floor.test.ts',
-    ],
-    periodic: [
-      'test/skill-e2e-spec-execute.test.ts',
-      'test/skill-llm-eval-spec.test.ts',
-    ],
-    rationale: '37 deterministic invariants pin Phase 1/3 gating, --execute race/security hardening, quality-gate redaction, archive contract, plan-mode-aware Phase 5. Periodic adds full PTY pipeline + LLM-judge.',
-  },
 
-  // ─── Plan triad ─────────────────────────────────────────────
-  'plan-ceo-review': {
-    gate: [
-      'test/skill-e2e-plan-ceo-finding-floor.test.ts',
-      'test/skill-e2e-plan-ceo-plan-mode.test.ts',
-      'test/skill-coverage-floor.test.ts',
-    ],
-    periodic: [
-      'test/skill-e2e-plan-ceo-finding-count.test.ts',
-      'test/skill-e2e-plan-ceo-mode-routing.test.ts',
-    ],
-  },
-  'plan-eng-review': {
-    gate: [
-      'test/skill-e2e-plan-eng-finding-floor.test.ts',
-      'test/skill-e2e-plan-eng-plan-mode.test.ts',
-      'test/skill-coverage-floor.test.ts',
-    ],
-    periodic: [
-      'test/skill-e2e-plan-eng-finding-count.test.ts',
-      'test/skill-e2e-plan-eng-multi-finding-batching.test.ts',
-    ],
-  },
-  'plan-devex-review': {
-    gate: [
-      'test/skill-e2e-plan-devex-finding-floor.test.ts',
-      'test/skill-e2e-plan-devex-plan-mode.test.ts',
-      'test/skill-coverage-floor.test.ts',
-    ],
-    periodic: ['test/skill-e2e-plan-devex-finding-count.test.ts'],
-  },
-  autoplan: {
-    gate: ['test/skill-coverage-floor.test.ts'],
-    periodic: ['test/skill-e2e-autoplan-chain.test.ts', 'test/skill-e2e-autoplan-dual-voice.test.ts'],
-  },
-  'office-hours': {
-    gate: ['test/skill-e2e-office-hours.test.ts', 'test/skill-coverage-floor.test.ts'],
-    periodic: ['test/skill-e2e-office-hours-auto-mode.test.ts', 'test/skill-e2e-office-hours-phase4.test.ts'],
-  },
-
-  cso: {
-    gate: ['test/skill-e2e-cso.test.ts', 'test/cso-preserved.test.ts', 'test/skill-coverage-floor.test.ts'],
-    periodic: [],
-    rationale: 'cso-preserved.test.ts pins must-not-strip security guidance phrases.',
-  },
-  'document-release': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'document-generate': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-
-  // ─── Ops + integrations ─────────────────────────────────────
-  'land-and-deploy': { gate: ['test/skill-e2e-deploy.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
-  canary: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  benchmark: { gate: ['test/skill-e2e-benchmark-providers.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
-  'benchmark-models': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  codex: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  retro: {
-    gate: ['test/skill-coverage-floor.test.ts'],
-    periodic: ['test/regression-1624-retro-stale-base.test.ts'],
-  },
-  'gstack-upgrade': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'context-save': { gate: ['test/skill-e2e-context-skills.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
-  'context-restore': { gate: ['test/skill-e2e-context-skills.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
-  'setup-deploy': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'setup-browser-cookies': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'setup-gbrain': {
-    gate: [
-      'test/skill-e2e-setup-gbrain-bad-token.test.ts',
-      'test/skill-e2e-setup-gbrain-path4-local-pglite.test.ts',
-      'test/skill-e2e-setup-gbrain-remote.test.ts',
-      'test/skill-coverage-floor.test.ts',
-    ],
-    periodic: [],
-  },
-  'sync-gbrain': {
-    gate: ['test/skill-coverage-floor.test.ts'],
-    periodic: ['test/regression-1611-gbrain-sync-resume.test.ts'],
-  },
-  'open-gstack-browser': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'pair-agent': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  scrape: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  skillify: { gate: ['test/skill-e2e-skillify.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
-  learn: { gate: ['test/skill-e2e-learnings.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
-  'plan-tune': { gate: ['test/skill-e2e-plan-tune.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: [] },
-
-  // ─── iOS family ─────────────────────────────────────────────
+  // ─── iOS ────────────────────────────────────────────────────
   'ios-qa': { gate: ['test/skill-e2e-ios.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: ['test/skill-e2e-ios-device.test.ts', 'test/skill-e2e-ios-swift-build.test.ts'] },
-  'ios-fix': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'ios-clean': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'ios-sync': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-
-  // ─── Safety / housekeeping ──────────────────────────────────
-  careful: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  freeze: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  unfreeze: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  guard: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'landing-report': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  health: { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
-  'devex-review': { gate: ['test/skill-coverage-floor.test.ts'], periodic: [] },
 };

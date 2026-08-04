@@ -4,9 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-// P4 first-run scaffold (activation lift). Two surfaces under test:
-//   1. bin/gstack-first-task-detect — classifies a repo into ONE enum bucket.
-//   2. The unified first-run-guidance preamble wiring (generated into SKILL.md).
+// P4 first-run scaffold (activation lift). Surface under test:
+//   bin/gstack-first-task-detect — classifies a repo into ONE enum bucket.
 
 const ROOT = path.join(import.meta.dir, '..');
 const DETECT = path.join(ROOT, 'bin', 'gstack-first-task-detect');
@@ -146,26 +145,5 @@ describe('gstack-first-task-detect — contract', () => {
 
   test('detector is executable', () => {
     expect(fs.statSync(DETECT).mode & 0o111).toBeGreaterThan(0);
-  });
-});
-
-describe('first-run-guidance preamble wiring (generated)', () => {
-  const md = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
-
-  test('detection is gated to the first-ever run only (ACTIVATED=no, not headless)', () => {
-    expect(md).toContain('if [ "$_ACTIVATED" = "no" ] && [ "$_SESSION_KIND" != "headless" ]');
-    expect(md).toContain('gstack-first-task-detect');
-  });
-
-  test('emits the unified first-run guidance section branching on ACTIVATED', () => {
-    expect(md).toContain('## First-run guidance (one-time)');
-    expect(md).toContain('`ACTIVATED` is `no`'); // P4 scaffold branch
-    expect(md).toContain('`ACTIVATED` is `yes` AND `FIRST_LOOP_SHOWN` is `no`'); // P3 tip branch
-  });
-
-  test('marks activated + logs the scaffold telemetry only on the shown path', () => {
-    expect(md).toContain('first_task_scaffold_shown');
-    expect(md).toContain('touch ~/.gstack/.activated');
-    expect(md).toContain('touch ~/.gstack/.first-loop-tip-shown');
   });
 });
