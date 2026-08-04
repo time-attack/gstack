@@ -27,9 +27,30 @@ it never owns host skill placement.
 `compat/`, and the parity harness were deleted; there is no regeneration step.
 The regression fixtures under `evals/parity/regressions/` remain as static
 test data.
-Edit files under `skills/` directly. The preserved legacy modules under
-`skills/*/references/legacy/` take bug fixes and mechanical corrections only;
-never rewrite, compress, or summarize the preserved judgment prose.
+Edit files under `skills/` directly. The modules under
+`skills/*/references/legacy/` are no longer frozen. The old rule said never
+rewrite, compress, or summarize them, which in practice meant do not find out
+whether they earn their tokens. The rule now says do not act without finding
+out: **a cut states what it removes, why the host or a surviving module already
+covers it, and what check would catch the loss.** Unexamined cuts are still
+forbidden, and so is keeping 50KB because nobody measured it.
+
+Two facts frame every cut. Claude Code now ships `/code-review` at six effort
+tiers, `/security-review`, `/verify`, `/debug`, `/plan`, `/batch` and
+`/commit-push-pr` natively, so judgment that duplicates them is dead weight
+rather than heritage. And Anthropic deleted over 80% of Claude Code's own
+system prompt for the Opus 5 generation, roughly 800 tokens down to 164, with
+no measurable loss on coding evals. Deleting instruction text is the normal
+maintenance of a tool built for current models, not damage to it.
+
+What stays, and why it is not sentiment: judgment that fights the model's own
+training or reaches something the host cannot. The founder pressure in
+`office-hours.md` is adversarial where a base model is agreeable. `codex.md`
+is a second model family, where every native review tier is Claude reviewing
+Claude. `health.md` trends a repo over time, where native reads one diff. The
+browser, physical iOS, and PDF are affordances no prompt conjures. The
+structural templates in `sections/ship/` are what make a PR body identical on
+the third run.
 
 The runtime is host-neutral, uses `$GSTACK_HOME` or `~/.gstack`, and keeps state
 as locked/atomically written JSON and JSONL. Network mode defaults off.
@@ -203,8 +224,9 @@ To add a snapshot flag: add it to `SNAPSHOT_FLAGS` in `browse/src/snapshot.ts` a
 "watch for feature bloat" guardrail, not a compression mandate — if a skill
 grows, look at WHAT grew and whether it belongs inline or as a reference doc;
 only compress carefully-tuned prose as a last resort. Cuts to preserved
-judgment (coverage audit, review army, voice) have real quality cost and are
-forbidden by the canonical contract.
+judgment are permitted under the canonical contract above: state what goes,
+what already covers it, and what check would catch the loss. Voice is the one
+exception and stays out of scope, per the community-PR guardrail below.
 
 ## Platform-agnostic design
 
