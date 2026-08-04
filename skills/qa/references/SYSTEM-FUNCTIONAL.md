@@ -1,10 +1,10 @@
 # System-functional QA
 
-This is a thin execution adapter for non-browser product surfaces. It composes the preserved DX journey, QA evidence/re-verification loop, and investigation root-cause gate; it does not replace their judgment. Module reads are lane-conditional: the dispatcher activates and reads each preserved module only when its lane applies, not all three up front.
+This is a thin execution adapter for non-browser product surfaces. It composes the preserved DX journey, QA evidence/re-verification loop, and root-cause gate; it does not replace their judgment. Module reads are lane-conditional: the dispatcher activates and reads each preserved module only when its lane applies, not all up front.
 
 - Browser targets: exactly one of `qa-only` (Report mode) or `qa` (Fix mode). It owns the evidence/re-verification loop and the mutation boundary. Against an API, CLI, job, worker, or webhook both stay unloaded, and the Evidence, mutation, and exit section below carries that boundary instead.
 - `devex-review`: read only when the scope evaluates a developer-experience surface, meaning install, setup, onboarding, upgrade path, or the ergonomics of the API/CLI/SDK the user is asking about as a product. When it applies, read it before running the repository-native install/onboarding journey. Depth never triggers it on its own. A Standard or Deep functional pass over an API, CLI, job, worker, or webhook leaves it unloaded, because it audits time to first working call, documentation quality, and ecosystem health, not whether the surface behaves to its contract. When it stays unloaded, name it on the Skipped modules line with the reason `no developer-experience surface`.
-- `investigate`: read when a reproduced product defect enters the root-cause gate — always before any fix, never preemptively. No defect, no read.
+- Root-cause gate: when a reproduced product defect needs root cause, hand it to `$debug --mode Diagnose-only` — always before any fix, never preemptively. No defect, no handoff.
 
 ## Surface and contract map
 
@@ -18,7 +18,7 @@ Never invent a generic harness when the repository defines one. Never send priva
 
 ## Evidence, mutation, and exit
 
-- Report mode reads `qa-only` and never changes product code. Fix mode reads `qa` and changes only a reproduced defect after `investigate` proves root cause and the active QA module authorizes it.
+- Report mode reads `qa-only` and never changes product code. Fix mode reads `qa` and changes only a reproduced defect after root cause is proven and the active QA module authorizes it.
 - Each finding includes the exact command or request, sanitized inputs, observed output/state, expected contract, environment, and evidence path.
 - A setup failure is classified separately from a product failure.
 - A product defect enters the preserved investigation/root-cause gate before a fix.

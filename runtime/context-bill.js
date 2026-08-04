@@ -53,13 +53,17 @@ import path from "node:path";
 const FORCED_PHRASE = "for every invocation";
 const LEGACY_REF = /references\/legacy\/[^`|)\s]+\.md/g;
 // Backticked non-legacy reference in prose. Legacy modules belong to LAZY.
-const PROSE_REF = /`(references\/(?!legacy\/)[^`]+\.md)`/g;
+// `<...>` is excluded from both patterns: prose that writes a path template such
+// as `references/artifacts/ios-qa/templates/<Name>.swift.template` names a family
+// of files, not one file on disk, so resolving it literally reports a missing
+// module that was never routed to.
+const PROSE_REF = /`(references\/(?!legacy\/)[^`<>]+\.md)`/g;
 // What a file a ledger already charges pulls in on its own: the sections/
 // phases, the artifacts/, the support docs and scripts, and the plain
 // references/*.md one reference hands off to. Any extension, because a module
 // that orders a support script read pays for that script. Legacy modules are
 // the LAZY ledger, so the walk never steps into one from outside it.
-const TRANSITIVE_REF = /`(references\/(?!legacy\/)[^`\s]+\.[A-Za-z0-9]+)`/g;
+const TRANSITIVE_REF = /`(references\/(?!legacy\/)[^`\s<>]+\.[A-Za-z0-9]+)`/g;
 // A dispatcher that says its fast path overrides the forced-read step skips the
 // forced triad on that path, paying SKILL.md plus whatever the path's own
 // section binds. Named paths come from the section headings.

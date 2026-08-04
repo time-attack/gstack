@@ -71,9 +71,14 @@ before citing any eval result.
   1.x baseline of about 1,100 token-equivalents; the restored import-free
   `test/gstack2-skills.test.ts` enforces the at-least-70%-below-the-1.x-baseline
   ceiling across all six skills on every free-suite run.
-- [x] The pinned inventory contains 47 preserved modules, 14 carved sections,
+- [x] The pinned inventory records 47 preserved modules, 14 carved sections,
   19 scenarios, 34 regression definitions, and 70 assets
-  ([JUDGMENT-PROVENANCE.json](./JUDGMENT-PROVENANCE.json)).
+  ([JUDGMENT-PROVENANCE.json](./JUDGMENT-PROVENANCE.json)). That file stays the
+  provenance baseline and is not rewritten. The current tree carries 42 legacy
+  modules, 16 carved sections, and 18 scenarios: the native-overlap wave cut the
+  modules Claude Code now ships natively, plus provably dead routes and
+  byte-identical duplicates ([SKILL-MIGRATION.md](./SKILL-MIGRATION.md) has the
+  live map).
 - [x] Compatibility aliases remain opt-in and outside default six-skill
   discovery; each prints its replacement and contains no copied judgment.
 - [x] Judgment provenance, behavioral contracts, 19 structured scenarios, and

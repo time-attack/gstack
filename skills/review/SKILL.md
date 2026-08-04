@@ -24,7 +24,7 @@ Web context: <none, optional, local-browser, or production>
 
 This exact-labels rule does not bind the trivial-change fast path. That path prints the reduced header its own file names, which is a subset of the labels above.
 
-Gloss these header words on first use, for a reader who has not seen them before. A *diff* is the set of lines this change adds and removes. *Depth* is how much evidence the review owes you: `readiness` is a fast pre-landing pass, `standard` is the normal pass, `deep` adds health evidence and independent second opinions. *Mutation* is what this run is allowed to change: report-only means it writes findings and edits nothing, and a mutation boundary is the exact set of files or fixes the user authorized. *Modules* are the preserved specialist review workflows this dispatcher loads from `references/`; *active* ones run, *skipped* ones are named with the reason they did not. An *outside voice* is a second reviewer that is genuinely a different model, never this one re-reading its own work. A *STOP gate* is a point where the workflow stops and waits for your explicit approval before continuing.
+Gloss these header words on first use, for a reader who has not seen them before. A *diff* is the set of lines this change adds and removes. *Depth* is how much evidence the review owes you: `readiness` is a fast pre-landing pass, `standard` is the normal pass, `deep` adds health evidence and an independent cross-model second opinion. *Mutation* is what this run is allowed to change: report-only means it writes findings and edits nothing, and a mutation boundary is the exact set of files or fixes the user authorized. *Modules* are the preserved specialist review workflows this dispatcher loads from `references/`; *active* ones run, *skipped* ones are named with the reason they did not. An *outside voice* is a second reviewer that is genuinely a different model, never this one re-reading its own work. A *STOP gate* is a point where the workflow stops and waits for your explicit approval before continuing.
 
 ## Dispatch protocol
 
@@ -51,7 +51,7 @@ When that trigger fires, read `references/FAST-PATH.md` and follow it. It is bin
 | `Normal` | A current branch diff | A standard pre-landing or broad code review is requested. | `references/legacy/review.md` |
 | `Security` | The repository threat surface (every way an attacker could get in) | The primary risk is auth, secrets, supply chain (the third-party packages your code depends on), abuse, infrastructure, or threat modeling. | `references/legacy/cso.md` |
 | `Performance` | Changed performance behavior | The review should concentrate on latency, memory, resource use, hot paths (the code that runs most often), or regressions (behavior that used to work and now does not). | `references/legacy/review.md` |
-| `Deep` | A high-risk or cross-cutting change | The change warrants health evidence and every genuinely independent outside voice available. | `references/legacy/review.md`, `references/legacy/health.md`, `references/legacy/codex.md`, `references/legacy/claude.md` |
+| `Deep` | A high-risk or cross-cutting change | The change warrants health evidence and the cross-model outside voice, which is the only genuinely independent one available. | `references/legacy/review.md`, `references/legacy/health.md`, `references/legacy/codex.md` |
 
 ## Hard rules
 
@@ -69,7 +69,6 @@ Every specialist below is an internal implementation detail, including mandatory
 | `/cso` | `security` | `Security` | mandatory | `references/legacy/cso.md` |
 | `/health` | `health` | `Deep` | mandatory | `references/legacy/health.md` |
 | `/codex` | `outside-codex` | `Deep` | mandatory | `references/legacy/codex.md` |
-| `/claude` | `outside-claude` | `Deep` | mandatory | `references/legacy/claude.md` |
 
 ## Completeness invariant
 

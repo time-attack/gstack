@@ -53,7 +53,7 @@ When that trigger fires, read `references/FAST-PATH.md` and follow it. It is bin
 | `Land` | An approved open PR | The requested next irreversible stage is merge/landing. | `references/legacy/land-and-deploy.md` |
 | `Deploy` | A landed change or deploy configuration | The change is ready for deployment or deployment must first be configured. | `references/legacy/setup-deploy.md`, `references/legacy/land-and-deploy.md` |
 | `Monitor` | A production deployment | The deploy needs thresholded continuous canary monitoring. | `references/legacy/canary.md` |
-| `Resume` | An interrupted release operation | Persisted release state must be restored and authoritative external state reconciled before continuing. | `references/legacy/context-restore.md`, `references/legacy/land-and-deploy.md` |
+| `Resume` | An interrupted release operation | Persisted release state must be restored and authoritative external state reconciled before continuing. | `references/EXTERNAL-EFFECTS.md`, `references/legacy/land-and-deploy.md` |
 
 ## Hard rules
 
@@ -73,7 +73,6 @@ Every specialist below is an internal implementation detail, including mandatory
 | `/document-release` | `docs` | `Prepare` | mandatory | `references/legacy/document-release.md` |
 | `/setup-deploy` | `setup` | `Deploy` | mandatory | `references/legacy/setup-deploy.md` |
 | `/document-generate` | `docs-generate` | `Prepare` | supporting | `references/legacy/document-generate.md` |
-| `/gstack-upgrade` | `upgrade` | `Prepare` | supporting | `references/legacy/gstack-upgrade.md` |
 | `/ios-clean` | `ios-clean` | `Prepare` | supporting | `references/legacy/ios-clean.md` |
 | `/ios-sync` | `ios-sync` | `Prepare` | supporting | `references/legacy/ios-sync.md` |
 

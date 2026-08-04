@@ -22,15 +22,12 @@ This package is self-contained. Route every retired invocation to the exact repl
 | `/qa-only` | `$qa --mode Report --module qa-only` | install `qa` |
 | `/ios-qa` | `$qa --mode Report --module ios-qa` | install `qa` |
 | `/devex-review` | `$qa --mode Report --module devex-review` | install `qa` |
-| `/benchmark` | `$qa --mode Report --module benchmark` | install `qa` |
-| `/canary` | `$qa --mode Report --module canary` | install `qa` |
+| `/canary` | `$ship --mode Monitor --module canary` | install `ship` |
 | `/browse` | `$qa --mode Report --module browse` | install `qa` |
 | `/open-gstack-browser` | `$qa --mode Report --module open-gstack-browser` | install `qa` |
 | `/setup-browser-cookies` | `$qa --mode Report --module setup-browser-cookies` | install `qa` |
 | `/pair-agent` | `$qa --mode Report --module pair-agent` | install `qa` |
 | `/scrape` | `$qa --mode Report --module scrape` | install `qa` |
-| `/skillify` | `$qa --mode Report --module skillify` | install `qa` |
-| `/benchmark-models` | `$qa --mode Report --module benchmark-models` | install `qa` |
 | `/investigate` | `$debug --mode Diagnose-only --module investigate` | `legacy/investigate.md` |
 | `/ios-fix` | `$debug --mode Fix --module ios-fix` | `legacy/ios-fix.md` |
 | `/careful` | `$debug --mode Diagnose-only --module careful` | `legacy/careful.md` |
@@ -41,13 +38,11 @@ This package is self-contained. Route every retired invocation to the exact repl
 | `/cso` | `$review --mode Security --module cso` | install `review` |
 | `/health` | `$review --mode Deep --module health` | install `review` |
 | `/codex` | `$review --mode Deep --module codex` | install `review` |
-| `/claude` | `$review --mode Deep --module claude` | install `review` |
 | `/ship` | `$ship --mode Prepare --module ship` | install `ship` |
 | `/land-and-deploy` | `$ship --mode Land --module land-and-deploy` | install `ship` |
 | `/landing-report` | `$ship --mode Prepare --module landing-report` | install `ship` |
 | `/document-release` | `$ship --mode Prepare --module document-release` | install `ship` |
 | `/setup-deploy` | `$ship --mode Deploy --module setup-deploy` | install `ship` |
 | `/document-generate` | `$ship --mode Prepare --module document-generate` | install `ship` |
-| `/gstack-upgrade` | `$ship --mode Prepare --module gstack-upgrade` | install `ship` |
 | `/ios-clean` | `$ship --mode Prepare --module ios-clean` | install `ship` |
 | `/ios-sync` | `$ship --mode Prepare --module ios-sync` | install `ship` |

@@ -66,7 +66,7 @@ Lost when `/design` was retired; restored verbatim into surviving modules:
 
 ## 6. Redact scan-at-sink before external dispatch — #9108 / #9109  (patch 01)
 
-**Files:** `skills/plan/references/legacy/autoplan.md`, `skills/review/references/legacy/{codex,claude}.md`.
+**Files:** `skills/plan/references/legacy/autoplan.md`, `skills/review/references/legacy/codex.md`.
 **Change:** before any `codex`/`claude -p` dispatch of a prompt/diff, materialize the exact bytes to a temp file, run `bin/gstack-redact --from-file` on that file, send the **same** file (exit 3 blocks HIGH, exit 2 confirms MEDIUM, exit 0 clean). Autoplan additionally persists a one-time per-repo consent before its first Codex dispatch.
 
 ## 7. `/careful` "How it works" wording — #2039
