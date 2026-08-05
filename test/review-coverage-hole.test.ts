@@ -70,6 +70,36 @@ describe('review coverage hole', () => {
     });
   }
 
+  /**
+   * The checklist was only half the hole. `review.md` Step 4 enumerates the
+   * categories the reviewer applies, and that enumeration stopped at
+   * CRITICAL + INFORMATIONAL — it named none of Pass 3. So an agent following
+   * the module literally still skipped every SWEEP category even after the
+   * checklist was fixed. Two files have to agree or the fix is cosmetic.
+   */
+  test('review.md Step 4 names the Pass 3 categories it is responsible for', () => {
+    const md = read(path.join(ROOT, 'skills', 'review', 'references', 'legacy', 'review.md'));
+    const step4 = md.slice(md.indexOf('## Step 4'), md.indexOf('## Step 5'));
+    expect(step4.length).toBeGreaterThan(0);
+
+    const missing = ['Test Gaps', 'Performance', 'Crypto', 'Dead Code', 'Magic Numbers', 'Conditional Side Effects']
+      .filter((c) => !step4.toLowerCase().includes(c.toLowerCase()));
+    expect(missing, `Step 4 never names: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  test('ASSETS.md promises no file that is missing from disk', () => {
+    const skillsDir = path.join(ROOT, 'skills');
+    const broken: string[] = [];
+    for (const skill of fs.readdirSync(skillsDir)) {
+      const assets = path.join(skillsDir, skill, 'references', 'ASSETS.md');
+      if (!fs.existsSync(assets)) continue;
+      for (const m of read(assets).matchAll(/`(references\/[a-zA-Z0-9_./-]+)`/g)) {
+        if (!fs.existsSync(path.join(skillsDir, skill, m[1]))) broken.push(`${skill}: ${m[1]}`);
+      }
+    }
+    expect(broken, `ASSETS.md rows point at missing files:\n  ${broken.join('\n  ')}`).toEqual([]);
+  });
+
   test('any surviving specialist file is reachable, or it is not shipped', () => {
     if (!fs.existsSync(SPECIALIST_DIR)) return; // deleting them is a legal fix
     const files = fs.readdirSync(SPECIALIST_DIR).filter((f) => f.endsWith('.md'));
