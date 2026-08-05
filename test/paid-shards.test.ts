@@ -26,6 +26,7 @@ describe('paid test enumeration', () => {
     expect(isPaidTestFile('test/skill-e2e-qa-workflow.test.ts')).toBe(true);
     expect(isPaidTestFile('test/skill-llm-eval.test.ts')).toBe(true);
     expect(isPaidTestFile('test/codex-e2e.test.ts')).toBe(true);
+    expect(isPaidTestFile('test/skill-e2e-triage-audit.test.ts')).toBe(true);
     // Outside the globs: no dash, extra suffix, or a free test.
     expect(isPaidTestFile('test/skill-e2e.test.ts')).toBe(false);
     expect(isPaidTestFile('test/codex-e2e-recommendation-substance.test.ts')).toBe(false);
