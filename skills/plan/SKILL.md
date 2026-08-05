@@ -1,7 +1,7 @@
 ---
 name: plan
 description: >-
-  Plan products, scope, architecture, developer experience, or executable specs before implementation. Use for ideas, strategic or engineering reviews, autoplan, and planning preferences.
+  Plan products, scope, architecture, developer experience, or executable specs, before implementation or in retrospect. Use for ideas, strategic or engineering reviews, autoplan, retrospectives, and planning preferences.
 ---
 
 # GStack Plan

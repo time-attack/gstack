@@ -5,7 +5,7 @@ import { judgePassed } from './helpers/eval-store';
 import {
   ROOT, browseBin, runId, evalsEnabled, selectedTests, hasApiKey,
   describeIfSelected, describeE2E, testConcurrentIfSelected,
-  copyDirSync, setupBrowseShims, logCost, recordE2E, dumpOutcomeDiagnostic,
+  setupBrowseShims, logCost, recordE2E, dumpOutcomeDiagnostic,
   createEvalCollector, finalizeEvalCollector,
 } from './helpers/e2e-helpers';
 import { startTestServer } from '../browse/test/test-server';
@@ -27,21 +27,23 @@ const anyOutcomeSelected = selectedTests === null || outcomeTestNames.some(t => 
 
 let testServer: ReturnType<typeof startTestServer>;
 
+// NOTE ON WHAT THIS SUITE ACTUALLY EXERCISES: browse mechanics plus the outcome
+// judge, NOT the qa skill. Every prompt below is a self-contained four-phase
+// bug-hunt ("Keep prompt concise — no reading long SKILL.md docs"), and each test
+// runs in its own `testWorkDir`. The describe used to also build a shared
+// `outcomeDir` and copy the 1.x `qa/` monolith into it; no test body ever read
+// either. That copy pointed at ROOT/qa/, deleted with the 1.x tree, so it was a
+// hard ENOENT in beforeAll guarding nothing. Deleted rather than re-pointed at
+// skills/qa/ — installing a dispatcher no prompt mentions is a vacuous install.
+// (Consequence worth knowing: `E2E_TOUCHFILES` still lists `skills/qa/**` for
+// qa-b6/b7/b8, so a skills-only edit selects three evals that cannot observe it.)
 (anyOutcomeSelected ? describeOutcome : describe.skip)('Planted-bug outcome evals', () => {
-  let outcomeDir: string;
-
   beforeAll(() => {
     testServer = startTestServer();
-    outcomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-outcome-'));
-    setupBrowseShims(outcomeDir);
-
-    // Copy qa skill files
-    copyDirSync(path.join(ROOT, 'qa'), path.join(outcomeDir, 'qa'));
   });
 
   afterAll(() => {
     testServer?.server?.stop();
-    try { fs.rmSync(outcomeDir, { recursive: true, force: true }); } catch {}
   });
 
   /**
