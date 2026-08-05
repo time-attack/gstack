@@ -3,7 +3,7 @@ import { runSkillTest } from './helpers/session-runner';
 import {
   ROOT, browseBin, runId, evalsEnabled,
   describeIfSelected, testConcurrentIfSelected,
-  copyDirSync, setupBrowseShims, logCost, recordE2E,
+  copyDirSync, installLegacySkill, setupBrowseShims, logCost, recordE2E,
   createEvalCollector, finalizeEvalCollector,
 } from './helpers/e2e-helpers';
 import { judgePosture } from './helpers/llm-judge';
@@ -55,14 +55,11 @@ We're building a new user dashboard that shows recent activity, notifications, a
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'add plan']);
 
-    // Copy plan-ceo-review skill
-    fs.mkdirSync(path.join(planDir, 'plan-ceo-review'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'plan-ceo-review', 'SKILL.md'),
-      path.join(planDir, 'plan-ceo-review', 'SKILL.md'),
-    );
-    // Carved skills (v2 plan T9): copy sections/ so the review workflow + report template are present.
-    { const _sec = path.join(ROOT, 'plan-ceo-review', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(planDir, 'plan-ceo-review', 'sections'), { recursive: true }); }
+    // plan-ceo-review/SKILL.md is now the compat routing stub. The review workflow,
+    // the mode definitions (HOLD SCOPE / SELECTIVE / SCOPE EXPANSION) and the report
+    // template live in the plan dispatcher's legacy module + its lazy review-sections,
+    // both of which this installs.
+    installLegacySkill(planDir, 'plan-ceo-review');
   });
 
   afterAll(() => {
@@ -71,7 +68,7 @@ We're building a new user dashboard that shows recent activity, notifications, a
 
   testConcurrentIfSelected('plan-ceo-review', async () => {
     const result = await runSkillTest({
-      prompt: `Read plan-ceo-review/SKILL.md for the review workflow.
+      prompt: `Read plan-ceo-review/SKILL.md for the review workflow. That file is a routing stub: follow the invocation it prints to the dispatcher installed at skills/plan/SKILL.md, then read the specialist module that dispatcher names for this mode, plus any lazy section that module points at. The review workflow is in those files, not in the stub.
 
 Read plan.md — that's the plan to review. This is a standalone plan document, not a codebase — skip any codebase exploration or system audit steps.
 
@@ -80,8 +77,8 @@ Write your complete review directly to ${planDir}/review-output.md
 
 Focus on reviewing the plan content: architecture, error handling, security, and performance.`,
       workingDirectory: planDir,
-      maxTurns: 15,
-      timeout: 360_000,
+      maxTurns: 20,
+      timeout: 420_000,
       testName: 'plan-ceo-review',
       runId,
       model: 'claude-opus-4-7',
@@ -100,7 +97,7 @@ Focus on reviewing the plan content: architecture, error handling, security, and
       const review = fs.readFileSync(reviewPath, 'utf-8');
       expect(review.length).toBeGreaterThan(200);
     }
-  }, 420_000);
+  }, 540_000);
 });
 
 // --- Plan CEO Review (SELECTIVE EXPANSION) E2E ---
@@ -142,13 +139,11 @@ We're building a new user dashboard that shows recent activity, notifications, a
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'add plan']);
 
-    fs.mkdirSync(path.join(planDir, 'plan-ceo-review'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'plan-ceo-review', 'SKILL.md'),
-      path.join(planDir, 'plan-ceo-review', 'SKILL.md'),
-    );
-    // Carved skills (v2 plan T9): copy sections/ so the review workflow + report template are present.
-    { const _sec = path.join(ROOT, 'plan-ceo-review', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(planDir, 'plan-ceo-review', 'sections'), { recursive: true }); }
+    // plan-ceo-review/SKILL.md is now the compat routing stub. The review workflow,
+    // the mode definitions (HOLD SCOPE / SELECTIVE / SCOPE EXPANSION) and the report
+    // template live in the plan dispatcher's legacy module + its lazy review-sections,
+    // both of which this installs.
+    installLegacySkill(planDir, 'plan-ceo-review');
   });
 
   afterAll(() => {
@@ -157,7 +152,7 @@ We're building a new user dashboard that shows recent activity, notifications, a
 
   testConcurrentIfSelected('plan-ceo-review-selective', async () => {
     const result = await runSkillTest({
-      prompt: `Read plan-ceo-review/SKILL.md for the review workflow.
+      prompt: `Read plan-ceo-review/SKILL.md for the review workflow. That file is a routing stub: follow the invocation it prints to the dispatcher installed at skills/plan/SKILL.md, then read the specialist module that dispatcher names for this mode, plus any lazy section that module points at. The review workflow is in those files, not in the stub.
 
 Read plan.md — that's the plan to review. This is a standalone plan document, not a codebase — skip any codebase exploration or system audit steps.
 
@@ -167,8 +162,8 @@ Write your complete review directly to ${planDir}/review-output-selective.md
 
 Focus on reviewing the plan content: architecture, error handling, security, and performance.`,
       workingDirectory: planDir,
-      maxTurns: 15,
-      timeout: 360_000,
+      maxTurns: 20,
+      timeout: 420_000,
       testName: 'plan-ceo-review-selective',
       runId,
       model: 'claude-opus-4-7',
@@ -185,7 +180,7 @@ Focus on reviewing the plan content: architecture, error handling, security, and
       const review = fs.readFileSync(reviewPath, 'utf-8');
       expect(review.length).toBeGreaterThan(200);
     }
-  }, 420_000);
+  }, 540_000);
 });
 
 // --- Plan CEO Review SCOPE EXPANSION energy (V1.1 mode-posture regression gate) ---
@@ -212,13 +207,11 @@ describeIfSelected('Plan CEO Review Expansion Energy E2E', ['plan-ceo-review-exp
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'add plan']);
 
-    fs.mkdirSync(path.join(planDir, 'plan-ceo-review'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'plan-ceo-review', 'SKILL.md'),
-      path.join(planDir, 'plan-ceo-review', 'SKILL.md'),
-    );
-    // Carved skills (v2 plan T9): copy sections/ so the review workflow + report template are present.
-    { const _sec = path.join(ROOT, 'plan-ceo-review', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(planDir, 'plan-ceo-review', 'sections'), { recursive: true }); }
+    // plan-ceo-review/SKILL.md is now the compat routing stub. The review workflow,
+    // the mode definitions (HOLD SCOPE / SELECTIVE / SCOPE EXPANSION) and the report
+    // template live in the plan dispatcher's legacy module + its lazy review-sections,
+    // both of which this installs.
+    installLegacySkill(planDir, 'plan-ceo-review');
   });
 
   afterAll(() => {
@@ -227,7 +220,7 @@ describeIfSelected('Plan CEO Review Expansion Energy E2E', ['plan-ceo-review-exp
 
   testConcurrentIfSelected('plan-ceo-review-expansion-energy', async () => {
     const result = await runSkillTest({
-      prompt: `Read plan-ceo-review/SKILL.md for the review workflow.
+      prompt: `Read plan-ceo-review/SKILL.md for the review workflow. That file is a routing stub: follow the invocation it prints to the dispatcher installed at skills/plan/SKILL.md, then read the specialist module that dispatcher names for this mode, plus any lazy section that module points at. The review workflow is in those files, not in the stub.
 
 Read plan.md — that's the plan to review. This is a standalone plan document, not a codebase — skip any codebase exploration or system audit steps.
 
@@ -235,8 +228,8 @@ Choose SCOPE EXPANSION mode. Skip any AskUserQuestion calls — this is non-inte
 
 Write your expansion proposals to ${planDir}/proposals.md with ONLY the proposal text — no conversational wrapper, no review summary, no mode analysis. Each proposal separated by "---".`,
       workingDirectory: planDir,
-      maxTurns: 15,
-      timeout: 360_000,
+      maxTurns: 20,
+      timeout: 420_000,
       testName: 'plan-ceo-review-expansion-energy',
       runId,
       model: 'claude-opus-4-7',
@@ -319,14 +312,10 @@ Replace session-cookie auth with JWT tokens. Currently using express-session + R
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'add plan']);
 
-    // Copy plan-eng-review skill
-    fs.mkdirSync(path.join(planDir, 'plan-eng-review'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'plan-eng-review', 'SKILL.md'),
-      path.join(planDir, 'plan-eng-review', 'SKILL.md'),
-    );
-    // Carved skills (v2 plan T9): copy sections/ so the review workflow + report template are present.
-    { const _sec = path.join(ROOT, 'plan-eng-review', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(planDir, 'plan-eng-review', 'sections'), { recursive: true }); }
+    // plan-eng-review/SKILL.md is now the compat routing stub. The review sections,
+    // the Test Plan Artifact spec and the GSTACK REVIEW REPORT template live in the
+    // plan dispatcher's legacy module + its lazy review-sections.
+    installLegacySkill(planDir, 'plan-eng-review');
   });
 
   afterAll(() => {
@@ -335,7 +324,7 @@ Replace session-cookie auth with JWT tokens. Currently using express-session + R
 
   testConcurrentIfSelected('plan-eng-review', async () => {
     const result = await runSkillTest({
-      prompt: `Read plan-eng-review/SKILL.md for the review workflow.
+      prompt: `Read plan-eng-review/SKILL.md for the review workflow. That file is a routing stub: follow the invocation it prints to the dispatcher installed at skills/plan/SKILL.md, then read the specialist module that dispatcher names for this mode, plus any lazy section that module points at. The review workflow is in those files, not in the stub.
 
 Read plan.md — that's the plan to review. This is a standalone plan document, not a codebase — skip any codebase exploration steps.
 
@@ -344,8 +333,8 @@ Write your complete review directly to ${planDir}/review-output.md
 
 Focus on architecture, code quality, tests, and performance sections.`,
       workingDirectory: planDir,
-      maxTurns: 15,
-      timeout: 360_000,
+      maxTurns: 20,
+      timeout: 420_000,
       testName: 'plan-eng-review',
       runId,
       model: 'claude-opus-4-7',
@@ -363,7 +352,7 @@ Focus on architecture, code quality, tests, and performance sections.`,
       const review = fs.readFileSync(reviewPath, 'utf-8');
       expect(review.length).toBeGreaterThan(200);
     }
-  }, 420_000);
+  }, 540_000);
 });
 
 // --- Plan-Eng-Review Test-Plan Artifact E2E ---
@@ -417,14 +406,10 @@ export function main() { return Dashboard(); }
     run('git', ['add', 'plan.md']);
     run('git', ['commit', '-m', 'add plan']);
 
-    // Copy plan-eng-review skill
-    fs.mkdirSync(path.join(planDir, 'plan-eng-review'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'plan-eng-review', 'SKILL.md'),
-      path.join(planDir, 'plan-eng-review', 'SKILL.md'),
-    );
-    // Carved skills (v2 plan T9): copy sections/ so the review workflow + report template are present.
-    { const _sec = path.join(ROOT, 'plan-eng-review', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(planDir, 'plan-eng-review', 'sections'), { recursive: true }); }
+    // plan-eng-review/SKILL.md is now the compat routing stub. The review sections,
+    // the Test Plan Artifact spec and the GSTACK REVIEW REPORT template live in the
+    // plan dispatcher's legacy module + its lazy review-sections.
+    installLegacySkill(planDir, 'plan-eng-review');
 
     // Set up remote-slug shim and browse shims (plan-eng-review uses remote-slug for artifact path)
     setupBrowseShims(planDir);
@@ -460,7 +445,7 @@ export function main() { return Dashboard(); }
     const beforeFiles = fs.readdirSync(projectDir).filter(f => f.includes('test-plan'));
 
     const result = await runSkillTest({
-      prompt: `Read plan-eng-review/SKILL.md for the review workflow.
+      prompt: `Read plan-eng-review/SKILL.md for the review workflow. That file is a routing stub: follow the invocation it prints to the dispatcher installed at skills/plan/SKILL.md, then read the specialist module that dispatcher names for this mode, plus any lazy section that module points at. The review workflow is in those files, not in the stub.
 Skip the preamble bash block, lake intro, telemetry, and contributor mode sections — go straight to the review.
 
 Read plan.md — that's the plan to review. This is a standalone plan with source code in app.ts and dashboard.ts.
@@ -471,7 +456,7 @@ IMPORTANT: After your review, you MUST write the test-plan artifact as described
 
 Write your review to ${planDir}/review-output.md`,
       workingDirectory: planDir,
-      maxTurns: 25,
+      maxTurns: 30,
       allowedTools: ['Bash', 'Read', 'Write', 'Glob', 'Grep'],
       timeout: 360_000,
       testName: 'plan-eng-review-artifact',
@@ -504,7 +489,7 @@ Write your review to ${planDir}/review-output.md`,
     if (newFiles.length === 0) {
       console.warn('SOFT FAIL: No test-plan artifact written — agent did not follow artifact instructions');
     }
-  }, 420_000);
+  }, 540_000);
 });
 
 // --- Office Hours Spec Review E2E ---
@@ -524,13 +509,10 @@ describeIfSelected('Office Hours Spec Review E2E', ['office-hours-spec-review'],
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'init']);
 
-    // Copy office-hours skill
-    fs.mkdirSync(path.join(ohDir, 'office-hours'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'office-hours', 'SKILL.md'),
-      path.join(ohDir, 'office-hours', 'SKILL.md'),
-    );
-    { const _sec = path.join(ROOT, 'office-hours', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(ohDir, 'office-hours', 'sections'), { recursive: true }); }
+    // The Spec Review Loop this test asks about is a lazy phase of the office-hours
+    // module (plan/references/sections/office-hours/doc-and-handoff.md), which comes
+    // along with the dispatcher.
+    installLegacySkill(ohDir, 'office-hours');
   });
 
   afterAll(() => {
@@ -539,7 +521,7 @@ describeIfSelected('Office Hours Spec Review E2E', ['office-hours-spec-review'],
 
   testConcurrentIfSelected('office-hours-spec-review', async () => {
     const result = await runSkillTest({
-      prompt: `Read office-hours/SKILL.md. I want to understand the spec review loop.
+      prompt: `Read office-hours/SKILL.md. It is a routing stub: follow the invocation it prints to the dispatcher at skills/plan/SKILL.md, read the office-hours specialist module that dispatcher names, and read the lazy section that module points at. I want to understand the spec review loop.
 
 Summarize what the "Spec Review Loop" section does — specifically:
 1. How many dimensions does the reviewer check?
@@ -549,8 +531,8 @@ Summarize what the "Spec Review Loop" section does — specifically:
 
 Write your summary to ${ohDir}/spec-review-summary.md`,
       workingDirectory: ohDir,
-      maxTurns: 8,
-      timeout: 120_000,
+      maxTurns: 14,
+      timeout: 240_000,
       testName: 'office-hours-spec-review',
       runId,
     });
@@ -566,7 +548,7 @@ Write your summary to ${ohDir}/spec-review-summary.md`,
       expect(summary).toMatch(/agent|subagent/);
       expect(summary).toMatch(/3.*iteration|iteration.*3|maximum.*3/);
     }
-  }, 180_000);
+  }, 300_000);
 });
 
 // --- Plan CEO Review Benefits-From E2E ---
@@ -586,12 +568,7 @@ describeIfSelected('Plan CEO Review Benefits-From E2E', ['plan-ceo-review-benefi
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'init']);
 
-    fs.mkdirSync(path.join(benefitsDir, 'plan-ceo-review'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'plan-ceo-review', 'SKILL.md'),
-      path.join(benefitsDir, 'plan-ceo-review', 'SKILL.md'),
-    );
-    { const _sec = path.join(ROOT, 'plan-ceo-review', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(benefitsDir, 'plan-ceo-review', 'sections'), { recursive: true }); }
+    installLegacySkill(benefitsDir, 'plan-ceo-review');
   });
 
   afterAll(() => {
@@ -600,7 +577,7 @@ describeIfSelected('Plan CEO Review Benefits-From E2E', ['plan-ceo-review-benefi
 
   testConcurrentIfSelected('plan-ceo-review-benefits', async () => {
     const result = await runSkillTest({
-      prompt: `Read plan-ceo-review/SKILL.md. Search for sections about "Prerequisite" or "office-hours" or "design doc found".
+      prompt: `Read plan-ceo-review/SKILL.md. It is a routing stub: follow the invocation it prints to the dispatcher at skills/plan/SKILL.md and read the plan-ceo-review specialist module that dispatcher names, plus any lazy section it points at. Search those files for sections about "Prerequisite" or "office-hours" or "design doc found".
 
 Summarize what happens when no design doc is found — specifically:
 1. Is /office-hours offered as a prerequisite?
@@ -609,8 +586,8 @@ Summarize what happens when no design doc is found — specifically:
 
 Write your summary to ${benefitsDir}/benefits-summary.md`,
       workingDirectory: benefitsDir,
-      maxTurns: 8,
-      timeout: 120_000,
+      maxTurns: 14,
+      timeout: 240_000,
       testName: 'plan-ceo-review-benefits',
       runId,
     });
@@ -625,7 +602,7 @@ Write your summary to ${benefitsDir}/benefits-summary.md`,
       expect(summary).toMatch(/office.hours/);
       expect(summary).toMatch(/design doc|no design/i);
     }
-  }, 180_000);
+  }, 300_000);
 });
 
 // --- Plan Review Report E2E ---
@@ -669,14 +646,10 @@ We're building a real-time notification system for our SaaS app.
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'add plan']);
 
-    // Copy plan-eng-review skill
-    fs.mkdirSync(path.join(planDir, 'plan-eng-review'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'plan-eng-review', 'SKILL.md'),
-      path.join(planDir, 'plan-eng-review', 'SKILL.md'),
-    );
-    // Carved skills (v2 plan T9): copy sections/ so the review workflow + report template are present.
-    { const _sec = path.join(ROOT, 'plan-eng-review', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(planDir, 'plan-eng-review', 'sections'), { recursive: true }); }
+    // plan-eng-review/SKILL.md is now the compat routing stub. The review sections,
+    // the Test Plan Artifact spec and the GSTACK REVIEW REPORT template live in the
+    // plan dispatcher's legacy module + its lazy review-sections.
+    installLegacySkill(planDir, 'plan-eng-review');
   });
 
   afterAll(() => {
@@ -685,7 +658,7 @@ We're building a real-time notification system for our SaaS app.
 
   test('/plan-eng-review writes GSTACK REVIEW REPORT to plan file', async () => {
     const result = await runSkillTest({
-      prompt: `Read plan-eng-review/SKILL.md for the review workflow.
+      prompt: `Read plan-eng-review/SKILL.md for the review workflow. That file is a routing stub: follow the invocation it prints to the dispatcher installed at skills/plan/SKILL.md, then read the specialist module that dispatcher names for this mode, plus any lazy section that module points at. The review workflow is in those files, not in the stub.
 
 Read plan.md — that's the plan to review. This is a standalone plan document, not a codebase — skip any codebase exploration steps.
 
@@ -696,8 +669,8 @@ CRITICAL REQUIREMENT: plan.md IS the plan file for this review session. After co
 
 This review report at the bottom of the plan is the MOST IMPORTANT deliverable of this test.`,
       workingDirectory: planDir,
-      maxTurns: 20,
-      timeout: 360_000,
+      maxTurns: 25,
+      timeout: 420_000,
       testName: 'plan-review-report',
       runId,
       model: 'claude-opus-4-7',
@@ -759,7 +732,7 @@ This review report at the bottom of the plan is the MOST IMPORTANT deliverable o
     ).toBe(true);
 
     console.log('Plan review report found at bottom of plan.md (ends with unresolved status)');
-  }, 420_000);
+  }, 540_000);
 });
 
 // --- Codex Offering E2E ---
@@ -784,18 +757,16 @@ describeIfSelected('Codex Offering E2E', [
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'init']);
 
-    // Copy the SKILL.md files under test
     for (const skill of ['office-hours', 'plan-ceo-review', 'plan-eng-review']) {
-      fs.mkdirSync(path.join(testDir, skill), { recursive: true });
-      fs.copyFileSync(
-        path.join(ROOT, skill, 'SKILL.md'),
-        path.join(testDir, skill, 'SKILL.md'),
-      );
-      // Carved skills (v2 plan T9): copy sections/ so codex/outside-voice content
-      // (carved into review-sections.md) is present for the search.
-      const _sec = path.join(ROOT, skill, 'sections');
-      if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(testDir, skill, 'sections'), { recursive: true });
+      installLegacySkill(testDir, skill);
     }
+    // The review dispatcher too. office-hours still carries its own `command -v codex`
+    // probe, but plan-ceo-review and plan-eng-review no longer do: they delegate to
+    // `$review --mode Deep --module codex`, and the concrete availability check now
+    // lives in review/references/legacy/codex.md. Without this the delegation
+    // dead-ends and the test would fail on a missing file rather than on what the
+    // shipped skills actually say. A real install has all five dispatchers.
+    copyDirSync(path.join(ROOT, 'skills', 'review'), path.join(testDir, 'skills', 'review'));
   });
 
   afterAll(() => {
@@ -804,7 +775,7 @@ describeIfSelected('Codex Offering E2E', [
 
   async function checkCodexOffering(skill: string, testName: string, featureName: string) {
     const result = await runSkillTest({
-      prompt: `Read ${skill}/SKILL.md. Search for ALL sections related to "codex", "outside voice", or "second opinion".
+      prompt: `Read ${skill}/SKILL.md. It is a routing stub: follow the invocation it prints to the dispatcher at skills/plan/SKILL.md and read the specialist module that dispatcher names, plus any lazy section it points at. If that module delegates the second opinion to another dispatcher, follow that pointer too — every dispatcher is installed under skills/. Search all of it for ALL content related to "codex", "outside voice", or "second opinion".
 
 Summarize the Codex/${featureName} integration — answer these specific questions:
 1. How is Codex availability checked? (what exact bash command?)
@@ -815,8 +786,8 @@ Summarize the Codex/${featureName} integration — answer these specific questio
 
 Write your summary to ${testDir}/${testName}-summary.md`,
       workingDirectory: testDir,
-      maxTurns: 8,
-      timeout: 120_000,
+      maxTurns: 14,
+      timeout: 240_000,
       testName,
       runId,
     });
@@ -841,15 +812,15 @@ Write your summary to ${testDir}/${testName}-summary.md`,
 
   testConcurrentIfSelected('codex-offered-office-hours', async () => {
     await checkCodexOffering('office-hours', 'codex-offered-office-hours', 'second opinion');
-  }, 180_000);
+  }, 300_000);
 
   testConcurrentIfSelected('codex-offered-ceo-review', async () => {
     await checkCodexOffering('plan-ceo-review', 'codex-offered-ceo-review', 'outside voice');
-  }, 180_000);
+  }, 300_000);
 
   testConcurrentIfSelected('codex-offered-eng-review', async () => {
     await checkCodexOffering('plan-eng-review', 'codex-offered-eng-review', 'outside voice');
-  }, 180_000);
+  }, 300_000);
 });
 
 // Module-level afterAll — finalize eval collector after all tests complete

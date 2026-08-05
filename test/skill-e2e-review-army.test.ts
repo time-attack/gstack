@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { runSkillTest } from './helpers/session-runner';
 import {
   ROOT, runId, describeIfSelected, testConcurrentIfSelected,
-  logCost, recordE2E, createEvalCollector, finalizeEvalCollector,
+  copyDirSync, logCost, recordE2E, createEvalCollector, finalizeEvalCollector,
   requireReportArtifact,
 } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
@@ -11,6 +11,67 @@ import * as path from 'path';
 import * as os from 'os';
 
 const evalCollector = createEvalCollector('e2e-review-army');
+
+// ============================================================================
+// THE REVIEW ARMY NO LONGER SHIPS. Read this before touching anything below.
+//
+// Every test in this file was built around `review/specialists/*.md` — seven
+// checklists dispatched as subagents from a "Step 4.5 / Step 9.1-9.2 Specialist
+// Dispatch". Nothing in that chain survives:
+//
+//   1. `review/specialists/{api-contract,data-migration,maintainability,
+//      performance,red-team,security,testing}.md` were deleted with the 1.x
+//      root tree (f19d6cda).
+//   2. Their promised destination does NOT exist either.
+//      `skills/review/references/ASSETS.md` lines 10-16 still map all seven to
+//      `references/artifacts/review/specialists/<x>.md` as VERBATIM_PORT with
+//      git blob hashes — and not one of those files is on disk. Dangling map.
+//   3. `skills/review/references/legacy/review.md` has no Step 4.5. It goes
+//      Step 4 (Critical pass) -> Step 5 (Fix-First). "Specialist" survives only
+//      as log-schema prose that says "If no specialist pass was dispatched (as
+//      in this module's default flow ...) use 10.0".
+//   4. `skills/ship/references/sections/ship/review-army.md` keeps the NAME but
+//      not the thing: it references "specialist review (Step 9.1-9.2)" twice
+//      while containing Step 9 -> Confidence Calibration -> Step 9.3. Steps 9.1
+//      and 9.2 are absent.
+//   5. `skills/review/references/artifacts/review/checklist.md` settles it in
+//      the severity table: "Every column is run by the reviewing agent. There
+//      is no separate specialist pass." Pass 3 (SWEEP) absorbed Test Gaps,
+//      Performance, Crypto, Dead Code, Magic Numbers, and Conditional Side
+//      Effects for exactly this reason.
+//
+// So the fixtures below install the SHIPPED review dispatcher, and each prompt
+// points at the surviving home of the judgment it used to exercise — or says
+// plainly that there isn't one. Per-test provenance is in the comment on each
+// describe block. Assertions are left at their original bar.
+// ============================================================================
+
+/**
+ * Install the shipped review dispatcher at `<workDir>/skills/review/`.
+ *
+ * Replaces the old `copyReviewFiles`, which flattened review/SKILL.md,
+ * checklist.md, greptile-triage.md and specialists/* into the workdir. A tree
+ * copy is required now: the dispatcher lazily reads everything as
+ * `references/...` relative to the skill root, so flat copies dead-end.
+ */
+function installDispatcher(workDir: string, name: string): string {
+  const src = path.join(ROOT, 'skills', name);
+  if (!fs.existsSync(src)) {
+    throw new Error(`installDispatcher("${name}"): no dispatcher at skills/${name}/.`);
+  }
+  copyDirSync(src, path.join(workDir, 'skills', name));
+  return `skills/${name}`;
+}
+
+/** Shared prompt preamble: how to reach the review judgment in the shipped tree. */
+const DISPATCH_PREAMBLE = `Read skills/review/SKILL.md — the GStack review dispatcher.
+Select the Normal mode, read the module it names (skills/review/references/legacy/review.md),
+and read the checklist that module reads at skills/review/references/artifacts/review/checklist.md.
+Resolve every other \`references/...\` path under skills/review/.
+
+No gstack runtime is installed here, so skip the host-neutral runtime bindings block and
+every optional \`$GSTACK_BIN\` helper, and skip the runtime, web-context, code-intelligence,
+and third-party-action references — none apply in this sandbox.`;
 
 // Helper: create a git repo with a feature branch
 function setupRepo(prefix: string): { dir: string; run: (cmd: string, args: string[]) => void } {
@@ -23,22 +84,18 @@ function setupRepo(prefix: string): { dir: string; run: (cmd: string, args: stri
   return { dir, run };
 }
 
-// Helper: copy review skill files to test dir
-function copyReviewFiles(dir: string) {
-  fs.copyFileSync(path.join(ROOT, 'review', 'SKILL.md'), path.join(dir, 'review-SKILL.md'));
-  fs.copyFileSync(path.join(ROOT, 'review', 'checklist.md'), path.join(dir, 'review-checklist.md'));
-  fs.copyFileSync(path.join(ROOT, 'review', 'greptile-triage.md'), path.join(dir, 'review-greptile-triage.md'));
-  // Copy specialist checklists
-  const specDir = path.join(dir, 'review-specialists');
-  fs.mkdirSync(specDir, { recursive: true });
-  const specialistsRoot = path.join(ROOT, 'review', 'specialists');
-  for (const f of fs.readdirSync(specialistsRoot)) {
-    fs.copyFileSync(path.join(specialistsRoot, f), path.join(specDir, f));
-  }
-}
-
 // --- Review Army: Migration Safety ---
-
+//
+// RETIRED SPECIALIST, NO SURVIVING HOME. This exercised
+// `review/specialists/data-migration.md`. The shipped checklist has no
+// data-migration category: Pass 1 "SQL & Data Safety" covers interpolation,
+// TOCTOU, validation bypass and N+1, not "DROP COLUMN is irreversible / needs a
+// backfill / needs a rollback path". Nothing else picks it up.
+//
+// NOTE THE ASSERTION: `drop || data loss || reversib || migration || column`
+// against a diff that IS a `DROP COLUMN` migration. It passes on any reviewer
+// that names the file it just read, so deleting the specialist did not turn it
+// red. It was keyword-echo of the fixture before this change too.
 describeIfSelected('Review Army: Migration Safety', ['review-army-migration-safety'], () => {
   let dir: string;
 
@@ -61,7 +118,7 @@ describeIfSelected('Review Army: Migration Safety', ['review-army-migration-safe
     repo.run('git', ['add', '.']);
     repo.run('git', ['commit', '-m', 'drop email and phone columns']);
 
-    copyReviewFiles(dir);
+    installDispatcher(dir, 'review');
   });
 
   afterAll(() => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} });
@@ -69,16 +126,14 @@ describeIfSelected('Review Army: Migration Safety', ['review-army-migration-safe
   testConcurrentIfSelected('review-army-migration-safety', async () => {
     const result = await runSkillTest({
       prompt: `You are in a git repo on a feature branch with a database migration that drops columns.
-Read review-SKILL.md for instructions. Also read review-checklist.md.
-The specialist checklists are in review-specialists/ (testing.md, security.md, performance.md, data-migration.md, etc.).
+${DISPATCH_PREAMBLE}
 
-Skip the preamble, lake intro, telemetry sections.
-Run Step 4 (Critical pass) then Step 4.5 (Review Army — Specialist Dispatch).
-The base branch is main. Run gstack-diff-scope style analysis on the changed files.
-Since db/migrate/ files changed, the Data Migration specialist should activate.
+The base branch is main. Run Step 4 (Critical pass) against the diff (git diff main...HEAD),
+applying the checklist's Pass 1 CRITICAL categories and its Pass 3 SWEEP categories —
+Pass 3 says you run those yourself, nothing else picks them up.
 
-For the specialist dispatch, instead of launching subagents, just read review-specialists/data-migration.md
-and apply it yourself against the diff (git diff main...HEAD).
+This diff changes db/migrate/, so judge the migration itself: reversibility, data loss,
+and whether anything still reads the dropped columns.
 
 Write your findings to ${dir}/review-output.md`,
       workingDirectory: dir,
@@ -106,7 +161,12 @@ Write your findings to ${dir}/review-output.md`,
 });
 
 // --- Review Army: N+1 Performance ---
-
+//
+// COVERED BY THE SHIPPED CHECKLIST. `review/specialists/performance.md` is gone,
+// but its judgment has two live homes: Pass 1 "SQL & Data Safety" ("N+1 queries:
+// Missing eager loading ... for associations used in loops/views") and Pass 3
+// SWEEP "Performance & Bundle Impact" ("Queries inside iteration that could
+// batch"). The assertion still bites against shipped content.
 describeIfSelected('Review Army: N+1 Performance', ['review-army-perf-n-plus-one'], () => {
   let dir: string;
 
@@ -126,7 +186,7 @@ describeIfSelected('Review Army: N+1 Performance', ['review-army-perf-n-plus-one
     repo.run('git', ['add', '.']);
     repo.run('git', ['commit', '-m', 'add posts controller']);
 
-    copyReviewFiles(dir);
+    installDispatcher(dir, 'review');
   });
 
   afterAll(() => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} });
@@ -134,14 +194,11 @@ describeIfSelected('Review Army: N+1 Performance', ['review-army-perf-n-plus-one
   testConcurrentIfSelected('review-army-perf-n-plus-one', async () => {
     const result = await runSkillTest({
       prompt: `You are in a git repo on a feature branch with a Ruby controller that has N+1 queries.
-Read review-SKILL.md for instructions. Also read review-checklist.md.
-The specialist checklists are in review-specialists/ (testing.md, performance.md, etc.).
+${DISPATCH_PREAMBLE}
 
-Skip the preamble, lake intro, telemetry sections.
-Run Step 4 (Critical pass) then Step 4.5 (Review Army).
-The base branch is main. This is a Ruby backend file, so Performance specialist should activate.
-
-For the specialist dispatch, read review-specialists/performance.md and apply it against the diff.
+The base branch is main. Run Step 4 (Critical pass) against the diff (git diff main...HEAD),
+applying the checklist's Pass 1 CRITICAL categories and its Pass 3 SWEEP categories —
+Pass 3 says you run those yourself, nothing else picks them up.
 
 Write your findings to ${dir}/review-output.md`,
       workingDirectory: dir,
@@ -170,7 +227,13 @@ Write your findings to ${dir}/review-output.md`,
 });
 
 // --- Review Army: Delivery Audit ---
-
+//
+// COVERED, BUT UNDER A DIFFERENT NAME. There is no "Plan Completion Audit"
+// section any more. The judgment lives in `references/legacy/review.md`
+// "Step 1.5: Scope Drift Detection" -> Plan File Discovery -> Actionable Item
+// Extraction -> Cross-Reference Against Diff, and that step still defines the
+// exact four labels this test asserts on: DONE / PARTIAL / NOT DONE / CHANGED
+// (plus UNVERIFIABLE). Prompt renamed to the shipped section; assertion unchanged.
 describeIfSelected('Review Army: Delivery Audit', ['review-army-delivery-audit'], () => {
   let dir: string;
 
@@ -226,7 +289,7 @@ end
     repo.run('git', ['add', '.']);
     repo.run('git', ['commit', '-m', 'implement auth and profile features']);
 
-    copyReviewFiles(dir);
+    installDispatcher(dir, 'review');
   });
 
   afterAll(() => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} });
@@ -237,7 +300,10 @@ end
 There is a PLAN.md file that promises 3 features: auth, profile, and email notifications.
 The diff (git diff main...HEAD) only implements 2 of them (auth and profile).
 
-Read review-SKILL.md for the review workflow. Focus on the Plan Completion Audit section.
+${DISPATCH_PREAMBLE}
+
+Focus on that module's "Step 1.5: Scope Drift Detection" — Plan File Discovery,
+Actionable Item Extraction, and Cross-Reference Against Diff.
 The plan file is at ./PLAN.md. Cross-reference it against the diff.
 
 For each plan item, classify as DONE, PARTIAL, NOT DONE, or CHANGED.
@@ -272,7 +338,23 @@ Write your completion audit to ${dir}/review-output.md`,
 });
 
 // --- Review Army: Quality Score ---
-
+//
+// THE PREMISE IS GONE; THE TEST STILL RUNS BECAUSE THE PROMPT CARRIES THE
+// FORMULA. There is no "Review Army merge step" to describe the PR Quality
+// Score. The only surviving mention is the review-log schema in
+// `references/legacy/review.md`: "quality_score = the PR Quality Score if a
+// specialist pass ran and computed one. If no specialist pass was dispatched
+// (as in this module's default flow, or a small diff), use 10.0" — i.e. the
+// shipped default is a constant 10.0, and the formula
+// `10 - (critical*2 + informational*0.5)` is computed nowhere.
+//
+// The prompt hands the agent that formula inline, so this test measures whether
+// the agent can do arithmetic it was just given, not whether gstack computes a
+// quality score. The assertion (`quality score` or `N/10` appears) is left as
+// is; it was never sensitive to the specialist pass. Removing the dead "as
+// described in the Review Army merge step" citation is the only change — it
+// pointed at a section that does not exist, which is a broken instruction, not
+// a gate.
 describeIfSelected('Review Army: Quality Score', ['review-army-quality-score'], () => {
   let dir: string;
 
@@ -300,7 +382,7 @@ end
     repo.run('git', ['add', '.']);
     repo.run('git', ['commit', '-m', 'add user controller']);
 
-    copyReviewFiles(dir);
+    installDispatcher(dir, 'review');
   });
 
   afterAll(() => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} });
@@ -308,11 +390,11 @@ end
   testConcurrentIfSelected('review-army-quality-score', async () => {
     const result = await runSkillTest({
       prompt: `You are in a git repo with a vulnerable user controller.
-Read review-SKILL.md and review-checklist.md.
-Skip preamble, lake intro, telemetry.
+${DISPATCH_PREAMBLE}
 
-Run the Critical pass (Step 4) against the diff (git diff main...HEAD).
-Then compute the PR Quality Score as described in the Review Army merge step:
+Run the Critical pass (Step 4) against the diff (git diff main...HEAD), applying the
+checklist's Pass 1 CRITICAL categories and its Pass 3 SWEEP categories.
+Then compute a PR Quality Score with this formula:
 quality_score = max(0, 10 - (critical_count * 2 + informational_count * 0.5))
 
 Write your findings AND the computed quality score to ${dir}/review-output.md
@@ -339,7 +421,13 @@ Include the line: "PR Quality Score: X/10" where X is the computed score.`,
 });
 
 // --- Review Army: JSON Findings ---
-
+//
+// SPECIALIST GONE, JUDGMENT MOSTLY SURVIVES. `review/specialists/security.md`
+// is deleted; the security judgment for this fixture lives in the checklist's
+// Pass 1 "SQL & Data Safety" (string interpolation in SQL) plus Pass 3
+// "Access Control" and "Crypto & Entropy". The `specialist` field in the
+// asserted JSON schema is now a label the prompt supplies, not something the
+// shipped tree emits — no per-specialist finding schema ships anywhere.
 describeIfSelected('Review Army: JSON Findings', ['review-army-json-findings'], () => {
   let dir: string;
 
@@ -365,7 +453,7 @@ end
     repo.run('git', ['add', '.']);
     repo.run('git', ['commit', '-m', 'add search']);
 
-    copyReviewFiles(dir);
+    installDispatcher(dir, 'review');
   });
 
   afterAll(() => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} });
@@ -373,7 +461,9 @@ end
   testConcurrentIfSelected('review-army-json-findings', async () => {
     const result = await runSkillTest({
       prompt: `You are reviewing a git diff with a SQL injection vulnerability.
-Read review-specialists/security.md for the security checklist.
+Read skills/review/references/artifacts/review/checklist.md — its Pass 1 "SQL & Data
+Safety" and Pass 3 "Access Control" / "Crypto & Entropy" categories are the security
+checklist. No gstack runtime is installed, so skip every optional \`$GSTACK_BIN\` helper.
 
 Apply the checklist against this diff (git diff main...HEAD).
 Output your findings as JSON objects, one per line, following the schema:
@@ -413,7 +503,18 @@ Write ONLY JSON findings (no preamble) to ${dir}/findings.json`,
 });
 
 // --- Review Army: Red Team (periodic) ---
-
+//
+// RETIRED SPECIALIST, NO SURVIVING HOME, AND THE ASSERTION NEVER MEASURED IT.
+// `review/specialists/red-team.md` is gone and nothing replaced it — the only
+// remaining string in skills/review/ is `references/FAST-PATH.md` telling the
+// agent to suppress "no review-army roster". Adversarial review moved entirely
+// to /ship's dashboard row, which reads a log rather than running a pass.
+//
+// The assertion is `/red team|adversarial/` on a report the prompt orders to
+// start with the literal line "RED TEAM REVIEW". It has always passed on
+// instruction-following, not on red-team judgment, so retiring the specialist
+// leaves it green. Left at its original bar rather than invented anew — a new
+// adversarial gate is a design decision, not a test repair.
 describeIfSelected('Review Army: Red Team', ['review-army-red-team'], () => {
   let dir: string;
 
@@ -440,19 +541,19 @@ describeIfSelected('Review Army: Red Team', ['review-army-red-team'], () => {
     repo.run('git', ['add', '.']);
     repo.run('git', ['commit', '-m', 'add large controller']);
 
-    copyReviewFiles(dir);
+    installDispatcher(dir, 'review');
   });
 
   afterAll(() => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} });
 
   testConcurrentIfSelected('review-army-red-team', async () => {
     const result = await runSkillTest({
-      prompt: `You are reviewing a large diff (300+ lines). Read review-SKILL.md.
-Skip preamble, lake intro, telemetry.
+      prompt: `You are reviewing a large diff (300+ lines).
+${DISPATCH_PREAMBLE}
 
-The diff is large enough to activate the Red Team specialist.
-Read review-specialists/red-team.md and apply it against the diff (git diff main...HEAD).
-Focus on finding issues that other specialists might miss.
+The diff is large, so the trivial-change fast path must NOT fire — run the full pass.
+Review it adversarially against the diff (git diff main...HEAD): focus on the issues a
+straight checklist sweep would miss.
 
 Write your red team findings to ${dir}/review-output.md
 Start the file with "RED TEAM REVIEW" on the first line.`,
@@ -474,7 +575,17 @@ Start the file with "RED TEAM REVIEW" on the first line.`,
 });
 
 // --- Review Army: Consensus (periodic) ---
-
+//
+// PREMISE GONE. Multi-specialist confirmation needs two or more specialists to
+// agree; there are zero. What survives is one-agent dedup —
+// `references/legacy/review.md` "Step 5.0: Cross-review finding dedup", which
+// merges repeat findings across runs, not across perspectives. There is no
+// shipped "MULTI-SPECIALIST CONFIRMED" concept, so that instruction is left in
+// the prompt only as the thing the test asks for, not as shipped behavior.
+//
+// The assertion only checks `sql || injection || interpolat`, which Pass 1 "SQL
+// & Data Safety" covers on its own — so this stays green while measuring
+// nothing about consensus. Reported, not rewritten.
 describeIfSelected('Review Army: Consensus', ['review-army-consensus'], () => {
   let dir: string;
 
@@ -504,7 +615,7 @@ end
     repo.run('git', ['add', '.']);
     repo.run('git', ['commit', '-m', 'add auth controller']);
 
-    copyReviewFiles(dir);
+    installDispatcher(dir, 'review');
   });
 
   afterAll(() => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} });
@@ -512,12 +623,12 @@ end
   testConcurrentIfSelected('review-army-consensus', async () => {
     const result = await runSkillTest({
       prompt: `You are reviewing a git diff with a SQL injection in an auth controller.
-Read review-SKILL.md, review-checklist.md, and the specialist checklists in review-specialists/.
+${DISPATCH_PREAMBLE}
 
-This vulnerability should be caught by BOTH the security specialist (injection vector)
-AND the testing specialist (no test for auth bypass).
+This vulnerability sits in two checklist categories at once: Pass 1 "SQL & Data Safety"
+(the injection vector) and Pass 3 "Test Gaps" (no test for the auth-bypass denied case).
 
-Run the review. In your output, if a finding is flagged by multiple perspectives,
+Run the review. In your output, if a finding is flagged by more than one category,
 mark it as "MULTI-SPECIALIST CONFIRMED" with the confirming categories.
 
 Write findings to ${dir}/review-output.md`,

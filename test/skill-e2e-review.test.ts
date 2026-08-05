@@ -3,7 +3,7 @@ import { runSkillTest } from './helpers/session-runner';
 import {
   ROOT, browseBin, runId, evalsEnabled, selectedTests,
   describeIfSelected, testConcurrentIfSelected,
-  copyDirSync, setupBrowseShims, logCost, recordE2E,
+  copyDirSync, installLegacySkill, setupBrowseShims, logCost, recordE2E,
   createEvalCollector, finalizeEvalCollector, requireReportArtifact,
 } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
@@ -12,6 +12,62 @@ import * as path from 'path';
 import * as os from 'os';
 
 const evalCollector = createEvalCollector('e2e-review');
+
+/**
+ * Install a LIVE GStack 2 dispatcher (`review`, `ship`, `qa`, `plan`, `debug`)
+ * into an E2E workdir at `<workDir>/skills/<name>/`.
+ *
+ * Not `installLegacySkill`: those five names were never retired, so there is no
+ * `skills/.compat/<name>` alias to route through — they ARE the shipped skills.
+ *
+ * Copied as a TREE, not flattened into the workdir. The dispatcher and its
+ * modules address everything they lazily read as `references/...` relative to
+ * the skill root (`references/legacy/review.md`,
+ * `references/artifacts/review/checklist.md`, `references/BASE-DETECTION.md`).
+ * The old flat `review-SKILL.md` + `review-checklist.md` copies worked because
+ * 1.x shipped one self-contained monolith; flattening a lazy dispatcher would
+ * dead-end every one of those reads.
+ */
+function installDispatcher(workDir: string, name: string): string {
+  const src = path.join(ROOT, 'skills', name);
+  if (!fs.existsSync(src)) {
+    throw new Error(`installDispatcher("${name}"): no dispatcher at skills/${name}/.`);
+  }
+  copyDirSync(src, path.join(workDir, 'skills', name));
+  return `skills/${name}`;
+}
+
+/**
+ * Extract one section out of a preserved module and drop it in the workdir,
+ * alongside the `references/` files that section resolves.
+ *
+ * Same rule as before — never copy a 1000-line module into a fixture — but the
+ * source moved: these sections used to live in the 1.x root monolith
+ * (`review/SKILL.md`, `ship/SKILL.md`) and now live in the dispatcher's
+ * preserved module (`skills/<dispatcher>/references/legacy/<module>.md`).
+ */
+function extractModuleSection(
+  workDir: string, dispatcher: string, moduleName: string,
+  startMarker: string, endMarker: string, destFile: string, refs: string[] = [],
+): void {
+  const modulePath = path.join(ROOT, 'skills', dispatcher, 'references', 'legacy', `${moduleName}.md`);
+  const full = fs.readFileSync(modulePath, 'utf-8');
+  const start = full.indexOf(startMarker);
+  if (start < 0) throw new Error(`${modulePath}: start marker "${startMarker}" not found`);
+  const end = full.indexOf(endMarker, start + startMarker.length);
+  if (end < 0) throw new Error(`${modulePath}: end marker "${endMarker}" not found after start`);
+  fs.writeFileSync(path.join(workDir, destFile), full.slice(start, end));
+
+  // The extracted section still says `references/X.md`; ship the ones it names
+  // so the instruction resolves instead of silently dead-ending.
+  for (const ref of refs) {
+    const src = path.join(ROOT, 'skills', dispatcher, 'references', ref);
+    if (!fs.existsSync(src)) throw new Error(`missing reference for extract: ${src}`);
+    const dest = path.join(workDir, 'references', ref);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(src, dest);
+  }
+}
 
 // --- B5: Review skill E2E ---
 
@@ -41,10 +97,7 @@ describeIfSelected('Review skill E2E', ['review-sql-injection'], () => {
     run('git', ['add', 'user_controller.rb']);
     run('git', ['commit', '-m', 'add user controller']);
 
-    // Copy review skill files
-    fs.copyFileSync(path.join(ROOT, 'review', 'SKILL.md'), path.join(reviewDir, 'review-SKILL.md'));
-    fs.copyFileSync(path.join(ROOT, 'review', 'checklist.md'), path.join(reviewDir, 'review-checklist.md'));
-    fs.copyFileSync(path.join(ROOT, 'review', 'greptile-triage.md'), path.join(reviewDir, 'review-greptile-triage.md'));
+    installDispatcher(reviewDir, 'review');
   });
 
   afterAll(() => {
@@ -54,10 +107,17 @@ describeIfSelected('Review skill E2E', ['review-sql-injection'], () => {
   testConcurrentIfSelected('review-sql-injection', async () => {
     const result = await runSkillTest({
       prompt: `You are in a git repo on a feature branch with changes against main.
-Read review-SKILL.md for the review workflow instructions.
-Also read review-checklist.md and apply it.
-Skip the preamble bash block, lake intro, telemetry, and contributor mode sections — go straight to the review.
-Run /review on the current diff (git diff main...HEAD).
+Read skills/review/SKILL.md — the GStack review dispatcher. Select the Normal mode,
+read the module it names (skills/review/references/legacy/review.md), and read the
+checklist that module reads at skills/review/references/artifacts/review/checklist.md.
+Resolve every other \`references/...\` path the module names under skills/review/.
+
+No gstack runtime is installed here, so skip the host-neutral runtime bindings block
+and every optional \`$GSTACK_BIN\` helper. Skip the runtime, web-context,
+code-intelligence, and third-party-action references — none apply in this sandbox.
+Go straight to the review.
+
+Run the review on the current diff (git diff main...HEAD).
 Write your review findings to ${reviewDir}/review-output.md`,
       workingDirectory: reviewDir,
       maxTurns: 20,
@@ -114,10 +174,7 @@ describeIfSelected('Review enum completeness E2E', ['review-enum-completeness'],
     run('git', ['add', 'order.rb']);
     run('git', ['commit', '-m', 'add returned status']);
 
-    // Copy review skill files
-    fs.copyFileSync(path.join(ROOT, 'review', 'SKILL.md'), path.join(enumDir, 'review-SKILL.md'));
-    fs.copyFileSync(path.join(ROOT, 'review', 'checklist.md'), path.join(enumDir, 'review-checklist.md'));
-    fs.copyFileSync(path.join(ROOT, 'review', 'greptile-triage.md'), path.join(enumDir, 'review-greptile-triage.md'));
+    installDispatcher(enumDir, 'review');
   });
 
   afterAll(() => {
@@ -127,9 +184,15 @@ describeIfSelected('Review enum completeness E2E', ['review-enum-completeness'],
   testConcurrentIfSelected('review-enum-completeness', async () => {
     const result = await runSkillTest({
       prompt: `You are in a git repo on branch feature/add-returned-status with changes against main.
-Read review-SKILL.md for the review workflow instructions.
-Also read review-checklist.md and apply it — pay special attention to the Enum & Value Completeness section.
-Run /review on the current diff (git diff main...HEAD).
+Read skills/review/SKILL.md — the GStack review dispatcher. Select the Normal mode,
+read the module it names (skills/review/references/legacy/review.md), and read the
+checklist at skills/review/references/artifacts/review/checklist.md — pay special
+attention to its Enum & Value Completeness section.
+
+No gstack runtime is installed here, so skip the host-neutral runtime bindings block
+and every optional \`$GSTACK_BIN\` helper.
+
+Run the review on the current diff (git diff main...HEAD).
 Write your review findings to ${enumDir}/review-output.md
 
 The diff adds a new "returned" status to the Order model. Your job is to check if all consumers handle it.`,
@@ -158,7 +221,23 @@ The diff adds a new "returned" status to the Order model. Your job is to check i
 });
 
 // --- Review: Design review lite E2E ---
-
+//
+// RETIRED CAPABILITY — this test is EXPECTED TO FAIL and is left failing on
+// purpose. It guards `review/design-checklist.md`, which no longer exists
+// anywhere: design review was deliberately stripped from the GStack 2 tree in
+// 7efa4f2b ("strip design-review offerings from gstack2 generator and
+// sources"), well before the 1.x root deletion in f19d6cda. Nothing in
+// skills/review/ mentions blacklisted fonts, minimum body font size,
+// `outline: none`, or AI-slop visual patterns, and `references/FAST-PATH.md`
+// explicitly suppresses design ceremony.
+//
+// The fixture below is wired to the SHIPPED review dispatcher so this reports a
+// real coverage verdict instead of an ENOENT crash, and the 4-of-7 assertion is
+// left AT ITS ORIGINAL BAR. Lowering it to whatever a generic code review
+// happens to say about a CSS file would convert a design-coverage gate into a
+// keyword-echo test. Whoever owns the design-review retirement should delete
+// this block (and 'review-design-lite' from E2E_TIERS/E2E_TOUCHFILES) or
+// re-land a design checklist; it is not a test-repair decision.
 describeIfSelected('Review design lite E2E', ['review-design-lite'], () => {
   let designDir: string;
 
@@ -187,11 +266,7 @@ describeIfSelected('Review design lite E2E', ['review-design-lite'], () => {
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'add landing page']);
 
-    // Copy review skill files
-    fs.copyFileSync(path.join(ROOT, 'review', 'SKILL.md'), path.join(designDir, 'review-SKILL.md'));
-    fs.copyFileSync(path.join(ROOT, 'review', 'checklist.md'), path.join(designDir, 'review-checklist.md'));
-    fs.copyFileSync(path.join(ROOT, 'review', 'design-checklist.md'), path.join(designDir, 'review-design-checklist.md'));
-    fs.copyFileSync(path.join(ROOT, 'review', 'greptile-triage.md'), path.join(designDir, 'review-greptile-triage.md'));
+    installDispatcher(designDir, 'review');
   });
 
   afterAll(() => {
@@ -201,17 +276,19 @@ describeIfSelected('Review design lite E2E', ['review-design-lite'], () => {
   testConcurrentIfSelected('review-design-lite', async () => {
     const result = await runSkillTest({
       prompt: `You are in a git repo on branch feature/add-landing-page with changes against main.
-Read review-SKILL.md for the review workflow instructions.
-Read review-checklist.md for the code review checklist.
-Read review-design-checklist.md for the design review checklist.
-Run /review on the current diff (git diff main...HEAD).
+Read skills/review/SKILL.md — the GStack review dispatcher. Select the mode that fits
+a front-end diff, read the module it names, and read every checklist that module reads
+under skills/review/references/.
 
-Skip the preamble bash block, lake intro, telemetry, and contributor mode sections — go straight to the review.
+No gstack runtime is installed here, so skip the host-neutral runtime bindings block
+and every optional \`$GSTACK_BIN\` helper. Go straight to the review.
+
+Run the review on the current diff (git diff main...HEAD).
 
 The diff adds a landing page with CSS and HTML. Check for both code issues AND design anti-patterns.
 Write your review findings to ${designDir}/review-output.md
 
-Important: The design checklist should catch issues like blacklisted fonts, small font sizes, outline:none, !important, AI slop patterns (purple gradients, generic hero copy, 3-column feature grid), etc.`,
+Important: a design review should catch issues like blacklisted fonts, small font sizes, outline:none, !important, AI slop patterns (purple gradients, generic hero copy, 3-column feature grid), etc.`,
       workingDirectory: designDir,
       maxTurns: 35,
       timeout: 240_000,
@@ -283,21 +360,24 @@ describeIfSelected('Base branch detection', ['review-base-branch', 'ship-base-br
     run('git', ['add', 'app.rb'], dir);
     run('git', ['commit', '-m', 'feat: add hello method'], dir);
 
-    // Extract only Step 0 (base branch detection) + minimal review instructions
-    // Full SKILL.md is ~1500 lines — copying it causes the agent to spend all turns reading
-    const full = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
-    const step0Start = full.indexOf('## Step 0: Detect platform and base branch');
-    const step1Start = full.indexOf('## Step 1: Check branch');
-    const step1End = full.indexOf('---', step1Start + 10);
-    const extracted = full.slice(step0Start, step1End > step1Start ? step1End : step1Start + 500);
-    fs.writeFileSync(path.join(dir, 'review-SKILL.md'), extracted);
+    // Step 0 now lives in the preserved module, not a root monolith. Extract it
+    // plus BASE-DETECTION.md, which Step 0's git-native fallback names — that
+    // fallback is the ONLY path this remote-less fixture can take.
+    extractModuleSection(
+      dir, 'review', 'review',
+      '## Step 0: Detect platform and base branch', '## Step 1: Check branch',
+      'review-SKILL.md', ['BASE-DETECTION.md'],
+    );
 
     const result = await runSkillTest({
       prompt: `You are in a git repo on a feature branch with changes.
 Read review-SKILL.md for the base branch detection instructions.
 
-IMPORTANT: Follow Step 0 to detect the base branch. Since there is no remote, gh commands will fail — fall back to main.
-Then run git diff against the detected base branch and write a brief review.
+IMPORTANT: Follow Step 0 to detect the base branch. This repo has NO remote, so gh
+and glab will fail and you must take the git-native fallback in
+references/BASE-DETECTION.md. Do not probe a hardcoded main or origin/main — resolve
+the base branch and the comparison ref the way Step 0 says to, and print both.
+Then run git diff against the detected comparison ref and write a brief review.
 Write your findings to ${dir}/review-output.md`,
       workingDirectory: dir,
       maxTurns: 15,
@@ -340,18 +420,20 @@ Write your findings to ${dir}/review-output.md`,
     run('git', ['add', 'app.ts'], dir);
     run('git', ['commit', '-m', 'feat: update to v2'], dir);
 
-    // Extract only Step 0 (base branch detection) from ship/SKILL.md
-    // (copying the full 1900-line file causes agent context bloat and flaky timeouts)
-    const fullShipSkill = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
-    const step0Start = fullShipSkill.indexOf('## Step 0: Detect platform and base branch');
-    const step0End = fullShipSkill.indexOf('## Step 1: Pre-flight');
-    const shipSection = fullShipSkill.slice(step0Start, step0End > step0Start ? step0End : undefined);
-    fs.writeFileSync(path.join(dir, 'ship-SKILL.md'), shipSection);
+    // Same move as review-base-branch: Step 0 lives in the preserved ship
+    // module now, and its git-native fallback needs references/BASE-DETECTION.md.
+    extractModuleSection(
+      dir, 'ship', 'ship',
+      '## Step 0: Detect platform and base branch', '## Step 1: Pre-flight',
+      'ship-SKILL.md', ['BASE-DETECTION.md'],
+    );
 
     const result = await runSkillTest({
       prompt: `Read ship-SKILL.md. It contains Step 0 (Detect base branch) from the ship workflow.
 
-Run the base branch detection. Since there is no remote, gh commands will fail — fall back to main.
+Run the base branch detection. This repo has NO remote, so gh and glab will fail and
+you must take the git-native fallback in references/BASE-DETECTION.md. Do not probe a
+hardcoded main or origin/main.
 
 Then run git diff and git log against the detected base branch.
 
@@ -408,18 +490,27 @@ Write a summary to ${dir}/ship-preflight.md including:
     run('git', ['add', 'test.ts'], dir);
     run('git', ['commit', '-m', 'test: add tests', '--date', '2026-03-16T11:00:00'], dir);
 
-    // Copy retro skill
-    fs.mkdirSync(path.join(dir, 'retro'), { recursive: true });
-    fs.copyFileSync(path.join(ROOT, 'retro', 'SKILL.md'), path.join(dir, 'retro', 'SKILL.md'));
+    // /retro IS a retired name with a compat alias, so it installs via the
+    // alias route: skills/.compat/retro/SKILL.md lands at retro/SKILL.md (the
+    // prompt below still says "Read retro/SKILL.md") and the plan dispatcher it
+    // routes to lands at skills/plan/.
+    const route = installLegacySkill(dir, 'retro');
 
     const result = await runSkillTest({
-      prompt: `Read retro/SKILL.md for instructions on how to run a retrospective.
+      prompt: `Read retro/SKILL.md. It is a compatibility alias, not the retrospective
+itself: it routes to \`${route.invocation}\`. Follow that route — the dispatcher is
+installed at skills/${route.dispatcher}/, so read skills/${route.dispatcher}/SKILL.md
+and then the preserved retro module it names at
+skills/${route.dispatcher}/references/legacy/${route.module}.md — and run that module.
 
-IMPORTANT: Follow the "Detect default branch" step first. Since there is no remote, gh will fail — fall back to main.
-Then use the detected branch name for all git queries.
+IMPORTANT: Follow its "Step 0: Detect platform and base branch" first. This repo has
+NO remote, so gh will fail; take the git-native fallback and use the detected local
+default branch (not origin/<branch>) for every git query. Its Step 0.5 pre-flight
+guard is expected to report the no-remote case and proceed, not block.
 
-Run /retro for the last 7 days of this git repo. Skip any AskUserQuestion calls — this is non-interactive.
-This is a local-only repo so use the local branch (main) instead of origin/main for all git log commands.
+Run the retrospective for the last 7 days of this git repo. Skip any AskUserQuestion
+calls — this is non-interactive. No gstack runtime is installed, so skip every
+optional \`$GSTACK_BIN\` helper.
 
 Write your retrospective to ${dir}/retro-output.md`,
       workingDirectory: dir,
@@ -448,6 +539,7 @@ Write your retrospective to ${dir}/retro-output.md`,
 
 describeIfSelected('Retro E2E', ['retro'], () => {
   let retroDir: string;
+  let retroRoute: ReturnType<typeof installLegacySkill>;
 
   beforeAll(() => {
     retroDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-retro-'));
@@ -486,12 +578,8 @@ describeIfSelected('Retro E2E', ['retro'], () => {
     run('git', ['add', 'README.md']);
     run('git', ['commit', '-m', 'docs: add README', '--date', '2026-03-12T16:00:00']);
 
-    // Copy retro skill
-    fs.mkdirSync(path.join(retroDir, 'retro'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'retro', 'SKILL.md'),
-      path.join(retroDir, 'retro', 'SKILL.md'),
-    );
+    // /retro routes through its compat alias to $plan --mode Discovery --module retro.
+    retroRoute = installLegacySkill(retroDir, 'retro');
   });
 
   afterAll(() => {
@@ -500,12 +588,21 @@ describeIfSelected('Retro E2E', ['retro'], () => {
 
   testConcurrentIfSelected('retro', async () => {
     const result = await runSkillTest({
-      prompt: `Read retro/SKILL.md for instructions on how to run a retrospective.
+      prompt: `Read retro/SKILL.md. It is a compatibility alias, not the retrospective
+itself: it routes to \`${retroRoute.invocation}\`. Follow that route — the dispatcher is
+installed at skills/${retroRoute.dispatcher}/, so read skills/${retroRoute.dispatcher}/SKILL.md
+and then the preserved retro module it names at
+skills/${retroRoute.dispatcher}/references/legacy/${retroRoute.module}.md.
 
-Run /retro for the last 7 days of this git repo. Skip any AskUserQuestion calls — this is non-interactive.
+This repo has no remote, so use the local default branch for every git query; the
+Step 0.5 pre-flight guard is expected to report the no-remote case and proceed. No
+gstack runtime is installed, so skip every optional \`$GSTACK_BIN\` helper.
+
+Run the retrospective for the last 7 days of this git repo. Skip any AskUserQuestion
+calls — this is non-interactive.
 Write your retrospective report to ${retroDir}/retro-output.md
 
-Analyze the git history and produce the narrative report as described in the SKILL.md.`,
+Analyze the git history and produce the narrative report as described in that module.`,
       workingDirectory: retroDir,
       maxTurns: 30,
       timeout: 300_000,
@@ -581,13 +678,12 @@ describeIfSelected('Review Dashboard Via Attribution', ['review-dashboard-via'],
     ].join('\n'));
     fs.chmodSync(path.join(mockBinDir, 'gstack-review-read'), 0o755);
 
-    // Extract only the Review Readiness Dashboard section from ship/SKILL.md
-    // (copying the full 1900-line file causes agent context bloat and timeouts)
-    const fullSkill = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
-    const dashStart = fullSkill.indexOf('## Review Readiness Dashboard');
-    const dashEnd = fullSkill.indexOf('\n---\n', dashStart);
-    const dashSection = fullSkill.slice(dashStart, dashEnd > dashStart ? dashEnd : undefined);
-    fs.writeFileSync(path.join(dashDir, 'ship-SKILL.md'), dashSection);
+    // The dashboard section moved from the 1.x root monolith into the preserved
+    // ship module; extract just that section, same as before.
+    extractModuleSection(
+      dashDir, 'ship', 'ship',
+      '## Review Readiness Dashboard', '\n---\n', 'ship-SKILL.md',
+    );
   });
 
   afterAll(() => {
@@ -600,7 +696,9 @@ describeIfSelected('Review Dashboard Via Attribution', ['review-dashboard-via'],
     const result = await runSkillTest({
       prompt: `Read ship-SKILL.md. You only need to run the Review Readiness Dashboard section.
 
-Instead of running ~/.claude/skills/gstack/bin/gstack-review-read, run this mock: ${mockBinDir}/gstack-review-read
+The section guards its read behind \`[ -x "$GSTACK_BIN/gstack-review-read" ]\` and no
+gstack runtime is installed here. Instead of that helper, run this mock, which stands
+in for it: ${mockBinDir}/gstack-review-read
 
 Parse the output and display the dashboard table. Pay attention to:
 1. The "via" field in entries — show source attribution (e.g., "via /autoplan")

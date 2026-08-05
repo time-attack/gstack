@@ -1,11 +1,12 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { runSkillTest } from './helpers/session-runner';
 import {
-  ROOT, browseBin, runId, evalsEnabled,
+  browseBin, runId, evalsEnabled,
   describeIfSelected, testConcurrentIfSelected,
-  copyDirSync, setupBrowseShims, logCost, recordE2E,
+  installLegacySkill, setupBrowseShims, logCost, recordE2E,
   createEvalCollector, finalizeEvalCollector,
 } from './helpers/e2e-helpers';
+import type { LegacyRoute } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -13,10 +14,27 @@ import * as os from 'os';
 
 const evalCollector = createEvalCollector('e2e-deploy');
 
+/**
+ * Prompt preamble that walks the agent from a retired 1.x command name to the
+ * module that actually ships behind it.
+ *
+ * Under 1.x each of these prompts opened a self-contained monolith. Today the
+ * old name resolves to a ~12-line routing stub, so a prompt that stops at
+ * "Read land-and-deploy/SKILL.md" hands the agent a signpost and no workflow.
+ * Naming the module keeps these tests about the deploy workflow; whether the
+ * route itself is valid is already pinned, for free, by compat-alias-routes.test.ts.
+ */
+function routeIntro(r: LegacyRoute): string {
+  return `Read ${r.name}/SKILL.md. It is a compatibility alias that routes to \`${r.invocation}\`.
+Follow that route: the specialist workflow lives in skills/${r.dispatcher}/references/legacy/${r.module}.md —
+read that module and work from it.`;
+}
+
 // --- Land-and-Deploy E2E ---
 
 describeIfSelected('Land-and-Deploy skill E2E', ['land-and-deploy-workflow'], () => {
   let landDir: string;
+  let route: LegacyRoute;
 
   beforeAll(() => {
     landDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-land-deploy-'));
@@ -37,7 +55,7 @@ describeIfSelected('Land-and-Deploy skill E2E', ['land-and-deploy-workflow'], ()
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'feat: update hello']);
 
-    copyDirSync(path.join(ROOT, 'land-and-deploy'), path.join(landDir, 'land-and-deploy'));
+    route = installLegacySkill(landDir, 'land-and-deploy');
   });
 
   afterAll(() => {
@@ -46,7 +64,7 @@ describeIfSelected('Land-and-Deploy skill E2E', ['land-and-deploy-workflow'], ()
 
   testConcurrentIfSelected('land-and-deploy-workflow', async () => {
     const result = await runSkillTest({
-      prompt: `Read land-and-deploy/SKILL.md for the /land-and-deploy skill instructions.
+      prompt: `${routeIntro(route)}
 
 You are on branch feat/add-deploy with changes against main. This repo has a fly.toml
 with app = "test-app", indicating a Fly.io deployment.
@@ -89,6 +107,7 @@ Do NOT use AskUserQuestion. Do NOT run gh or fly commands.`,
 
 describeIfSelected('Land-and-Deploy first-run E2E', ['land-and-deploy-first-run'], () => {
   let firstRunDir: string;
+  let route: LegacyRoute;
 
   beforeAll(() => {
     firstRunDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-land-first-run-'));
@@ -109,7 +128,7 @@ describeIfSelected('Land-and-Deploy first-run E2E', ['land-and-deploy-first-run'
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'feat: first deploy']);
 
-    copyDirSync(path.join(ROOT, 'land-and-deploy'), path.join(firstRunDir, 'land-and-deploy'));
+    route = installLegacySkill(firstRunDir, 'land-and-deploy');
   });
 
   afterAll(() => {
@@ -118,7 +137,7 @@ describeIfSelected('Land-and-Deploy first-run E2E', ['land-and-deploy-first-run'
 
   testConcurrentIfSelected('land-and-deploy-first-run', async () => {
     const result = await runSkillTest({
-      prompt: `Read land-and-deploy/SKILL.md for the /land-and-deploy skill instructions.
+      prompt: `${routeIntro(route)}
 
 You are on branch feat/first-deploy. This is the FIRST TIME running /land-and-deploy
 for this project — there is NO land-deploy-confirmed file.
@@ -168,6 +187,7 @@ Just demonstrate the first-run dry-run output.`,
 
 describeIfSelected('Land-and-Deploy review gate E2E', ['land-and-deploy-review-gate'], () => {
   let reviewDir: string;
+  let route: LegacyRoute;
 
   beforeAll(() => {
     reviewDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-land-review-'));
@@ -189,7 +209,7 @@ describeIfSelected('Land-and-Deploy review gate E2E', ['land-and-deploy-review-g
       run('git', ['commit', '-m', `feat: add file${i}`]);
     }
 
-    copyDirSync(path.join(ROOT, 'land-and-deploy'), path.join(reviewDir, 'land-and-deploy'));
+    route = installLegacySkill(reviewDir, 'land-and-deploy');
   });
 
   afterAll(() => {
@@ -198,7 +218,7 @@ describeIfSelected('Land-and-Deploy review gate E2E', ['land-and-deploy-review-g
 
   testConcurrentIfSelected('land-and-deploy-review-gate', async () => {
     const result = await runSkillTest({
-      prompt: `Read land-and-deploy/SKILL.md for the /land-and-deploy skill instructions.
+      prompt: `${routeIntro(route)}
 
 Focus on Step 3.5a and Step 3.5a-bis (the review staleness check and inline review offer).
 
@@ -244,6 +264,7 @@ Show what the readiness gate output would look like.`,
 
 describeIfSelected('Canary skill E2E', ['canary-workflow'], () => {
   let canaryDir: string;
+  let route: LegacyRoute;
 
   beforeAll(() => {
     canaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-canary-'));
@@ -258,7 +279,7 @@ describeIfSelected('Canary skill E2E', ['canary-workflow'], () => {
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'initial']);
 
-    copyDirSync(path.join(ROOT, 'canary'), path.join(canaryDir, 'canary'));
+    route = installLegacySkill(canaryDir, 'canary');
   });
 
   afterAll(() => {
@@ -267,7 +288,7 @@ describeIfSelected('Canary skill E2E', ['canary-workflow'], () => {
 
   testConcurrentIfSelected('canary-workflow', async () => {
     const result = await runSkillTest({
-      prompt: `Read canary/SKILL.md for the /canary skill instructions.
+      prompt: `${routeIntro(route)}
 
 You are simulating a canary check. There is NO browse daemon available and NO production URL.
 
@@ -301,75 +322,29 @@ Just create the directory structure and report files showing the correct schema.
   }, 180_000);
 });
 
-// --- Benchmark skill E2E ---
-
-describeIfSelected('Benchmark skill E2E', ['benchmark-workflow'], () => {
-  let benchDir: string;
-
-  beforeAll(() => {
-    benchDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-benchmark-'));
-    const run = (cmd: string, args: string[]) =>
-      spawnSync(cmd, args, { cwd: benchDir, stdio: 'pipe', timeout: 5000 });
-
-    run('git', ['init', '-b', 'main']);
-    run('git', ['config', 'user.email', 'test@test.com']);
-    run('git', ['config', 'user.name', 'Test']);
-
-    fs.writeFileSync(path.join(benchDir, 'index.html'), '<h1>Hello</h1>\n');
-    run('git', ['add', '.']);
-    run('git', ['commit', '-m', 'initial']);
-
-    copyDirSync(path.join(ROOT, 'benchmark'), path.join(benchDir, 'benchmark'));
-  });
-
-  afterAll(() => {
-    try { fs.rmSync(benchDir, { recursive: true, force: true }); } catch {}
-  });
-
-  testConcurrentIfSelected('benchmark-workflow', async () => {
-    const result = await runSkillTest({
-      prompt: `Read benchmark/SKILL.md for the /benchmark skill instructions.
-
-You are simulating a benchmark run. There is NO browse daemon available and NO production URL.
-
-Instead, demonstrate you understand the workflow:
-1. Create the .gstack/benchmark-reports/ directory structure including baselines/
-2. Write a simulated baseline.json to .gstack/benchmark-reports/baselines/baseline.json
-   with the schema from Phase 4 (url, timestamp, branch, pages with ttfb_ms, fcp_ms,
-   lcp_ms, dom_interactive_ms, dom_complete_ms, full_load_ms, total_requests,
-   total_transfer_bytes, js_bundle_bytes, css_bundle_bytes, largest_resources)
-3. Write a simulated benchmark report to .gstack/benchmark-reports/benchmark-report.md
-   following the Phase 5 comparison format (PERFORMANCE REPORT header, page comparison
-   table with Baseline/Current/Delta/Status columns, regression thresholds applied)
-4. Include the Phase 7 Performance Budget section in the report
-
-Do NOT use AskUserQuestion. Do NOT run browse ($B) commands.
-Just create the files showing the correct schema and report format.`,
-      workingDirectory: benchDir,
-      maxTurns: 15,
-      allowedTools: ['Bash', 'Read', 'Write', 'Edit', 'Glob'],
-      timeout: 120_000,
-      testName: 'benchmark-workflow',
-      runId,
-    });
-
-    logCost('/benchmark', result);
-    recordE2E(evalCollector, '/benchmark workflow', 'Benchmark skill E2E', result);
-    expect(result.exitReason).toBe('success');
-
-    expect(fs.existsSync(path.join(benchDir, '.gstack', 'benchmark-reports'))).toBe(true);
-    const baselineDir = path.join(benchDir, '.gstack', 'benchmark-reports', 'baselines');
-    if (fs.existsSync(baselineDir)) {
-      const files = fs.readdirSync(baselineDir);
-      expect(files.length).toBeGreaterThan(0);
-    }
-  }, 180_000);
-});
+// --- Benchmark skill E2E: DELETED (capability retired, not relocated) ---
+//
+// `benchmark-workflow` covered browser page-performance measurement: a
+// baseline.json of ttfb_ms/fcp_ms/lcp_ms/dom_interactive_ms/full_load_ms plus
+// bundle bytes, and a PERFORMANCE REPORT diffing a run against that stored
+// baseline with regression thresholds and a performance budget.
+//
+// Commit a9399ad3 cut the benchmark module: no `skills/.compat/benchmark`
+// alias, no `references/legacy/benchmark.md`, no routing row. The capability
+// left the product rather than moving — `grep -riE 'core web vitals|LCP|TTFB'
+// skills/` returns nothing, and `skills/review`'s Performance mode is
+// code-level (latency, memory, hot paths), not page timing.
+//
+// So there is nothing to point this test at. Repointing it at a neighbouring
+// module would assert that some other skill does page-perf work, which is
+// false. Deleted instead. If page-perf measurement ever comes back, this test
+// comes back with it.
 
 // --- Setup-Deploy skill E2E ---
 
 describeIfSelected('Setup-Deploy skill E2E', ['setup-deploy-workflow'], () => {
   let setupDir: string;
+  let route: LegacyRoute;
 
   beforeAll(() => {
     setupDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-setup-deploy-'));
@@ -385,7 +360,7 @@ describeIfSelected('Setup-Deploy skill E2E', ['setup-deploy-workflow'], () => {
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'initial']);
 
-    copyDirSync(path.join(ROOT, 'setup-deploy'), path.join(setupDir, 'setup-deploy'));
+    route = installLegacySkill(setupDir, 'setup-deploy');
   });
 
   afterAll(() => {
@@ -394,7 +369,7 @@ describeIfSelected('Setup-Deploy skill E2E', ['setup-deploy-workflow'], () => {
 
   testConcurrentIfSelected('setup-deploy-workflow', async () => {
     const result = await runSkillTest({
-      prompt: `Read setup-deploy/SKILL.md for the /setup-deploy skill instructions.
+      prompt: `${routeIntro(route)}
 
 This repo has a fly.toml with app = "my-cool-app". Run the /setup-deploy workflow:
 1. Detect the platform from fly.toml (should be Fly.io)

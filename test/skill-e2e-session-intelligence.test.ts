@@ -3,7 +3,7 @@ import { runSkillTest } from './helpers/session-runner';
 import {
   ROOT, runId, evalsEnabled,
   describeIfSelected, testConcurrentIfSelected,
-  copyDirSync, logCost, recordE2E,
+  installLegacySkill, logCost, recordE2E,
   createEvalCollector, finalizeEvalCollector,
 } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
@@ -39,22 +39,36 @@ describeIfSelected('Session Intelligence E2E', [
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'initial']);
 
-    // Copy bin scripts needed by timeline and checkpoint
-    const binDir = path.join(workDir, 'bin');
-    fs.mkdirSync(binDir, { recursive: true });
-    for (const script of [
-      'gstack-timeline-log', 'gstack-timeline-read', 'gstack-slug',
-      'gstack-learnings-log', 'gstack-learnings-search',
-    ]) {
-      const src = path.join(ROOT, 'bin', script);
-      if (fs.existsSync(src)) {
-        fs.copyFileSync(src, path.join(binDir, script));
-        fs.chmodSync(path.join(binDir, script), 0o755);
-      }
-    }
+    // Install the managed runtime bundle where the shipped skills look for it:
+    // $GSTACK_HOME/bin (that is what `GSTACK_BIN` resolves to in every module's
+    // host-neutral runtime bindings block).
+    //
+    // Symlinked, not hand-copied. `bin/gstack-slug` imports `../runtime/identity.js`,
+    // so cherry-picking a few scripts into a bare directory leaves the runtime
+    // behind and every identity-dependent binary dies with ERR_MODULE_NOT_FOUND —
+    // which is silent, because callers run gstack-slug as `eval "$(... 2>/dev/null)"`
+    // and then trip their own `${PROJECT_ID:?}` guard.
+    // fs.rmSync in afterAll unlinks the symlink; it does not descend into ROOT/bin.
+    fs.mkdirSync(gstackHome, { recursive: true });
+    fs.symlinkSync(path.join(ROOT, 'bin'), path.join(gstackHome, 'bin'));
 
-    // Compute slug (same logic as gstack-slug without git remote)
-    slug = path.basename(workDir).replace(/[^a-zA-Z0-9._-]/g, '');
+    // The local state bucket is keyed by PROJECT_ID — a worktree-stable hash, not
+    // the directory basename (that changed when two repos sharing one GSTACK_HOME
+    // stopped colliding in a single bucket). Ask the binary rather than guess.
+    const slugOut = spawnSync(path.join(gstackHome, 'bin', 'gstack-slug'), [], {
+      cwd: workDir,
+      env: { ...process.env, GSTACK_HOME: gstackHome },
+      stdio: 'pipe',
+      timeout: 15000,
+    });
+    const projectId = (slugOut.stdout?.toString() || '').match(/^PROJECT_ID=(.+)$/m)?.[1];
+    if (!projectId) {
+      throw new Error(
+        `gstack-slug emitted no PROJECT_ID (exit ${slugOut.status}). ` +
+          `Session-intelligence state has no bucket to land in.\n${slugOut.stderr?.toString() || ''}`,
+      );
+    }
+    slug = projectId;
   });
 
   afterAll(() => {
@@ -66,13 +80,17 @@ describeIfSelected('Session Intelligence E2E', [
   // Write a timeline event via gstack-timeline-log, read it back via gstack-timeline-read.
   // This is the foundational data flow test: events go in, they come back out.
   testConcurrentIfSelected('timeline-event-flow', async () => {
-    const projectDir = path.join(gstackHome, 'projects', slug);
+    // Own GSTACK_HOME. context-recovery-artifacts truncates timeline.jsonl in the
+    // shared project bucket and runs concurrently with this test, so a shared home
+    // makes the `lines.length === 2` assertion a coin flip.
+    const timelineHome = path.join(workDir, '.gstack-timeline');
+    const projectDir = path.join(timelineHome, 'projects', slug);
     fs.mkdirSync(projectDir, { recursive: true });
 
     // Write two events via the binary
-    const logBin = path.join(workDir, 'bin', 'gstack-timeline-log');
-    const readBin = path.join(workDir, 'bin', 'gstack-timeline-read');
-    const env = { ...process.env, GSTACK_HOME: gstackHome };
+    const logBin = path.join(gstackHome, 'bin', 'gstack-timeline-log');
+    const readBin = path.join(gstackHome, 'bin', 'gstack-timeline-read');
+    const env = { ...process.env, GSTACK_HOME: timelineHome };
     const opts = { cwd: workDir, env, stdio: 'pipe' as const, timeout: 10000 };
 
     spawnSync(logBin, [JSON.stringify({
@@ -148,18 +166,22 @@ describeIfSelected('Session Intelligence E2E', [
     });
     fs.writeFileSync(path.join(projectDir, 'timeline.jsonl'), timelineEntry + '\n');
 
-    // Copy the /learn skill (lightweight, tier-2 skill that runs context recovery)
-    copyDirSync(path.join(ROOT, 'learn'), path.join(workDir, 'learn'));
+    // Install /learn the way a user reaches it today: the compat alias under its
+    // old name, plus the dispatcher it routes into.
+    const route = installLegacySkill(workDir, 'learn');
 
     const result = await runSkillTest({
-      prompt: `Read the file learn/SKILL.md for instructions.
+      prompt: `Read the file learn/SKILL.md for instructions. It is a routing alias — follow its
+dispatch (\`${route.invocation}\`) into skills/${route.dispatcher}/SKILL.md and read that
+dispatcher's references/legacy/${route.module}.md module.
 
 Run the context recovery check — the preamble should show recent artifacts.
 
 IMPORTANT:
 - Use GSTACK_HOME="${gstackHome}" as an environment variable when running bin scripts.
-- The bin scripts are at ./bin/ (relative to this directory), not at ~/.claude/skills/gstack/bin/.
-  Replace any references to ~/.claude/skills/gstack/bin/ with ./bin/ when running commands.
+- The managed runtime is installed at $GSTACK_HOME/bin, which is exactly where the
+  module's own bash blocks look (\`GSTACK_BIN="$GSTACK_HOME/bin"\`). No path
+  substitution is needed.
 - Do NOT use AskUserQuestion.
 - Just run the preamble bash block and report what you see.
 - Look for "RECENT ARTIFACTS" and "LAST_SESSION" in the output.`,
@@ -202,15 +224,17 @@ IMPORTANT:
     const projectDir = path.join(gstackHome, 'projects', slug);
     fs.mkdirSync(path.join(projectDir, 'checkpoints'), { recursive: true });
 
-    // Copy the /context-save skill
-    copyDirSync(path.join(ROOT, 'context-save'), path.join(workDir, 'context-save'));
+    // Install /context-save the way a user reaches it today (alias + dispatcher).
+    const route = installLegacySkill(workDir, 'context-save');
 
     // Add a staged change so /context-save has something to capture
     fs.writeFileSync(path.join(workDir, 'feature.ts'), 'export function newFeature() { return true; }\n');
     spawnSync('git', ['add', 'feature.ts'], { cwd: workDir, stdio: 'pipe', timeout: 5000 });
 
-    // Extract the save section from the skill template (before the List section)
-    const full = fs.readFileSync(path.join(ROOT, 'context-save', 'SKILL.md'), 'utf-8');
+    // Extract the save section from the preserved module the alias routes into
+    // (before the List section).
+    const modulePath = path.join(ROOT, 'skills', route.dispatcher, 'references', 'legacy', `${route.module}.md`);
+    const full = fs.readFileSync(modulePath, 'utf-8');
     const saveStart = full.indexOf('## Save flow');
     const listStart = full.indexOf('## List flow');
     const saveSection = full.slice(saveStart, listStart > saveStart ? listStart : undefined);
@@ -222,8 +246,9 @@ ${saveSection.slice(0, 2000)}
 
 IMPORTANT:
 - Use GSTACK_HOME="${gstackHome}" as an environment variable when running bin scripts.
-- The bin scripts are at ./bin/ (relative to this directory), not at ~/.claude/skills/gstack/bin/.
-  Replace any references to ~/.claude/skills/gstack/bin/ with ./bin/ when running commands.
+- The managed runtime is installed at $GSTACK_HOME/bin, which is exactly where the
+  module's own bash blocks look (\`GSTACK_BIN="$GSTACK_HOME/bin"\`). No path
+  substitution is needed.
 - Save the file to ${projectDir}/checkpoints/ with a filename like "20260401-test-context.md".
 - Include YAML frontmatter with status, branch, and timestamp.
 - Include a summary of what's being worked on (you can see from git status).
@@ -276,8 +301,8 @@ IMPORTANT:
     const checkpointDir = path.join(projectDir, 'checkpoints');
     fs.mkdirSync(checkpointDir, { recursive: true });
 
-    // Copy the /context-restore skill
-    copyDirSync(path.join(ROOT, 'context-restore'), path.join(workDir, 'context-restore'));
+    // Install /context-restore the way a user reaches it today (alias + dispatcher).
+    const route = installLegacySkill(workDir, 'context-restore');
 
     // Seed two files: older on branch-a (title "old-work"), newer on branch-b
     // (title "newer-wintermute-work"). Current branch (main) matches neither.
@@ -319,8 +344,9 @@ This is the newest saved context. Cross-branch restore should load THIS file.
     fs.utimesSync(olderFile, pastOlderMtime, pastOlderMtime);
     fs.utimesSync(newerFile, pastNewerMtime, pastNewerMtime);
 
-    // Extract the restore-flow section from the skill template
-    const full = fs.readFileSync(path.join(ROOT, 'context-restore', 'SKILL.md'), 'utf-8');
+    // Extract the restore-flow section from the preserved module the alias routes into
+    const modulePath = path.join(ROOT, 'skills', route.dispatcher, 'references', 'legacy', `${route.module}.md`);
+    const full = fs.readFileSync(modulePath, 'utf-8');
     const restoreStart = full.indexOf('## Restore flow');
     const importantStart = full.indexOf('## Important Rules', restoreStart);
     const restoreSection = full.slice(restoreStart, importantStart > restoreStart ? importantStart : undefined);
@@ -332,7 +358,8 @@ ${restoreSection.slice(0, 2500)}
 
 IMPORTANT:
 - Use GSTACK_HOME="${gstackHome}" as an environment variable when running bin scripts.
-- The bin scripts are at ./bin/ (relative to this directory), not at ~/.claude/skills/gstack/bin/.
+- The managed runtime is installed at $GSTACK_HOME/bin, which is exactly where the
+  module's own bash blocks look (\`GSTACK_BIN="$GSTACK_HOME/bin"\`).
 - Look in ${checkpointDir} for saved context files.
 - Current branch is "main" — do NOT filter by current branch. Load across all branches.
 - The newest file by YYYYMMDD-HHMMSS prefix is the canonical "most recent". Filesystem mtime has been scrambled — do not use it.
