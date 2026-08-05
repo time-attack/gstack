@@ -67,52 +67,55 @@ describe('selectTests', () => {
     expect(result.selected).toContain('browse-snapshot');
     expect(result.selected).toContain('qa-quick');
     expect(result.selected).toContain('qa-fix-loop');
-    expect(result.selected).not.toContain('design-review-fix');
     expect(result.reason).toBe('diff');
     // Should NOT include unrelated tests
+    expect(result.selected).not.toContain('review-sql-injection');
     expect(result.selected).not.toContain('plan-ceo-review');
     expect(result.selected).not.toContain('retro');
     expect(result.selected).not.toContain('document-release');
   });
 
-  test('skill-specific change selects only that skill and related tests', () => {
-    const result = selectTests(['plan-ceo-review/SKILL.md'], E2E_TOUCHFILES);
-    expect(result.selected).toContain('plan-ceo-review');
-    expect(result.selected).toContain('plan-ceo-review-selective');
-    expect(result.selected).toContain('plan-ceo-review-benefits');
-    expect(result.selected).toContain('plan-ceo-review-expansion-energy');
-    expect(result.selected).toContain('autoplan-core');
-    expect(result.selected).toContain('codex-offered-ceo-review');
-    expect(result.selected).toContain('plan-ceo-review-format-mode');
-    expect(result.selected).toContain('plan-ceo-review-format-approach');
-    // v1.10.2.0 plan-mode handshake entries also depend on plan-ceo-review/**
-    expect(result.selected).toContain('plan-ceo-review-plan-mode');
-    expect(result.selected).toContain('plan-mode-no-op');
-    expect(result.selected).toContain('e2e-harness-audit');
-    expect(result.selected).toContain('plan-ceo-review-prosons-cadence');
-    expect(result.selected).toContain('plan-review-prosons-format');
-    expect(result.selected).toContain('plan-review-prosons-hardstop-neg');
-    expect(result.selected).toContain('plan-review-prosons-neutral-neg');
-    // v1.13.x real-PTY E2E batch entries that also depend on plan-ceo-review/**
-    expect(result.selected).toContain('auq-format-gate');
-    expect(result.selected).toContain('plan-ceo-mode-routing');
-    expect(result.selected).toContain('autoplan-chain-pty');
-    // Per-finding count + review-report-at-bottom (v1.21.x)
-    expect(result.selected).toContain('plan-ceo-finding-count');
-    // v1.22+ AskUserQuestion-blocked regression: auto-decide-preserved
-    // also depends on plan-ceo-review/** (autoplan-auto-mode test was
-    // removed in v1.28 — see commit message for the rationale).
-    expect(result.selected).toContain('auto-decide-preserved');
-    // 'plan-ceo-finding-floor' is deliberately NOT here: that gate test drives
-    // the public /plan surface, so it hangs off 'skills/plan/**' instead.
-    // garrytan/askuserquestion-split-on-overflow: split-overflow periodic
-    // E2E test also depends on plan-ceo-review/** (5-option scope decision
-    // regression for the "drop to fit 4 options" failure mode).
-    expect(result.selected).toContain('plan-ceo-split-overflow');
-    // v2 plan Phase B carve: the section-loading E2E depends on plan-ceo-review/**.
-    expect(result.selected).toContain('plan-ceo-section-loading');
+  test('module-specific change selects only that module and related tests', () => {
+    // GStack 2 probe: the 1.x `plan-ceo-review/` dir is gone. The CEO judgment
+    // now lives at skills/plan/references/legacy/plan-ceo-review.md, and that
+    // file is what a CEO-review change actually touches.
+    const result = selectTests(
+      ['skills/plan/references/legacy/plan-ceo-review.md'],
+      E2E_TOUCHFILES,
+    );
+    const expected = [
+      'plan-ceo-review',
+      'plan-ceo-review-selective',
+      'plan-ceo-review-benefits',
+      'plan-ceo-review-expansion-energy',
+      'plan-ceo-review-plan-mode',
+      'plan-mode-no-op',
+      'auto-decide-preserved',
+      'auq-format-gate',
+      'plan-ceo-mode-routing',
+      'plan-ceo-section-loading',
+      'autoplan-chain-pty',
+      'plan-ceo-finding-count',
+      // Drives the public /plan surface via 'skills/plan/**', which the module
+      // path is inside — so unlike in 1.x, the floor test IS selected here.
+      'plan-ceo-finding-floor',
+      'plan-ceo-split-overflow',
+      'plan-ceo-review-format-mode',
+      'plan-ceo-review-format-approach',
+      'plan-ceo-review-prosons-cadence',
+      'plan-review-prosons-format',
+      'plan-review-prosons-hardstop-neg',
+      'plan-review-prosons-neutral-neg',
+      'plan-proportionality',
+      'codex-offered-ceo-review',
+    ];
+    expect([...result.selected].sort()).toEqual([...expected].sort());
     expect(result.selected.length).toBe(22);
     expect(result.skipped.length).toBe(Object.keys(E2E_TOUCHFILES).length - 22);
+    // Unrelated dispatchers stay out.
+    expect(result.selected).not.toContain('retro');
+    expect(result.selected).not.toContain('cso-full-audit');
+    expect(result.selected).not.toContain('ship-base-branch');
   });
 
   test('global touchfile triggers ALL tests', () => {
@@ -122,19 +125,22 @@ describe('selectTests', () => {
     expect(result.reason).toContain('global');
   });
 
-  test('gen-skill-docs.ts is a scoped touchfile, not global', () => {
-    const result = selectTests(['scripts/gen-skill-docs.ts'], E2E_TOUCHFILES);
-    // Should select tests that list gen-skill-docs.ts in their touchfiles, not ALL tests
-    expect(result.selected.length).toBeGreaterThan(0);
-    expect(result.selected.length).toBeLessThan(Object.keys(E2E_TOUCHFILES).length);
+  test('the shared question-format reference is scoped, not global', () => {
+    // QUESTION-FORMAT.md is the GStack 2 successor to the deleted
+    // scripts/resolvers/preamble/generate-ask-user-format.ts: many skills
+    // inherit it, but it must not behave like a GLOBAL_TOUCHFILES entry.
+    const result = selectTests(['skills/plan/references/QUESTION-FORMAT.md'], E2E_TOUCHFILES);
     expect(result.reason).toBe('diff');
-    // Should include tests that depend on gen-skill-docs.ts
-    expect(result.selected).toContain('skillmd-setup-discovery');
+    expect(result.selected.length).toBe(39);
+    expect(result.selected.length).toBeLessThan(Object.keys(E2E_TOUCHFILES).length);
+    // Tests whose question cadence the reference governs
     expect(result.selected).toContain('session-awareness');
-    expect(result.selected).toContain('journey-ideation');
-    // Should NOT include tests that don't depend on it
+    expect(result.selected).toContain('plan-ceo-review-plan-mode');
+    expect(result.selected).toContain('qa-prosons-format');
+    // Tests that do not read it
     expect(result.selected).not.toContain('retro');
     expect(result.selected).not.toContain('cso-full-audit');
+    expect(result.selected).not.toContain('browse-basic');
   });
 
   test('unrelated file selects nothing', () => {
@@ -150,36 +156,45 @@ describe('selectTests', () => {
 
   test('multiple changed files union their selections', () => {
     const result = selectTests(
-      ['plan-ceo-review/SKILL.md', 'retro/SKILL.md.tmpl'],
+      [
+        'skills/plan/references/legacy/plan-ceo-review.md',
+        'skills/plan/references/legacy/retro.md',
+      ],
       E2E_TOUCHFILES,
     );
     expect(result.selected).toContain('plan-ceo-review');
     expect(result.selected).toContain('plan-ceo-review-selective');
     expect(result.selected).toContain('retro');
     expect(result.selected).toContain('retro-base-branch');
-    // Also selects journey routing tests (*/SKILL.md.tmpl matches retro/SKILL.md.tmpl)
-    expect(result.selected.length).toBeGreaterThanOrEqual(4);
+    // 22 from the CEO module + retro/retro-base-branch. The two /plan-wide
+    // entries (plan-proportionality, plan-ceo-finding-floor) are already in
+    // the CEO set, so the union is 24, not 26.
+    expect(result.selected.length).toBe(24);
   });
 
   test('works with LLM_JUDGE_TOUCHFILES', () => {
-    const result = selectTests(['qa/SKILL.md'], LLM_JUDGE_TOUCHFILES);
+    // The 1.x qa/SKILL.md monolith is gone; the three QA rubrics all judge
+    // skills/qa/references/legacy/qa.md.
+    const result = selectTests(['skills/qa/references/legacy/qa.md'], LLM_JUDGE_TOUCHFILES);
     expect(result.selected).toContain('qa/SKILL.md workflow');
     expect(result.selected).toContain('qa/SKILL.md health rubric');
     expect(result.selected).toContain('qa/SKILL.md anti-refusal');
     expect(result.selected.length).toBe(3);
   });
 
-  test('SKILL.md.tmpl root template selects root-dependent tests and routing tests', () => {
-    const result = selectTests(['SKILL.md.tmpl'], E2E_TOUCHFILES);
-    // Should select the 7 tests that depend on root SKILL.md
-    expect(result.selected).toContain('skillmd-setup-discovery');
-    expect(result.selected).toContain('session-awareness');
-    expect(result.selected).toContain('session-awareness');
-    // Also selects journey routing tests (SKILL.md.tmpl in their touchfiles)
+  test('a dispatcher SKILL.md selects every test routed through it', () => {
+    const result = selectTests(['skills/plan/SKILL.md'], E2E_TOUCHFILES);
+    // The dispatcher gates every /plan specialist, so its blast radius is wide
+    // but bounded — it must not reach the other four dispatchers' tests.
+    expect(result.selected.length).toBe(57);
+    expect(result.selected).toContain('plan-ceo-review');
+    expect(result.selected).toContain('plan-eng-review');
+    expect(result.selected).toContain('office-hours-spec-review');
     expect(result.selected).toContain('journey-ideation');
-    // Should NOT select unrelated non-routing tests
-    expect(result.selected).not.toContain('plan-ceo-review');
-    expect(result.selected).not.toContain('retro');
+    expect(result.selected).not.toContain('browse-basic');
+    expect(result.selected).not.toContain('cso-full-audit');
+    expect(result.selected).not.toContain('ship-base-branch');
+    expect(result.selected).not.toContain('qa-quick');
   });
 
   test('global touchfiles work for LLM-judge tests too', () => {
@@ -235,6 +250,44 @@ describe('detectBaseBranch', () => {
 // --- Completeness: every testName in skill-e2e-*.test.ts has a TOUCHFILES entry ---
 
 describe('TOUCHFILES completeness', () => {
+  // The failure this guards is silent and total: GStack 2 deleted the 1.x skill
+  // tree at the repo root, and every entry here kept keying on `ship/**`,
+  // `retro/**`, `plan-ceo-review/**`, `scripts/gen-skill-docs.ts` and friends.
+  // Those globs can never match again, so `bun run test:evals` selected nothing
+  // and reported a clean skip forever. A pattern that matches no tracked file is
+  // dead weight at best and zeroed coverage at worst — fail on it.
+  test('every touchfile pattern matches at least one tracked file', () => {
+    const tracked = spawnSync('git', ['ls-files'], {
+      cwd: ROOT, stdio: 'pipe', timeout: 20_000, maxBuffer: 64 * 1024 * 1024,
+    }).stdout.toString().trim().split('\n').filter(Boolean);
+    expect(tracked.length).toBeGreaterThan(0);
+
+    const dead: string[] = [];
+    const maps: [string, Record<string, string[]>][] = [
+      ['E2E_TOUCHFILES', E2E_TOUCHFILES],
+      ['LLM_JUDGE_TOUCHFILES', LLM_JUDGE_TOUCHFILES],
+    ];
+    for (const [mapName, map] of maps) {
+      for (const [testName, patterns] of Object.entries(map)) {
+        expect(patterns.length, `${mapName}['${testName}'] has no patterns`).toBeGreaterThan(0);
+        for (const p of patterns) {
+          if (!tracked.some(f => matchGlob(f, p))) dead.push(`${mapName}['${testName}'] -> ${p}`);
+        }
+      }
+    }
+    for (const p of GLOBAL_TOUCHFILES) {
+      if (!tracked.some(f => matchGlob(f, p))) dead.push(`GLOBAL_TOUCHFILES -> ${p}`);
+    }
+
+    if (dead.length > 0) {
+      throw new Error(
+        `Touchfile patterns that can never match a tracked file:\n  ${dead.join('\n  ')}\n\n` +
+        `Repoint them at the shipped path (skills/<dispatcher>/... ) or remove the entry. ` +
+        `A dead pattern means the paid test it guards is never selected again.`,
+      );
+    }
+  });
+
   test('every E2E testName has a TOUCHFILES entry', () => {
     // Read all split E2E test files
     const testDir = path.join(ROOT, 'test');
