@@ -1,11 +1,12 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { runSkillTest } from './helpers/session-runner';
 import {
-  ROOT, browseBin, runId, evalsEnabled,
+  ROOT, runId,
   describeIfSelected, testConcurrentIfSelected,
-  copyDirSync, setupBrowseShims, logCost, recordE2E,
-  createEvalCollector, finalizeEvalCollector,
+  copyDirSync, installLegacySkill, logCost, recordE2E,
+  createEvalCollector, finalizeEvalCollector, requireReportArtifact,
 } from './helpers/e2e-helpers';
+import type { LegacyRoute } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -17,12 +18,16 @@ const evalCollector = createEvalCollector('e2e-workflow');
 
 describeIfSelected('Document-Release skill E2E', ['document-release'], () => {
   let docReleaseDir: string;
+  let docReleaseRoute: LegacyRoute;
 
   beforeAll(() => {
     docReleaseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-doc-release-'));
 
-    // Copy document-release skill files
-    copyDirSync(path.join(ROOT, 'document-release'), path.join(docReleaseDir, 'document-release'));
+    // /document-release is retired. A user who types it today hits the compat
+    // alias, which dispatches to `$ship --mode Prepare --module document-release`.
+    // Install that whole path (alias under its old name + the ship dispatcher);
+    // throws if either end of the route is missing.
+    docReleaseRoute = installLegacySkill(docReleaseDir, 'document-release');
 
     // Init git repo with initial docs
     const run = (cmd: string, args: string[]) =>
@@ -62,9 +67,13 @@ describeIfSelected('Document-Release skill E2E', ['document-release'], () => {
 
   testConcurrentIfSelected('document-release', async () => {
     const result = await runSkillTest({
-      prompt: `Read the file document-release/SKILL.md for the document-release workflow instructions.
+      prompt: `Read the file document-release/SKILL.md. It is a routing alias, not the
+workflow: follow its dispatch (\`${docReleaseRoute.invocation}\`) into
+skills/${docReleaseRoute.dispatcher}/SKILL.md and read that dispatcher's
+references/legacy/${docReleaseRoute.module}.md module, which carries the actual
+workflow. There is no skill registry in this directory — use those literal paths.
 
-Run the /document-release workflow on this repo. The base branch is "main".
+Run that document-release workflow on this repo. The base branch is "main".
 
 IMPORTANT:
 - Do NOT use AskUserQuestion — auto-approve everything or skip if unsure.
@@ -200,119 +209,23 @@ describeIfSelected('Ship workflow E2E', ['ship-local-workflow'], () => {
 // detection, error handling, path traversal). The E2E just tested LLM instruction-
 // following ("write a file saying no browsers") on a CI box with no browsers.
 
-// --- gstack-upgrade E2E ---
-
-describeIfSelected('gstack-upgrade E2E', ['gstack-upgrade-happy-path'], () => {
-  let upgradeDir: string;
-  let remoteDir: string;
-
-  beforeAll(() => {
-    upgradeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-upgrade-'));
-    remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-remote-'));
-
-    const run = (cmd: string, args: string[], cwd: string) =>
-      spawnSync(cmd, args, { cwd, stdio: 'pipe', timeout: 5000 });
-
-    // Init the "project" repo
-    run('git', ['init'], upgradeDir);
-    run('git', ['config', 'user.email', 'test@test.com'], upgradeDir);
-    run('git', ['config', 'user.name', 'Test'], upgradeDir);
-
-    // Create mock gstack install directory (local-git type)
-    const mockGstack = path.join(upgradeDir, '.claude', 'skills', 'gstack');
-    fs.mkdirSync(mockGstack, { recursive: true });
-
-    // Init as a git repo
-    run('git', ['init'], mockGstack);
-    run('git', ['config', 'user.email', 'test@test.com'], mockGstack);
-    run('git', ['config', 'user.name', 'Test'], mockGstack);
-
-    // Create bare remote
-    run('git', ['init', '--bare'], remoteDir);
-    run('git', ['remote', 'add', 'origin', remoteDir], mockGstack);
-
-    // Write old version files
-    fs.writeFileSync(path.join(mockGstack, 'VERSION'), '0.5.0\n');
-    fs.writeFileSync(path.join(mockGstack, 'CHANGELOG.md'),
-      '# Changelog\n\n## 0.5.0 — 2026-03-01\n\n- Initial release\n');
-    fs.writeFileSync(path.join(mockGstack, 'setup'),
-      '#!/bin/bash\necho "Setup completed"\n', { mode: 0o755 });
-
-    // Initial commit + push
-    run('git', ['add', '.'], mockGstack);
-    run('git', ['commit', '-m', 'initial'], mockGstack);
-    run('git', ['push', '-u', 'origin', 'HEAD:main'], mockGstack);
-
-    // Create new version (simulate upstream release)
-    fs.writeFileSync(path.join(mockGstack, 'VERSION'), '0.6.0\n');
-    fs.writeFileSync(path.join(mockGstack, 'CHANGELOG.md'),
-      '# Changelog\n\n## 0.6.0 — 2026-03-15\n\n- New feature: interactive design review\n- Fix: snapshot flag validation\n\n## 0.5.0 — 2026-03-01\n\n- Initial release\n');
-    run('git', ['add', '.'], mockGstack);
-    run('git', ['commit', '-m', 'release 0.6.0'], mockGstack);
-    run('git', ['push', 'origin', 'HEAD:main'], mockGstack);
-
-    // Reset working copy back to old version
-    run('git', ['reset', '--hard', 'HEAD~1'], mockGstack);
-
-    // Copy gstack-upgrade skill
-    fs.mkdirSync(path.join(upgradeDir, 'gstack-upgrade'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'gstack-upgrade', 'SKILL.md'),
-      path.join(upgradeDir, 'gstack-upgrade', 'SKILL.md'),
-    );
-
-    // Commit so git repo is clean
-    run('git', ['add', '.'], upgradeDir);
-    run('git', ['commit', '-m', 'initial project'], upgradeDir);
-  });
-
-  afterAll(() => {
-    try { fs.rmSync(upgradeDir, { recursive: true, force: true }); } catch {}
-    try { fs.rmSync(remoteDir, { recursive: true, force: true }); } catch {}
-  });
-
-  testConcurrentIfSelected('gstack-upgrade-happy-path', async () => {
-    const mockGstack = path.join(upgradeDir, '.claude', 'skills', 'gstack');
-    const result = await runSkillTest({
-      prompt: `Read gstack-upgrade/SKILL.md for the upgrade workflow.
-
-You are running /gstack-upgrade standalone. The gstack installation is at ./.claude/skills/gstack (local-git type — it has a .git directory with an origin remote).
-
-Current version: 0.5.0. A new version 0.6.0 is available on origin/main.
-
-Follow the standalone upgrade flow:
-1. Detect install type (local-git)
-2. Run git fetch origin && git reset --hard origin/main in the install directory
-3. Run the setup script
-4. Show what's new from CHANGELOG
-
-Skip any AskUserQuestion calls — auto-approve the upgrade. Write a summary of what you did to stdout.
-
-IMPORTANT: The install directory is at ./.claude/skills/gstack — use that exact path.`,
-      workingDirectory: upgradeDir,
-      maxTurns: 20,
-      timeout: 180_000,
-      testName: 'gstack-upgrade-happy-path',
-      runId,
-    });
-
-    logCost('/gstack-upgrade happy path', result);
-
-    // Check that the version was updated
-    const versionAfter = fs.readFileSync(path.join(mockGstack, 'VERSION'), 'utf-8').trim();
-    const output = result.output || '';
-    const mentionsUpgrade = output.toLowerCase().includes('0.6.0') ||
-      output.toLowerCase().includes('upgrade') ||
-      output.toLowerCase().includes('updated');
-
-    recordE2E(evalCollector, '/gstack-upgrade happy path', 'gstack-upgrade E2E', result, {
-      passed: versionAfter === '0.6.0' && ['success', 'error_max_turns'].includes(result.exitReason),
-    });
-
-    expect(['success', 'error_max_turns']).toContain(result.exitReason);
-    expect(versionAfter).toBe('0.6.0');
-  }, 240_000);
-});
+// Removed: gstack-upgrade E2E ('gstack-upgrade-happy-path').
+//
+// /gstack-upgrade was CUT in a9399ad3 — there is no
+// skills/*/references/legacy/gstack-upgrade.md and no skills/.compat/gstack-upgrade
+// alias, so installLegacySkill('gstack-upgrade') correctly throws and the old
+// gstack-upgrade/SKILL.md the test copied no longer exists. Nothing in the 2.0
+// path executes an upgrade workflow.
+//
+// Coverage lost: the local-git upgrade happy path (fetch + reset --hard
+// origin/main against a bare remote, run ./setup, surface CHANGELOG deltas) has
+// no E2E assertion. The mechanics now live in runtime/upgrade.js and
+// runtime/migrations.js and are covered, if at all, by their own unit tests —
+// nothing verifies the end-to-end sequence.
+//
+// Its E2E_TOUCHFILES + E2E_TIERS entries in test/helpers/touchfiles.ts (already
+// flagged there as a known hole) are now orphaned and need removing by whoever
+// owns that file.
 
 // --- Test Coverage Audit E2E ---
 
@@ -322,9 +235,23 @@ describeIfSelected('Test Coverage Audit E2E', ['ship-coverage-audit'], () => {
   beforeAll(() => {
     coverageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-coverage-'));
 
-    // Copy ship skill files
-    copyDirSync(path.join(ROOT, 'ship'), path.join(coverageDir, 'ship'));
-    copyDirSync(path.join(ROOT, 'review'), path.join(coverageDir, 'review'));
+    // /ship is a LIVE dispatcher with no compat alias — install its tree at
+    // skills/ship/, never flattened: SKILL.md addresses references/... relatively,
+    // and the coverage audit is a lazy phase reached through
+    // references/legacy/ship.md → references/sections/ship/test-coverage.md.
+    //
+    // The 1.x copy of the `review` skill alongside it is dropped: under 2.0 the
+    // pre-landing and adversarial review passes are sections INSIDE the ship tree
+    // (references/sections/ship/review-army.md, greptile.md, adversarial.md), and
+    // this prompt skips them anyway.
+    const shipSrc = path.join(ROOT, 'skills', 'ship');
+    if (!fs.existsSync(path.join(shipSrc, 'references', 'sections', 'ship', 'test-coverage.md'))) {
+      throw new Error(
+        'ship-coverage-audit fixture: skills/ship/references/sections/ship/test-coverage.md ' +
+          'is missing — the step under test has moved or been cut. Fix the fixture, do not skip.',
+      );
+    }
+    copyDirSync(shipSrc, path.join(coverageDir, 'skills', 'ship'));
 
     // Create a Node.js project WITH test framework but coverage gaps
     fs.writeFileSync(path.join(coverageDir, 'package.json'), JSON.stringify({
@@ -394,13 +321,19 @@ describe('processPayment', () => {
 
   testConcurrentIfSelected('ship-coverage-audit', async () => {
     const result = await runSkillTest({
-      prompt: `Read the file ship/SKILL.md for the ship workflow instructions.
+      prompt: `The GStack ship dispatcher is installed at skills/ship/SKILL.md (there is no
+skill registry in this directory — use that literal path). Its Prepare mode loads
+skills/ship/references/legacy/ship.md, whose "Lazy specialist phase: test-coverage"
+points at skills/ship/references/sections/ship/test-coverage.md.
+
+Read skills/ship/references/sections/ship/test-coverage.md and run ONLY that step
+(Step 7: Test Coverage Audit).
 
 You are on the feature/billing branch. The base branch is main.
 This is a test project — there is no remote, no PR to create.
 
-ONLY run Step 3.4 (Test Coverage Audit) from the ship workflow.
-Skip all other steps (tests, evals, review, version, changelog, commit, push, PR).
+Skip all other ship steps (tests, evals, review, version, changelog, commit, push, PR).
+Do NOT dispatch this step as a subagent — run it inline and print the result.
 
 The source code is in ${coverageDir}/src/billing.ts.
 Existing tests are in ${coverageDir}/test/billing.test.ts.
@@ -444,9 +377,15 @@ Output the diagram directly.`,
 
 describeIfSelected('Codex skill E2E', ['codex-review'], () => {
   let codexDir: string;
+  let codexRoute: LegacyRoute;
 
   beforeAll(() => {
     codexDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-codex-'));
+
+    // /codex is retired: the compat alias dispatches to
+    // `$review --mode Deep --module codex`. Install alias + review dispatcher;
+    // throws if the alias, the dispatcher, or the module is missing.
+    codexRoute = installLegacySkill(codexDir, 'codex');
 
     const run = (cmd: string, args: string[]) =>
       spawnSync(cmd, args, { cwd: codexDir, stdio: 'pipe', timeout: 5000 });
@@ -467,18 +406,29 @@ describeIfSelected('Codex skill E2E', ['codex-review'], () => {
     run('git', ['add', 'user_controller.rb']);
     run('git', ['commit', '-m', 'add vulnerable controller']);
 
-    // Extract only the review-relevant section from codex SKILL.md (~120 lines vs 1075).
-    // Full SKILL.md is 55KB / ~14K tokens — takes 8 Read calls to consume, exhausting turns.
-    const full = fs.readFileSync(path.join(ROOT, 'codex', 'SKILL.md'), 'utf-8');
-    const startMarker = '# /codex — Multi-AI Second Opinion';
-    const endMarker = '## Plan File Review Report';
-    const start = full.indexOf(startMarker);
-    const end = full.indexOf(endMarker, start);
-    const reviewSection = full.slice(
-      start >= 0 ? start : 0,
-      end > start ? end : undefined,
+    // Extract only the review-relevant prefix of the preserved codex module
+    // (~333 of 919 lines). The whole module is ~14K tokens — 8 Read calls to
+    // consume, which exhausts the turn budget before codex ever runs.
+    //
+    // Slice from the top rather than from the title: everything above it
+    // (runtime bindings, Step 0 platform + base-branch detection, the binary /
+    // auth / portable-root probes) is what Review Mode actually needs. One end
+    // marker, and it THROWS when it stops resolving — the old two-marker version
+    // fell back to `start >= 0 ? start : 0` and `end > start ? end : undefined`,
+    // which quietly degrades to "whole file" or "" instead of failing.
+    const modulePath = path.join(
+      ROOT, 'skills', codexRoute.dispatcher, 'references', 'legacy', `${codexRoute.module}.md`,
     );
-    fs.writeFileSync(path.join(codexDir, 'codex-SKILL.md'), reviewSection);
+    const full = fs.readFileSync(modulePath, 'utf-8');
+    const endMarker = '## Plan File Review Report';
+    const end = full.indexOf(endMarker);
+    if (end <= 0) {
+      throw new Error(
+        `codex fixture: marker "${endMarker}" no longer resolves in ${modulePath}. ` +
+          `Silently slicing the whole file (or "") would make every assertion below vacuous.`,
+      );
+    }
+    fs.writeFileSync(path.join(codexDir, 'codex-SKILL.md'), full.slice(0, end));
   });
 
   afterAll(() => {
@@ -495,7 +445,8 @@ describeIfSelected('Codex skill E2E', ['codex-review'], () => {
 
     const result = await runSkillTest({
       prompt: `You are in a git repo on branch feature/add-vuln with changes against main.
-Read codex-SKILL.md for the /codex review instructions (it's short — ~120 lines).
+Read codex-SKILL.md — it is the Review Mode portion of the \`${codexRoute.invocation}\`
+module, extracted so you don't have to read the whole thing.
 Follow those instructions to run codex review against the diff on this branch.
 Write the full output (including the GATE verdict) to ${codexDir}/codex-output.md`,
       workingDirectory: codexDir,
@@ -510,14 +461,12 @@ Write the full output (including the GATE verdict) to ${codexDir}/codex-output.m
     recordE2E(evalCollector, '/codex review', 'Codex skill E2E', result);
     expect(result.exitReason).toBe('success');
 
-    // Check that output file was created with review content
-    const outputPath = path.join(codexDir, 'codex-output.md');
-    if (fs.existsSync(outputPath)) {
-      const output = fs.readFileSync(outputPath, 'utf-8');
-      // Should contain the CODEX SAYS header or GATE verdict
-      const hasCodexOutput = output.includes('CODEX') || output.includes('GATE') || output.includes('codex');
-      expect(hasCodexOutput).toBe(true);
-    }
+    // The output file IS the assertion. The old `if (fs.existsSync(...))` guard
+    // meant an agent that wrote nothing passed the content check by skipping it.
+    const output = requireReportArtifact(path.join(codexDir, 'codex-output.md'));
+    // Should contain the CODEX SAYS header or GATE verdict
+    const hasCodexOutput = output.includes('CODEX') || output.includes('GATE') || output.includes('codex');
+    expect(hasCodexOutput, `codex-output.md has no CODEX/GATE verdict:\n${output.slice(0, 500)}`).toBe(true);
   }, 360_000);
 });
 

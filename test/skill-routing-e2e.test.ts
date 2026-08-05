@@ -59,35 +59,56 @@ if (evalsEnabled && process.env.EVALS_TIER) {
 
 // --- Helper functions ---
 
-/** Copy all SKILL.md files for auto-discovery.
+/**
+ * The registry a real user actually has.
+ *
+ * `npx skills add time-attack/gstack/skills` yields exactly these six: the
+ * installer walks `skills/` one level deep and never descends into the
+ * dot-hidden `skills/.compat/`, and every alias in there additionally carries
+ * `metadata.internal: true`, which the installer drops. So a routing test that
+ * installed the ~39 compat aliases would be measuring a registry nobody has —
+ * and would happily go green on a request routing to `office-hours`, which no
+ * user can reach by name. Old-name routing is covered where it actually lives:
+ * statically in test/compat-alias-routes.test.ts, E2E via installLegacySkill().
+ */
+const SHIPPED_SKILLS = ['plan', 'qa', 'debug', 'review', 'ship', 'make-pdf'];
+
+/** Install the shipped GStack 2 skill registry for auto-discovery.
  *  Installs to project-level (.claude/skills/) only. Writing to the user's
  *  ~/.claude/skills/ is unsafe: it may contain symlinks from the real gstack
- *  install that point to different worktrees or dangling targets. */
+ *  install that point to different worktrees or dangling targets.
+ *
+ *  Throws on a missing skill. The predecessor used
+ *  `if (!fs.existsSync(srcPath)) continue;` over a hardcoded 1.x name list;
+ *  when the 1.x tree was deleted, every name but one silently skipped and the
+ *  suite asserted routing behavior against an almost-empty registry — green,
+ *  and testing nothing. A missing name is a broken tree, not a skip. */
 function installSkills(tmpDir: string) {
-  const skillDirs = [
-    '', // root gstack SKILL.md
-    'qa', 'qa-only', 'ship', 'review', 'plan-ceo-review', 'plan-eng-review',
-    'plan-design-review', 'design-review', 'design-consultation', 'retro',
-    'document-release', 'investigate', 'office-hours', 'browse', 'setup-browser-cookies',
-    'gstack-upgrade', 'humanizer',
-  ];
-
   const targetBase = path.join(tmpDir, '.claude', 'skills');
 
-  for (const skill of skillDirs) {
-    const srcPath = path.join(ROOT, skill, 'SKILL.md');
-    if (!fs.existsSync(srcPath)) continue;
-
-    const skillName = skill || 'gstack';
-    const destDir = path.join(targetBase, skillName);
-    fs.mkdirSync(destDir, { recursive: true });
-    fs.copyFileSync(srcPath, path.join(destDir, 'SKILL.md'));
+  for (const skill of SHIPPED_SKILLS) {
+    const srcDir = path.join(ROOT, 'skills', skill);
+    if (!fs.existsSync(path.join(srcDir, 'SKILL.md'))) {
+      throw new Error(
+        `installSkills: skills/${skill}/SKILL.md is missing. The routing registry ` +
+          `must be the shipped one (${SHIPPED_SKILLS.join(', ')}); installing fewer ` +
+          `makes every routing assertion below vacuous.`,
+      );
+    }
+    // Whole tree, not just SKILL.md: that is what the installer places, and the
+    // dispatcher addresses its own references/ relatively once invoked.
+    fs.cpSync(srcDir, path.join(targetBase, skill), { recursive: true });
   }
 
   // Write a CLAUDE.md with explicit routing instructions.
   // The skill descriptions in system-reminder aren't strong enough to override
   // Claude's default behavior of answering directly. A CLAUDE.md instruction
   // puts routing rules in project context which Claude weighs more heavily.
+  //
+  // The rules below are the canonical contract's own routing rules, verbatim.
+  // Deliberately NOT a per-test cheat sheet: adding "retrospectives → plan" or
+  // "visual audits → qa" here would coach the exact journeys under test to
+  // green and measure nothing but instruction-following.
   fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), `# Project Instructions
 
 ## Skill routing
@@ -96,17 +117,17 @@ When the user's request matches an available skill, ALWAYS invoke it using the S
 tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
 The skill has specialized workflows that produce better results than ad-hoc answers.
 
+The judgment surface is exactly five dispatchers. Each one selects its own internal
+mode and specialist module after it is invoked; you only choose the dispatcher.
+
 Key routing rules:
-- Product ideas, "is this worth building", brainstorming → invoke office-hours
-- Bugs, errors, "why is this broken", 500 errors → invoke investigate
-- Ship, deploy, push, create PR → invoke ship
-- QA, test the site, find bugs → invoke qa
-- Code review, check my diff → invoke review
-- Update docs after shipping → invoke document-release
-- Weekly retro → invoke retro
-- Design system, brand → invoke design-consultation
-- Visual audit, design polish → invoke design-review
-- Architecture review → invoke plan-eng-review
+- Product framing, strategy, scope, architecture, DX, specs, or a full planning pipeline → invoke \`plan\` with the preserved specialist mode.
+- Web/device QA, report-only versus fixes, DX journeys, performance, or canaries → invoke \`qa\`.
+- Bugs and unknown failures → invoke \`debug\`; prove root cause before mutation.
+- Diff, security, compatibility, or repository-health review → invoke \`review\`.
+- PR preparation, landing, deploy, monitoring, release docs, or rollback → invoke \`ship\`.
+- Turning a Markdown file into a print-ready PDF, HTML, or DOCX → invoke \`make-pdf\`.
+- Old names such as \`/office-hours\`, \`/investigate\`, and \`/qa-only\` are not skills; they route through compatibility aliases into the five dispatchers above.
 `);
 }
 
@@ -129,8 +150,9 @@ function initGitRepo(dir: string) {
 function createRoutingWorkDir(suffix: string): string {
   // Clone the repo checkout into a tmpDir so concurrent tests don't interfere
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `routing-${suffix}-`));
-  // Copy essential context files
-  const filesToCopy = ['CLAUDE.md', 'README.md', 'package.json', 'ETHOS.md'];
+  // Copy essential context files. NOT CLAUDE.md — installSkills writes its own
+  // (the routing rules), and copying ROOT's first only to overwrite it was dead.
+  const filesToCopy = ['README.md', 'package.json', 'ETHOS.md'];
   for (const f of filesToCopy) {
     const src = path.join(ROOT, f);
     if (fs.existsSync(src)) fs.copyFileSync(src, path.join(tmpDir, f));
@@ -186,7 +208,10 @@ describeE2E('Skill Routing E2E — Developer Journey', () => {
     try {
 
       const testName = 'journey-ideation';
-      const expectedSkill = 'office-hours';
+      // 1.x expected `office-hours`. That is no longer a skill: the compat alias
+      // routes it to `$plan --mode Discovery --module office-hours`, so the only
+      // thing a user can invoke here is the `plan` dispatcher.
+      const expectedSkill = 'plan';
       const result = await runSkillTest({
         prompt: "I've been thinking about building a waitlist management tool for restaurants. The existing solutions are expensive and overcomplicated. I want something simple — a tablet app where hosts can add parties, see wait times, and text customers when their table is ready. Help me think through whether this is worth building and what the key design decisions are.",
         workingDirectory: tmpDir,
@@ -236,7 +261,9 @@ describeE2E('Skill Routing E2E — Developer Journey', () => {
       spawnSync('git', ['commit', '-m', 'initial'], { cwd: tmpDir, stdio: 'pipe', timeout: 5000 });
 
       const testName = 'journey-plan-eng';
-      const expectedSkill = 'plan-eng-review';
+      // 1.x expected `plan-eng-review` → now `$plan --mode Engineering --module
+      // plan-eng-review`. The dispatcher picks the mode; the user picks `plan`.
+      const expectedSkill = 'plan';
       const result = await runSkillTest({
         prompt: "I wrote up a plan for the waitlist app in plan.md. Can you take a look at the architecture and make sure I'm not missing any edge cases or failure modes before I start coding?",
         workingDirectory: tmpDir,
@@ -263,7 +290,7 @@ describeE2E('Skill Routing E2E — Developer Journey', () => {
   // Removed: journey-think-bigger
   // Tested ambiguous routing ("think bigger" → plan-ceo-review) but Claude
   // legitimately answers directly instead of routing. Never passed reliably.
-  // The other 10 journey tests cover routing with clear signals.
+  // The remaining journey tests cover routing with clear signals.
 
   testIfSelected('journey-debug', async () => {
     const tmpDir = createRoutingWorkDir('debug');
@@ -298,7 +325,9 @@ export default app;
       run('git', ['checkout', '-b', 'feature/waitlist-api']);
 
       const testName = 'journey-debug';
-      const expectedSkill = 'investigate';
+      // 1.x expected `investigate` → now `$debug --mode Diagnose-only --module
+      // investigate`.
+      const expectedSkill = 'debug';
       const result = await runSkillTest({
         prompt: "The GET /api/waitlist endpoint was working fine yesterday but now it's returning 500 errors. The tests are passing locally but the endpoint fails when I hit it with curl. Can you figure out what's going on?",
         workingDirectory: tmpDir,
@@ -316,8 +345,11 @@ export default app;
       recordRouting(testName, result, expectedSkill, actualSkill);
 
       expect(skillCalls.length, `Expected Skill tool to be called but got 0 calls. Claude may have answered directly without invoking a skill. Tool calls: ${result.toolCalls.map(tc => tc.tool).join(', ')}`).toBeGreaterThan(0);
-      const validSkills = ['investigate', 'qa'];
-      expect(validSkills, `Expected one of ${validSkills.join('/')} but got ${actualSkill}`).toContain(actualSkill);
+      // 1.x also accepted `qa` because /qa fixed bugs too. Under the canonical
+      // contract "bugs and unknown failures → /debug" is unambiguous, and
+      // accepting 2 of 6 dispatchers would be looser than the 2-of-17 it
+      // replaced. One answer.
+      expect([expectedSkill], `Expected skill ${expectedSkill} but got ${actualSkill}`).toContain(actualSkill);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -333,8 +365,12 @@ export default app;
       spawnSync('git', ['commit', '-m', 'initial'], { cwd: tmpDir, stdio: 'pipe', timeout: 5000 });
 
       const testName = 'journey-qa';
+      // `qa` is a live dispatcher, unchanged. The 1.x alternates `qa-only` and
+      // `browse` are now modules underneath it (`$qa --mode Report --module
+      // qa-only` / `--module browse`), not separate skills, so there is exactly
+      // one right answer.
       const expectedSkill = 'qa';
-      const alternateSkills = ['qa-only', 'browse'];
+      const alternateSkills: string[] = [];
       const result = await runSkillTest({
         prompt: "I think the app is mostly working now. Can you go through the site and test everything — find any bugs and fix them?",
         workingDirectory: tmpDir,
@@ -451,7 +487,10 @@ export default app;
       run('git', ['commit', '-m', 'feat: ship waitlist feature']);
 
       const testName = 'journey-docs';
-      const expectedSkill = 'document-release';
+      // 1.x expected `document-release` → now `$ship --mode Prepare --module
+      // document-release`. Release documentation is a ship-stage concern, and
+      // ship's own description says "Use for checks, versioning, docs, ...".
+      const expectedSkill = 'ship';
       const result = await runSkillTest({
         prompt: "We just shipped the waitlist feature. Can you go through the README and any other docs and make sure they match what we actually built?",
         workingDirectory: tmpDir,
@@ -494,7 +533,16 @@ export default app;
       run('git', ['commit', '-m', 'docs: add README', '--date', '2026-03-14T16:00:00']);
 
       const testName = 'journey-retro';
-      const expectedSkill = 'retro';
+      // 1.x expected `retro` → now `$plan --mode Discovery --module retro`.
+      //
+      // EXPECT THIS RED. `plan`'s shipped description is "Plan products, scope,
+      // architecture, developer experience, or executable specs BEFORE
+      // implementation" — nothing in it covers looking back at what already
+      // shipped, so "what did we ship this week" has no description to match and
+      // Claude will likely answer with git log directly. That is a real 2.0
+      // reachability hole in the plan description, not a stale assertion, so it
+      // is left biting instead of relaxed to "any skill or none".
+      const expectedSkill = 'plan';
       const result = await runSkillTest({
         prompt: "It's Friday. What did we ship this week? I want to do a quick retrospective on what the team accomplished.",
         workingDirectory: tmpDir,
@@ -518,34 +566,16 @@ export default app;
     }
   }, 150_000);
 
-  testIfSelected('journey-design-system', async () => {
-    const tmpDir = createRoutingWorkDir('design-system');
-    try {
-
-      const testName = 'journey-design-system';
-      const expectedSkill = 'design-consultation';
-      const result = await runSkillTest({
-        prompt: "Before we build the UI, I want to establish a design system — typography, colors, spacing, the whole thing. Can you put together brand guidelines for this project?",
-        workingDirectory: tmpDir,
-        maxTurns: 5,
-        allowedTools: ['Skill', 'Read', 'Bash', 'Glob', 'Grep'],
-        timeout: 60_000,
-        testName,
-        runId,
-      });
-
-      const skillCalls = result.toolCalls.filter(tc => tc.tool === 'Skill');
-      const actualSkill = skillCalls.length > 0 ? skillCalls[0]?.input?.skill : undefined;
-
-      logCost(`journey: ${testName}`, result);
-      recordRouting(testName, result, expectedSkill, actualSkill);
-
-      expect(skillCalls.length, `Expected Skill tool to be called but got 0 calls. Claude may have answered directly without invoking a skill. Tool calls: ${result.toolCalls.map(tc => tc.tool).join(', ')}`).toBeGreaterThan(0);
-      expect([expectedSkill], `Expected skill ${expectedSkill} but got ${actualSkill}`).toContain(actualSkill);
-    } finally {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    }
-  }, 150_000);
+  // Removed: journey-design-system
+  // It asserted "establish a design system / brand guidelines" → design-consultation.
+  // The whole design surface is gone from GStack 2: `find skills -iname '*design*'`
+  // is empty, there is no design module under any dispatcher's references/legacy/,
+  // and skills/.compat/ carries no design alias. There is no 2.0 target to assert,
+  // and inventing one (plan? qa?) would encode an expectation the shipped tree
+  // does not make. Coverage lost: nothing verifies that a design-system request
+  // is handled, because gstack no longer claims to handle it.
+  // Its E2E_TOUCHFILES + E2E_TIERS entries in test/helpers/touchfiles.ts are now
+  // orphaned and need removing by whoever owns that file.
 
   testIfSelected('journey-visual-qa', async () => {
     const tmpDir = createRoutingWorkDir('visual-qa');
@@ -574,7 +604,12 @@ body { font-family: sans-serif; }
       run('git', ['commit', '-m', 'initial UI']);
 
       const testName = 'journey-visual-qa';
-      const expectedSkill = 'design-review';
+      // 1.x expected `design-review`, which no longer exists in any form (no
+      // module, no compat alias). A visual audit of a running page with authority
+      // to fix is `qa` — the only dispatcher whose surface is the rendered
+      // product. This is a genuinely harder call than the 1.x version, where a
+      // skill named "design-review" matched the words in the prompt.
+      const expectedSkill = 'qa';
       const result = await runSkillTest({
         prompt: "Something looks off on the site. The spacing between sections is inconsistent and the font sizes don't feel right. Can you audit the visual design and fix anything that doesn't look polished?",
         workingDirectory: tmpDir,
@@ -592,8 +627,9 @@ body { font-family: sans-serif; }
       recordRouting(testName, result, expectedSkill, actualSkill);
 
       expect(skillCalls.length, `Expected Skill tool to be called but got 0 calls. Claude may have answered directly without invoking a skill. Tool calls: ${result.toolCalls.map(tc => tc.tool).join(', ')}`).toBeGreaterThan(0);
-      const validSkills = ['design-review', 'qa', 'qa-only', 'browse'];
-      expect(validSkills, `Expected one of ${validSkills.join('/')} but got ${actualSkill}`).toContain(actualSkill);
+      // `qa-only` and `browse` were 1.x alternates; both are now modules under
+      // $qa, so the dispatcher-level answer is singular.
+      expect([expectedSkill], `Expected skill ${expectedSkill} but got ${actualSkill}`).toContain(actualSkill);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
