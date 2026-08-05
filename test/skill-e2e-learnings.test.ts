@@ -1,9 +1,9 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { runSkillTest } from './helpers/session-runner';
 import {
-  ROOT, runId, evalsEnabled,
+  ROOT, runId,
   describeIfSelected, testConcurrentIfSelected,
-  copyDirSync, logCost, recordE2E,
+  installLegacySkill, logCost, recordE2E,
   createEvalCollector, finalizeEvalCollector,
 } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
@@ -18,6 +18,7 @@ const evalCollector = createEvalCollector('e2e-learnings');
 describeIfSelected('Learnings E2E', ['learnings-show'], () => {
   let workDir: string;
   let gstackHome: string;
+  let route: ReturnType<typeof installLegacySkill>;
 
   beforeAll(() => {
     workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-learnings-'));
@@ -33,21 +34,45 @@ describeIfSelected('Learnings E2E', ['learnings-show'], () => {
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'initial']);
 
-    // Copy the /learn skill
-    copyDirSync(path.join(ROOT, 'learn'), path.join(workDir, 'learn'));
+    // Install /learn the way a user reaches it today: the compat alias under its
+    // old name, plus the plan dispatcher it routes into. The 1.x `learn/` tree at
+    // the repo root is gone; this is the only path a user has.
+    route = installLegacySkill(workDir, 'learn');
 
-    // Copy bin scripts needed by /learn
-    const binDir = path.join(workDir, 'bin');
-    fs.mkdirSync(binDir, { recursive: true });
-    for (const script of ['gstack-learnings-search', 'gstack-learnings-log', 'gstack-slug']) {
-      fs.copyFileSync(path.join(ROOT, 'bin', script), path.join(binDir, script));
-      fs.chmodSync(path.join(binDir, script), 0o755);
+    // Install the managed runtime bundle where the shipped module looks for it:
+    // $GSTACK_HOME/bin. The module's own bash blocks bind `GSTACK_BIN="$GSTACK_HOME/bin"`
+    // and call `$GSTACK_BIN/gstack-slug` + `$GSTACK_BIN/gstack-learnings-search`.
+    //
+    // Symlinked, not cherry-picked. `bin/gstack-slug` imports `../runtime/identity.js`,
+    // so copying three scripts into a bare directory leaves the runtime behind and
+    // gstack-slug dies with ERR_MODULE_NOT_FOUND — silently, because the module runs
+    // it as `eval "$(... 2>/dev/null)"`, and then gstack-learnings-search trips its own
+    // `${PROJECT_ID:?}` guard and the module prints "No learnings yet."
+    // fs.rmSync in afterAll unlinks the symlink; it does not descend into ROOT/bin.
+    fs.mkdirSync(gstackHome, { recursive: true });
+    fs.symlinkSync(path.join(ROOT, 'bin'), path.join(gstackHome, 'bin'));
+
+    // Seed learnings JSONL into the bucket gstack-learnings-search actually reads:
+    // `$GSTACK_HOME/projects/$PROJECT_ID/learnings.jsonl`. PROJECT_ID is a
+    // worktree-stable HASH, not basename(workDir). Seeding the basename put the
+    // fixture in a bucket nothing reads: the module's flow does not pass
+    // --cross-project, so the other-projects scan never runs, and a missing
+    // LEARNINGS_FILE makes the search `exit 0` SILENTLY — not even the module's
+    // `|| echo "No learnings yet."` fallback fires. Ask the binary, don't guess.
+    const slugOut = spawnSync(path.join(gstackHome, 'bin', 'gstack-slug'), [], {
+      cwd: workDir,
+      env: { ...process.env, GSTACK_HOME: gstackHome },
+      stdio: 'pipe',
+      timeout: 15000,
+    });
+    const projectId = (slugOut.stdout?.toString() || '').match(/^PROJECT_ID=(.+)$/m)?.[1];
+    if (!projectId) {
+      throw new Error(
+        `gstack-slug emitted no PROJECT_ID (exit ${slugOut.status}). ` +
+          `The seeded learnings would have no bucket to land in.\n${slugOut.stderr?.toString() || ''}`,
+      );
     }
-
-    // Seed learnings JSONL — slug must match what gstack-slug computes.
-    // With no git remote, gstack-slug falls back to basename(workDir).
-    const slug = path.basename(workDir).replace(/[^a-zA-Z0-9._-]/g, '');
-    const projectDir = path.join(gstackHome, 'projects', slug);
+    const projectDir = path.join(gstackHome, 'projects', projectId);
     fs.mkdirSync(projectDir, { recursive: true });
 
     const learnings = [
@@ -88,22 +113,29 @@ describeIfSelected('Learnings E2E', ['learnings-show'], () => {
 
   testConcurrentIfSelected('learnings-show', async () => {
     const result = await runSkillTest({
-      prompt: `Read the file learn/SKILL.md for the /learn skill instructions.
+      prompt: `Read the file learn/SKILL.md for instructions. It is a routing alias — follow its
+dispatch (\`${route.invocation}\`) into skills/${route.dispatcher}/SKILL.md and read that
+dispatcher's references/legacy/${route.module}.md module. There is no skill registry in
+this directory, so \`$${route.dispatcher}\` is not resolvable by name — use those paths.
 
-Run the /learn command (no arguments — show recent learnings).
+Run the module's "Show recent" flow (no arguments — show recent learnings).
 
 IMPORTANT:
 - Use GSTACK_HOME="${gstackHome}" as an environment variable when running bin scripts.
-- The bin scripts are at ./bin/ (relative to this directory), not at ~/.claude/skills/gstack/bin/.
-  Replace any references to ~/.claude/skills/gstack/bin/ with ./bin/ when running commands.
-- Replace any references to ~/.claude/skills/gstack/bin/gstack-slug with ./bin/gstack-slug.
+- The managed runtime is installed at $GSTACK_HOME/bin, which is exactly where the
+  module's own bash blocks look (\`GSTACK_BIN="$GSTACK_HOME/bin"\`). No path
+  substitution is needed.
 - Do NOT use AskUserQuestion.
 - Do NOT implement code changes.
 - Just show the learnings and summarize what you found.`,
       workingDirectory: workDir,
-      maxTurns: 15,
+      // Budget raised from 15 turns / 120s. The specialist is 3 reads away now
+      // (alias → skills/plan/SKILL.md → references/legacy/learn.md) where the 1.x
+      // tree put it 1 read away, and the dispatcher directs a read of
+      // SHARED-JUDGMENT.md + AUTHORITY-POLICY.md before substantive work.
+      maxTurns: 22,
       allowedTools: ['Bash', 'Read', 'Write', 'Edit', 'Grep', 'Glob'],
-      timeout: 120_000,
+      timeout: 240_000,
       testName: 'learnings-show',
       runId,
     });
@@ -134,5 +166,5 @@ IMPORTANT:
     } else {
       console.warn(`Only ${foundCount}/3 learnings found (N+1: ${mentionsNPlusOne}, cache: ${mentionsCache}, rubocop: ${mentionsRubocop})`);
     }
-  }, 180_000);
+  }, 300_000);
 });
