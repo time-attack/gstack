@@ -55,6 +55,43 @@ describe('compat alias routes', () => {
     });
   }
 
+  /**
+   * The aliases are only half the surface. A legacy module's own prose also
+   * tells the agent to dispatch ("User asks about X -> invoke `$qa --mode
+   * Report --module benchmark`"). When a module is cut, those sentences are
+   * what strand the agent mid-dispatch, and no alias test sees them.
+   *
+   * Five were live when the 1.x tree came out: benchmark, skillify and
+   * gstack-upgrade pointed at cut modules, and canary pointed at $qa after
+   * the module moved to $ship.
+   */
+  test('every $dispatcher --module route in skills/ points at a module that exists', () => {
+    const routes = new Map<string, string[]>();
+
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith('.md')) {
+          const body = fs.readFileSync(full, 'utf-8');
+          const re = /\$(plan|qa|debug|review|ship)\s+--mode\s+[A-Za-z-]+\s+--module\s+([a-z0-9-]+)/g;
+          for (const m of body.matchAll(re)) {
+            const [, dispatcher, moduleName] = m;
+            const target = path.join(ROOT, 'skills', dispatcher, 'references', 'legacy', `${moduleName}.md`);
+            if (!fs.existsSync(target)) {
+              const key = `$${dispatcher} --module ${moduleName}`;
+              routes.set(key, [...(routes.get(key) ?? []), path.relative(ROOT, full)]);
+            }
+          }
+        }
+      }
+    };
+    walk(path.join(ROOT, 'skills'));
+
+    const dangling = [...routes.entries()].map(([r, files]) => `${r}  (in ${files.join(', ')})`);
+    expect(dangling, `routes point at modules that do not exist:\n  ${dangling.join('\n  ')}`).toEqual([]);
+  });
+
   test('an alias naming a module that does not exist is rejected, not skipped', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'compat-bogus-'));
     try {

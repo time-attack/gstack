@@ -27,21 +27,20 @@ directly, no skill matched):
 - User asks to ship, deploy, push, create a PR, "let's land this", "send it" → invoke `/ship`
 - User asks to merge + deploy + verify as one flow → invoke `$ship --mode Land --module land-and-deploy`
 - User asks to configure deployment for the project → invoke `$ship --mode Deploy --module setup-deploy`
-- User asks to monitor prod after shipping, post-deploy checks → invoke `$qa --mode Report --module canary`
+- User asks to monitor prod after shipping, post-deploy checks → invoke `$ship --mode Monitor --module canary`
 - User asks to update docs after shipping → invoke `$ship --mode Prepare --module document-release`
 - User asks to write docs from scratch, generate documentation, "document this feature/module" → invoke `$ship --mode Prepare --module document-generate`
 - User asks for a weekly retro, what did we ship, "how'd we do" → invoke `$plan --mode Discovery --module retro`
 - User asks for a second opinion, codex review → invoke `$review --mode Deep --module codex`
 - User asks for safety mode, careful mode → invoke `$debug --mode Diagnose-only --module careful` or `$debug --mode Diagnose-only --module guard`
 - User asks to restrict edits to a directory → invoke `$debug --mode Diagnose-only --module freeze` or `$debug --mode Diagnose-only --module unfreeze`
-- User asks to upgrade gstack → invoke `$ship --mode Prepare --module gstack-upgrade`
+- User asks to upgrade gstack → tell them to re-run the standard installer, `npx skills add time-attack/gstack/skills`. There is no upgrade skill: the installer owns placement and updates.
 - User asks to save progress, checkpoint, "save my work" → invoke `$plan --mode Discovery --module context-save`
 - User asks to resume, restore, "where was I" → invoke `$plan --mode Discovery --module context-restore`
 - User asks about security, OWASP, vulnerabilities, "is this secure" → invoke `$review --mode Security --module cso`
 - User asks to make a PDF, document, publication → invoke `/make-pdf`
 - User asks to launch a real browser for QA, "open the browser" → invoke `$qa --mode Report --module open-gstack-browser`
 - User asks to import cookies for authenticated testing → invoke `$qa --mode Report --module setup-browser-cookies`
-- User asks about page speed, performance regression, benchmarks → invoke `$qa --mode Report --module benchmark`
 - User asks what gstack has learned, "show learnings" → invoke `$plan --mode Discovery --module learn`
 - User asks to tune question sensitivity, "stop asking me that" → invoke `$plan --mode Discovery --module plan-tune`
 - User asks for code quality dashboard, "health check" → invoke `$review --mode Deep --module health`
