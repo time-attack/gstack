@@ -13,6 +13,15 @@ import * as path from 'path';
 import { spawnSync } from 'child_process';
 import type { Expected, Trap, Truth } from './score';
 import { ROOT, walkFiles } from './tree';
+// Authored for the per-module ablation study. Before these, `ship` and `debug`
+// had zero scenarios and `qa` had one, so 24 of the 42 modules could not be
+// judged at all — the study would have reported no signal and that is easy to
+// misread as "no value". Never measured is a different result from measured
+// and flat, and only these files make the difference visible.
+import { shipScenarios } from './scenarios-ship';
+import { debugScenarios } from './scenarios-debug';
+import { qaPlusScenarios } from './scenarios-qa-plus';
+import { planPlusScenarios } from './scenarios-plan-plus';
 
 export type Skill = 'review' | 'qa' | 'plan' | 'debug' | 'ship';
 
@@ -526,6 +535,10 @@ export function allScenarios(): Scenario[] {
     ...planScenarios,
     ...postureScenarios,
     ...parityScenarios(),
+    ...shipScenarios,
+    ...debugScenarios,
+    ...qaPlusScenarios,
+    ...planPlusScenarios,
   ];
 }
 
@@ -539,6 +552,32 @@ export function selectScenarios(ids?: string[]): Scenario[] {
   return picked;
 }
 
+/**
+ * Name the skill explicitly. This is load-bearing for the ablation study.
+ *
+ * Measured on the real harness: NONE of the 94 scenario tasks named a skill,
+ * and a smoke cell showed the `full` arm never calling the Skill tool and
+ * scoring identically to `no-skill`. When that happens `full` IS `no-skill`,
+ * every ablation delta collapses to zero, and all 42 modules read as dead
+ * weight. The study would confidently recommend deleting everything, for a
+ * reason having nothing to do with any module's content.
+ *
+ * The line is IDENTICAL across arms, so it does not tilt the comparison: the
+ * arms differ only in the skill tree on disk. `full` finds the skill and
+ * reads its modules, `ablate:X` finds it minus one module, and `no-skill`
+ * has nothing to find and does the task raw — which is exactly the floor we
+ * want to measure against.
+ *
+ * What this scopes the study to: "does this module earn its tokens WHEN THE
+ * SKILL IS INVOKED". Whether a user's phrasing reaches the skill at all is
+ * discoverability, a separate axis with its own real bugs (`/retro` was
+ * unreachable because plan's description said "before implementation"). Do
+ * not read a verdict here as a statement about discoverability.
+ */
+export function skillDirective(s: Scenario): string {
+  return `Use the /${s.skill} skill for this task.\n\n`;
+}
+
 export function scenarioPrompt(s: Scenario): string {
-  return `${s.task}${REPORT_INSTRUCTION}`;
+  return `${skillDirective(s)}${s.task}${REPORT_INSTRUCTION}`;
 }
