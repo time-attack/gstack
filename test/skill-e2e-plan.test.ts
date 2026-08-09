@@ -531,8 +531,10 @@ Summarize what the "Spec Review Loop" section does — specifically:
 
 Write your summary to ${ohDir}/spec-review-summary.md`,
       workingDirectory: ohDir,
-      maxTurns: 14,
-      timeout: 240_000,
+      // 6689e9f6 rewrote the offering prompt as a two-hop routing stub; the
+      // measured natural cost grew to 18+ turns, so 14 guaranteed exhaustion.
+      maxTurns: 24,
+      timeout: 300_000,
       testName: 'office-hours-spec-review',
       runId,
     });
@@ -586,8 +588,10 @@ Summarize what happens when no design doc is found — specifically:
 
 Write your summary to ${benefitsDir}/benefits-summary.md`,
       workingDirectory: benefitsDir,
-      maxTurns: 14,
-      timeout: 240_000,
+      // 6689e9f6 rewrote the offering prompt as a two-hop routing stub; the
+      // measured natural cost grew to 18+ turns, so 14 guaranteed exhaustion.
+      maxTurns: 24,
+      timeout: 300_000,
       testName: 'plan-ceo-review-benefits',
       runId,
     });
@@ -786,8 +790,10 @@ Summarize the Codex/${featureName} integration — answer these specific questio
 
 Write your summary to ${testDir}/${testName}-summary.md`,
       workingDirectory: testDir,
-      maxTurns: 14,
-      timeout: 240_000,
+      // 6689e9f6 rewrote the offering prompt as a two-hop routing stub; the
+      // measured natural cost grew to 18+ turns, so 14 guaranteed exhaustion.
+      maxTurns: 24,
+      timeout: 300_000,
       testName,
       runId,
     });

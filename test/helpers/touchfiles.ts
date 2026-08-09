@@ -686,10 +686,13 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   'plan-tune-codex-import': 'gate',
   'plan-tune-dream-cycle': 'gate',
 
-  // Codex offering verification
-  'codex-offered-office-hours': 'gate',
-  'codex-offered-ceo-review': 'gate',
-  'codex-offered-eng-review': 'gate',
+  // Codex offering verification — periodic: needs the external Codex CLI and
+  // judges a multi-file dispatch flow whose natural turn cost moves with the
+  // routing prose (6689e9f6 grew it from ~8 to 18+ turns). Non-deterministic
+  // external-service quality checks are periodic per the tiering policy.
+  'codex-offered-office-hours': 'periodic',
+  'codex-offered-ceo-review': 'periodic',
+  'codex-offered-eng-review': 'periodic',
 
   // Session Intelligence — gate for data flow, periodic for agent integration
   'timeline-event-flow': 'gate',                   // Binary data flow (no LLM needed)
