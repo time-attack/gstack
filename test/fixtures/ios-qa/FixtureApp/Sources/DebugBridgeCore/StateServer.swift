@@ -6,8 +6,8 @@
 //
 // Threat model: this surface is reachable from the local Mac via the CoreDevice
 // IPv6 tunnel. It MUST refuse any caller without a current bearer token. The
-// boot token is rotated within ~5 seconds of daemon spawn so anything scraping
-// os_log past that window sees a dead credential.
+// boot token never reaches os_log (.private) and is rotated within ~5 seconds
+// of daemon spawn, so a scraped log or leftover file is a dead credential.
 
 import Foundation
 import Network
@@ -34,7 +34,7 @@ public final class StateServer {
     private var ipv6Listener: NWListener?
     private var ipv4Listener: NWListener?
 
-    // Auth state. The boot token is what we wrote to os_log on first launch.
+    // Auth state. The boot token is what start() persisted to the 0600 file.
     // It exists ONLY long enough for the daemon to call /auth/rotate.
     private var bootToken: String
     private var rotatedToken: String?  // set after first /auth/rotate
@@ -90,18 +90,21 @@ public final class StateServer {
     }
 
     public func start() {
-        // 1. Persist boot token to a 0600 file (best-effort fallback for the
-        //    daemon if os_log scrape misses).
+        // 1. Persist boot token to a 0600 file — the channel the daemon reads
+        //    (devicectl file copy) before calling /auth/rotate.
         try? bootToken.write(toFile: bootTokenPath, atomically: true, encoding: .utf8)
         try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: bootTokenPath)
 
-        // 2. Log the boot token EXACTLY ONCE so the daemon can scrape it.
-        //    The daemon will rotate immediately; this log line is dead within
-        //    seconds.
-        logger.notice("gstack-ios-qa-bootstrap token=\(self.bootToken, privacy: .public) port=\(self.port, privacy: .public) build=\(self.appBuildId, privacy: .public)")
+        // 2. Announce readiness EXACTLY ONCE. The token stays .private — the
+        //    unified log is readable device-wide, and the daemon reads the
+        //    token from the 0600 file, never from this line.
+        logger.notice("gstack-ios-qa-bootstrap token=\(self.bootToken, privacy: .private) port=\(self.port, privacy: .public) build=\(self.appBuildId, privacy: .public)")
 
-        // 3. Bind both IPv6 and IPv4 loopback. CoreDevice tunnel uses IPv6;
-        //    local tooling may use IPv4. Never bind 0.0.0.0 or ::.
+        // 3. Bind IPv4 to loopback only (no tunnel path uses IPv4). IPv6 must
+        //    bind the wildcard because the CoreDevice tunnel peer arrives on a
+        //    utun interface with a ULA source address; the per-connection
+        //    isLoopbackPeer check below rejects everything except loopback
+        //    and the fc00::/7 ULA range.
         startListener(family: .ipv6)
         startListener(family: .ipv4)
     }
@@ -123,31 +126,34 @@ public final class StateServer {
     private enum AddressFamily {
         case ipv4
         case ipv6
-
-        var host: NWEndpoint.Host {
-            switch self {
-            case .ipv4: return NWEndpoint.Host("127.0.0.1")
-            case .ipv6: return NWEndpoint.Host("::1")
-            }
-        }
     }
 
     private func startListener(family: AddressFamily) {
         do {
-            // Binding strategy: accept connections from the device's loopback
-            // AND from the CoreDevice tunnel (the USB-mounted tunnel the Mac
-            // daemon uses to reach this app — appears as a non-loopback
-            // utun-style interface on the device with the peer's source
-            // address in the fd*/fc* ULA range). We can't use
-            // params.acceptLocalOnly — Network.framework's definition of
-            // "local" is strictly loopback and silently drops CoreDevice
-            // tunnel peers. Instead we accept on the wildcard interface and
-            // do a per-connection peer-address check below: loopback OR
-            // RFC 4193 ULA (fc00::/7) → accept, everything else → cancel.
+            // Binding strategy: IPv4 has no CoreDevice tunnel path, so it
+            // binds strictly to loopback. IPv6 must also accept the CoreDevice
+            // tunnel (the USB-mounted tunnel the Mac daemon uses to reach this
+            // app — appears as a non-loopback utun-style interface on the
+            // device with the peer's source address in the fd*/fc* ULA range).
+            // We can't use params.acceptLocalOnly — Network.framework's
+            // definition of "local" is strictly loopback and silently drops
+            // CoreDevice tunnel peers. So IPv6 accepts on the wildcard
+            // interface and does a per-connection peer-address check below:
+            // loopback OR RFC 4193 ULA (fc00::/7) → accept, everything else
+            // → cancel.
             let params = NWParameters.tcp
             params.allowLocalEndpointReuse = true
 
-            let listener = try NWListener(using: params, on: NWEndpoint.Port(rawValue: port)!)
+            let listener: NWListener
+            switch family {
+            case .ipv4:
+                params.requiredLocalEndpoint = NWEndpoint.hostPort(
+                    host: NWEndpoint.Host("127.0.0.1"),
+                    port: NWEndpoint.Port(rawValue: port)!)
+                listener = try NWListener(using: params)
+            case .ipv6:
+                listener = try NWListener(using: params, on: NWEndpoint.Port(rawValue: port)!)
+            }
             listener.stateUpdateHandler = { [weak self] state in
                 Task { @MainActor in
                     if case .ready = state {
@@ -159,8 +165,8 @@ public final class StateServer {
             }
             listener.newConnectionHandler = { [weak self] connection in
                 Task { @MainActor in
-                    // Defense-in-depth: even with .loopback interface gate, double-check
-                    // the peer is loopback. Reject otherwise.
+                    // Peer gate: loopback (both families) or CoreDevice
+                    // tunnel ULA (IPv6 wildcard listener). Reject otherwise.
                     if let self, self.isLoopbackPeer(connection) {
                         self.handle(connection)
                     } else {

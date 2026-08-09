@@ -80,6 +80,24 @@ describe('template ↔ fixture parity', () => {
     // app gets the transitive set with one dependency entry.
     expect(tmpl).toMatch(/name:\s*"DebugBridgeUI"[\s\S]*?dependencies:\s*\["DebugBridgeCore",\s*"DebugBridgeTouch"\]/);
   });
+
+  // EGRESS-AUDIT P2: the boot token must never hit the unified log with
+  // .public visibility — the daemon reads it from the 0600 file, not os_log.
+  // Checked in EVERY shipped copy: the canonical template, both skills-tree
+  // renders, and the fixture (all pinned byte-identical to the canonical).
+  test('boot token is logged .private in every StateServer copy', () => {
+    const canonical = readFileSync(join(TEMPLATES_PATH, 'StateServer.swift.template'), 'utf-8');
+    expect(canonical).toContain('self.bootToken, privacy: .private');
+    expect(canonical).not.toContain('self.bootToken, privacy: .public');
+    // The skills-tree renders are what `npx skills add` users get; they must
+    // stay byte-equal to the canonical template (fixture parity is above).
+    for (const copy of [
+      'skills/qa/references/artifacts/ios-qa/templates/StateServer.swift.template',
+      'skills/ship/references/artifacts/ios-qa/templates/StateServer.swift.template',
+    ]) {
+      expect(readFileSync(join(ROOT, copy), 'utf-8')).toBe(canonical);
+    }
+  });
 });
 
 // Static manifest invariants (gstack#1735 bugs 3/5/6). These run everywhere,
