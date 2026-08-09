@@ -57,5 +57,7 @@ export const SKILL_COVERAGE: Record<string, SkillCoverage> = {
   },
 
   // ─── iOS ────────────────────────────────────────────────────
-  'ios-qa': { gate: ['test/skill-e2e-ios.test.ts', 'test/skill-coverage-floor.test.ts'], periodic: ['test/skill-e2e-ios-device.test.ts', 'test/skill-e2e-ios-swift-build.test.ts'] },
+  // ios-qa's root SKILL.md went with the 1.x tree (f19d6cda); its judgment
+  // lives in skills/qa's ios-qa module now. The ios E2E tests keep their tier
+  // registration in E2E_TIERS — this registry only maps root-level skill dirs.
 };
