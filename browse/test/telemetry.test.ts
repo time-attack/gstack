@@ -53,6 +53,16 @@ describe('telemetry: signals fire to ~/.gstack/analytics/browse-telemetry.jsonl'
     process.env.GSTACK_TELEMETRY_OFF = '0';
   });
 
+  it('config.json telemetry=off silences all events (env var unset)', async () => {
+    await fs.mkdir(TMP_HOME, { recursive: true });
+    await fs.writeFile(path.join(TMP_HOME, 'config.json'), JSON.stringify({ telemetry: 'off' }), 'utf8');
+    const { logTelemetry, _resetTelemetryCache } = await import('../src/telemetry');
+    _resetTelemetryCache();
+    logTelemetry({ event: 'cdp_method_called', domain: 'X', method: 'y' });
+    const events = await readEvents();
+    expect(events).toHaveLength(0);
+  });
+
   it('telemetry never throws even if disk fails', async () => {
     // Point HOME to a path that doesn't exist + can't be created (root-owned)
     // — but that's hard to set up cross-platform. Just check that calling
