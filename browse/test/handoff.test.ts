@@ -195,7 +195,15 @@ describe('handoff edge cases', () => {
 // Each handoff test creates its own BrowserManager since handoff swaps the browser.
 // These tests run sequentially (one browser at a time) to avoid resource issues.
 
-describe('handoff integration', () => {
+// Handoff launches a HEADED Chromium. The xvfb auto-spawn lives in server.ts,
+// not in BrowserManager, so this direct-call path needs a real display:
+// on a displayless Linux runner Chromium dies with "Missing X server or
+// $DISPLAY" before HANDOFF: is ever printed. Headless coverage above still
+// runs everywhere; the headed flow runs on macOS and any display-bearing box.
+const NO_LINUX_DISPLAY =
+  process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY;
+
+describe.skipIf(NO_LINUX_DISPLAY)('handoff integration', () => {
   test('full handoff: cookies preserved, headed mode active, commands work', async () => {
     const hbm = new BrowserManager();
     await hbm.launch();
