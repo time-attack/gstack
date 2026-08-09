@@ -271,11 +271,13 @@ Rules for this run:
   return { readSections, reportProduced, toolCalls: result.toolCalls, output };
 }
 
-/** Read the carved (current worktree) plan-ceo SKILL.md + its sections dir. */
+/** Read the carved (current worktree) plan-ceo module + its sections dir.
+ * The 1.x root tree (plan-ceo-review/SKILL.md) went with f19d6cda; the shipped
+ * carrier is the plan dispatcher's legacy module plus its carved sections. */
 export function carvedSkill(): { skillMd: string; sectionsFrom: string | null } {
-  const sec = path.join(ROOT, 'plan-ceo-review', 'sections');
+  const sec = path.join(ROOT, 'skills', 'plan', 'references', 'sections', 'plan-ceo-review');
   return {
-    skillMd: fs.readFileSync(path.join(ROOT, 'plan-ceo-review', 'SKILL.md'), 'utf-8'),
+    skillMd: fs.readFileSync(path.join(ROOT, 'skills', 'plan', 'references', 'legacy', 'plan-ceo-review.md'), 'utf-8'),
     sectionsFrom: fs.existsSync(sec) ? sec : null,
   };
 }
