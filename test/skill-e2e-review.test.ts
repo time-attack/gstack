@@ -197,8 +197,10 @@ Write your review findings to ${enumDir}/review-output.md
 
 The diff adds a new "returned" status to the Order model. Your job is to check if all consumers handle it.`,
       workingDirectory: enumDir,
-      maxTurns: 15,
-      timeout: 90_000,
+      maxTurns: 25,
+      // 90s was calibrated on the flat 1.x fixture; the migrated dispatcher-tree
+      // flow needs 19+ turns (measured at SIGKILL in the first completed gate run).
+      timeout: 180_000,
       testName: 'review-enum-completeness',
       runId,
     });
@@ -217,7 +219,7 @@ The diff adds a new "returned" status to the Order model. Your job is to check i
     const mentionsCritical = review.toLowerCase().includes('critical');
     expect(mentionsReturned).toBe(true);
     expect(mentionsEnum || mentionsCritical).toBe(true);
-  }, 120_000);
+  }, 240_000);
 });
 
 // --- Review: Design review lite E2E ---
@@ -515,7 +517,9 @@ optional \`$GSTACK_BIN\` helper.
 Write your retrospective to ${dir}/retro-output.md`,
       workingDirectory: dir,
       maxTurns: 25,
-      timeout: 240_000,
+      // 240s timed out 3/3 on pre-branch main and identically here; the
+      // alias-route dispatcher flow needs the same raise qa-only already got.
+      timeout: 360_000,
       testName: 'retro-base-branch',
       runId,
     });

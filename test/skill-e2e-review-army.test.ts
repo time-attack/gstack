@@ -138,7 +138,7 @@ and whether anything still reads the dropped columns.
 Write your findings to ${dir}/review-output.md`,
       workingDirectory: dir,
       maxTurns: 20,
-      timeout: 180_000,
+      timeout: 300_000,
       testName: 'review-army-migration-safety',
       runId,
     });
@@ -157,7 +157,7 @@ Write your findings to ${dir}/review-output.md`,
       content.includes('migration') ||
       content.includes('column');
     expect(hasMigrationFinding).toBe(true);
-  }, 210_000);
+  }, 360_000);
 });
 
 // --- Review Army: N+1 Performance ---
@@ -203,7 +203,7 @@ Pass 3 says you run those yourself, nothing else picks them up.
 Write your findings to ${dir}/review-output.md`,
       workingDirectory: dir,
       maxTurns: 20,
-      timeout: 180_000,
+      timeout: 300_000,
       testName: 'review-army-perf-n-plus-one',
       runId,
     });
@@ -223,7 +223,7 @@ Write your findings to ${dir}/review-output.md`,
       content.includes('query') ||
       content.includes('loop');
     expect(hasN1Finding).toBe(true);
-  }, 210_000);
+  }, 360_000);
 });
 
 // --- Review Army: Delivery Audit ---
@@ -312,7 +312,7 @@ The email notification system should be classified as NOT DONE.
 Write your completion audit to ${dir}/review-output.md`,
       workingDirectory: dir,
       maxTurns: 15,
-      timeout: 120_000,
+      timeout: 240_000,
       testName: 'review-army-delivery-audit',
       runId,
     });
@@ -334,7 +334,7 @@ Write your completion audit to ${dir}/review-output.md`,
       content.includes('notification');
     expect(hasNotDone).toBe(true);
     expect(mentionsEmail).toBe(true);
-  }, 150_000);
+  }, 300_000);
 });
 
 // --- Review Army: Quality Score ---
@@ -401,7 +401,7 @@ Write your findings AND the computed quality score to ${dir}/review-output.md
 Include the line: "PR Quality Score: X/10" where X is the computed score.`,
       workingDirectory: dir,
       maxTurns: 15,
-      timeout: 120_000,
+      timeout: 240_000,
       testName: 'review-army-quality-score',
       runId,
     });
@@ -417,7 +417,7 @@ Include the line: "PR Quality Score: X/10" where X is the computed score.`,
       content.toLowerCase().includes('quality score') ||
       content.match(/\d+\/10/);
     expect(hasScore).toBeTruthy();
-  }, 150_000);
+  }, 300_000);
 });
 
 // --- Review Army: JSON Findings ---
