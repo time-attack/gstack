@@ -27,6 +27,13 @@ describeIfSelected('Skill E2E tests', [
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-'));
     setupBrowseShims(tmpDir);
 
+    // A missing compiled binary otherwise burns ~$0.50/run handing the model a
+    // dead path six times, and the failure reads as model behavior. Fail fast
+    // instead: this file's tests all drive the real binary.
+    if (!fs.existsSync(browseBin)) {
+      throw new Error(`${browseBin} is not built — run \`bun run build\` before the paid browse E2E tests.`);
+    }
+
     // Pre-warm the browse server so Chromium is already launched for tests.
     // In CI, Chromium can take 10-20s to launch (Docker + --no-sandbox).
     spawnSync(browseBin, ['goto', testServer.url], { cwd: tmpDir, timeout: 30000, stdio: 'pipe' });
@@ -217,6 +224,16 @@ Report the exact output — either "READY: <path>" or "NEEDS_SETUP".`,
     const libDir = path.join(opDir, 'lib');
     fs.mkdirSync(libDir, { recursive: true });
     fs.copyFileSync(path.join(ROOT, 'lib', 'jsonl-store.ts'), path.join(libDir, 'jsonl-store.ts'));
+    // b6572ebb rewrote gstack-slug as Node ESM importing ../runtime/identity.js
+    // and ../runtime/paths.js (both self-contained, node builtins only). Same
+    // failure class as the lib/ note above: a real install ships bin/ with
+    // runtime/, so the fixture must too, or gstack-learnings-log exits 1 with
+    // "PROJECT_ID: gstack project identity unavailable" on every attempt.
+    const runtimeDir = path.join(opDir, 'runtime');
+    fs.mkdirSync(runtimeDir, { recursive: true });
+    for (const mod of ['identity.js', 'paths.js']) {
+      fs.copyFileSync(path.join(ROOT, 'runtime', mod), path.join(runtimeDir, mod));
+    }
 
     // gstack-learnings-log will create the project dir automatically via gstack-slug
 
