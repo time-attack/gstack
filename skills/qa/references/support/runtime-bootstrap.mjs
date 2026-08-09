@@ -189,10 +189,21 @@ export async function main(argv = process.argv.slice(2), options = {}) {
     }
     if (browserChoice) assertBrowserChoiceSupportsCapabilities(browserChoice, parsed.capabilities);
     const plan = buildComponentPlan(manifest, target, parsed.capabilities, reusable, browserChoice);
+    const attested = plan.downloads.some((item) => item.artifact.cosignBundleUrl);
+    const cosignAvailable = attested
+      ? await run(options.cosignCommand ?? "cosign", ["version"], { capture: true }).then(() => true, () => false)
+      : null;
+    plan.attestation = { declared: attested, cosignAvailable };
     if (parsed.json) io.stdout.write(`${JSON.stringify({ ok: true, action: parsed.action, ...plan }, null, 2)}\n`);
     else printComponentPlan(io.stdout, plan);
     if (parsed.action === "preview") return 0;
     if (!parsed.yes) throw bootstrapError("Installation requires explicit --yes after reviewing this exact component plan", "BOOTSTRAP_CONSENT_REQUIRED");
+    if (attested && !cosignAvailable && !parsed.allowUnattested) {
+      throw bootstrapError(
+        "This release declares Cosign attestations but the cosign binary is not installed; install cosign, or re-run with --allow-unattested to accept SHA-256-only verification",
+        "BOOTSTRAP_ATTESTATION_UNAVAILABLE",
+      );
+    }
     const temporary = await fs.mkdtemp(path.join(options.tmpDir ?? os.tmpdir(), "gstack-bootstrap-"));
     try {
       const root = path.join(temporary, "merged", "gstack");
@@ -203,7 +214,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
         const archive = path.join(temporary, `${item.component}.tar.gz`);
         await downloadVerified(fetch_, item.artifact.url, archive, item.artifact.sha256, item.artifact.bytes, { receiptHome: home });
         io.stdout.write(`Verified SHA-256 for ${item.component} (${target}).\n`);
-        await verifyCosignWhenAvailable(archive, item.artifact, path.join(temporary, item.component), { ...options, fetch: fetch_, ...io, receiptHome: home });
+        await verifyCosignWhenAvailable(archive, item.artifact, path.join(temporary, item.component), { ...options, fetch: fetch_, ...io, receiptHome: home, cosignAvailable });
         const extracted = path.join(temporary, "extracted", item.component);
         await fs.mkdir(extracted, { recursive: true, mode: 0o700 });
         await extractTarSafely(archive, extracted, options);
@@ -230,6 +241,7 @@ function parseArgs(argv) {
     browserProvider: null,
     browserPath: null,
     yes: false,
+    allowUnattested: false,
     json: false,
     help: false,
   };
@@ -237,6 +249,7 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (["-h", "--help"].includes(arg)) result.help = true;
     else if (arg === "--yes") result.yes = true;
+    else if (arg === "--allow-unattested") result.allowUnattested = true;
     else if (arg === "--json") result.json = true;
     else if (!result.action && !arg.startsWith("-")) result.action = arg;
     else if (["--capability", "--source", "--home", "--browser", "--browser-path"].includes(arg)) {
@@ -250,8 +263,10 @@ function parseArgs(argv) {
     } else throw bootstrapError(`Unknown option: ${arg}`, "BOOTSTRAP_USAGE");
   }
   if (result.help) return result;
-  if (result.action === "preview" && result.yes) throw bootstrapError("preview cannot be combined with --yes", "BOOTSTRAP_USAGE");
-  if (result.action === "options" && (result.yes || result.source || result.browserProvider || result.browserPath)) {
+  if (result.action === "preview" && (result.yes || result.allowUnattested)) {
+    throw bootstrapError("preview cannot be combined with --yes or --allow-unattested", "BOOTSTRAP_USAGE");
+  }
+  if (result.action === "options" && (result.yes || result.allowUnattested || result.source || result.browserProvider || result.browserPath)) {
     throw bootstrapError("options cannot be combined with install or browser-selection flags", "BOOTSTRAP_USAGE");
   }
   if (result.browserProvider != null && !["managed", "installed"].includes(result.browserProvider)) {
@@ -389,6 +404,11 @@ function printComponentPlan(stdout, plan) {
   stdout.write(`Components: ${plan.components.join(", ")}\n`);
   if (plan.reusedComponents.length) stdout.write(`Reusing: ${plan.reusedComponents.join(", ")}\n`);
   stdout.write(`Download: ${plan.downloadBytes} bytes across ${plan.downloads.length} component(s)\n`);
+  if (plan.attestation?.declared) {
+    stdout.write(plan.attestation.cosignAvailable
+      ? "Attestation: declared Cosign release attestations will be verified.\n"
+      : "Attestation: cosign is not installed, so the declared Cosign release attestations will be SKIPPED and downloads rely on SHA-256 alone; install requires --allow-unattested.\n");
+  }
 }
 
 async function inspectReusableRuntime(home, version) {
@@ -570,9 +590,9 @@ async function verifyCosignWhenAvailable(archive, artifact, temporary, options) 
     options.stdout.write("No Cosign bundle declared; continuing with verified release-manifest SHA-256.\n");
     return;
   }
-  const available = await run(options.cosignCommand ?? "cosign", ["version"], { capture: true }).then(() => true, () => false);
-  if (!available) {
-    options.stdout.write("Cosign metadata is available but Cosign is not installed; SHA-256 verification succeeded.\n");
+  if (!options.cosignAvailable) {
+    // Reachable only under explicit --allow-unattested; main refuses installs otherwise.
+    options.stdout.write("Skipped declared Cosign attestation (--allow-unattested; cosign not installed); SHA-256 verification succeeded.\n");
     return;
   }
   const bundle = path.join(temporary, "cosign.bundle");
@@ -747,7 +767,9 @@ function usage() {
     "              --browser managed|installed [--browser-path <absolute-path>] [--yes]\n" +
     "       node runtime-bootstrap.mjs install --source <reviewed-checkout> --capability <name> --browser <choice>\n\n" +
     "Downloads only a versioned official GStack runtime release and never enrolls a coding host.\n" +
-    "--source is a developer-only fallback for a checkout you have reviewed and trust.\n";
+    "--source is a developer-only fallback for a checkout you have reviewed and trust.\n" +
+    "--allow-unattested explicitly accepts SHA-256-only verification when the release declares\n" +
+    "Cosign attestations but the cosign binary is not installed.\n";
 }
 
 function printBrowserOptions(stdout, result) {
