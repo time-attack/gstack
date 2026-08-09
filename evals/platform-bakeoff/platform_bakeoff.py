@@ -103,7 +103,16 @@ def run_langfuse(variant):
     }
 
 
+def gate_confident_upload(env):
+    """Key presence alone never equals upload consent (repo egress rule):
+    scrub CONFIDENT_API_KEY unless GSTACK_CONFIDENT_UPLOAD=1 opts in."""
+    if env.get("GSTACK_CONFIDENT_UPLOAD") != "1":
+        env.pop("CONFIDENT_API_KEY", None)
+    return env
+
+
 def run_deepeval(variant):
+    gate_confident_upload(os.environ)  # before import: deepeval reads the key eagerly
     os.environ.setdefault("DEEPEVAL_TELEMETRY_OPT_OUT", "YES")  # default-on telemetry to Confident AI
     from deepeval import evaluate
     from deepeval.evaluate.configs import DisplayConfig

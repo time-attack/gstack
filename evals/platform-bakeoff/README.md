@@ -17,7 +17,9 @@ gstack-model-benchmark --prompt "..." \
 - Langfuse uses the complete official self-hosted Docker stack and hosted
   datasets/experiment runs within that local instance.
 - Braintrust uses its supported local `no_send_logs` execution path.
-- DeepEval uses its local evaluation runner and custom metric API.
+- DeepEval uses its local evaluation runner and custom metric API. An ambient
+  `CONFIDENT_API_KEY` is scrubbed for the run; uploading results to Confident
+  AI requires the explicit `GSTACK_CONFIDENT_UPLOAD=1` opt-in.
 
 Hosted Braintrust, Confident AI, and Parea dashboards require separate service
 accounts. Do not upload non-synthetic GStack or user data when extending this
