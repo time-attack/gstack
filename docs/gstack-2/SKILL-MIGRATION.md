@@ -2,7 +2,7 @@
 
 Pinned baseline: `bb57306d98c97011b0919c6132705a15b1579781`.
 
-GStack 2 exposes exactly five judgment dispatchers: `plan`, `qa`, `debug`, `review`, and `ship`, plus the `make-pdf` tool skill that installs with the same canonical tree (six discoverable skills total). The specialist bodies from 42 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and every carved specialist section is a package-local lazy reference loaded only at its original workflow point. Twenty-three primary modules are mandatory specialist inputs, and 19 supporting modules remain reachable through compatibility routing.
+GStack 2 exposes exactly five judgment dispatchers: `plan`, `qa`, `debug`, `review`, and `ship`, plus the `make-pdf` tool skill that installs with the same canonical tree (six discoverable skills total). The specialist bodies from 39 legacy templates remain provenance-pinned internal reference modules (42 at the 2026-08-04 unfreeze; the 2026-08-09 evidence-backed cut wave removed `plan/gstack.md`, `debug/guard.md`, and `debug/unfreeze.md` — routing, composition, and clear-the-boundary judgment now live in the dispatcher tables, the careful+freeze pair, and investigate.md's Scope Lock respectively, each with a named loss-check). The retired 1.x shared onboarding wrapper is excluded from canonical execution, and every carved specialist section is a package-local lazy reference loaded only at its original workflow point. Twenty-three primary modules are mandatory specialist inputs, and 19 supporting modules remain reachable through compatibility routing.
 
 The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; Review = `Normal | Security | Performance | Deep`; Ship = `Prepare | Land | Deploy | Monitor | Resume`. Richer legacy modes are internal aliases only.
 
@@ -10,7 +10,7 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 
 | Legacy invocation | Replacement | Visibility | Mandatory | Judgment overlays |
 |---|---|---|---|---|
-| `/gstack` | `$plan --mode Discovery --module gstack` | internal (internal) | no | #679, #879 |
+| `/gstack` | retired 2026-08-09 — the six skills self-route; alias explains and points at the installer | internal (internal) | no | — |
 | `/office-hours` | `$plan --mode Discovery --module office-hours` | internal (primary) | yes | #679, #2030, #1049, #1116, #886, #703, #2000, #879, #538, #1777, #2189 |
 | `/plan-ceo-review` | `$plan --mode Product --module plan-ceo-review` | internal (primary) | yes | #679, #2030, #886, #703, #879, #2189 |
 | `/plan-eng-review` | `$plan --mode Engineering --module plan-eng-review` | internal (primary) | yes | #679, #1071, #2030, #592, #886, #703, #879 |
@@ -38,8 +38,8 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 | `/ios-fix` | `$debug --mode Fix --module ios-fix` | internal (primary) | yes | #679, #879 |
 | `/careful` | `$debug --mode Diagnose-only --module careful` | internal (internal) | no | #679, #879 |
 | `/freeze` | `$debug --mode Diagnose-only --module freeze` | internal (internal) | no | #679, #879 |
-| `/guard` | `$debug --mode Diagnose-only --module guard` | internal (internal) | no | #679, #879 |
-| `/unfreeze` | `$debug --mode Diagnose-only --module unfreeze` | internal (internal) | no | #679, #879 |
+| `/guard` | `$debug --mode Diagnose-only --module careful` + `--module freeze` (cut 2026-08-09; composition wrapper had zero unique judgment) | internal (internal) | no | #679, #879 via constituents |
+| `/unfreeze` | `$debug --mode Diagnose-only --module investigate` (cut 2026-08-09; clear semantics folded into Scope Lock) | internal (internal) | no | #679, #879 via investigate |
 | `/review` | `$review --mode Normal --module review` | internal (primary) | yes | #610, #645, #679, #2030, #2141, #579, #886, #452, #879 |
 | `/cso` | `$review --mode Security --module cso` | internal (primary) | yes | #679, #2030, #1523, #1053, #879 |
 | `/health` | `$review --mode Deep --module health` | internal (primary) | yes | #679, #879 |

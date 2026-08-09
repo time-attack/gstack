@@ -29,7 +29,11 @@ of which the following are **fixed and verified in tree**:
 | make-pdf raw-HTML subresources (style `url()`, `@import`, `srcset`, `poster`) bypassed the offline gate | `make-pdf/src/render.ts:238-294` sanitizer now strips `@import` and neutralizes remote `url()`/`srcset`/`src`/`poster` in raw HTML |
 | `bin/gstack-model-benchmark` advertised key-presence-equals-consent for Braintrust | `--upload` flag / `braintrust_upload` config wiring landed; header and dry-run banner state key presence alone never uploads |
 
-**Still open at synthesis time** (verified present unless noted):
+**Still open at synthesis time** (verified present unless noted). UPDATE
+2026-08-09: every item in this list was fixed in tree on
+`release/gstack2-public-beta`, each with a test that fails without the fix —
+see the per-row status in the surface tables below. The list is retained as
+the audit's original finding record:
 
 - ios-qa loopback `GET /auth/sessions` returns raw bearer token strings
   (`daemon/src/index.ts:246`, `session-tokens.ts:99-101`) — local
@@ -65,7 +69,7 @@ Command surface intact (no browse feature removals).
 | `server.ts:1869,2600` @ngrok/ngrok forward | ngrok edge (public tunnel URL) | scoped browser-command surface; page content transits tunnel | OFF | `pair_agent` config opt-in (fail-closed on read error) + root token on `/tunnel/start` + ngrok authtoken; `BROWSE_TUNNEL=1` refused without pair_agent; tunnel listener = locked allowlist, local listener never forwarded | JSON `{error, hint}`; leaked listeners cleaned on partial failure | compliant |
 | `server.ts:1765,1825`, `cli.ts:945` tunnel probes | own tunnel URL | none (liveness) | inactive unless tunnel consented+started | inherits pair_agent + token | dead tunnel → `closeTunnel()` | compliant |
 | `security.ts:493` → `gstack-telemetry-log` → `gstack-telemetry-sync` curl | local `attempts.jsonl`; upload only to configured Supabase fn | salted-hashed attack domain + payload hash + verdict; no page content, no raw domain off-machine | OFF (`telemetry: off` default) | explicit `community` tier AND Supabase URL; anonymous exits before upload | fire-and-forget, http_code checked; local audit trail always kept | compliant (e1cd3096 fixes verified) |
-| `telemetry.ts:69` logTelemetry | local file only (`~/.gstack/analytics/browse-telemetry.jsonl`) | aggregate counters | ON | `GSTACK_TELEMETRY_OFF=1` env only | swallowed | **open P2**: env-only switch, ignores tier config; never uploaded — **verified in tree** |
+| `telemetry.ts:69` logTelemetry | local file only (`~/.gstack/analytics/browse-telemetry.jsonl`) | aggregate counters | ON | `GSTACK_TELEMETRY_OFF=1` env only | swallowed | **FIXED in tree 2026-08-09 (release/gstack2-public-beta)**: isDisabled() also honors the persistent telemetry:'off' tier (browse/test/telemetry.test.ts); env switch still wins first |
 | `cli.ts` (7 sites) + `browse-client.ts:158` | 127.0.0.1 daemon | browse commands | core function | localhost only; token-scoped `/command` | typed daemon errors | compliant |
 | `cookie-import-browser.ts:884-933` | 127.0.0.1 Chrome CDP port | cookies (credentials), never leave machine | only on explicit command | user-invoked; CDP binds loopback | typed errors | compliant |
 | `socks-bridge.ts:185,291` | user-configured upstream proxy | all browser traffic when proxying | OFF unless `BROWSE_PROXY_URL` | explicit config; URL+env cred-mixing refused | typed `ProxyConfigError` | compliant |
@@ -84,9 +88,9 @@ bypass of the offline gate) is **fixed and verified in tree**.
 | `browseClient.ts:172` execFileSync browse | local browse daemon (127.0.0.1 Chromium) | rendered HTML of user markdown, stays local | on (required) | n/a, local only | typed `BrowseClientError`, exit codes 0-4 | compliant |
 | `diagram-prepass.ts:604-614` remote `<img>` | arbitrary http(s) URLs from markdown | GET beacon (IP + URL) | OFF — visible blocked placeholder | `--allow-network`; `--strict` → typed `StrictModeError` | typed | compliant |
 | `render.ts:238-294` raw-HTML subresources | arbitrary http(s) via style `url()`/`@import`/`srcset`/`poster` | GET beacon | was ON (bypass) | now sanitized under the same offline gate | n/a | **fixed this wave, verified in tree** |
-| `orchestrator.ts:322-345` preview remote images | arbitrary http(s) img URLs | GET beacon when preview opened | ON in preview | none | none | **open P2**, *unverified* |
+| `orchestrator.ts:322-345` preview remote images | arbitrary http(s) img URLs | GET beacon when preview opened | ON in preview | none | none | **FIXED in tree 2026-08-09 (release/gstack2-public-beta)**: preview blocks remote img src behind the existing --allow-network gate with visible placeholders (make-pdf/test/diagram-prepass.test.ts) |
 | `runtime-bootstrap.mjs:27,470-518` manifest + artifacts | github.com / objects.githubusercontent.com (host-allowlisted, pinned release path) | GET only; SHA-256 + size + 2GiB cap verified | OFF — never runs on skill invoke | ask-before-preview disclosure + explicit `--yes` (`BOOTSTRAP_CONSENT_REQUIRED`) | typed `BOOTSTRAP_*` codes | compliant |
-| `runtime-bootstrap.mjs:533` cosign bundle | allowlisted GitHub hosts | GET attestation | OFF (install-time) | same `--yes` | typed `BOOTSTRAP_ATTESTATION_FAILED` | see setup surface: silent downgrade when cosign absent (P2, *unverified*) |
+| `runtime-bootstrap.mjs:533` cosign bundle | allowlisted GitHub hosts | GET attestation | OFF (install-time) | same `--yes` | typed `BOOTSTRAP_ATTESTATION_FAILED` | see setup surface: cosign-absent downgrade FIXED 2026-08-09 (explicit --allow-unattested required) |
 | `browser-provider-smoke.mjs` | 127.0.0.1 only | local proof token | off (manual) | n/a | n/a | compliant |
 | emoji fonts (signed runtime artifact) | distro package mirrors | package download | OFF until pdf capability installed | install `--yes`; `GSTACK_SKIP_FONTS` opt-out | best-effort (untyped) | compliant |
 
@@ -105,9 +109,9 @@ fail-closed). Remaining risks are local attack-surface items.
 | `proxy.ts:69` http.request | iPhone (CoreDevice tunnel) | QA commands + bearer out; app state/screenshots back | on (core function) | loopback = spawning agent; tailnet = allowlist + capability token | 502/503/504/413 typed | compliant |
 | `tailscale-localapi.ts:53` unix socket | local tailscaled LocalAPI | peer addr WhoIs (metadata) | only with `--tailnet` | CLI flag, fail-closed probe | 4 typed classes | compliant |
 | `devicectl.ts` (8 spawns) + `dns.lookup .coredevice.local` | Apple CoreDevice local / mDNSResponder (link-local multicast) | UDID, bundle id, paths / device name slug | on | device pairing | typed `devicectl_*`, `resolve_failed` | compliant; unicast `resolve6` leak removed (prior audit finding, verified) |
-| `index.ts:94,105` loopback listeners | ingress, local agents | full command surface, unauthenticated | on | loopback bind is the boundary | typed JSON | **open P2, verified in tree**: `GET /auth/sessions` returns raw token strings to any local process |
+| `index.ts:94,105` loopback listeners | ingress, local agents | full command surface, unauthenticated | on | loopback bind is the boundary | typed JSON | **FIXED in tree 2026-08-09 (release/gstack2-public-beta)**: sessions list returns salted-hash token_id + metadata, never raw tokens (ios-qa/daemon/test/daemon-integration.test.ts) |
 | `index.ts:116-132` tailnet listener | ingress, tailnet peers | allowlisted route tiers; mutations audited to `ios-qa-audit.jsonl` | OFF (`--tailnet` AND probe ok) | owner-run mint grant allowlist + WhoIs identity + 256-bit capability tokens (1h TTL, 24h cap, rate-limited) | 401/403/429/502 + salted-hash attempts log | compliant |
-| `StateServer.swift.template:147-155` NWListener on-device | ingress on iPhone | app state, screenshots, tap/swipe/type | on when template compiled into app under test | bearer auth except `/healthz`; IPv4 loopback bind, IPv6 per-connection peer gate (loopback or fc00::/7) | 401/404 JSON | **wildcard-bind finding fixed this wave, verified in tree**; boot-token `os_log .public` still open (P2, *unverified*) |
+| `StateServer.swift.template:147-155` NWListener on-device | ingress on iPhone | app state, screenshots, tap/swipe/type | on when template compiled into app under test | bearer auth except `/healthz`; IPv4 loopback bind, IPv6 per-connection peer gate (loopback or fc00::/7) | 401/404 JSON | **wildcard-bind finding fixed this wave, verified in tree**; boot-token os_log **FIXED in tree 2026-08-09 (release/gstack2-public-beta)**: token now logs `.private`; all template copies re-synced byte-identical and pinned (test/skill-e2e-ios-swift-build.test.ts) |
 | `physical-device-smoke.ts:1099` | iPhone (tunnel) | smoke commands + bearer | manual harness only | n/a local | `HarnessError` | compliant |
 | `gen-accessors-tool/Package.swift:23` | github.com/swiftlang/swift-syntax | source download (dev build-time) | dev only | developer runs `swift build` | SPM failure | compliant |
 
@@ -125,10 +129,10 @@ prose) is **fixed and verified in tree**.
 | `graphify-adapter.ts` | none (local tree-sitter graph) | none | off | local=true, never auto-installed | typed | compliant |
 | `picker.ts:88` detect probe | `SOURCEBOT_URL` | fixed probe query (metadata) | only on options/status/suggest | user command; localhost default | typed | compliant |
 | `bin/gstack-gbrain-sync.ts:844,895` | user's gbrain DB (possibly remote) | full cwd repo code | never unattended; user/skill-invoked | gbrain setup consent + **binary-enforced per-repo policy chokepoint** (`repoPolicyTier`) | typed `refused-policy-deny` / `refused-policy-unreadable` / `skipped-policy-read-only` | **P1 fixed this wave, verified in tree** |
-| `bin/gstack-memory-ingest.ts` | user's gbrain DB | transcripts, learnings, retros (may contain code/secrets) | user/skill-invoked | gbrain setup consent; secret scan opt-in only | typed | **open P2** (secret scan not default), *unverified* |
+| `bin/gstack-memory-ingest.ts` | user's gbrain DB | transcripts, learnings, retros (may contain code/secrets) | user/skill-invoked | gbrain setup consent; secret scan opt-in only | typed | **FIXED in tree 2026-08-09 (release/gstack2-public-beta)**: secret scan default-ON at the staged-bytes sink via the shared engine; HIGH refuses per-file typed (test/gstack-memory-ingest.test.ts) |
 | `lib/gstack-decision-semantic.ts:38,90` | user's gbrain DB | decision-search query string | off (`--semantic` only) | lazy-loaded; degrades silently to file-only | never throws, 10s timeout | compliant |
 | `bin/gstack-brain-sync` git push | user-configured brain remote | curated memory (allowlisted paths) | off (`artifacts_sync_mode=off`) | config opt-in + secret_scan on diff + allowlist | status codes written | compliant |
-| `bin/gstack-brain-consumer`/`-reader:161` curl | user-registered `ingest_url` | brain repo_url + Bearer token | user-invoked test only | deprecated dead endpoint | n/a | **open P2**: delete, *unverified* |
+| `bin/gstack-brain-consumer`/`-reader:161` curl | user-registered `ingest_url` | brain repo_url + Bearer token | user-invoked test only | deprecated dead endpoint | n/a | **FIXED in tree 2026-08-09 (release/gstack2-public-beta)**: both scripts deleted; tripwire in test/egress-receipt-wiring.test.ts keeps them out |
 | `bin/gstack-gbrain-install:87`, `-mcp-verify:77,154`, `-supabase-provision:142` | github.com / user MCP URL / api.supabase.com | connectivity probe, MCP handshake, setup credentials (user's own PAT) | user-invoked | explicit commands; token via env never argv | typed classes / exit codes | compliant |
 | `lib/model-benchmark/braintrust-eval.ts:125` | Braintrust cloud | benchmark prompts/outputs | off (`noSendLogs`) | explicit `--upload`/config opt-in AND key; key presence alone never uploads | SDK error surfaces | compliant (prior-audit fix verified; CLI banner drift also **fixed, verified in tree**) |
 
@@ -166,7 +170,7 @@ default-on egress of code or user content. The wave's two violations
 | `bin/gstack-model-benchmark:124` `--judge` | api.openai.com via autoevals | benchmark case + output | off | `--judge` flag AND `OPENAI_API_KEY` | judge skipped without key | compliant |
 | `lib/model-benchmark/providers/*` | Anthropic/OpenAI/Google via user-authed CLIs | benchmark prompt only | only on explicit invocation naming providers | invocation is approval; `--dry-run` available | typed per-provider | compliant |
 | `platform_bakeoff.py:107` deepeval import | Confident AI PostHog | anonymous usage + stable `DEEPEVAL_ID` | was ON | now `DEEPEVAL_TELEMETRY_OPT_OUT=YES` set before import | n/a | **P1 fixed this wave, verified in tree** |
-| `platform_bakeoff.py:138` `evaluate()` | Confident AI cloud | synthetic bakeoff corpus results | off absent key | `CONFIDENT_API_KEY` presence alone = upload | SDK-level | **open P2, verified still absent**: needs explicit opt-in guard |
+| `platform_bakeoff.py:138` `evaluate()` | Confident AI cloud | synthetic bakeoff corpus results | off absent key | `CONFIDENT_API_KEY` presence alone = upload | SDK-level | **FIXED in tree 2026-08-09 (release/gstack2-public-beta)**: gate_confident_upload() scrubs CONFIDENT_API_KEY unless GSTACK_CONFIDENT_UPLOAD=1 (evals/platform-bakeoff/test_platform_bakeoff.py) |
 | `platform_bakeoff.py:63-94` Langfuse | `LANGFUSE_HOST` (default localhost) | synthetic corpus + scores | off (KeyError without explicit keys) | explicit env keys + platform named in argv | python crash | compliant |
 | `platform_bakeoff.py:45` Braintrust arm | none | n/a | local-only (`no_send_logs=True` hardcoded) | n/a | n/a | compliant |
 | `test/helpers/llm-judge.ts` | api.anthropic.com | eval transcripts (first-party model API) | only in paid `test:evals` runs | explicit paid-eval invocation + key | test failure | compliant |
@@ -177,12 +181,12 @@ default-on egress of code or user content. The wave's two violations
 Auditor verdict: egress surface small, host-allowlisted, consent-gated;
 network defaults verifiably off; no model-weight downloads; preview + `--yes`
 before install. The wave's P1 (anonymous update ping) and the stale-upstream
-P2 are fixed (see surface 6); the cosign silent downgrade remains open.
+P2 are fixed (see surface 6); the cosign silent downgrade is fixed as of 2026-08-09 (typed refusal + explicit --allow-unattested).
 
 | Call site | Destination | Payload class | Default | Consent gate | Failure typing | Findings / remediation |
 |---|---|---|---|---|---|---|
 | `runtime-bootstrap.mjs:28,167,202,481` manifest + components | github.com releases + objects.githubusercontent.com (host-allowlisted, https-only) | GET only; SHA-256 + byte-count verified, 2GiB cap | off — explicit preview/install only | preview prints full plan; install requires `--yes` | typed `BOOTSTRAP_*` | compliant |
-| `runtime-bootstrap.mjs:533` cosign | GitHub release cosign bundle | none | off | same install consent | `BOOTSTRAP_ATTESTATION_FAILED` | **open P2**: silently skipped when cosign binary absent (SHA-256-only downgrade), *unverified* |
+| `runtime-bootstrap.mjs:533` cosign | GitHub release cosign bundle | none | off | same install consent | `BOOTSTRAP_ATTESTATION_FAILED` | **FIXED in tree 2026-08-09 (release/gstack2-public-beta)**: refuses with typed BOOTSTRAP_ATTESTATION_UNAVAILABLE unless --allow-unattested; preview discloses attestation state (test/gstack2-runtime-setup-ux.test.ts) |
 | `runtime/install.js:1031` bun install | npm registry (frozen lockfile) | package names | off | interactive yes or `--install-now --yes`; disclosed in preview | typed `INSTALL_*` | compliant |
 | `runtime/install.js:1267` | Playwright CDN | Chromium download (not gstack-hash-pinned) | off — dev source-install path only | explicit browser-capability approval | `INSTALL_BROWSER_DOWNLOAD_FAILED` | compliant |
 | `runtime/context.js` / `cli.js` | api.context.dev | see surface 5 | off | see surface 5 | `CONTEXT_*` | compliant |

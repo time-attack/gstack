@@ -1,5 +1,70 @@
 # GStack 2.0 test evidence
 
+## Paid gate tier — FIRST COMPLETED RUNS (2026-08-09, release/gstack2-public-beta)
+
+The sharded runner (`bun run test:gate:sharded`, one file per shard, external
+group-kill timeout, four-way shard status) produced the tier's first terminal
+summaries in project history. Three runs on 2026-08-09, all logs under
+`~/.gstack-dev/eval-runs/` with `### gstack-detach EXIT=` sentinels:
+
+| Run | Log | Result |
+|---|---|---|
+| #1 `…-111241-11142.log` | `EXIT=1`, ~35 min | **31/48 shards passed.** 17 failures, every one root-caused (below). The browse binary was missing machine-wide for the whole run. |
+| #2 `…-121146-64368.log` | `EXIT=1`, ~30 min | **37/47 shards passed** after the run-#1 fixes landed. All 10 failures are exactly the files whose fixes landed after this run started. |
+| #3 `…-124417-77068.log` (targeted) | `EXIT=1` | **10 pass / 2 fail** across the 9 remaining files re-run with their fixes (codex MCP isolation, carvedSkill repoint, PTY skill registration); the dead design-era file was deleted. Both failures are FIRST-MEASUREMENT findings from gates that had never executed their subject (below). |
+| #4 `…-132752-16701.log` (targeted) | `EXIT=0` | **2 pass / 0 fail** — plan-devex plan-mode smoke passes at a budget calibrated to its first real execution (480s; the 300s cap predated the flow ever running). |
+
+**First-measurement findings (2026-08-09).** Un-silencing the PTY family made
+two gates measure their subject for the first time in their existence:
+
+- `plan-devex plan-mode smoke` ran ~310 seconds of genuine review flow into a
+  300-second cap set when the child used to die at `Unknown command` in ten
+  seconds. Budget recalibrated; run #4 is its first honest measurement.
+- `auq-format-gate` captured `/plan-ceo-review`'s first real AskUserQuestion
+  and found the decision brief missing the ✅/❌ pros/cons template elements
+  QUESTION-FORMAT.md mandates — a genuine adherence finding on the shipped
+  surface, NOT a regression (there is no prior passing measurement of the 2.0
+  surface). Tiered periodic pending a green baseline: a gate needs a passing
+  history before it can guard one. Beta known issue; promote back to gate when
+  the decision-brief adherence work lands and it passes consecutively.
+
+Run-#1 failure census, fully attributed (blame-protocol receipts in the noted
+commits):
+
+- **Environment, machine-local:** `browse/dist/browse` never rebuilt after a
+  dist clean — the bws trio and `/qa-only no-fix` handed children a dead
+  binary path (fail-fast guard + fixture runtime/ copies added, `1ed98abc`).
+- **Environment, harness-wide and pre-existing since ≤2026-08-02:** hermetic
+  children had ZERO skills registered, so every PTY slash-command smoke
+  (office-hours auto-mode, ceo/devex/eng plan-mode, plan-mode-no-op, the
+  finding floors — 7 shards) died at `Unknown command` before any model turn.
+  Those gates measured nothing on main either (pre-branch receipt:
+  `gate-sharded-full-gstack-main-20260802-012259-90886.log`). Fixed via
+  opt-in `hermeticSkillsConfigDir()` (`f3e1a8e7`).
+- **Branch-caused, fixed:** the qa baseline dedup broke three judge-test
+  slice markers (empty string fed to the judge) — repointed at the delegation
+  chain with throwing guards (`08675250`).
+- **Mis-tiered quality benchmarks:** every `skill-llm-eval.test.ts` judge
+  threshold plus the codex-offered trio had been failing on main since
+  ≤2026-08-02; reclassified periodic per the documented tiering policy
+  (`08675250`, `49461c71`).
+- **Test-budget calibration, pre-existing:** review enum / retro / review-army
+  timeouts were calibrated on flat 1.x fixtures and SIGKILLed the migrated
+  dispatcher flows mid-report; raised with receipts (`02aac937`).
+- **Product regression caught by the gate (the cut rule working):** the 1.x
+  deletion dropped the session-intelligence context-recovery preamble with no
+  surviving carrier; `context recovery` failed identically on main. Restored
+  into `learn.md` (`54c2b45b`) — the test passes in run #2.
+- **Dead files:** `skill-e2e-plan-design-with-ui.test.ts` was syntactically
+  unparseable since the design retirement (same class as 629a1348) — deleted
+  with a tier tombstone (`e01ac6c5`). The `/gstack-upgrade happy path`
+  PASS→FAIL line in run #1 is a comparator artifact against a stale baseline
+  naming a deliberately deleted test; the shard is green.
+- **Operator-machine leakage:** codex E2E children dialed the operator's
+  registered MCP servers (one demanding OAuth, spraying `invalid_request`
+  onto stderr); `[mcp_servers*]` now stripped from the temp config
+  (`297cf84f`).
+
 ## Paid gate tier — NEVER COMPLETED (forensics, 2026-08-01)
 
 The paid gate tier (`bun run test:gate`) **has never completed a run in this
