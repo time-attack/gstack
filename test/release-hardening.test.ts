@@ -51,7 +51,9 @@ describe("release and CI hardening", () => {
       gstack: "./bin/gstack",
       "gstack-runtime-bootstrap": "./runtime/runtime-bootstrap.mjs",
     });
-    expect(pkg.files).toEqual(["bin/gstack", "runtime", "README.md", "LICENSE", "VERSION"]);
+    // lib/egress-receipt.js ships because runtime/context.js and bin/gstack
+    // import it; without it the packed gstack --version dies at resolution.
+    expect(pkg.files).toEqual(["bin/gstack", "runtime", "lib/egress-receipt.js", "README.md", "LICENSE", "VERSION"]);
     expect(pkg.dependencies["puppeteer-core"]).toBeUndefined();
     expect(pkg.dependencies.playwright).toBe("npm:playwright-core@^1.60.0");
   });
