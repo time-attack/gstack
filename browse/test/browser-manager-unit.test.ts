@@ -61,7 +61,10 @@ describe('shouldEnableChromiumSandbox', () => {
     setPlatform('linux');
     process.getuid = (() => 1000) as typeof process.getuid;
     const { shouldEnableChromiumSandbox } = await import('../src/browser-manager');
-    expect(shouldEnableChromiumSandbox()).toBe(true);
+    // Mock a permissive kernel: unmocked, this test measures the RUNNER's
+    // real sysctl and fails on Ubuntu 24.04 CI (AppArmor userns default).
+    const permissiveSysctl = (p: string) => p.includes('apparmor_restrict') ? '0' : '1';
+    expect(shouldEnableChromiumSandbox(permissiveSysctl)).toBe(true);
   });
 
   it('win32 → false (sandbox fails in Bun→Node→Chromium chain)', async () => {
@@ -116,7 +119,8 @@ describe('shouldEnableChromiumSandbox', () => {
     process.env.GSTACK_CHROMIUM_NO_SANDBOX = '0';
     process.getuid = (() => 1000) as typeof process.getuid;
     const { shouldEnableChromiumSandbox } = await import('../src/browser-manager');
-    expect(shouldEnableChromiumSandbox()).toBe(true);
+    const permissiveSysctl = (p: string) => p.includes('apparmor_restrict') ? '0' : '1';
+    expect(shouldEnableChromiumSandbox(permissiveSysctl)).toBe(true);
   });
 
   // ─── #2157/#2101: userns sysctl detection, not a manual env opt-in ──
