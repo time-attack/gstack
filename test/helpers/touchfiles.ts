@@ -234,7 +234,9 @@ export const E2E_TOUCHFILES: Record<string, string[]> = {
   // numbered-option lists, multi-phase ordering, idempotency state echo).
   'auq-format-gate':             [...CEO, ...SHARED_PREAMBLE, 'skills/plan/references/TOTAL-CRITERIA-EXAMPLES.md', 'test/helpers/auq-sdk-capture.ts', 'test/helpers/session-runner.ts', 'test/helpers/llm-judge.ts'],
   'plan-ceo-mode-routing':       [...CEO, ...SHARED_PREAMBLE, 'test/helpers/claude-pty-runner.ts'],
-  'plan-design-with-ui-scope':   ['test/fixtures/plans/ui-heavy-feature.md', 'test/helpers/claude-pty-runner.ts'],
+  // 'plan-design-with-ui-scope' removed with test/skill-e2e-plan-design-with-ui.test.ts:
+  // it drove the retired design skill's rating AUQ and had been unparseable
+  // (dangling brace, same class 629a1348 cleaned up) since the design retirement.
   'budget-regression-pty':       ['test/helpers/eval-store.ts', 'test/skill-budget-regression.test.ts'],
   'ship-idempotency-pty':        ['skills/ship/**', 'bin/gstack-next-version', 'bin/gstack-version-bump', 'lib/worktree.ts', 'test/helpers/claude-pty-runner.ts'],
   'ship-section-loading':        ['skills/ship/**', 'test/helpers/auq-sdk-capture.ts', 'test/helpers/session-runner.ts'],
@@ -603,7 +605,6 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   //   periodic: long-running or expensive (>$3/run), run weekly
   'auq-format-gate':                         'gate',       // ~$0.50/run, SDK capture, single skill probe
   'plan-ceo-mode-routing':     'periodic',   // ~$3/run, deep navigation through 8-12 prior AskUserQuestions
-  'plan-design-with-ui-scope': 'gate',       // ~$0.80/run
   'budget-regression-pty':     'gate',       // free, library-only assertion
   'ship-idempotency-pty':      'periodic',   // ~$3/run, real /ship in plan mode
   'ship-section-loading':      'periodic',   // ~$3/run, real /ship; asserts section reads
