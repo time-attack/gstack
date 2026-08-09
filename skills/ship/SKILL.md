@@ -72,6 +72,7 @@ Every specialist below is an internal implementation detail, including mandatory
 | `/landing-report` | `queue` | `Prepare` | mandatory | `references/legacy/landing-report.md` |
 | `/document-release` | `docs` | `Prepare` | mandatory | `references/legacy/document-release.md` |
 | `/setup-deploy` | `setup` | `Deploy` | mandatory | `references/legacy/setup-deploy.md` |
+| `/canary` | `canary` | `Monitor` | mandatory | `references/legacy/canary.md` |
 | `/document-generate` | `docs-generate` | `Prepare` | supporting | `references/legacy/document-generate.md` |
 | `/ios-clean` | `ios-clean` | `Prepare` | supporting | `references/legacy/ios-clean.md` |
 | `/ios-sync` | `ios-sync` | `Prepare` | supporting | `references/legacy/ios-sync.md` |
