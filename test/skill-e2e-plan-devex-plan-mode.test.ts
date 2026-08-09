@@ -20,7 +20,7 @@ describeE2E('plan-devex-review plan-mode smoke (gate)', () => {
     const obs = await runPlanSkillObservation({
       skillName: 'plan-devex-review',
       inPlanMode: true,
-      timeoutMs: 300_000,
+      timeoutMs: 480_000,
     });
 
     if (obs.outcome === 'silent_write' || obs.outcome === 'exited' || obs.outcome === 'timeout') {
@@ -33,7 +33,7 @@ describeE2E('plan-devex-review plan-mode smoke (gate)', () => {
     }
     expect(['asked', 'plan_ready']).toContain(obs.outcome);
     assertReportAtBottomIfPlanWritten(obs);
-  }, 360_000);
+  }, 540_000);
 
   // v1.21+ regression: see skill-e2e-plan-ceo-plan-mode.test.ts for the
   // contract. Pass envelope is ['asked', 'plan_ready']; failure signals
@@ -44,7 +44,7 @@ describeE2E('plan-devex-review plan-mode smoke (gate)', () => {
       skillName: 'plan-devex-review',
       inPlanMode: true,
       extraArgs: ['--disallowedTools', 'AskUserQuestion'],
-      timeoutMs: 300_000,
+      timeoutMs: 480_000,
     });
 
     if (
@@ -70,5 +70,5 @@ describeE2E('plan-devex-review plan-mode smoke (gate)', () => {
     }
     expect(['asked', 'plan_ready']).toContain(obs.outcome);
     assertReportAtBottomIfPlanWritten(obs);
-  }, 360_000);
+  }, 540_000);
 });

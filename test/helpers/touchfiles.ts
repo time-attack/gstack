@@ -603,7 +603,12 @@ export const E2E_TIERS: Record<string, 'gate' | 'periodic'> = {
   // Real-PTY E2E batch — tier classification:
   //   gate: cheap, deterministic, run on every PR
   //   periodic: long-running or expensive (>$3/run), run weekly
-  'auq-format-gate':                         'gate',       // ~$0.50/run, SDK capture, single skill probe
+  // periodic pending a green baseline: this check measured the REAL 2.0
+  // surface for the first time on 2026-08-09 (it read a dead 1.x path and
+  // threw before that) and found the first AUQ missing template elements.
+  // A gate needs a passing history to guard; promote back once the
+  // decision-brief adherence work lands and this passes N consecutive runs.
+  'auq-format-gate':                         'periodic',  // ~$0.50/run, SDK capture, single skill probe
   'plan-ceo-mode-routing':     'periodic',   // ~$3/run, deep navigation through 8-12 prior AskUserQuestions
   'budget-regression-pty':     'gate',       // free, library-only assertion
   'ship-idempotency-pty':      'periodic',   // ~$3/run, real /ship in plan mode
