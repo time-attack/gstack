@@ -34,7 +34,23 @@ describe('compat alias routes', () => {
     expect(aliases.length).toBeGreaterThan(0);
   });
 
-  for (const name of aliases) {
+  // Fully retired aliases carry no dispatcher route on purpose: their job is
+  // to say so and point at the surviving surface. Each must name the installer
+  // fallback and reproduce no judgment.
+  const retired = new Set(['gstack']);
+
+  for (const name of aliases.filter((n) => retired.has(n))) {
+    test(`/${name} declares retirement and points at the surviving surface`, () => {
+      const body = fs.readFileSync(path.join(COMPAT, name, 'SKILL.md'), 'utf-8');
+      expect(body).toMatch(/retired/i);
+      expect(body).toContain('npx skills add time-attack/gstack/skills');
+      for (const d of ['$plan', '$qa', '$debug', '$review', '$ship']) expect(body).toContain(d);
+      // No route means no module to copy from; the body must stay a pointer.
+      expect(body.length).toBeLessThan(1500);
+    });
+  }
+
+  for (const name of aliases.filter((n) => !retired.has(n))) {
     test(`/${name} routes to a dispatcher and module that exist`, () => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), `compat-${name}-`));
       try {
