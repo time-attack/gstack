@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "mode": "live-local-verify",
+  "generatedAt": "2026-08-09T11:30:00Z",
+  "annotation": "Replaces the design-era matrix's manual re-verify ask (its generator was deleted with the 1.x apparatus). Standard installer (skills CLI 1.5.22) run against the local RC tree; project scope in throwaway temp projects; no host config touched.",
+  "cli": "1.5.22",
+  "commit": "89e2271ec30313ee84f3919ff090debff44fab3d",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "checks": [
+    {
+      "name": "list-discovery",
+      "result": "pass",
+      "detail": "npx skills add <local> --list finds exactly six skills: plan, qa, debug, review, ship, make-pdf; .compat aliases hidden"
+    },
+    {
+      "name": "full-install-byte-parity",
+      "result": "pass",
+      "detail": "--skill '*' --agent claude-code --copy: all six skills, 230/230 files sha256-identical to source"
+    },
+    {
+      "name": "selected-install",
+      "result": "pass",
+      "detail": "--skill qa installs only qa, 51/51 files sha256-identical"
+    },
+    {
+      "name": "compat-alias-opt-in",
+      "result": "pass",
+      "detail": "--skill unfreeze installs the alias ONLY with --full-depth on CLI 1.5.22 (finds 45 = 6 skills + 39 aliases); without the flag aliases stay invisible, which keeps them out of default discovery"
+    },
+    {
+      "name": "remove-all",
+      "result": "pass",
+      "detail": "skills remove --all -y leaves zero installed skills"
+    },
+    {
+      "name": "seven-host-placement",
+      "result": "pass",
+      "detail": "--skill '*' installed per host for claude-code, codex, cursor, pi, openclaw, github-copilot, kimi-code-cli: six skills each; CLI 1.5.22 places claude-code under .claude/skills, pi under .pi/skills, and consolidates the rest under the shared .agents/skills root"
+    }
+  ]
+}
