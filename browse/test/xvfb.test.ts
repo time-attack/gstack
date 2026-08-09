@@ -11,8 +11,13 @@ import {
 
 const HAS_XVFB = (() => {
   if (process.platform !== 'linux') return false;
-  const result = Bun.spawnSync(['which', 'Xvfb'], { stdout: 'pipe', stderr: 'pipe' });
-  return result.exitCode === 0;
+  // pickFreeDisplay shells out to xdpyinfo too; a runner image with Xvfb but
+  // no xdpyinfo (observed on ubuntu-24.04 GH images) must skip, not error.
+  for (const bin of ['Xvfb', 'xdpyinfo']) {
+    const result = Bun.spawnSync(['which', bin], { stdout: 'pipe', stderr: 'pipe' });
+    if (result.exitCode !== 0) return false;
+  }
+  return true;
 })();
 
 describe('shouldSpawnXvfb', () => {
