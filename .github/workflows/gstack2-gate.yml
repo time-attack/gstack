@@ -55,5 +55,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Install Playwright Chromium (locked version, browse integration tests)
         run: ./node_modules/.bin/playwright-core install --with-deps chromium
+      - name: Build compiled binaries (the diagram gate hard-requires make-pdf/dist/pdf in CI)
+        run: bun run build
       - name: Run the free suite
         run: bun run test
