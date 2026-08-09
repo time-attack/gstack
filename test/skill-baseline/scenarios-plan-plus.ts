@@ -2275,11 +2275,13 @@ const gbrain: Scenario = {
 };
 
 /**
- * gstack.md. This module is a routing table plus one precedence rule (browser
- * work goes through the browser surface, never a generic MCP tool) and one
- * absence rule (there is no upgrade skill; upgrades go through the standard
- * installer). A table lookup is thin ground truth, and this scenario says so:
- * see the report note on why gstack.md gets one scenario rather than two.
+ * Dispatcher routing. The gstack.md keyword catalog was cut (host-native
+ * discovery plus the dispatchers' own mode tables carry routing now), and this
+ * scenario is that cut's loss-check: it scores whether requests still land on
+ * the right workflow without the catalog, including the precedence rule
+ * (browser work goes through the browser surface, never a generic MCP tool)
+ * and the absence rule (no upgrade skill; upgrades go through the standard
+ * installer), both of which now live in the dispatcher tables.
  */
 const ROUTING: Record<string, string> = {
   'REQUESTS.md': `# Eight things people said in the last hour
@@ -2911,5 +2913,4 @@ export const PLAN_PLUS_MODULE_COVERAGE: Record<string, string[]> = {
   'plan/context-restore.md': ['plan-plus-checkpoint-selection', 'plan-plus-checkpoint-writer'],
   'plan/setup-gbrain.md': ['plan-plus-gbrain-consent-and-honesty'],
   'plan/sync-gbrain.md': ['plan-plus-gbrain-consent-and-honesty'],
-  'plan/gstack.md': ['plan-plus-request-routing'],
 };

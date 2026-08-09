@@ -45,7 +45,7 @@ echo "Freeze boundary set: $FREEZE_DIR"
 
 Tell the user: "Edits are now restricted to `<path>/`. Any Edit or Write
 outside this directory will be blocked. To change the boundary, run `$debug --mode Diagnose-only --module freeze`
-again. To remove it, run `$debug --mode Diagnose-only --module unfreeze` or end the session."
+again. To remove it, ask to unfreeze (the Scope Lock section of `legacy/investigate.md` owns clearing the boundary) or end the session."
 
 ## How it works
 
@@ -61,7 +61,7 @@ script reads it on every Edit/Write invocation.
 - The trailing `/` on the freeze directory prevents `/src` from matching `/src-old`
 - Freeze applies to Edit and Write tools only — Read, Bash, Glob, Grep are unaffected
 - This prevents accidental edits, not a security boundary — Bash commands like `sed` can still modify files outside the boundary
-- To deactivate, run `$debug --mode Diagnose-only --module unfreeze` or end the conversation
+- To deactivate, ask to unfreeze (Scope Lock in `legacy/investigate.md` clears the boundary) or end the conversation
 
 <!-- GSTACK2_BUG_FIX_START pr=679 anchor=GSTACK2_FIX_679_MATCH_USER_LANGUAGE -->
 ## Upstream judgment port: PR #679

@@ -371,13 +371,13 @@ const freeze: Scenario[] = [
   },
 ];
 
-// --- module: guard.md --------------------------------------------------------
+// --- guard composition (guard.md was cut; careful.md + freeze.md carry it) ----
 
 const guard: Scenario[] = [
   {
     id: 'debug-guard-composition',
     skill: 'debug',
-    source: [LEGACY('guard.md')],
+    source: [LEGACY('careful.md'), LEGACY('freeze.md')],
     task:
       'SESSION.md says guard mode is active for this session. Verify that claim against .claude/settings.json, ' +
       'the hook scripts on disk, and the state directory. Report every protection that is announced but not ' +
@@ -463,13 +463,13 @@ const guard: Scenario[] = [
   },
 ];
 
-// --- module: unfreeze.md -----------------------------------------------------
+// --- unfreeze clear semantics (unfreeze.md was folded into investigate.md) ----
 
 const unfreeze: Scenario[] = [
   {
     id: 'debug-unfreeze-clear-semantics',
     skill: 'debug',
-    source: [LEGACY('unfreeze.md')],
+    source: [LEGACY('investigate.md')],
     task:
       'Review scripts/unfreeze.sh against the state directory it operates on. Report every defect, including ' +
       'anything it destroys that it should not and anything it prints that is not true. Do not change any files.',
@@ -965,7 +965,7 @@ const guard2: Scenario[] = [
   {
     id: 'debug-guard-setup-ask',
     skill: 'debug',
-    source: [LEGACY('guard.md')],
+    source: [LEGACY('careful.md'), LEGACY('freeze.md')],
     task:
       'Review scripts/guard-setup.sh and the boundary file it produced. Report every defect in how it resolves, ' +
       'validates and records the directory, and everything it should have asked the user that it decided on its ' +
@@ -1029,7 +1029,7 @@ const unfreeze2: Scenario[] = [
   {
     id: 'debug-unfreeze-vs-scope-lock',
     skill: 'debug',
-    source: [LEGACY('unfreeze.md')],
+    source: [LEGACY('investigate.md')],
     task:
       'The debug boundary from the previous session is still on disk, and the next task in TASK.md edits a ' +
       'different part of the tree. Report the correct way to proceed and every problem with what is on disk now, ' +

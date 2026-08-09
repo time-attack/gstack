@@ -252,7 +252,7 @@ describe('module coverage', () => {
     }
     const uncovered = onDisk.filter((m) => !coverage[m]);
     expect(uncovered).toEqual([]);
-    expect(onDisk.length).toBe(23);
+    expect(onDisk.length).toBe(22);
   });
 
   test('every module names at least one scenario, and every named scenario exists', () => {
@@ -266,8 +266,15 @@ describe('module coverage', () => {
   });
 
   test('every scenario is claimed by at least one module', () => {
+    // Scenarios probing a dispatcher's own routing surface (SKILL.md mode and
+    // alias tables) rather than any one legacy module. plan-plus-request-routing
+    // is the loss-check for the cut gstack.md catalog: routing must survive
+    // without a module to claim it.
+    const dispatcherLevel = new Set(['plan-plus-request-routing']);
     const claimed = new Set(Object.values(coverage).flat());
-    const orphans = scenarios.map((s) => s.id).filter((id) => !claimed.has(id));
+    const orphans = scenarios
+      .map((s) => s.id)
+      .filter((id) => !claimed.has(id) && !dispatcherLevel.has(id));
     expect(orphans).toEqual([]);
   });
 });

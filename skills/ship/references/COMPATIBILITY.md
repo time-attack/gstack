@@ -4,7 +4,7 @@ This package is self-contained. Route every retired invocation to the exact repl
 
 | Retired invocation | Exact replacement | Package-local module or required dispatcher |
 |---|---|---|
-| `/gstack` | `$plan --mode Discovery --module gstack` | install `plan` |
+| `/gstack` | retired router: invoke the matching dispatcher directly (`$plan`, `$qa`, `$debug`, `$review`, `$ship`, `/make-pdf`) or name the task and let the installed skills self-route | retired — no module |
 | `/office-hours` | `$plan --mode Discovery --module office-hours` | install `plan` |
 | `/plan-ceo-review` | `$plan --mode Product --module plan-ceo-review` | install `plan` |
 | `/plan-eng-review` | `$plan --mode Engineering --module plan-eng-review` | install `plan` |
@@ -32,8 +32,8 @@ This package is self-contained. Route every retired invocation to the exact repl
 | `/ios-fix` | `$debug --mode Fix --module ios-fix` | install `debug` |
 | `/careful` | `$debug --mode Diagnose-only --module careful` | install `debug` |
 | `/freeze` | `$debug --mode Diagnose-only --module freeze` | install `debug` |
-| `/guard` | `$debug --mode Diagnose-only --module guard` | install `debug` |
-| `/unfreeze` | `$debug --mode Diagnose-only --module unfreeze` | install `debug` |
+| `/guard` | `$debug --mode Diagnose-only --module careful` plus `--module freeze` in the same run (both protections active) | install `debug` |
+| `/unfreeze` | `$debug --mode Diagnose-only --module investigate` — its Scope Lock section owns clearing the boundary | install `debug` |
 | `/review` | `$review --mode Normal --module review` | install `review` |
 | `/cso` | `$review --mode Security --module cso` | install `review` |
 | `/health` | `$review --mode Deep --module health` | install `review` |

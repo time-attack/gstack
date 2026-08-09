@@ -1,15 +1,15 @@
 ---
 name: gstack
 description: >-
-  Compatibility alias for the retired /gstack command. Routes to $plan --mode Discovery --module gstack without copying specialist judgment.
+  Compatibility alias for the retired /gstack router. The six installed skills self-route from their own descriptions; no catalog module exists anymore.
 metadata:
   internal: true
 ---
 
 # Compatibility alias: /gstack
 
-Print this replacement invocation, then dispatch to it exactly:
+The keyword-catalog router is retired: host-native skill discovery and the dispatchers' own mode tables now do its job.
 
-`$plan --mode Discovery --module gstack`
+Tell the user, then act on their task directly: name the task plainly and the matching skill self-routes, or invoke a dispatcher explicitly — `$plan`, `$qa`, `$debug`, `$review`, `$ship`, or `/make-pdf`.
 
-Do not reproduce or summarize the retired specialist here. The canonical dispatcher must load its preserved `gstack` module. If that dispatcher is not installed, tell the user to install it with `npx skills add time-attack/gstack/skills --skill plan`.
+Do not reproduce the retired catalog here. If no gstack dispatcher is installed, tell the user to install them with `npx skills add time-attack/gstack/skills`.
