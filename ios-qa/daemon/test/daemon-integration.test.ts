@@ -132,6 +132,31 @@ describe('daemon — loopback listener', () => {
     expect(lastReq?.headers['x-session-id']).toBe('sess-loopback-1');
   });
 
+  test('/auth/sessions returns salted-hash ids and metadata, never raw tokens', async () => {
+    const minted = daemon.tokenStore.mint({
+      identity: 'owner@example.com',
+      capability: 'interact',
+      deviceUdid: 'STUB-UDID',
+      origin: 'owner_granted',
+    });
+    if ('error' in minted) throw new Error(minted.error);
+
+    const r = await fetchWith('GET', `http://127.0.0.1:${daemon.loopbackPort}/auth/sessions`);
+    expect(r.status).toBe(200);
+    expect(r.bodyText).not.toContain(minted.token);
+
+    const { sessions } = JSON.parse(r.bodyText) as { sessions: Array<Record<string, unknown>> };
+    const row = sessions.find(s => s.identity === 'owner@example.com');
+    expect(row).toMatchObject({
+      capability: 'interact',
+      device_udid: 'STUB-UDID',
+      origin: 'owner_granted',
+      expires_at: minted.expires_at,
+    });
+    expect(row?.token_id).toMatch(/^[0-9a-f]{16}$/);
+    expect(row?.token).toBeUndefined();
+  });
+
   test('returns 503 when no device tunnel is provided', async () => {
     // Force tunnel provider to return null by closing + restarting with null provider.
     await daemon.close();
