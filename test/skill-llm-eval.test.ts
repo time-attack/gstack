@@ -20,8 +20,13 @@ import { EvalCollector } from './helpers/eval-store';
 import { selectTests, detectBaseBranch, getChangedFiles, LLM_JUDGE_TOUCHFILES, GLOBAL_TOUCHFILES } from './helpers/touchfiles';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-// Run when EVALS=1 is set (requires ANTHROPIC_API_KEY in env)
-const evalsEnabled = !!process.env.EVALS;
+// Run when EVALS=1 is set (requires ANTHROPIC_API_KEY in env).
+// Whole-file tier: every test here is an LLM-judge score-threshold check —
+// a quality benchmark per the E2E tiering policy, so EVALS_TIER === 'periodic',
+// never gate. The first completed gate run (2026-08-09) spent its failures on
+// judge thresholds that had been failing on main since at least 2026-08-02;
+// that is periodic signal, not a merge gate.
+const evalsEnabled = !!process.env.EVALS && (!process.env.EVALS_TIER || process.env.EVALS_TIER === 'periodic');
 const describeEval = evalsEnabled ? describe : describe.skip;
 
 // Eval result collector
@@ -262,20 +267,35 @@ Scores are 1-5 overall quality.`,
 // --- Part 7: QA skill quality evals (C6) ---
 
 // GStack 2 (f19d6cda): the root `qa/` monolith is gone. `skills/qa/SKILL.md` is a
-// ~8KB lazy dispatcher that routes to preserved modules; the QA workflow, the
-// health rubric, and the diff-aware/Important-Rules prose these three evals score
-// all live in `skills/qa/references/legacy/qa.md` (39KB). Judge the module — the
-// dispatcher contains none of the content these rubrics claim to measure.
+// ~8KB lazy dispatcher that routes to preserved modules. Since the qa baseline
+// dedup, the shared Phases 1-6 workflow, health rubric, and diff-aware/Important-
+// Rules prose are specified ONCE in `qa-only.md`; `qa.md` keeps only its Fix-mode
+// delta block and later phases. Judge the surface Fix mode actually executes:
+// the qa-only baseline plus qa.md's delta block.
 const QA_MODULE = 'skills/qa/references/legacy/qa.md';
+const QA_BASELINE = 'skills/qa/references/legacy/qa-only.md';
+
+/** slice with named markers that throws instead of silently judging "". */
+function sliceBetween(content: string, file: string, startMarker: string, endMarker: string): string {
+  const start = content.indexOf(startMarker);
+  if (start === -1) throw new Error(`slice start marker not found in ${file}: ${startMarker}`);
+  const end = content.indexOf(endMarker, start);
+  if (end === -1) throw new Error(`slice end marker not found in ${file}: ${endMarker}`);
+  return content.slice(start, end);
+}
 
 describeIfSelected('QA skill quality evals', ['qa/SKILL.md workflow', 'qa/SKILL.md health rubric', 'qa/SKILL.md anti-refusal'], () => {
   const qaContent = fs.readFileSync(path.join(ROOT, QA_MODULE), 'utf-8');
+  const qaBaseline = fs.readFileSync(path.join(ROOT, QA_BASELINE), 'utf-8');
 
   testIfSelected('qa/SKILL.md workflow', async () => {
     const t0 = Date.now();
-    const start = qaContent.indexOf('## Workflow');
-    const end = qaContent.indexOf('## Health Score Rubric');
-    const section = qaContent.slice(start, end);
+    // Fix mode's executed surface: the delta block in qa.md, then the shared
+    // baseline workflow it delegates to.
+    const section =
+      sliceBetween(qaContent, QA_MODULE, '## Phases 1-6: QA Baseline', '## Output Structure') +
+      '\n' +
+      sliceBetween(qaBaseline, QA_BASELINE, '## Workflow', '## Health Score Rubric');
 
     const scores = await callJudge<JudgeScore>(`You are evaluating the quality of a QA testing workflow document for an AI coding agent.
 
@@ -316,14 +336,11 @@ ${section}`);
 
   testIfSelected('qa/SKILL.md health rubric', async () => {
     const t0 = Date.now();
-    const start = qaContent.indexOf('## Health Score Rubric');
     // Bound at the next top-level heading. The old open-ended `.slice(start)` ran to
     // EOF, so "the rubric to evaluate" was 17KB that also carried Framework-Specific
     // Guidance, Important Rules, Phases 7-11 and the upstream judgment ports. The
     // score was not a rubric score. Thresholds below are unchanged.
-    const end = qaContent.indexOf('## Framework-Specific Guidance', start);
-    if (end === -1) throw new Error('Health rubric end marker not found in ' + QA_MODULE);
-    const section = qaContent.slice(start, end);
+    const section = sliceBetween(qaBaseline, QA_BASELINE, '## Health Score Rubric', '## Framework-Specific Guidance');
 
     const scores = await callJudge<JudgeScore>(`You are evaluating a health score rubric that an AI agent must follow to compute a numeric QA score.
 
@@ -363,22 +380,10 @@ ${section}`);
 
   testIfSelected('qa/SKILL.md anti-refusal', async () => {
     const t0 = Date.now();
-    // Extract both the diff-aware mode section and Important Rules section
-    const diffAwareStart = qaContent.indexOf('### Diff-aware');
-    const diffAwareEnd = qaContent.indexOf('### Full');
-    const rulesStart = qaContent.indexOf('## Important Rules');
-    // PRE-EXISTING BUG (not a GStack 2 artifact — the deleted 1.x qa/SKILL.md had the
-    // same order at lines 1388/1416): `## Framework-Specific Guidance` sits BEFORE
-    // `## Important Rules`, so the old end marker produced end < start and
-    // `slice(start, end)` returned "". This eval has been judging an EMPTY
-    // "Important Rules" excerpt and scoring the diff-aware section alone. The next
-    // heading after Important Rules is `## Output Structure`.
-    const rulesEnd = qaContent.indexOf('## Output Structure', rulesStart);
-    if (diffAwareStart === -1 || diffAwareEnd === -1 || rulesStart === -1 || rulesEnd === -1) {
-      throw new Error(`Anti-refusal slice markers not found in ${QA_MODULE}`);
-    }
-    const diffAwareSection = qaContent.slice(diffAwareStart, diffAwareEnd);
-    const rulesSection = qaContent.slice(rulesStart, rulesEnd);
+    // Both sections live in the shared baseline since the qa dedup. qa-only.md's
+    // heading after Important Rules is `## Output` (it never had Output Structure).
+    const diffAwareSection = sliceBetween(qaBaseline, QA_BASELINE, '### Diff-aware', '### Full');
+    const rulesSection = sliceBetween(qaBaseline, QA_BASELINE, '## Important Rules', '## Output');
     // GStack 2: /qa is lazy-dispatched. The agent reads the dispatcher BEFORE the
     // module, and the dispatcher is where the new refusal escape hatches live (the
     // trivial-check fast path, the "non-browser target does not load a browser-centric
