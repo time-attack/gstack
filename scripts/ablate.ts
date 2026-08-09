@@ -132,6 +132,13 @@ function resolveSets(args: string[], runDir: string): SetRegistry {
   return sets;
 }
 
+/** yes / NO(what-ran-instead) / ? when no transcript arrived. Validity at a glance per cell. */
+function skillTag(cell: Cell): string {
+  if (cell.skillInvoked === null || cell.skillInvoked === undefined) return '?';
+  if (cell.skillInvoked) return 'yes';
+  return `NO(${(cell.skillsUsed ?? []).join('/') || 'none'})`;
+}
+
 async function main(): Promise<void> {
   const { values } = parseArgs({
     args: Bun.argv.slice(2),
