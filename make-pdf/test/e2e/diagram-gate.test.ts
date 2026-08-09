@@ -164,7 +164,13 @@ describe("diagram render gate", () => {
 
   if (!avail.ok) {
     test("diagram gate prerequisites are present (hard-required in CI)", () => {
-      if (process.env.CI) {
+      // 9053324a deleted lib/diagram-render's source with the design/diagram
+      // runtime, so CI cannot build the bundle from this repo anymore — the
+      // hard requirement is only satisfiable for prerequisites the repo can
+      // still produce (the compiled make-pdf binary, poppler). The bundle
+      // resolves from the managed runtime or a legacy install where present.
+      const retiredBundle = avail.reason?.includes("diagram-render");
+      if (process.env.CI && !retiredBundle) {
         throw new Error(`diagram gate prerequisites missing in CI: ${avail.reason}`);
       }
       console.warn(`[skip] ${avail.reason}`);
