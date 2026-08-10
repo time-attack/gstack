@@ -104,9 +104,9 @@ $GSTACK_BIN/gstack-learnings-search --limit 10 2>/dev/null || true
 If learnings are found, incorporate them into your analysis. When a review finding
 matches a past learning, note it: "Prior learning applied: [key] (confidence N, from [date])"
 
-5. **Ask: what's your goal with this?** This is a real question, not a formality. The answer determines everything about how the session runs.
+5. **Determine the goal — infer it; do not ask.** The answer determines everything about how the session runs, and a modern host reads it straight off the prompt: "for fun", "side project", a playful idea with no business framing → Builder; customers, revenue, "we", a market → Startup; a sponsor or team → intrapreneurship. Ambiguous prompts default to Builder — the cheaper mode to be wrong in, since a Builder doc upgrades to a Startup diagnostic on one word. Always state the inference in one line and keep moving: "Reading this as a side project — say 'startup' and I'll switch to the hard questions."
 
-   Via AskUserQuestion, ask:
+   Ask only when the user's profile grants question budget AND the prompt genuinely supports two different session shapes; then use AskUserQuestion:
 
    > Before we dig in — what's your goal with this?
    >
@@ -326,7 +326,9 @@ Both are outcome-framed. Only one has the 'whoa.' Builder mode's job is to surfa
 
 ### Questions (generative, not interrogative)
 
-Ask these **ONE AT A TIME** via AskUserQuestion. The goal is to brainstorm and sharpen the idea, not interrogate.
+**Default: zero questions.** Someone building for fun wants momentum, not an interview. A modern model answers the sharpening prompts itself from the idea, the landscape search, and taste; it asks only when the user's profile grants budget (see the chain-wide budget rule) AND a prompt below is a true taste fork — two defensible products, not one right answer.
+
+Work through these prompts YOURSELF and present your answers as assertions the user can correct in passing — not as questions:
 
 - **What's the coolest version of this?** What would make it genuinely delightful?
 - **Who would you show this to?** What would make them say "whoa"?
@@ -334,9 +336,9 @@ Ask these **ONE AT A TIME** via AskUserQuestion. The goal is to brainstorm and s
 - **What existing thing is closest to this, and how is yours different?**
 - **What would you add if you had unlimited time?** What's the 10x version?
 
-**Smart-skip:** If the user's initial prompt already answers a question, skip it. Only ask questions whose answers aren't yet clear.
+State them in the design doc as "here's the version I'd build and why" — commit to the ambitious reading of the idea. Scope, feature depth, and how technical to go are never worth a question — decide, state, offer the one-line opt-down. Spend a question only on a true identity fork (two defensible DIFFERENT products, e.g. "personal tool" vs "public bot other people follow") or on a fact you cannot infer. Otherwise spend zero: a wrong assertion costs the user one sentence to correct; a question costs them the momentum they came here with.
 
-**STOP** after each question. Wait for the response before asking the next.
+**STOP** after a question if you ask one. Never queue a second before the first is answered — and remember the cap.
 
 **Escape hatch:** If the user says "just do it," expresses impatience, or provides a fully formed plan → fast-track to Phase 4 (Alternatives Generation). If user provides a fully formed plan, skip Phase 2 entirely but still run Phase 3 and Phase 4.
 
@@ -356,7 +358,7 @@ grep -li "<keyword1>\|<keyword2>\|<keyword3>" "${GSTACK_HOME:-$HOME/.gstack}"/pr
 
 If matches found, read the matching design docs and surface them:
 - "FYI: Related design found — '{title}' by {user} on {date} (branch: {branch}). Key overlap: {1-line summary of relevant section}."
-- Ask via AskUserQuestion: "Should we build on this prior design or start fresh?"
+- Default to building on it and say so in one line ("Building on that doc — say 'fresh' to start over"). Ask via AskUserQuestion only when the prior doc and the new ask genuinely conflict; the question spends budget.
 
 This enables cross-team discovery — multiple users exploring the same project will see each other's design docs in `"${GSTACK_HOME:-$HOME/.gstack}"/projects/`.
 
@@ -370,7 +372,7 @@ Read ETHOS.md for the full Search Before Building framework (three layers, eurek
 
 After understanding the problem through questioning, search for what the world thinks. This is NOT competitive research. This is understanding conventional wisdom so you can evaluate where it's wrong.
 
-**Privacy gate:** Before searching, use AskUserQuestion: "I'd like to search for what the world thinks about this space to inform our discussion. This sends generalized category terms (not your specific idea) to a search provider. OK to proceed?"
+**Privacy gate:** Before searching, get consent via AskUserQuestion: "I'd like to search for what the world thinks about this space to inform our discussion. This sends generalized category terms (not your specific idea) to a search provider. OK to proceed?" Consent is outside the question budget — bundle it into the same AskUserQuestion call as a pending substantive question instead of spending a turn on it alone.
 Options: A) Yes, search away  B) Skip — keep this session private
 If B: skip this phase entirely and proceed to Phase 3. Use only in-distribution knowledge.
 
@@ -633,13 +635,26 @@ already knows. A good test: would this insight save time in a future session? If
 ## Important Rules
 
 - **Never start implementation.** This skill produces design docs, not code. Not even scaffolding.
-- **Questions ONE AT A TIME.** Never batch multiple questions into one AskUserQuestion.
+- **Batch independent questions** into one AskUserQuestion round (the tool carries up to four); one-at-a-time is for the Startup diagnostic, where each answer shapes the next push. The zero-default budget applies either way — a batched round still spends one budget slot per question in it.
 - **The assignment is mandatory.** Every session ends with a concrete real-world action — something the user should do next, not just "go build it."
 - **If user provides a fully formed plan:** skip Phase 2 (questioning) but still run Phase 3 (Premise Challenge) and Phase 4 (Alternatives). Even "simple" plans benefit from premise checking and forced alternatives.
 - **Completion status:**
   - DONE — design doc APPROVED
   - DONE_WITH_CONCERNS — design doc approved but with open questions listed
   - NEEDS_CONTEXT — user left questions unanswered, design incomplete
+
+
+## Capability priors (evidence dated 2026-08; re-verify before citing past 2027)
+
+Never justify narrowing scope, adding human-review stages, or steering the user to a "safer" variant by asserting that an LLM can't do something reliably. The measured 2026 reality, with sources, is the opposite of the 2023-24 folklore:
+
+- Pairwise semantic matching ("do these two announcements describe the same thing?") is at practical saturation: 92–99 F1 zero-shot on real-world benchmarks (OpenSanctions Pairs, 755K pairs: GPT-4o 98.95 F1), BEATING production rule engines by ~8 points — and the error direction is inverted: ~3% false merges vs 14% for the rules (arxiv.org/html/2603.11051; futuresearch.ai measured precision 1.000, "zero false merges," at ~$1.12/1k rows in production).
+- LLM-as-judge on objective correctness reaches Cohen's kappa ≈ 0.87 (21-judge study, 541K judgments, arxiv.org/html/2606.19544); verbosity bias has collapsed an order of magnitude below 2023 levels.
+- Grounded-summarization hallucination is low single digits for current models (Vectara leaderboard) — model-dependent, so name the model, don't indict the class.
+
+What still genuinely fails, and may honestly shape a design: subjective preference judging under adversarial phrasing (kappa ~0.5), mega-schema extraction (hundreds of fields per document), and multi-document event clustering with small open models. Those are different task shapes — do not let them stand in for pairwise matching or objective judging.
+
+When a load-bearing capability is uncertain for the user's ACTUAL data: keep the ambitious design as the default, and put a 30-minute spike in the plan that measures it — ~50 hand-labeled examples as the calibration set, 85–90% agreement as the deploy gate (the 2026 practitioner standard). "Measure it this afternoon" is the modern answer; "downgrade the product" is the stale one.
 
 <!-- GSTACK2_BUG_FIX_START pr=679 anchor=GSTACK2_FIX_679_MATCH_USER_LANGUAGE -->
 ## Upstream judgment port: PR #679
@@ -696,7 +711,11 @@ The binding scale comes from the first available source: the printed `Scale:` he
 - `project`: run the specialist's default workflow, batching question rounds where its source authorizes smart skips; size the roadmap in weeks.
 - `product` and `venture`: the full specialist workflow and its complete question pressure apply; this rule removes nothing.
 
-The scale also fixes a chain-wide question budget — a ceiling on individual questions (not rounds) counted across the entire invocation and everything it chains into, reviews included: five at `session` (a hackathon demo or a one-sitting toy gets five questions, total, ever), eight at `hobby`, twelve at `project`, uncapped at `product` and `venture`. Every handoff carries the scale, the time box, and the questions already spent; the receiving specialist deducts from the remaining budget, never restarts it. A specialist whose remaining budget is zero infers the answer from the prompt, the repository, and stated constraints, states the inference and its default in one line, and proceeds — it does not ask. Approval STOP gates (approve/revise the plan, authorize a mutation) are outside the budget; everything else, including "which option do you prefer" refinements, spends it. Spend the budget on the questions whose wrong answer is most expensive to reverse, earliest.
+**The default question budget is ZERO, at every scale.** Full autonomy out of the box: the current generation of models infers the answers from the prompt, the repository, and a landscape search, states each inference in one line where the user can correct it in passing, and proceeds to the plan. A question to the user is not the default path — it is the opt-in path.
+
+Only two things interrupt autonomously, and neither is a preference question: approval STOP gates (approve/revise the plan, authorize a mutation — that is authority, never inference) and privacy-consent gates. A consent gate with no pending question to bundle into does not become its own interview turn: skip the gated action, note the skip in one line ("landscape search skipped — needs consent; say 'search' to grant it"), and continue. Autonomy never overrides consent; it routes around it.
+
+**The budget above zero comes from the person, not the product.** Read the developer profile before the first would-be question: `cat "${GSTACK_HOME:-$HOME/.gstack}"/developer-profile.json 2>/dev/null`. Take `declared.autonomy`, falling back to the newest inferred value; absent profile means autonomy 1.0. Questions allowed across the entire chain — this invocation plus everything it hands off to, reviews included — is `round((1 − autonomy) × 6)`: autonomy 1.0 asks nothing, 0.5 gets three, 0 gets six. Every handoff carries the questions already spent; the receiving specialist deducts, never restarts. Whatever the budget, spend it on the fork whose wrong answer is most expensive to reverse, earliest — never on confirming what the model already knows. This is the consumption side of `/plan-tune`: users who want to be asked tune autonomy down; nobody has to configure anything to get the autonomous default.
 - Never run a questioning round merely to classify scale. Classify from the prompt and cheap repository evidence, defaulting unknown vectors low; a specialist's own later questions may raise the scale mid-session, and an upgrade restores the full workflow from that point.
 
 Review specialists spend question rounds on decisions, not ceremony — at every scale, and sharpest at `session`/`hobby`:

@@ -162,7 +162,7 @@ Say to the user via AskUserQuestion:
 
 > "No design doc found for this branch. `$plan --mode Discovery --module office-hours` produces a structured problem
 > statement, premise challenge, and explored alternatives — it gives this review much
-> sharper input to work with. Takes about 10 minutes. The design doc is per-feature,
+> sharper input to work with. Takes a few minutes. The design doc is per-feature,
 > not per-product — it captures the thinking behind this specific change."
 
 Options:
@@ -390,7 +390,7 @@ Every expansion proposal you generate in SCOPE EXPANSION or SELECTIVE EXPANSION 
 
 FLAT (avoid): "Add real-time notifications. Users would see workflow results faster — latency drops from ~30s polling to <500ms push. Effort: ~1 hour CC."
 
-EXPANSIVE (aim for): "Imagine the moment a workflow finishes — the user sees the result instantly, no tab-switching, no polling, no 'did it actually work?' anxiety. Real-time feedback turns a tool they check into a tool that talks to them. Concrete shape: WebSocket channel + optimistic UI + desktop notification fallback. Effort: human ~2 days / CC ~1 hour. Makes the product feel 10x more alive."
+EXPANSIVE (aim for): "Imagine the moment a workflow finishes — the user sees the result instantly, no tab-switching, no polling, no 'did it actually work?' anxiety. Real-time feedback turns a tool they check into a tool that talks to them. Concrete shape: WebSocket channel + optimistic UI + desktop notification fallback. Effort: one agent session plus your review time. Makes the product feel 10x more alive."
 
 Both are outcome-framed. Only one makes the user feel the cathedral. Lead with the felt experience, close with concrete effort and impact.
 
@@ -536,10 +536,11 @@ Think ahead to implementation: What decisions will need to be made during implem
   HOUR 4-5 (integration):  What will surprise them?
   HOUR 6+ (polish/tests):  What will they wish they'd planned for?
 ```
-NOTE: These represent human-team implementation hours. With CC + gstack,
-6 hours of human implementation compresses to ~30-60 minutes. The decisions
-are identical — the implementation speed is 10-20x faster. Always present
-both scales when discussing effort.
+NOTE: These represent human-team implementation hours — keep them ONLY as a
+decision-ordering device (what breaks first, what integrates last). Do not
+present effort in human-hours or hardcode a speed multiplier: agent speed
+changes monthly and any fixed ratio drifts stale. When discussing effort,
+size it as agent sessions plus the user's review time.
 
 Surface these as questions for the user NOW, not as "figure it out later."
 
@@ -557,7 +558,6 @@ Context-dependent defaults:
 * Feature enhancement or iteration on existing system → default SELECTIVE EXPANSION
 * Bug fix or hotfix → default HOLD SCOPE
 * Refactor → default HOLD SCOPE
-* Plan touching >15 files → suggest REDUCTION unless user pushes back
 * User says "go big" / "ambitious" / "cathedral" → EXPANSION, no question
 * User says "hold scope but tempt me" / "show me options" / "cherry-pick" → SELECTIVE EXPANSION, no question
 
@@ -613,6 +613,19 @@ the user will see a plan whose review report is missing or stale, and will
 the report. The report is a separate, structured, table-bearing section that
 must be the file's terminal heading.
 
+
+## Capability priors (evidence dated 2026-08; re-verify before citing past 2027)
+
+Never justify narrowing scope, adding human-review stages, or steering the user to a "safer" variant by asserting that an LLM can't do something reliably. The measured 2026 reality, with sources, is the opposite of the 2023-24 folklore:
+
+- Pairwise semantic matching ("do these two announcements describe the same thing?") is at practical saturation: 92–99 F1 zero-shot on real-world benchmarks (OpenSanctions Pairs, 755K pairs: GPT-4o 98.95 F1), BEATING production rule engines by ~8 points — and the error direction is inverted: ~3% false merges vs 14% for the rules (arxiv.org/html/2603.11051; futuresearch.ai measured precision 1.000, "zero false merges," at ~$1.12/1k rows in production).
+- LLM-as-judge on objective correctness reaches Cohen's kappa ≈ 0.87 (21-judge study, 541K judgments, arxiv.org/html/2606.19544); verbosity bias has collapsed an order of magnitude below 2023 levels.
+- Grounded-summarization hallucination is low single digits for current models (Vectara leaderboard) — model-dependent, so name the model, don't indict the class.
+
+What still genuinely fails, and may honestly shape a design: subjective preference judging under adversarial phrasing (kappa ~0.5), mega-schema extraction (hundreds of fields per document), and multi-document event clustering with small open models. Those are different task shapes — do not let them stand in for pairwise matching or objective judging.
+
+When a load-bearing capability is uncertain for the user's ACTUAL data: keep the ambitious design as the default, and put a 30-minute spike in the plan that measures it — ~50 hand-labeled examples as the calibration set, 85–90% agreement as the deploy gate (the 2026 practitioner standard). "Measure it this afternoon" is the modern answer; "downgrade the product" is the stale one.
+
 <!-- GSTACK2_BUG_FIX_START pr=679 anchor=GSTACK2_FIX_679_MATCH_USER_LANGUAGE -->
 ## Upstream judgment port: PR #679
 
@@ -648,7 +661,7 @@ The binding scale comes from the first available source: the printed `Scale:` he
 - `project`: run the specialist's default workflow, batching question rounds where its source authorizes smart skips; size the roadmap in weeks.
 - `product` and `venture`: the full specialist workflow and its complete question pressure apply; this rule removes nothing.
 
-The scale also fixes a chain-wide question budget — a ceiling on individual questions (not rounds) counted across the entire invocation and everything it chains into, reviews included: five at `session` (a hackathon demo or a one-sitting toy gets five questions, total, ever), eight at `hobby`, twelve at `project`, uncapped at `product` and `venture`. Every handoff carries the scale, the time box, and the questions already spent; the receiving specialist deducts from the remaining budget, never restarts it. A specialist whose remaining budget is zero infers the answer from the prompt, the repository, and stated constraints, states the inference and its default in one line, and proceeds — it does not ask. Approval STOP gates (approve/revise the plan, authorize a mutation) are outside the budget; everything else, including "which option do you prefer" refinements, spends it. Spend the budget on the questions whose wrong answer is most expensive to reverse, earliest.
+The chain-wide question budget defaults to ZERO, at every scale — full autonomy out of the box. The current generation of models infers the answers from the prompt, the repository, and stated constraints; state each inference and its default in one line the user can correct in passing, and proceed. Scope, ambition, and technical depth are never what a question is for: decide, state the choice with a one-line opt-down, and keep moving. Budget above zero comes from the person, not the product: read `cat "${GSTACK_HOME:-$HOME/.gstack}"/developer-profile.json 2>/dev/null`, take `declared.autonomy` (newest inferred as fallback; absent profile means autonomy 1.0), and allow `round((1 − autonomy) × 6)` individual questions across the entire chain — this invocation plus everything it hands off to, reviews included. Every handoff carries the scale, the time box, and the questions already spent; the receiving specialist deducts, never restarts. Approval STOP gates (approve/revise the plan, authorize a mutation — authority, never inference) and privacy-consent gates are outside the budget; a consent gate with no pending question to bundle into does not become its own turn — skip the gated action, note the skip in one line, continue. Whatever the budget, spend it on the fork whose wrong answer is most expensive to reverse, earliest — never on confirming what the model already knows.
 - Never run a questioning round merely to classify scale. Classify from the prompt and cheap repository evidence, defaulting unknown vectors low; a specialist's own later questions may raise the scale mid-session, and an upgrade restores the full workflow from that point.
 
 Review specialists spend question rounds on decisions, not ceremony — at every scale, and sharpest at `session`/`hobby`:
