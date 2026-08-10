@@ -121,6 +121,21 @@ describe('egress receipt wiring tripwire', () => {
     ).toEqual([]);
   });
 
+  test('deprecated dead-endpoint brain consumer/reader scripts stay deleted', () => {
+    // EGRESS-AUDIT open P2: these posted brain repo_url + Bearer token to a
+    // user-registered ingest_url for a /ingest-repo endpoint gbrain never
+    // shipped. lstat (not existsSync) so a dangling symlink also fails.
+    for (const rel of ['bin/gstack-brain-consumer', 'bin/gstack-brain-reader']) {
+      let present = true;
+      try {
+        fs.lstatSync(path.join(ROOT, rel));
+      } catch {
+        present = false;
+      }
+      expect(present, `${rel} was deleted (dead /ingest-repo egress sink) — do not resurrect`).toBe(false);
+    }
+  });
+
   test('receipt-before-send ordering in runtime/context.js #request', () => {
     const src = read('runtime/context.js');
     const receiptAt = src.indexOf('writeReceipt({');

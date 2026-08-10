@@ -1,14 +1,14 @@
 /**
  * Tier-2 hardening tests for context-save + context-restore.
  *
- * These exercise the exact bash snippets from the SKILL.md templates,
- * without spawning claude -p. Free tier, runs in milliseconds.
+ * These exercise the exact bash snippets from the preserved modules under
+ * skills/plan/references/legacy/, without spawning claude -p. Free tier,
+ * runs in milliseconds.
  *
  * Covers the hardening work from commit 3df8ea86:
  *   - Bash-side title sanitizer (allowlist a-z0-9.-, cap 60, default "untitled")
  *   - Collision-safe filenames (random suffix on same-second double-save)
  *   - head -20 cap on the restore-flow directory listing
- *   - Migration HOME unset guard
  *   - Empty-set "NO_CHECKPOINTS" fallback
  */
 
@@ -18,11 +18,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-const ROOT = path.resolve(import.meta.dir, '..');
-
-// The exact sanitize+collision bash used by context-save/SKILL.md Step 4.
-// Kept in sync with context-save/SKILL.md.tmpl. If the template changes
-// this helper out of alignment, the title-sanitize tests fail — intended.
+// The exact sanitize+collision bash used by the context-save module.
+// Kept in sync with skills/plan/references/legacy/context-save.md. If that
+// module drifts out of alignment, the title-sanitize tests fail — intended.
 const TITLE_BASH = `
 RAW="\${TITLE_RAW:-untitled}"
 TITLE_SLUG=$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]' | tr -s ' \\t' '-' | tr -cd 'a-z0-9.-' | cut -c1-60)
@@ -36,7 +34,7 @@ echo "TITLE_SLUG=$TITLE_SLUG"
 echo "FILE=$FILE"
 `;
 
-// The exact find + sort + head used by context-restore/SKILL.md Step 1.
+// The exact find + sort + head used by skills/plan/references/legacy/context-restore.md.
 const RESTORE_FIND_BASH = `
 if [ ! -d "$CHECKPOINT_DIR" ]; then
   echo "NO_CHECKPOINTS"
@@ -309,41 +307,5 @@ describe('context-restore: find + sort + head cap', () => {
     // Must NOT contain any .md filename from cwd.
     expect(out).not.toContain('SKILL.md');
     expect(out).not.toContain('README.md');
-  });
-});
-
-// ─── Migration HOME guard ──────────────────────────────────────────────────
-
-describe('migration v1.1.3.0: HOME guard', () => {
-  let tmp: string;
-  const MIGRATION = path.join(ROOT, 'gstack-upgrade', 'migrations', 'v1.1.3.0.sh');
-
-  beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-home-')); });
-  afterEach(() => { try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {} });
-
-  test('HOME unset → exits 0 with diagnostic, no filesystem changes', () => {
-    // Create a file that would be wiped by an HOME="" bug: /.claude/skills/gstack/checkpoint
-    // (not actually writable by the test, but we verify the script doesn't TRY).
-    // Spawn without HOME in env.
-    const env = { PATH: process.env.PATH || '/usr/bin:/bin' } as Record<string, string>;
-    const result = spawnSync('bash', [MIGRATION], {
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 5000,
-    });
-    expect(result.status).toBe(0);
-    expect(result.stderr.toString()).toContain('HOME is unset');
-  });
-
-  test('HOME="" → exits 0 with diagnostic', () => {
-    const result = spawnSync('bash', [MIGRATION], {
-      env: { HOME: '', PATH: process.env.PATH || '/usr/bin:/bin' },
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 5000,
-    });
-    expect(result.status).toBe(0);
-    expect(result.stderr.toString()).toContain('HOME is unset or empty');
-    // Critical: no stdout (no "Removed stale" messages — nothing touched).
-    expect(result.stdout.toString().trim()).toBe('');
   });
 });

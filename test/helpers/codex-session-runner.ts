@@ -197,6 +197,23 @@ export async function runCodexSkill(opts: {
           fs.cpSync(src, dst, { recursive: true });
         }
       }
+      // The operator's config.toml carries their MCP server registrations,
+      // which children then dial (observed: a Supabase MCP demanding OAuth,
+      // spraying 'invalid_request' onto stderr and failing any stderr-clean
+      // assertion). Auth rides along; MCP servers must not — the claude
+      // runners get the same isolation via --strict-mcp-config.
+      const tempConfig = path.join(tempCodexDir, 'config.toml');
+      if (fs.existsSync(tempConfig)) {
+        const lines = fs.readFileSync(tempConfig, 'utf-8').split('\n');
+        const kept: string[] = [];
+        let inMcp = false;
+        for (const line of lines) {
+          const header = line.match(/^\s*\[+([^\]]*)\]/);
+          if (header) inMcp = header[1].startsWith('mcp_servers');
+          if (!inMcp) kept.push(line);
+        }
+        fs.writeFileSync(tempConfig, kept.join('\n'));
+      }
     }
 
     // Build codex exec command

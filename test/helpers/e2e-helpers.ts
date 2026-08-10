@@ -103,6 +103,81 @@ export function copyDirSync(src: string, dest: string) {
 }
 
 /**
+ * Install a retired 1.x skill name into an E2E workdir, the way a real user
+ * reaches it today.
+ *
+ * The 1.x tree at the repo root is gone. A user who types `/office-hours` now
+ * hits `skills/.compat/office-hours/SKILL.md`, a routing stub that dispatches
+ * to `$plan --mode Discovery --module office-hours`, and the plan dispatcher
+ * lazily reads `references/legacy/office-hours.md`. This installs that whole
+ * path so an E2E test exercises what ships instead of a tree nobody gets.
+ *
+ * The alias lands at `<workDir>/<name>/SKILL.md`, so a prompt that already
+ * says "Read office-hours/SKILL.md" keeps working unchanged.
+ *
+ * Returns the parsed route so a test can assert on the dispatch or build a
+ * prompt from it. Throws if the alias or its module is missing — a silent
+ * skip here is how a retired-name test rots into a no-op.
+ */
+export interface LegacyRoute {
+  name: string;
+  dispatcher: string;
+  mode: string;
+  module: string | null;
+  invocation: string;
+}
+
+export function installLegacySkill(workDir: string, name: string): LegacyRoute {
+  const aliasFile = path.join(ROOT, 'skills', '.compat', name, 'SKILL.md');
+  if (!fs.existsSync(aliasFile)) {
+    throw new Error(
+      `installLegacySkill("${name}"): no compat alias at skills/.compat/${name}/SKILL.md. ` +
+        `The 1.x root tree is deleted, so there is no other source for this skill.`,
+    );
+  }
+
+  const alias = fs.readFileSync(aliasFile, 'utf-8');
+  const route = alias.match(
+    /\$(plan|qa|debug|review|ship)\s+--mode\s+([A-Za-z-]+)(?:\s+--module\s+([a-z0-9-]+))?/,
+  );
+  if (!route) {
+    throw new Error(`installLegacySkill("${name}"): alias carries no $dispatcher --mode route.`);
+  }
+  const [, dispatcher, mode, moduleName = null] = route;
+
+  // The alias, under its old name, so existing prompts resolve.
+  fs.mkdirSync(path.join(workDir, name), { recursive: true });
+  fs.copyFileSync(aliasFile, path.join(workDir, name, 'SKILL.md'));
+
+  // The dispatcher it routes to. Copied whole: the agent reads it lazily
+  // (SKILL.md, then the shared refs, then the one module), so disk size here
+  // is not read size. Installing less would make the dispatch dead-end.
+  const dispatcherDir = path.join(ROOT, 'skills', dispatcher);
+  if (!fs.existsSync(dispatcherDir)) {
+    throw new Error(`installLegacySkill("${name}"): routes to $${dispatcher}, which is not in skills/.`);
+  }
+  copyDirSync(dispatcherDir, path.join(workDir, 'skills', dispatcher));
+
+  if (moduleName) {
+    const moduleFile = path.join(dispatcherDir, 'references', 'legacy', `${moduleName}.md`);
+    if (!fs.existsSync(moduleFile)) {
+      throw new Error(
+        `installLegacySkill("${name}"): alias routes to --module ${moduleName}, but ` +
+          `skills/${dispatcher}/references/legacy/${moduleName}.md does not exist. Dangling route.`,
+      );
+    }
+  }
+
+  return {
+    name,
+    dispatcher,
+    mode,
+    module: moduleName,
+    invocation: `$${dispatcher} --mode ${mode}${moduleName ? ` --module ${moduleName}` : ''}`,
+  };
+}
+
+/**
  * Set up browse shims (binary symlink, remote-slug) in a tmpDir.
  */
 export function setupBrowseShims(dir: string) {

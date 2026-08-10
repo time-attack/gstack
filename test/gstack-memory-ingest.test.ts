@@ -767,6 +767,64 @@ exit 0
   });
 });
 
+// ── EGRESS-AUDIT P2: default-ON redact-engine gate over staged bodies ───────
+//
+// The gbrain DB may be a remote Postgres, so ingest is a potential
+// off-machine send. The shared engine (lib/redact-engine.ts scan()) runs by
+// default over the EXACT rendered bytes staged for `gbrain import`. HIGH →
+// typed SECRET_SCAN_HIGH refusal; MEDIUM → SECRET_SCAN_MEDIUM refusal unless
+// --ack-medium; --no-scan-secrets is the explicit opt-out.
+describe("gstack-memory-ingest secret gate: default-ON engine scan (EGRESS-AUDIT P2)", () => {
+  it("refuses HIGH by default and MEDIUM without --ack-medium; --no-scan-secrets opts out", () => {
+    const home = makeTestHome();
+    const gstackHome = join(home, ".gstack");
+    mkdirSync(gstackHome, { recursive: true });
+    const { binDir } = installFakeGbrain(home);
+
+    // Synthetic non-live fixtures — same shapes test/redact-engine.test.ts uses.
+    const highSecret = "AKIA" + "1234567890ABCDEF"; // aws.access_key → HIGH
+    const mediumPii = "reach me at alice@corp.io"; // pii.email → MEDIUM
+
+    const mkSession = (content: string) =>
+      `{"type":"user","message":{"role":"user","content":${JSON.stringify(content)}},"timestamp":"2026-05-01T00:00:00Z","cwd":"/tmp/foo"}\n`;
+    writeClaudeCodeSession(home, "tmp-clean", "cleansess1", mkSession("clean"));
+    writeClaudeCodeSession(home, "tmp-high", "highsess1", mkSession(`key = ${highSecret}`));
+    writeClaudeCodeSession(home, "tmp-medium", "medsess1", mkSession(mediumPii));
+
+    const env = {
+      HOME: home,
+      GSTACK_HOME: gstackHome,
+      PATH: `${binDir}:${process.env.PATH || ""}`,
+    };
+    const statePath = join(gstackHome, ".transcript-ingest-state.json");
+    const stateCount = () =>
+      Object.keys(JSON.parse(readFileSync(statePath, "utf-8")).sessions || {}).length;
+
+    // Default (no scan flags, --quiet): gate is ON, refusals still print.
+    const r1 = runScript(["--bulk", "--include-unattributed", "--quiet"], env);
+    expect(r1.exitCode).toBe(0);
+    expect(r1.stderr).toMatch(/SECRET_SCAN_HIGH: \S*highsess1[^ ]* \(aws\.access_key\) — ingest refused/);
+    expect(r1.stderr).toMatch(/SECRET_SCAN_MEDIUM: \S*medsess1[^ ]* \(pii\.email\).*--ack-medium/);
+    expect(stateCount()).toBe(1); // only the clean session landed
+
+    // --ack-medium: MEDIUM ingests; HIGH still refuses (no flag disables HIGH
+    // while the scan runs — matching the redaction taxonomy).
+    const r2 = runScript(["--bulk", "--include-unattributed", "--quiet", "--ack-medium"], env);
+    expect(r2.exitCode).toBe(0);
+    expect(r2.stderr).toMatch(/SECRET_SCAN_HIGH/);
+    expect(r2.stderr).not.toMatch(/SECRET_SCAN_MEDIUM/);
+    expect(stateCount()).toBe(2);
+
+    // --no-scan-secrets: explicit opt-out ingests everything.
+    const r3 = runScript(["--bulk", "--include-unattributed", "--quiet", "--no-scan-secrets"], env);
+    expect(r3.exitCode).toBe(0);
+    expect(r3.stderr).not.toMatch(/SECRET_SCAN_/);
+    expect(stateCount()).toBe(3);
+
+    rmSync(home, { recursive: true, force: true });
+  });
+});
+
 // ── #2144: gbrain ≥0.42 gitignore-aware collector vs ignore-all ~/.gstack ──
 //
 // GSTACK_HOME is the artifacts git repo whose .gitignore is `*`. gbrain ≥0.42

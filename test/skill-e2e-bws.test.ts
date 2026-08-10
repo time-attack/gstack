@@ -27,6 +27,13 @@ describeIfSelected('Skill E2E tests', [
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-'));
     setupBrowseShims(tmpDir);
 
+    // A missing compiled binary otherwise burns ~$0.50/run handing the model a
+    // dead path six times, and the failure reads as model behavior. Fail fast
+    // instead: this file's tests all drive the real binary.
+    if (!fs.existsSync(browseBin)) {
+      throw new Error(`${browseBin} is not built — run \`bun run build\` before the paid browse E2E tests.`);
+    }
+
     // Pre-warm the browse server so Chromium is already launched for tests.
     // In CI, Chromium can take 10-20s to launch (Docker + --no-sandbox).
     spawnSync(browseBin, ['goto', testServer.url], { cwd: tmpDir, timeout: 30000, stdio: 'pipe' });
@@ -217,6 +224,16 @@ Report the exact output — either "READY: <path>" or "NEEDS_SETUP".`,
     const libDir = path.join(opDir, 'lib');
     fs.mkdirSync(libDir, { recursive: true });
     fs.copyFileSync(path.join(ROOT, 'lib', 'jsonl-store.ts'), path.join(libDir, 'jsonl-store.ts'));
+    // b6572ebb rewrote gstack-slug as Node ESM importing ../runtime/identity.js
+    // and ../runtime/paths.js (both self-contained, node builtins only). Same
+    // failure class as the lib/ note above: a real install ships bin/ with
+    // runtime/, so the fixture must too, or gstack-learnings-log exits 1 with
+    // "PROJECT_ID: gstack project identity unavailable" on every attempt.
+    const runtimeDir = path.join(opDir, 'runtime');
+    fs.mkdirSync(runtimeDir, { recursive: true });
+    for (const mod of ['identity.js', 'paths.js']) {
+      fs.copyFileSync(path.join(ROOT, 'runtime', mod), path.join(runtimeDir, mod));
+    }
 
     // gstack-learnings-log will create the project dir automatically via gstack-slug
 
@@ -304,38 +321,17 @@ Log the operational learning now. Then say what you logged.`,
     // Add a remote so the agent can derive a project name
     run('git', ['remote', 'add', 'origin', 'https://github.com/acme/billing-app.git']);
 
-    // Extract AskUserQuestion format instructions from a generated SKILL.md.
-    // ROOT/SKILL.md is the browse skill (Tier 1) and does NOT contain the
-    // "## AskUserQuestion Format" section — that block is only emitted for
-    // Tier 2+ skills by scripts/resolvers/preamble.ts. Use office-hours/SKILL.md
-    // (Tier 3) which always has the format guidance baked in. Falls back to
-    // the first SKILL.md that contains the header so a future template move
-    // doesn't break this test again.
-    let skillMdPath = path.join(ROOT, 'office-hours', 'SKILL.md');
-    let skillMd = '';
-    if (fs.existsSync(skillMdPath)) {
-      skillMd = fs.readFileSync(skillMdPath, 'utf-8');
-    }
-    if (!skillMd.includes('## AskUserQuestion Format')) {
-      // Fallback: scan top-level skill dirs for the first match.
-      const skillDirs = fs.readdirSync(ROOT, { withFileTypes: true })
-        .filter(d => d.isDirectory())
-        .map(d => path.join(ROOT, d.name, 'SKILL.md'));
-      for (const candidate of skillDirs) {
-        if (!fs.existsSync(candidate)) continue;
-        const content = fs.readFileSync(candidate, 'utf-8');
-        if (content.includes('## AskUserQuestion Format')) {
-          skillMd = content;
-          skillMdPath = candidate;
-          break;
-        }
-      }
-    }
-    const aqStart = skillMd.indexOf('## AskUserQuestion Format');
-    const aqEnd = skillMd.indexOf('\n## ', aqStart + 1);
-    const aqBlock = aqStart >= 0
-      ? skillMd.slice(aqStart, aqEnd > 0 ? aqEnd : undefined)
-      : '';
+    // The shipped question-format contract. The 1.x per-skill "## AskUserQuestion
+    // Format" preamble block died with the root tree; the plan dispatcher now owns
+    // ONE contract for every specialist and reads it before the first question
+    // (skills/plan/SKILL.md, dispatch step 4). 42 lines, so it goes in whole
+    // instead of being sliced. Unguarded on purpose: the old existsSync-then-scan
+    // dance degraded to an empty block, which turned this into a prompt-echo test
+    // that passed while carrying no skill content at all.
+    const aqBlock = fs.readFileSync(
+      path.join(ROOT, 'skills', 'plan', 'references', 'QUESTION-FORMAT.md'),
+      'utf-8',
+    );
 
     const outputPath = path.join(sessionDir, 'question-output.md');
 

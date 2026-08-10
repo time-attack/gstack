@@ -139,7 +139,7 @@ gh pr view --json number,state,title,url,mergeStateStatus,mergeable,baseRefName,
 
 5. Validate the PR state:
    - If no PR exists: **STOP.** "No PR found for this branch. Run `/ship` first to create a PR, then come back here to land and deploy it."
-   - If `state` is `MERGED`: "This PR is already merged — nothing to deploy. If you need to verify the deploy, run `$qa --mode Report --module canary <url>` instead."
+   - If `state` is `MERGED`: "This PR is already merged — nothing to deploy. If you need to verify the deploy, run `$ship --mode Monitor --module canary <url>` instead."
    - If `state` is `CLOSED`: "This PR was closed without merging. Reopen it on GitHub first, then try again."
    - If `state` is `OPEN`: continue.
 
@@ -1101,8 +1101,7 @@ If verdict is DEPLOYED (UNVERIFIED): Tell the user "Your changes are merged and 
 If verdict is REVERTED: Tell the user "The merge was reverted. Your changes are no longer on {base}. The PR branch is still available if you need to fix and re-ship."
 
 Then suggest relevant follow-ups:
-- If a production URL was verified: "Want extended monitoring? Run `$qa --mode Report --module canary <url>` to watch the site for the next 10 minutes."
-- If performance data was collected: "Want a deeper performance analysis? Run `$qa --mode Report --module benchmark <url>`."
+- If a production URL was verified: "Want extended monitoring? Run `$ship --mode Monitor --module canary <url>` to watch the site for the next 10 minutes."
 - "Need to update docs? Run `$ship --mode Prepare --module document-release` to sync README, CHANGELOG, and other docs with what you just shipped."
 
 ---
@@ -1115,7 +1114,7 @@ Then suggest relevant follow-ups:
 - **Auto-detect everything.** PR number, merge method, deploy strategy, project type, merge queues, staging environments. Only ask when information genuinely can't be inferred.
 - **Poll with backoff.** Don't hammer GitHub API. 30-second intervals for CI/deploy, with reasonable timeouts.
 - **Revert is always an option.** At every failure point, offer revert as an escape hatch. Explain what reverting does in plain English.
-- **Single-pass verification, not continuous monitoring.** `$ship --mode Land --module land-and-deploy` checks once. `$qa --mode Report --module canary` does the extended monitoring loop.
+- **Single-pass verification, not continuous monitoring.** `$ship --mode Land --module land-and-deploy` checks once. `$ship --mode Monitor --module canary` does the extended monitoring loop.
 - **Clean up.** Delete the feature branch after merge (via `--delete-branch`).
 - **First run = teacher mode.** Walk the user through everything. Explain what each check does and why it matters. Show them their infrastructure. Let them confirm before proceeding. Build trust through transparency.
 - **Subsequent runs = efficient mode.** Brief status updates, no re-explanations. The user already trusts the tool — just do the job and report results.

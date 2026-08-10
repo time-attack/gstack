@@ -806,6 +806,53 @@ describe("GStack runtime setup UX", () => {
     }
   });
 
+  test("missing cosign is disclosed in the plan and blocks install without --allow-unattested", async () => {
+    const target = `${process.platform === "win32" ? "windows" : process.platform}-${process.arch}`;
+    const attestedManifest = () => officialManifestFixture(target, (component, artifact) => {
+      artifact.cosignBundleUrl = `${artifact.url}.sigstore.json`;
+      artifact.certificateIdentity =
+        `https://github.com/time-attack/gstack/.github/workflows/release-artifacts.yml@refs/tags/${BOOTSTRAP_RELEASE_TAG}`;
+      artifact.certificateOidcIssuer = "https://token.actions.githubusercontent.com";
+    });
+    // Isolated --home so the pre-fetch egress receipts land in a temp ledger.
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "gstack-bootstrap-no-cosign-"));
+    try {
+      const runBootstrap = async (argv: string[]) => {
+        const output = capture();
+        let calls = 0;
+        const code = await bootstrapMain([...argv, "--capability", "browser", "--browser", "managed", "--home", path.join(root, "home")], {
+          stdout: output.stream,
+          stderr: output.stream,
+          // Deterministically absent cosign, even on machines that have one.
+          cosignCommand: path.join(root, "definitely-missing-cosign"),
+          fetch: async (url: string) => {
+            calls += 1;
+            if (url === OFFICIAL_MANIFEST_URL) return { ok: true, url, json: async () => attestedManifest() };
+            return { ok: true, url, arrayBuffer: async () => new TextEncoder().encode("tampered").buffer };
+          },
+        });
+        return { code, calls, output: output.value() };
+      };
+      const preview = await runBootstrap(["preview"]);
+      expect(preview.code).toBe(0);
+      expect(preview.calls).toBe(1);
+      expect(preview.output).toContain("SKIPPED");
+      expect(preview.output).toContain("--allow-unattested");
+      const refused = await runBootstrap(["install", "--yes"]);
+      expect(refused.code).toBe(1);
+      // Fail-closed before any artifact download: the manifest fetch is the only call.
+      expect(refused.calls).toBe(1);
+      expect(refused.output).toContain("--allow-unattested");
+      const consented = await runBootstrap(["install", "--yes", "--allow-unattested"]);
+      expect(consented.code).toBe(1);
+      // The attestation gate opened and the tampered artifact then failed SHA-256 downstream.
+      expect(consented.calls).toBe(2);
+      expect(consented.output).toContain("SHA-256 mismatch");
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("developer source fallback is explicit and does not mark the source as a prepared release", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "gstack-bootstrap-source-"));
     const runtime = path.join(root, "runtime");

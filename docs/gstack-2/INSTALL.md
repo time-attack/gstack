@@ -99,7 +99,12 @@ node references/support/runtime-bootstrap.mjs preview --capability pdf --browser
 node references/support/runtime-bootstrap.mjs install --capability pdf --browser managed --yes
 ```
 
-Real output from step 2 on macOS arm64:
+**Until the signed `v2.0.0-rc.6` release is published** (it ships with the
+release tag), step 2 exits with `BOOTSTRAP_RELEASE_UNAVAILABLE` and downloads
+nothing. That is expected during the beta: the runtime is optional, and every
+skill runs in judgment-only mode without it.
+
+Real output from step 2 on macOS arm64, once the release exists:
 
 ```
 GStack optional runtime 2.0.0 for darwin-arm64

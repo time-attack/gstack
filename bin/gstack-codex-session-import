@@ -64,8 +64,11 @@ case "$MODE" in
       echo "NO_SESSIONS: $CODEX_SESSIONS_ROOT does not exist"
       exit 0
     fi
+    # xargs -r: GNU xargs runs a bare `ls -t` on EMPTY input (listing the cwd
+    # and "importing" the newest repo file); BSD skips by default. -r makes
+    # both skip. Observed as IMPORTED-from-nothing on Linux CI.
     LATEST=$(find "$CODEX_SESSIONS_ROOT" -type f -name "rollout-*.jsonl" -print 2>/dev/null \
-      | xargs ls -t 2>/dev/null | head -1 || true)
+      | xargs -r ls -t 2>/dev/null | head -1 || true)
     if [ -z "$LATEST" ]; then
       echo "NO_SESSIONS: no rollout-*.jsonl files under $CODEX_SESSIONS_ROOT"
       exit 0

@@ -437,7 +437,9 @@ matches a past learning, note it: "Prior learning applied: [key] (confidence N, 
 Apply the CRITICAL categories from the checklist against the diff:
 SQL & Data Safety, Race Conditions & Concurrency, LLM Output Trust Boundary, Shell Injection, Enum & Value Completeness.
 
-Also apply the remaining INFORMATIONAL categories that are still in the checklist (Async/Sync Mixing, Column/Field Name Safety, LLM Prompt Issues, Type Coercion, View/Frontend, Time Window Safety, Completeness Gaps, Stale User-Facing Strings, Distribution & CI/CD).
+Also apply the remaining INFORMATIONAL categories that are still in the checklist (Async/Sync Mixing, Column/Field Name Safety, LLM Prompt Issues, Type Coercion, View/Frontend, Time Window Safety, Completeness Gaps, Stale User-Facing Strings, Distribution & CI/CD), plus Dead Code & Consistency.
+
+Then run the checklist's **Pass 3 (SWEEP)** yourself: Access Control, Test Gaps, Performance & Bundle Impact, Crypto & Entropy, Dead Code, Magic Numbers, Conditional Side Effects. Nothing else picks these up — there is no specialist pass. A hostile-field persona planted an unauthenticated file-read endpoint and it passed the Normal rubric clean precisely because this enumeration stopped short.
 
 **Enum & Value Completeness requires reading code OUTSIDE the diff.** When the diff introduces a new enum value, status, tier, or type constant, use Grep to find all files that reference sibling values, then Read those files to check if the new value is handled. This is the one category where within-diff review is insufficient.
 

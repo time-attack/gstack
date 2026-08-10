@@ -6,7 +6,6 @@ Resolve these paths relative to `skills/ship/`. Files come from base bb57306d98c
 |---|---|---|---|
 | `ios-qa/scripts/gen-accessors-tool/Package.swift` | `assets/ios-qa/scripts/gen-accessors-tool/Package.swift` | `VERBATIM_PORT` | `653b68f36eda6668c135ab97710303e5940c74a6` |
 | `ios-qa/scripts/gen-accessors-tool/Sources/GenAccessors/main.swift` | `assets/ios-qa/scripts/gen-accessors-tool/Sources/GenAccessors/main.swift` | `VERBATIM_PORT` | `8287350cb07ada4c779a093fd45c3ce349418c81` |
-| `ios-qa/docs/tailscale-acl-example.md` | `references/artifacts/ios-qa/docs/tailscale-acl-example.md` | `VERBATIM_PORT` | `6eedfe5c6ee3b8edc4caa4b26a2fe100dffe503c` |
 | `ios-qa/templates/Bridges.swift.template` | `references/artifacts/ios-qa/templates/Bridges.swift.template` | `VERBATIM_PORT` | `bf7af6e3fb36815187f0d72519b8b5deaa01fda4` |
 | `ios-qa/templates/DebugBridgeManager.swift.template` | `references/artifacts/ios-qa/templates/DebugBridgeManager.swift.template` | `VERBATIM_PORT` | `e18e2fb05b26cc890c428c3e909bb836e91fd8e7` |
 | `ios-qa/templates/DebugBridgeTouch.h.template` | `references/artifacts/ios-qa/templates/DebugBridgeTouch.h.template` | `VERBATIM_PORT` | `1f85c12111d7e5a41d2459447988da6d02136f20` |

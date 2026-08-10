@@ -20,8 +20,13 @@ import { EvalCollector } from './helpers/eval-store';
 import { selectTests, detectBaseBranch, getChangedFiles, LLM_JUDGE_TOUCHFILES, GLOBAL_TOUCHFILES } from './helpers/touchfiles';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-// Run when EVALS=1 is set (requires ANTHROPIC_API_KEY in env)
-const evalsEnabled = !!process.env.EVALS;
+// Run when EVALS=1 is set (requires ANTHROPIC_API_KEY in env).
+// Whole-file tier: every test here is an LLM-judge score-threshold check —
+// a quality benchmark per the E2E tiering policy, so EVALS_TIER === 'periodic',
+// never gate. The first completed gate run (2026-08-09) spent its failures on
+// judge thresholds that had been failing on main since at least 2026-08-02;
+// that is periodic signal, not a merge gate.
+const evalsEnabled = !!process.env.EVALS && (!process.env.EVALS_TIER || process.env.EVALS_TIER === 'periodic');
 const describeEval = evalsEnabled ? describe : describe.skip;
 
 // Eval result collector
@@ -261,14 +266,36 @@ Scores are 1-5 overall quality.`,
 
 // --- Part 7: QA skill quality evals (C6) ---
 
+// GStack 2 (f19d6cda): the root `qa/` monolith is gone. `skills/qa/SKILL.md` is a
+// ~8KB lazy dispatcher that routes to preserved modules. Since the qa baseline
+// dedup, the shared Phases 1-6 workflow, health rubric, and diff-aware/Important-
+// Rules prose are specified ONCE in `qa-only.md`; `qa.md` keeps only its Fix-mode
+// delta block and later phases. Judge the surface Fix mode actually executes:
+// the qa-only baseline plus qa.md's delta block.
+const QA_MODULE = 'skills/qa/references/legacy/qa.md';
+const QA_BASELINE = 'skills/qa/references/legacy/qa-only.md';
+
+/** slice with named markers that throws instead of silently judging "". */
+function sliceBetween(content: string, file: string, startMarker: string, endMarker: string): string {
+  const start = content.indexOf(startMarker);
+  if (start === -1) throw new Error(`slice start marker not found in ${file}: ${startMarker}`);
+  const end = content.indexOf(endMarker, start);
+  if (end === -1) throw new Error(`slice end marker not found in ${file}: ${endMarker}`);
+  return content.slice(start, end);
+}
+
 describeIfSelected('QA skill quality evals', ['qa/SKILL.md workflow', 'qa/SKILL.md health rubric', 'qa/SKILL.md anti-refusal'], () => {
-  const qaContent = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+  const qaContent = fs.readFileSync(path.join(ROOT, QA_MODULE), 'utf-8');
+  const qaBaseline = fs.readFileSync(path.join(ROOT, QA_BASELINE), 'utf-8');
 
   testIfSelected('qa/SKILL.md workflow', async () => {
     const t0 = Date.now();
-    const start = qaContent.indexOf('## Workflow');
-    const end = qaContent.indexOf('## Health Score Rubric');
-    const section = qaContent.slice(start, end);
+    // Fix mode's executed surface: the delta block in qa.md, then the shared
+    // baseline workflow it delegates to.
+    const section =
+      sliceBetween(qaContent, QA_MODULE, '## Phases 1-6: QA Baseline', '## Output Structure') +
+      '\n' +
+      sliceBetween(qaBaseline, QA_BASELINE, '## Workflow', '## Health Score Rubric');
 
     const scores = await callJudge<JudgeScore>(`You are evaluating the quality of a QA testing workflow document for an AI coding agent.
 
@@ -309,8 +336,11 @@ ${section}`);
 
   testIfSelected('qa/SKILL.md health rubric', async () => {
     const t0 = Date.now();
-    const start = qaContent.indexOf('## Health Score Rubric');
-    const section = qaContent.slice(start);
+    // Bound at the next top-level heading. The old open-ended `.slice(start)` ran to
+    // EOF, so "the rubric to evaluate" was 17KB that also carried Framework-Specific
+    // Guidance, Important Rules, Phases 7-11 and the upstream judgment ports. The
+    // score was not a rubric score. Thresholds below are unchanged.
+    const section = sliceBetween(qaBaseline, QA_BASELINE, '## Health Score Rubric', '## Framework-Specific Guidance');
 
     const scores = await callJudge<JudgeScore>(`You are evaluating a health score rubric that an AI agent must follow to compute a numeric QA score.
 
@@ -350,13 +380,16 @@ ${section}`);
 
   testIfSelected('qa/SKILL.md anti-refusal', async () => {
     const t0 = Date.now();
-    // Extract both the diff-aware mode section and Important Rules section
-    const diffAwareStart = qaContent.indexOf('### Diff-aware');
-    const diffAwareEnd = qaContent.indexOf('### Full');
-    const rulesStart = qaContent.indexOf('## Important Rules');
-    const rulesEnd = qaContent.indexOf('## Framework-Specific');
-    const diffAwareSection = qaContent.slice(diffAwareStart, diffAwareEnd);
-    const rulesSection = qaContent.slice(rulesStart, rulesEnd);
+    // Both sections live in the shared baseline since the qa dedup. qa-only.md's
+    // heading after Important Rules is `## Output` (it never had Output Structure).
+    const diffAwareSection = sliceBetween(qaBaseline, QA_BASELINE, '### Diff-aware', '### Full');
+    const rulesSection = sliceBetween(qaBaseline, QA_BASELINE, '## Important Rules', '## Output');
+    // GStack 2: /qa is lazy-dispatched. The agent reads the dispatcher BEFORE the
+    // module, and the dispatcher is where the new refusal escape hatches live (the
+    // trivial-check fast path, the "non-browser target does not load a browser-centric
+    // module" hard rule). Judging only the module would measure 1.x behavior and miss
+    // a refusal the shipped 2.0 routing could produce.
+    const qaDispatcher = fs.readFileSync(path.join(ROOT, 'skills', 'qa', 'SKILL.md'), 'utf-8');
 
     const result = await callJudge<{ would_browse: boolean; fallback_behavior: string; confidence: number; reasoning: string }>(`You are evaluating whether a QA testing skill document would cause an AI agent to USE THE BROWSER or REFUSE to use the browser in a specific scenario.
 
@@ -370,6 +403,9 @@ ${diffAwareSection}
 
 DOCUMENT EXCERPT 2 (Important Rules):
 ${rulesSection}
+
+DOCUMENT EXCERPT 3 (the dispatcher the agent reads first, which decides whether the browser-based module above is loaded at all):
+${qaDispatcher}
 
 Respond with ONLY valid JSON:
 {
@@ -407,10 +443,16 @@ Rules:
 describeIfSelected('Cross-skill consistency evals', ['cross-skill greptile consistency'], () => {
   testIfSelected('cross-skill greptile consistency', async () => {
     const t0 = Date.now();
-    const reviewContent = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
-    const shipContent = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
-    const triageContent = fs.readFileSync(path.join(ROOT, 'review', 'greptile-triage.md'), 'utf-8');
-    const retroContent = fs.readFileSync(path.join(ROOT, 'retro', 'SKILL.md'), 'utf-8');
+    // GStack 2 paths. The greptile-history architecture itself is unchanged (both
+    // write paths still in review.md, the global read still in retro.md), so this
+    // rubric still measures what it claims — but /ship carved its greptile mechanics
+    // into a lazy phase file, so the module alone only contributes a "read the
+    // section" pointer. Feed the section too or /ship looks silently inconsistent.
+    const reviewContent = fs.readFileSync(path.join(ROOT, 'skills/review/references/legacy/review.md'), 'utf-8');
+    const shipContent = fs.readFileSync(path.join(ROOT, 'skills/ship/references/legacy/ship.md'), 'utf-8')
+      + '\n' + fs.readFileSync(path.join(ROOT, 'skills/ship/references/sections/ship/greptile.md'), 'utf-8');
+    const triageContent = fs.readFileSync(path.join(ROOT, 'skills/review/references/artifacts/review/greptile-triage.md'), 'utf-8');
+    const retroContent = fs.readFileSync(path.join(ROOT, 'skills/plan/references/legacy/retro.md'), 'utf-8');
 
     const extractGrepLines = (content: string, filename: string) => {
       const lines = content.split('\n')
@@ -420,10 +462,10 @@ describeIfSelected('Cross-skill consistency evals', ['cross-skill greptile consi
     };
 
     const collected = [
-      extractGrepLines(reviewContent, 'review/SKILL.md'),
-      extractGrepLines(shipContent, 'ship/SKILL.md'),
-      extractGrepLines(triageContent, 'review/greptile-triage.md'),
-      extractGrepLines(retroContent, 'retro/SKILL.md'),
+      extractGrepLines(reviewContent, 'skills/review/references/legacy/review.md'),
+      extractGrepLines(shipContent, 'skills/ship/references/legacy/ship.md (+ sections/ship/greptile.md)'),
+      extractGrepLines(triageContent, 'references/artifacts/review/greptile-triage.md'),
+      extractGrepLines(retroContent, 'skills/plan/references/legacy/retro.md'),
     ].join('\n\n');
 
     const result = await callJudge<{ consistent: boolean; issues: string[]; score: number; reasoning: string }>(`You are evaluating whether multiple skill configuration files implement the same data architecture consistently.
@@ -542,12 +584,22 @@ async function runWorkflowJudge(opts: {
   const defaults = { clarity: 4, completeness: 3, actionability: 4 };
   const thresholds = { ...defaults, ...opts.thresholds };
 
-  // Read the skeleton + sections UNION so carved skills (v2 plan T9) still
-  // expose markers that moved into sections/*.md (e.g. plan-eng's "## Review
-  // Sections" + "## CRITICAL RULE", plan-design's 7 passes). Without this the
-  // slice markers vanish from the skeleton and the judge scores empty content.
+  // Read the module + sections UNION so carved skills still expose markers that
+  // moved into sections/*.md (e.g. plan-eng's "## Review Sections" +
+  // "## CRITICAL RULE"). Without this the slice markers vanish from the skeleton
+  // and the judge scores empty content.
+  //
+  // GStack 2 layout: every skillPath here is a preserved module at
+  // `skills/<dispatcher>/references/legacy/<module>.md`, and its carved phases sit
+  // at `skills/<dispatcher>/references/sections/<module>/*.md` — a sibling of
+  // `legacy/`, not a child of it. Derive that instead of `dirname(skillPath)/sections`.
   let content = fs.readFileSync(path.join(ROOT, opts.skillPath), 'utf-8');
-  const secDir = path.join(ROOT, path.dirname(opts.skillPath), 'sections');
+  const secDir = path.join(
+    ROOT,
+    path.dirname(path.dirname(opts.skillPath)), // .../<dispatcher>/references
+    'sections',
+    path.basename(opts.skillPath, '.md'),
+  );
   const sectionBodies: string[] = [];
   if (fs.existsSync(secDir)) {
     for (const f of fs.readdirSync(secDir).sort()) {
@@ -622,7 +674,7 @@ describeIfSelected('Ship & Release skill evals', ['ship/SKILL.md workflow', 'doc
     await runWorkflowJudge({
       testName: 'ship/SKILL.md workflow',
       suite: 'Ship & Release skill evals',
-      skillPath: 'ship/SKILL.md',
+      skillPath: 'skills/ship/references/legacy/ship.md',
       startMarker: '# Ship:',
       endMarker: '## Important Rules',
       judgeContext: 'a ship/release workflow document',
@@ -634,7 +686,7 @@ describeIfSelected('Ship & Release skill evals', ['ship/SKILL.md workflow', 'doc
     await runWorkflowJudge({
       testName: 'document-release/SKILL.md workflow',
       suite: 'Ship & Release skill evals',
-      skillPath: 'document-release/SKILL.md',
+      skillPath: 'skills/ship/references/legacy/document-release.md',
       startMarker: '# Document Release:',
       endMarker: '## Important Rules',
       judgeContext: 'a post-ship documentation update workflow',
@@ -645,13 +697,13 @@ describeIfSelected('Ship & Release skill evals', ['ship/SKILL.md workflow', 'doc
 
 // Block 2: Plan Review skills
 describeIfSelected('Plan Review skill evals', [
-  'plan-ceo-review/SKILL.md modes', 'plan-eng-review/SKILL.md sections', 'plan-design-review/SKILL.md passes',
+  'plan-ceo-review/SKILL.md modes', 'plan-eng-review/SKILL.md sections',
 ], () => {
   testIfSelected('plan-ceo-review/SKILL.md modes', async () => {
     await runWorkflowJudge({
       testName: 'plan-ceo-review/SKILL.md modes',
       suite: 'Plan Review skill evals',
-      skillPath: 'plan-ceo-review/SKILL.md',
+      skillPath: 'skills/plan/references/legacy/plan-ceo-review.md',
       startMarker: '## Step 0: Nuclear Scope Challenge',
       endMarker: '## Review Sections',
       judgeContext: 'a CEO/founder plan review framework with 4 scope modes',
@@ -663,64 +715,35 @@ describeIfSelected('Plan Review skill evals', [
     await runWorkflowJudge({
       testName: 'plan-eng-review/SKILL.md sections',
       suite: 'Plan Review skill evals',
-      skillPath: 'plan-eng-review/SKILL.md',
+      skillPath: 'skills/plan/references/legacy/plan-eng-review.md',
       startMarker: '## BEFORE YOU START:',
       endMarker: '## CRITICAL RULE',
       judgeContext: 'an engineering plan review framework with 4 review sections',
       judgeGoal: 'how to review a plan for architecture quality, code quality, test coverage, and performance — walking through each section interactively with AskUserQuestion',
     });
   }, 30_000);
-
-  testIfSelected('plan-design-review/SKILL.md passes', async () => {
-    await runWorkflowJudge({
-      testName: 'plan-design-review/SKILL.md passes',
-      suite: 'Plan Review skill evals',
-      skillPath: 'plan-design-review/SKILL.md',
-      startMarker: '## Review Sections',
-      endMarker: '## CRITICAL RULE',
-      judgeContext: 'a design plan review framework with 7 review passes',
-      judgeGoal: 'how to review a plan for design quality using a 0-10 rating method: rate each dimension, explain what a 10 looks like, edit the plan to fix gaps, then re-rate',
-    });
-  }, 30_000);
 });
 
-// Block 3: Design skills
-describeIfSelected('Design skill evals', ['design-review/SKILL.md fix loop', 'design-consultation/SKILL.md research'], () => {
-  testIfSelected('design-review/SKILL.md fix loop', async () => {
-    await runWorkflowJudge({
-      testName: 'design-review/SKILL.md fix loop',
-      suite: 'Design skill evals',
-      skillPath: 'design-review/SKILL.md',
-      startMarker: '## Phase 7:',
-      endMarker: '## Additional Rules',
-      judgeContext: 'a design audit triage and fix loop workflow',
-      judgeGoal: 'how to triage design issues by severity, fix them atomically in source code, commit each fix, and re-verify with before/after screenshots',
-    });
-  }, 30_000);
-
-  testIfSelected('design-consultation/SKILL.md research', async () => {
-    await runWorkflowJudge({
-      testName: 'design-consultation/SKILL.md research',
-      suite: 'Design skill evals',
-      skillPath: 'design-consultation/SKILL.md',
-      startMarker: '## Phase 1:',
-      endMarker: '## Phase 4:',
-      judgeContext: 'a design consultation research and proposal workflow',
-      judgeGoal: 'how to gather product context, research the competitive landscape, and produce a complete design system proposal with typography, color, spacing, and motion specifications',
-    });
-  }, 30_000);
-});
+// Block 3 (Design skill evals: 'plan-design-review/SKILL.md passes',
+// 'design-review/SKILL.md fix loop', 'design-consultation/SKILL.md research') was
+// deleted. /design was retired in 9053324a and its dirs, CLI, DESIGN.md and routing
+// were cut in 5a9cca3c; no design module survives anywhere under skills/ (verified:
+// `find skills -iname '*design*'` is empty, and skills/.compat/ has no design alias).
+// These three had no repoint target. Judged quality no longer measured: the design
+// audit severity-triage + atomic-fix + before/after re-verify loop, the 0-10
+// rate/explain/edit/re-rate plan-review method, and the design-system proposal
+// research pass (typography, color, spacing, motion).
 
 // Block 4: Deploy skills
 describeIfSelected('Deploy skill evals', [
   'land-and-deploy/SKILL.md workflow', 'canary/SKILL.md monitoring loop',
-  'benchmark/SKILL.md perf collection', 'setup-deploy/SKILL.md platform setup',
+  'setup-deploy/SKILL.md platform setup',
 ], () => {
   testIfSelected('land-and-deploy/SKILL.md workflow', async () => {
     await runWorkflowJudge({
       testName: 'land-and-deploy/SKILL.md workflow',
       suite: 'Deploy skill evals',
-      skillPath: 'land-and-deploy/SKILL.md',
+      skillPath: 'skills/ship/references/legacy/land-and-deploy.md',
       startMarker: '## Step 1: Pre-flight',
       endMarker: '## Important Rules',
       judgeContext: 'a merge-deploy-verify workflow for landing PRs to production',
@@ -732,7 +755,7 @@ describeIfSelected('Deploy skill evals', [
     await runWorkflowJudge({
       testName: 'canary/SKILL.md monitoring loop',
       suite: 'Deploy skill evals',
-      skillPath: 'canary/SKILL.md',
+      skillPath: 'skills/ship/references/legacy/canary.md',
       startMarker: '### Phase 2: Baseline Capture',
       endMarker: '## Important Rules',
       judgeContext: 'a post-deploy canary monitoring workflow using a headless browser daemon',
@@ -740,23 +763,23 @@ describeIfSelected('Deploy skill evals', [
     });
   }, 30_000);
 
-  testIfSelected('benchmark/SKILL.md perf collection', async () => {
-    await runWorkflowJudge({
-      testName: 'benchmark/SKILL.md perf collection',
-      suite: 'Deploy skill evals',
-      skillPath: 'benchmark/SKILL.md',
-      startMarker: '### Phase 3: Performance Data Collection',
-      endMarker: '## Important Rules',
-      judgeContext: 'a performance regression detection workflow using browser-based Web Vitals measurement',
-      judgeGoal: 'how to collect real performance metrics (TTFB, FCP, LCP, bundle sizes, request counts) via performance.getEntries(), compare against baselines with regression thresholds, produce a performance report with delta analysis, and track trends over time',
-    });
-  }, 30_000);
+  // 'benchmark/SKILL.md perf collection' was deleted. The benchmark module and its
+  // compat alias were cut in a9399ad3 (skills/qa/references/legacy/benchmark.md,
+  // skills/.compat/benchmark/). Judged quality no longer measured: browser-based
+  // Core Web Vitals collection (TTFB, FCP, LCP, bundle sizes, request counts via
+  // performance.getEntries()), baseline comparison with regression thresholds, and
+  // delta/trend reporting. That commit calls this a real capability removal, not a
+  // relocation — no page-timing coverage remains in skills/, and /review's
+  // Performance mode is code-level (latency, memory, hot paths), not page timing.
+  // The measurement ENGINE survives at bin/gstack-model-benchmark + lib/model-benchmark/
+  // and is covered by test/benchmark-runner.test.ts and test/benchmark-cli.test.ts,
+  // but that is model benchmarking, not the page-performance prose this scored.
 
   testIfSelected('setup-deploy/SKILL.md platform setup', async () => {
     await runWorkflowJudge({
       testName: 'setup-deploy/SKILL.md platform setup',
       suite: 'Deploy skill evals',
-      skillPath: 'setup-deploy/SKILL.md',
+      skillPath: 'skills/ship/references/legacy/setup-deploy.md',
       startMarker: '### Step 2: Detect platform',
       endMarker: '## Important Rules',
       judgeContext: 'a deployment configuration setup workflow that detects deploy platforms and writes config to CLAUDE.md',
@@ -767,13 +790,17 @@ describeIfSelected('Deploy skill evals', [
 
 // Block 5: Other skills
 describeIfSelected('Other skill evals', [
-  'retro/SKILL.md instructions', 'qa-only/SKILL.md workflow', 'gstack-upgrade/SKILL.md upgrade flow',
+  'retro/SKILL.md instructions', 'qa-only/SKILL.md workflow',
 ], () => {
   testIfSelected('retro/SKILL.md instructions', async () => {
     await runWorkflowJudge({
       testName: 'retro/SKILL.md instructions',
       suite: 'Other skill evals',
-      skillPath: 'retro/SKILL.md',
+      // /retro is retired as a public skill but survives whole as a module reached
+      // via `$plan --mode Discovery --module retro`. This rubric scores the git-metric
+      // gathering and analysis workflow, which lives ENTIRELY in the module — the
+      // /plan dispatcher only names the route. Judge the module, not the dispatcher.
+      skillPath: 'skills/plan/references/legacy/retro.md',
       startMarker: '## Instructions',
       endMarker: '## Compare Mode',
       judgeContext: 'an engineering retrospective data gathering and analysis workflow',
@@ -785,7 +812,7 @@ describeIfSelected('Other skill evals', [
     await runWorkflowJudge({
       testName: 'qa-only/SKILL.md workflow',
       suite: 'Other skill evals',
-      skillPath: 'qa-only/SKILL.md',
+      skillPath: 'skills/qa/references/legacy/qa-only.md',
       startMarker: '## Workflow',
       endMarker: '## Important Rules',
       judgeContext: 'a report-only QA testing workflow',
@@ -793,81 +820,31 @@ describeIfSelected('Other skill evals', [
     });
   }, 30_000);
 
-  testIfSelected('gstack-upgrade/SKILL.md upgrade flow', async () => {
-    await runWorkflowJudge({
-      testName: 'gstack-upgrade/SKILL.md upgrade flow',
-      suite: 'Other skill evals',
-      skillPath: 'gstack-upgrade/SKILL.md',
-      startMarker: '## Inline upgrade flow',
-      endMarker: '## Standalone usage',
-      judgeContext: 'a version upgrade detection and execution workflow',
-      judgeGoal: 'how to detect install type, compare versions, back up current install, upgrade via git or fresh clone, run setup, and show what changed',
-    });
-  }, 30_000);
+  // 'gstack-upgrade/SKILL.md upgrade flow' was deleted. The module and its compat
+  // alias were cut in a9399ad3 (skills/ship/references/legacy/gstack-upgrade.md,
+  // skills/.compat/gstack-upgrade/) because nothing in the 2.0 path executed it:
+  // ./setup delegates placement to `npx skills add` and runtime/migrations.js owns
+  // 2.0 state versioning. Judged quality no longer measured: the install-type
+  // detection, version comparison, pre-upgrade backup, git-vs-fresh-clone upgrade
+  // branch, and what-changed summary as PROSE an agent follows. The executable
+  // equivalent is runtime/upgrade.js, covered by test/gstack2-runtime-upgrade.test.ts.
 });
 
-// Voice directive eval — tests that the voice section produces the right tone
-describeIfSelected('Voice directive eval', ['voice directive tone'], () => {
-  testIfSelected('voice directive tone', async () => {
-    const t0 = Date.now();
-    // Read a tier 2+ skill to get the full voice directive in context
-    const content = fs.readFileSync(path.join(ROOT, 'review', 'SKILL.md'), 'utf-8');
-    const voiceStart = content.indexOf('## Voice');
-    if (voiceStart === -1) {
-      throw new Error('Voice section not found in review/SKILL.md. Was preamble.ts regenerated?');
-    }
-    const voiceEnd = content.indexOf('\n## ', voiceStart + 1);
-    const voiceSection = content.slice(voiceStart, voiceEnd > 0 ? voiceEnd : voiceStart + 3000);
-
-    const result = await callJudge<{
-      directness: number;
-      concreteness: number;
-      avoids_corporate: number;
-      avoids_ai_vocabulary: number;
-      connects_user_outcomes: number;
-      reasoning: string;
-    }>(`You are evaluating a voice directive for an AI coding assistant framework called GStack.
-Score each dimension 1-5 where 5 is excellent:
-
-1. directness: Does it instruct the agent to be direct, lead with the point, take positions?
-2. concreteness: Does it instruct the agent to name specific files, commands, line numbers, real numbers?
-3. avoids_corporate: Does it explicitly ban corporate/formal/academic tone and provide alternatives?
-4. avoids_ai_vocabulary: Does it ban AI-tell words and phrases with specific lists?
-5. connects_user_outcomes: Does it instruct the agent to connect technical work to real user experience?
-
-Return JSON only:
-{"directness": N, "concreteness": N, "avoids_corporate": N, "avoids_ai_vocabulary": N, "connects_user_outcomes": N, "reasoning": "..."}
-
-THE VOICE DIRECTIVE:
-${voiceSection}`);
-
-    console.log('Voice directive scores:', JSON.stringify(result, null, 2));
-
-    evalCollector?.addTest({
-      name: 'voice directive tone',
-      suite: 'Voice directive eval',
-      tier: 'llm-judge',
-      passed: result.directness >= 4 && result.concreteness >= 4 && result.avoids_corporate >= 4
-        && result.avoids_ai_vocabulary >= 4 && result.connects_user_outcomes >= 4,
-      duration_ms: Date.now() - t0,
-      cost_usd: 0.02,
-      judge_scores: {
-        directness: result.directness,
-        concreteness: result.concreteness,
-        avoids_corporate: result.avoids_corporate,
-        avoids_ai_vocabulary: result.avoids_ai_vocabulary,
-        connects_user_outcomes: result.connects_user_outcomes,
-      },
-      judge_reasoning: result.reasoning,
-    });
-
-    expect(result.directness).toBeGreaterThanOrEqual(4);
-    expect(result.concreteness).toBeGreaterThanOrEqual(4);
-    expect(result.avoids_corporate).toBeGreaterThanOrEqual(4);
-    expect(result.avoids_ai_vocabulary).toBeGreaterThanOrEqual(4);
-    expect(result.connects_user_outcomes).toBeGreaterThanOrEqual(4);
-  }, 30_000);
-});
+// 'voice directive tone' was deleted. It read `## Voice` out of the generated
+// review/SKILL.md, which the generator's scripts/resolvers/preamble.ts injected.
+// Both are gone: no `## Voice` heading exists anywhere under skills/ (the only hit
+// is land-and-deploy.md's unrelated "## Voice & Tone"), and scripts/resolvers/ does
+// not exist. There is no repoint target — the rubric's five dimensions (directness,
+// concreteness, avoids_corporate, avoids_ai_vocabulary, connects_user_outcomes)
+// scored a specific directive document that GStack 2 does not ship.
+// Judged quality no longer measured: whether the shipped skills carry an explicit,
+// list-backed ban on corporate tone and AI-tell vocabulary and an instruction to
+// connect technical work to user outcomes. This is a REAL uncovered regression risk,
+// not a relocation. The nearest surviving artifacts are the per-dispatcher
+// references/support/scripts/jargon-list.json (a gloss list, not a tone directive)
+// and CLAUDE.md's CHANGELOG voice rules (docs, not skill content), and neither is a
+// substitute. If a voice/writing-style directive is reintroduced under skills/,
+// restore this eval against it rather than pointing it at a dispatcher.
 
 // Module-level afterAll — finalize eval collector after all tests complete
 afterAll(async () => {

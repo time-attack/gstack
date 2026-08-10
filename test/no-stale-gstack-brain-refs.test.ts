@@ -3,14 +3,13 @@
  * `~/.gstack-brain-remote.txt` references survive the v1.27.0.0 rename.
  *
  * Per codex Findings #1 + #8 + #9: the rename's blast radius is wider than
- * the obvious bin/ + scripts/ surface. This test grep-scans the broader
- * tree (bin, scripts, *.tmpl, generated *.md, test/, docs/) for the
- * deprecated identifiers and fails CI if any callers were missed.
+ * the obvious bin/ + scripts/ surface. This test grep-scans the shipped
+ * tree (bin/, scripts/, test/, skills/) for the deprecated identifiers and
+ * fails CI if any callers were missed.
  *
- * Allowlist: the migration script (`gstack-upgrade/migrations/v1.27.0.0.sh`)
- * legitimately references the old names — it's the rename actor itself.
- * Old migration scripts (v1.17.0.0.sh and similar) reference the old names
- * for their own historical context and are also allowlisted.
+ * Allowlist: files that legitimately reference the old names — migration
+ * tests asserting on rename behavior, and the migration-window fallback
+ * readers in bin/ that read both the old and new paths.
  *
  * The test is mechanical: if you find yourself adding a non-historical
  * file to the allowlist, you probably need to actually fix the rename
@@ -25,10 +24,6 @@ import { spawnSync } from 'child_process';
 const ROOT = path.resolve(import.meta.dir, '..');
 
 const ALLOWLIST = [
-  // The migration script that performs the rename. Self-references are expected.
-  'gstack-upgrade/migrations/v1.27.0.0.sh',
-  // Older migration scripts — historical references; these document past state.
-  'gstack-upgrade/migrations/v1.17.0.0.sh',
   // The migration test itself — it asserts on the migration's behavior.
   'test/migrations-v1.27.0.0.test.ts',
   // The test for the v1.17.0.0 historical migration.
@@ -37,8 +32,6 @@ const ALLOWLIST = [
   'CHANGELOG.md',
   // TODOS may reference past or future states by name.
   'TODOS.md',
-  // The plan file for v1.27.0.0 documents why we're renaming.
-  '.context/plans/setup-gbrain-remote-mcp-rename-brain-artifacts.md',
   // The bin/gstack-config comment explicitly preserves the rename note.
   'bin/gstack-config',
   // Detect script's "renamed in v1.27.0.0" comment + brain-remote-fallback path.
@@ -48,28 +41,17 @@ const ALLOWLIST = [
   'bin/gstack-brain-restore',
   'bin/gstack-gbrain-source-wireup',
   'bin/gstack-brain-uninstall',
-  // The preamble resolver reads the legacy file as a fallback during the
-  // migration window — same pattern.
-  'scripts/resolvers/preamble/generate-brain-sync-block.ts',
-  // gstack-upgrade.test.ts may exercise old migration behavior.
-  'test/gstack-upgrade.test.ts',
   // This test itself references the patterns to grep for.
   'test/no-stale-gstack-brain-refs.test.ts',
   // The v1.36.0.0 doc-config drift guard intentionally defends the rename
   // by listing the deprecated keys in its DEPRECATED_KEYS denylist.
   'test/docs-config-keys.test.ts',
-  // memory.md documents the rename context.
-  'setup-gbrain/memory.md',
   // The new init script's header comment intentionally cites the rename.
   'bin/gstack-artifacts-init',
   // The replacement test mirrors the pattern of the old test (lineage note).
   'test/gstack-artifacts-init.test.ts',
-  // The post-rename-doc-regen test references the patterns it greps for.
-  'test/post-rename-doc-regen.test.ts',
   // The Path 4 structural lint references some legacy names in comments.
   'test/setup-gbrain-path4-structure.test.ts',
-  // Generated docs that include the preamble bash (which has the fallback).
-  // We grep template sources, not generated output, by limiting scan paths.
 ];
 
 const FORBIDDEN_PATTERNS = [
@@ -80,20 +62,22 @@ const FORBIDDEN_PATTERNS = [
 const SCAN_PATHS = [
   'bin/',
   'scripts/',
-  'setup-gbrain/SKILL.md.tmpl',
-  'sync-gbrain/SKILL.md.tmpl',
-  'health/SKILL.md.tmpl',
-  'plan-eng-review/SKILL.md.tmpl',
-  'plan-ceo-review/SKILL.md.tmpl',
-  'review/SKILL.md.tmpl',
-  'ship/SKILL.md.tmpl',
   'test/',
+  'skills/',
 ];
 
 function grepRefs(pattern: string): string[] {
   const args = ['-rn', '--', pattern, ...SCAN_PATHS.map((p) => path.join(ROOT, p))];
   const r = spawnSync('grep', args, { encoding: 'utf-8' });
-  // grep exits 1 when no matches — that's fine for our purposes.
+  // grep: 0 = matches, 1 = no matches, both fine. 2+ (or null on spawn failure)
+  // means grep could not read a path — a dead SCAN_PATHS entry would otherwise
+  // yield empty stdout and pass green, leaving the invariant unguarded.
+  if (r.status !== 0 && r.status !== 1) {
+    throw new Error(
+      `grep exited ${r.status} scanning for "${pattern}" — a SCAN_PATHS entry is likely unreadable or gone.\n` +
+        `stderr: ${(r.stderr || '').trim() || '(empty)'}${r.error ? `\nspawn error: ${r.error.message}` : ''}`
+    );
+  }
   const lines = (r.stdout || '').split('\n').filter((l) => l.trim().length > 0);
   return lines
     .map((line) => {

@@ -18,7 +18,7 @@
  *   cdp_method_lock_acquire_ms  {domain, method, ms}
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, readFileSync } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
@@ -50,8 +50,18 @@ function isDisabled(): boolean {
     telemetryDisabled = true;
     return true;
   }
-  // Conservative default: telemetry ON unless explicitly off. Users opt out via
-  // gstack-config set telemetry off (preamble reads this; we trust the env hint).
+  // Honor the persistent tier: `gstack-config set telemetry off` disables the
+  // local log too, not just uploads. Missing or unparseable config keeps the
+  // local-only aggregate counters ON (they never leave the machine).
+  try {
+    const raw = readFileSync(path.join(gstackHome(), 'config.json'), 'utf8');
+    if (JSON.parse(raw)?.telemetry === 'off') {
+      telemetryDisabled = true;
+      return true;
+    }
+  } catch {
+    // No config yet — the env var above remains the kill switch.
+  }
   telemetryDisabled = false;
   return false;
 }

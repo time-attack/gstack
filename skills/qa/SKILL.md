@@ -1,7 +1,7 @@
 ---
 name: qa
 description: >-
-  Report on or fix validated product defects. Use for web/browser QA, real-device iOS, developer journeys, accessibility, performance baselines, or production canaries.
+  Report on or fix validated product defects. Use for web/browser QA, real-device iOS, developer journeys, or accessibility.
 ---
 
 # GStack QA
@@ -48,8 +48,8 @@ When that trigger fires, read `references/FAST-PATH.md` and follow it. It is bin
 
 | Mode | Target | Infer when | Candidate internal specialists |
 |---|---|---|---|
-| `Report` | Any supported test surface | The user asks for evidence or findings without authorizing product-code changes. | `references/legacy/qa-only.md`, `references/legacy/ios-qa.md`, `references/legacy/devex-review.md`, `references/legacy/benchmark.md`, `references/legacy/canary.md`, `references/legacy/investigate.md` |
-| `Fix` | Any supported test surface | The user explicitly authorizes validated bug fixes and exact-journey re-verification. | `references/legacy/qa.md`, `references/legacy/investigate.md` |
+| `Report` | Any supported test surface | The user asks for evidence or findings without authorizing product-code changes. | `references/legacy/qa-only.md`, `references/legacy/ios-qa.md`, `references/legacy/devex-review.md` |
+| `Fix` | Any supported test surface | The user explicitly authorizes validated bug fixes and exact-journey re-verification. | `references/legacy/qa.md` |
 
 ## Hard rules
 
@@ -69,15 +69,11 @@ Every specialist below is an internal implementation detail, including mandatory
 | `/qa-only` | `report` | `Report` | mandatory | `references/legacy/qa-only.md` |
 | `/ios-qa` | `ios` | `Report` | mandatory | `references/legacy/ios-qa.md` |
 | `/devex-review` | `dx` | `Report` | mandatory | `references/legacy/devex-review.md` |
-| `/benchmark` | `performance` | `Report` | mandatory | `references/legacy/benchmark.md` |
-| `/canary` | `canary` | `Report` | mandatory | `references/legacy/canary.md` |
 | `/browse` | `browser` | `Report` | supporting | `references/legacy/browse.md` |
 | `/open-gstack-browser` | `browser-visible` | `Report` | supporting | `references/legacy/open-gstack-browser.md` |
 | `/setup-browser-cookies` | `browser-auth` | `Report` | supporting | `references/legacy/setup-browser-cookies.md` |
 | `/pair-agent` | `browser-pair` | `Report` | supporting | `references/legacy/pair-agent.md` |
 | `/scrape` | `scrape` | `Report` | supporting | `references/legacy/scrape.md` |
-| `/skillify` | `skillify` | `Report` | supporting | `references/legacy/skillify.md` |
-| `/benchmark-models` | `model-benchmark` | `Report` | supporting | `references/legacy/benchmark-models.md` |
 
 ## Completeness invariant
 

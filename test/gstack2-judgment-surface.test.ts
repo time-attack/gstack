@@ -78,14 +78,12 @@ describe('codex portable dispatch (#2370)', () => {
     expect(bad).toEqual([]);
   });
 
-  test('the portable-dispatch judgment port is anchored in both outside-voice modules', () => {
-    for (const module of ['codex', 'claude']) {
-      const rendered = fs.readFileSync(
-        path.join(ROOT, 'skills', 'review', 'references', 'legacy', `${module}.md`),
-        'utf8',
-      );
-      expect(rendered).toContain('anchor=GSTACK2_FIX_2370_PORTABLE_DISPATCH');
-    }
+  test('the portable-dispatch judgment port is anchored in the cross-model outside-voice module', () => {
+    const rendered = fs.readFileSync(
+      path.join(ROOT, 'skills', 'review', 'references', 'legacy', 'codex.md'),
+      'utf8',
+    );
+    expect(rendered).toContain('anchor=GSTACK2_FIX_2370_PORTABLE_DISPATCH');
   });
 });
 

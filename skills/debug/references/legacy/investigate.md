@@ -82,9 +82,25 @@ echo "<detected-directory>/" > "$STATE_DIR/freeze-dir.txt"
 echo "Debug scope locked to: <detected-directory>/"
 ```
 
-Substitute `<detected-directory>` with the actual directory path (e.g., `src/auth/`). Tell the user: "Edits restricted to `<dir>/` for this debug session. This prevents changes to unrelated code. Run `$debug --mode Diagnose-only --module unfreeze` to remove the restriction."
+Substitute `<detected-directory>` with the actual directory path (e.g., `src/auth/`). Tell the user: "Edits restricted to `<dir>/` for this debug session. This prevents changes to unrelated code. Ask to unfreeze (or run `/unfreeze`) to remove the restriction."
 
 If the bug spans the entire repo or the scope is genuinely unclear, skip the lock and note why.
+
+To clear the boundary (on user request, or when the session moves past the locked scope), remove only the freeze state file — never the whole state directory — and succeed quietly when no boundary is set:
+
+```bash
+eval "$($GSTACK_BIN/gstack-paths 2>/dev/null)"
+STATE_DIR="$GSTACK_STATE_ROOT"
+if [ -f "$STATE_DIR/freeze-dir.txt" ]; then
+  PREV=$(cat "$STATE_DIR/freeze-dir.txt")
+  rm -f "$STATE_DIR/freeze-dir.txt"
+  echo "Freeze boundary cleared (was: $PREV). Edits are now allowed everywhere."
+else
+  echo "No freeze boundary was set."
+fi
+```
+
+Any freeze hooks stay registered for the session; with no state file they allow everything. Re-lock by writing the state file again.
 
 This boundary is advisory policy that you enforce yourself unless the active host explicitly confirms an installed freeze hook — do not claim edits outside the boundary are mechanically blocked when no hook is active.
 

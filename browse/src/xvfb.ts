@@ -115,7 +115,12 @@ export function readPidCmdline(pid: number): string {
 export function isOurXvfb(pid: number, recordedStartTime: string): boolean {
   if (!pid || !recordedStartTime) return false;
   const cmdline = readPidCmdline(pid);
-  if (!cmdline.toLowerCase().includes('xvfb')) return false;
+  // Match the EXECUTABLE, not a substring anywhere in argv: this gates a
+  // kill, and any process merely mentioning xvfb in its arguments (an editor
+  // on xvfb.ts, a test runner on xvfb.test.ts) must never qualify.
+  const argv0 = cmdline.split(' ')[0] ?? '';
+  const exe = argv0.split('/').pop() ?? '';
+  if (exe !== 'Xvfb') return false;
   const currentStart = readPidStartTime(pid);
   if (!currentStart) return false;
   return currentStart === recordedStartTime;

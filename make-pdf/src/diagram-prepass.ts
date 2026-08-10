@@ -747,6 +747,23 @@ function buildBlockedRemotePlaceholder(src: string): string {
   );
 }
 
+/**
+ * Preview-path offline gate: replace every remote <img src> with the visible
+ * blocked-remote placeholder. No file I/O — preview deliberately skips
+ * inlineLocalImages, so without this, opening the preview HTML fires a GET
+ * beacon per remote image even though --allow-network was never passed.
+ */
+export function blockRemoteImages(html: string, warn: (msg: string) => void): string {
+  return html.replace(IMG_TAG_RE, (tag) => {
+    const srcMatch = tag.match(SRC_RE);
+    if (!srcMatch) return tag;
+    const src = srcMatch[2] ?? srcMatch[3] ?? "";
+    if (!/^https?:/i.test(src)) return tag;
+    warn(`remote image blocked (offline posture): ${src}`);
+    return buildBlockedRemotePlaceholder(src);
+  });
+}
+
 /** realpath that degrades to the input path when resolution fails. */
 function safeRealpath(p: string): string {
   try {

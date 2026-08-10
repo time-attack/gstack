@@ -14,7 +14,7 @@ import { runSkillTest } from './helpers/session-runner';
 import {
   ROOT, browseBin, runId, evalsEnabled,
   describeIfSelected, testConcurrentIfSelected,
-  logCost, recordE2E,
+  installLegacySkill, logCost, recordE2E,
   createEvalCollector, finalizeEvalCollector,
 } from './helpers/e2e-helpers';
 import { judgePosture } from './helpers/llm-judge';
@@ -48,12 +48,10 @@ describeIfSelected('Office Hours Forcing Energy E2E', ['office-hours-forcing-ene
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'add pitch']);
 
-    fs.mkdirSync(path.join(workDir, 'office-hours'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'office-hours', 'SKILL.md'),
-      path.join(workDir, 'office-hours', 'SKILL.md'),
-    );
-    { const _sec = path.join(ROOT, 'office-hours', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(workDir, 'office-hours', 'sections'), { recursive: true }); }
+    // office-hours/SKILL.md is now the compat routing stub; the posture judgment
+    // (Phase 2A Q3, Phase 2B) lives in the plan dispatcher's legacy module, which
+    // this installs alongside it.
+    installLegacySkill(workDir, 'office-hours');
   });
 
   afterAll(() => {
@@ -62,7 +60,7 @@ describeIfSelected('Office Hours Forcing Energy E2E', ['office-hours-forcing-ene
 
   testConcurrentIfSelected('office-hours-forcing-energy', async () => {
     const result = await runSkillTest({
-      prompt: `Read office-hours/SKILL.md for the workflow.
+      prompt: `Read office-hours/SKILL.md for the workflow. That file is a routing stub: follow the invocation it prints to the dispatcher installed at skills/plan/SKILL.md, then read the specialist module that dispatcher names for this mode. The workflow you need is in that module, not in the stub.
 
 Read pitch.md — that's the founder pitch the user is bringing to office hours. Select Startup Mode. Skip any AskUserQuestion — this is non-interactive.
 
@@ -70,8 +68,10 @@ Assume the founder has already answered Q1 (strongest evidence = "got on a waitl
 
 Write Q3 output — the forcing question you would ask this founder — to ${workDir}/q3.md. Write ONLY the question prose. No conversational wrapper, no meta-commentary, no Q1/Q2 recap.`,
       workingDirectory: workDir,
-      maxTurns: 8,
-      timeout: 240_000,
+      // 12 turns / 300s: the specialist is three hops away now (stub → dispatcher
+      // → legacy module) where 1.x had it in one file. Same work, more Reads.
+      maxTurns: 12,
+      timeout: 300_000,
       testName: 'office-hours-forcing-energy',
       runId,
       model: 'claude-sonnet-4-6',
@@ -94,7 +94,7 @@ Write Q3 output — the forcing question you would ask this founder — to ${wor
     console.log('Forcing energy scores:', JSON.stringify(scores, null, 2));
     expect(scores.axis_a).toBeGreaterThanOrEqual(4);  // stacking_preserved
     expect(scores.axis_b).toBeGreaterThanOrEqual(4);  // domain_matched_consequence
-  }, 360_000);
+  }, 420_000);
 });
 
 // --- Office Hours builder-mode wildness ---
@@ -120,12 +120,10 @@ describeIfSelected('Office Hours Builder Wildness E2E', ['office-hours-builder-w
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'add idea']);
 
-    fs.mkdirSync(path.join(workDir, 'office-hours'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'office-hours', 'SKILL.md'),
-      path.join(workDir, 'office-hours', 'SKILL.md'),
-    );
-    { const _sec = path.join(ROOT, 'office-hours', 'sections'); if (fs.existsSync(_sec)) fs.cpSync(_sec, path.join(workDir, 'office-hours', 'sections'), { recursive: true }); }
+    // office-hours/SKILL.md is now the compat routing stub; the posture judgment
+    // (Phase 2A Q3, Phase 2B) lives in the plan dispatcher's legacy module, which
+    // this installs alongside it.
+    installLegacySkill(workDir, 'office-hours');
   });
 
   afterAll(() => {
@@ -134,7 +132,7 @@ describeIfSelected('Office Hours Builder Wildness E2E', ['office-hours-builder-w
 
   testConcurrentIfSelected('office-hours-builder-wildness', async () => {
     const result = await runSkillTest({
-      prompt: `Read office-hours/SKILL.md for the workflow.
+      prompt: `Read office-hours/SKILL.md for the workflow. That file is a routing stub: follow the invocation it prints to the dispatcher installed at skills/plan/SKILL.md, then read the specialist module that dispatcher names for this mode. The workflow you need is in that module, not in the stub.
 
 Read idea.md — that's the user's weekend project idea. Select Builder Mode (Phase 2B). Skip any AskUserQuestion — this is non-interactive.
 
@@ -142,8 +140,10 @@ The user has confirmed the basic idea is "TypeScript + D3 web tool, start with J
 
 Write your response — the three adjacent unlocks — to ${workDir}/unlocks.md. Write ONLY the response prose. No meta-commentary, no mode recap. Lead with the fun; let me edit it down later.`,
       workingDirectory: workDir,
-      maxTurns: 8,
-      timeout: 240_000,
+      // 12 turns / 300s: the specialist is three hops away now (stub → dispatcher
+      // → legacy module) where 1.x had it in one file. Same work, more Reads.
+      maxTurns: 12,
+      timeout: 300_000,
       testName: 'office-hours-builder-wildness',
       runId,
       model: 'claude-sonnet-4-6',
@@ -166,7 +166,7 @@ Write your response — the three adjacent unlocks — to ${workDir}/unlocks.md.
     console.log('Builder wildness scores:', JSON.stringify(scores, null, 2));
     expect(scores.axis_a).toBeGreaterThanOrEqual(4);  // unexpected_combinations
     expect(scores.axis_b).toBeGreaterThanOrEqual(4);  // excitement_over_optimization
-  }, 360_000);
+  }, 420_000);
 });
 
 // Finalize eval collector for this file

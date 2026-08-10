@@ -3,7 +3,8 @@ import { runSkillTest } from './helpers/session-runner';
 import {
   ROOT, runId, evalsEnabled,
   describeIfSelected, logCost, recordE2E,
-  copyDirSync, createEvalCollector, finalizeEvalCollector,
+  copyDirSync, installLegacySkill,
+  createEvalCollector, finalizeEvalCollector,
 } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
@@ -19,6 +20,7 @@ const evalCollector = createEvalCollector('e2e-autoplan-dual-voice');
 describeIfSelected('Autoplan dual-voice E2E', ['autoplan-dual-voice'], () => {
   let workDir: string;
   let planPath: string;
+  let route: ReturnType<typeof installLegacySkill>;
 
   beforeAll(() => {
     workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-autoplan-dv-'));
@@ -33,25 +35,49 @@ describeIfSelected('Autoplan dual-voice E2E', ['autoplan-dual-voice'], () => {
     run('git', ['add', '.']);
     run('git', ['commit', '-m', 'initial']);
 
-    // Copy /autoplan + its review-skill dependencies (they're loaded from disk).
-    copyDirSync(path.join(ROOT, 'autoplan'), path.join(workDir, 'autoplan'));
-    copyDirSync(path.join(ROOT, 'plan-ceo-review'), path.join(workDir, 'plan-ceo-review'));
-    copyDirSync(path.join(ROOT, 'plan-eng-review'), path.join(workDir, 'plan-eng-review'));
-    copyDirSync(path.join(ROOT, 'plan-design-review'), path.join(workDir, 'plan-design-review'));
-    copyDirSync(path.join(ROOT, 'plan-devex-review'), path.join(workDir, 'plan-devex-review'));
+    // Install /autoplan the way a user reaches it today: the compat alias under
+    // its old name, plus the plan dispatcher it routes into. The five 1.x trees
+    // this used to copy (autoplan/, plan-ceo-review/, plan-eng-review/,
+    // plan-design-review/, plan-devex-review/) are all gone.
+    //
+    // The four separate review-skill copies collapse into the dispatcher copy:
+    // the autoplan module's "Load skill files from disk" step now names
+    // `references/legacy/plan-ceo-review.md`, `plan-eng-review.md`, and
+    // `plan-devex-review.md`, all of which installLegacySkill already puts on
+    // disk under skills/plan/.
+    //
+    // plan-design-review is NOT restored. It has no compat alias, and the
+    // shipped autoplan module retired it in place — the load list reads "the
+    // retired plan design phase (removed from the five public skills; skip it)"
+    // and the sequencing rule is "CEO → Eng → DX". No assertion in this file
+    // ever named the design voice, so this drops dead fixture setup, not a check.
+    route = installLegacySkill(workDir, 'autoplan');
 
-    // Register the skills as project-level slash commands. The root copies
-    // above are NOT enough on their own: claude -p only discovers skills under
-    // .claude/skills/, and an unregistered slash command short-circuits with
-    // "Unknown command: /autoplan" (0 turns, ~1s) on claude >= 2.x — the model
-    // never runs, so both voice assertions fail. Same install pattern as
-    // installSkills() in skill-routing-e2e.test.ts.
-    const skillsBase = path.join(workDir, '.claude', 'skills');
-    for (const skill of ['autoplan', 'plan-ceo-review', 'plan-eng-review', 'plan-design-review', 'plan-devex-review']) {
-      const dest = path.join(skillsBase, skill);
-      fs.mkdirSync(dest, { recursive: true });
-      fs.copyFileSync(path.join(ROOT, skill, 'SKILL.md'), path.join(dest, 'SKILL.md'));
+    // `Full chain` is two words, so installLegacySkill's route regex stops at
+    // `Full` and reports no --module (the alias is `$plan --mode Full chain
+    // --module autoplan`). Resolve the module ourselves and fail loudly if it
+    // dangles, rather than letting the test run against a missing specialist.
+    const moduleName = route.module ?? 'autoplan';
+    const modulePath = path.join(ROOT, 'skills', route.dispatcher, 'references', 'legacy', `${moduleName}.md`);
+    if (!fs.existsSync(modulePath)) {
+      throw new Error(`autoplan-dual-voice: no preserved module at ${modulePath}. Dangling route.`);
     }
+
+    // Register as project-level skills. The workdir copies above are NOT enough
+    // on their own: claude -p only discovers skills under .claude/skills/, and an
+    // unregistered slash command short-circuits with "Unknown command: /autoplan"
+    // (0 turns, ~1s) on claude >= 2.x — the model never runs, so both voice
+    // assertions fail. Same install pattern as installSkills() in
+    // skill-routing-e2e.test.ts, with one addition: the plan dispatcher is
+    // registered as a whole directory, not a lone SKILL.md, because the alias
+    // dispatches to `$plan` and the dispatcher reads its own references/ tree.
+    const skillsBase = path.join(workDir, '.claude', 'skills');
+    fs.mkdirSync(path.join(skillsBase, 'autoplan'), { recursive: true });
+    fs.copyFileSync(
+      path.join(ROOT, 'skills', '.compat', 'autoplan', 'SKILL.md'),
+      path.join(skillsBase, 'autoplan', 'SKILL.md'),
+    );
+    copyDirSync(path.join(ROOT, 'skills', route.dispatcher), path.join(skillsBase, route.dispatcher));
 
     // Write a tiny plan file for /autoplan to review.
     planPath = path.join(workDir, 'TEST_PLAN.md');
@@ -85,17 +111,27 @@ Add a new /greet skill that prints a welcome message.
       // Budget note: 5 min / 30 turns was enough at v1.0-era skill sizes, but
       // the full-depth Phase 1 (registered skill + CEO review subagent) now
       // needs longer — at 300s the run was killed mid-CEO-review with both
-      // voices already fired but no Phase-1-complete marker yet.
+      // voices already fired but no Phase-1-complete marker yet. Raised again
+      // (600s/40 turns → 900s/50 turns) for the 2.0 routing depth: /autoplan is
+      // a compat alias now, so before Phase 0.5 even starts the agent reads the
+      // alias, skills/plan/SKILL.md, SHARED-JUDGMENT.md + AUTHORITY-POLICY.md,
+      // and the 1072-line autoplan module — where 1.x landed it in autoplan/SKILL.md
+      // on the first read. Assertion thresholds are unchanged.
       const result = await runSkillTest({
         testName: 'autoplan-dual-voice',
         workingDirectory: workDir,
-        prompt: `/autoplan ${planPath}`,
-        timeout: 600_000, // 10 min
+        prompt: `/autoplan ${planPath}
+
+The /autoplan skill is a routing alias. Follow its dispatch (\`${route.invocation} chain --module autoplan\`)
+into .claude/skills/${route.dispatcher}/SKILL.md and read that dispatcher's
+references/legacy/autoplan.md module — \`$${route.dispatcher}\` is a placeholder, not a
+resolvable command name, so use the path.`,
+        timeout: 900_000, // 15 min
         // /autoplan spawns subagents and calls codex via Bash; it needs the
         // full tool set to get past Phase 1. Bash+Read+Write alone wasn't
         // enough — the skill stalled trying to invoke Agent/Skill.
         allowedTools: ['Bash', 'Read', 'Write', 'Edit', 'Grep', 'Glob', 'Agent', 'Skill'],
-        maxTurns: 40,
+        maxTurns: 50,
         runId,
       });
 
@@ -129,8 +165,17 @@ Add a new /greet skill that prints a welcome message.
       // a Bash tool_use), not prompt-text mentions.
       const codexVoiceFired = /"command":\s*"[^"]*codex\s+(exec|review)/.test(out) ||
                               /CODEX SAYS\s*\(/i.test(out);
-      // Unavailable markers: explicit probe-failure strings emitted by the skill.
-      const codexUnavailable = /\[codex-unavailable\]|AUTH_FAILED\b|CODEX_NOT_AVAILABLE\b|codex_cli_missing|Codex CLI not found/i.test(out);
+      // Unavailable markers: the exact probe-failure strings the shipped Phase 0.5
+      // preflight emits. Re-pinned against skills/plan/references/legacy/autoplan.md
+      // — it prints `[codex-unavailable: binary not found]`,
+      // `[codex-unavailable: auth missing]`, and `[codex disabled by config — ...]`.
+      // The old alternation required a literal `[codex-unavailable]` with the
+      // bracket closing immediately, plus three strings (CODEX_NOT_AVAILABLE,
+      // codex_cli_missing, "Codex CLI not found") that appear nowhere in the
+      // shipped tree, so every real degradation path failed to match and forced
+      // the run to prove codexVoiceFired instead. This narrows to what ships; it
+      // does not loosen what counts as the codex voice actually firing.
+      const codexUnavailable = /\[codex-unavailable[:\]]|\[codex disabled by config|AUTH_FAILED\b/i.test(out);
 
       expect(claudeVoiceFired).toBe(true);
       expect(codexVoiceFired || codexUnavailable).toBe(true);
@@ -139,8 +184,9 @@ Add a new /greet skill that prints a welcome message.
       // Full Phase 1 COMPLETION (three parallel review subagents, each loading a
       // 25-35K-token skill) routinely exceeds 10 minutes on sonnet, so requiring
       // the "Phase 1 complete" banner would force a 20-minute test for no extra
-      // dual-voice signal. Accept EITHER the completion banner (autoplan/SKILL.md
-      // "PHASE 1 COMPLETE" mandatory output) OR structural evidence that the
+      // dual-voice signal. Accept EITHER the completion banner (the
+      // "**PHASE 1 COMPLETE.**" mandatory output in
+      // skills/plan/references/legacy/autoplan.md) OR structural evidence that the
       // Phase 1 review dispatch actually happened: an Agent tool_use whose input
       // carries review instructions (execution artifact built by the skill, not
       // an echo of our prompt).
@@ -156,6 +202,6 @@ Add a new /greet skill that prints a welcome message.
         passed: claudeVoiceFired && (codexVoiceFired || codexUnavailable) && (reachedPhase1 || reviewDispatched),
       });
     },
-    630_000, // per-test timeout slightly > spawn timeout so cleanup can run
+    960_000, // per-test timeout slightly > spawn timeout so cleanup can run
   );
 });

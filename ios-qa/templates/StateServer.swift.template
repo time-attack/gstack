@@ -6,8 +6,8 @@
 //
 // Threat model: this surface is reachable from the local Mac via the CoreDevice
 // IPv6 tunnel. It MUST refuse any caller without a current bearer token. The
-// boot token is rotated within ~5 seconds of daemon spawn so anything scraping
-// os_log past that window sees a dead credential.
+// boot token never reaches os_log (.private) and is rotated within ~5 seconds
+// of daemon spawn, so a scraped log or leftover file is a dead credential.
 
 import Foundation
 import Network
@@ -34,7 +34,7 @@ public final class StateServer {
     private var ipv6Listener: NWListener?
     private var ipv4Listener: NWListener?
 
-    // Auth state. The boot token is what we wrote to os_log on first launch.
+    // Auth state. The boot token is what start() persisted to the 0600 file.
     // It exists ONLY long enough for the daemon to call /auth/rotate.
     private var bootToken: String
     private var rotatedToken: String?  // set after first /auth/rotate
@@ -90,15 +90,15 @@ public final class StateServer {
     }
 
     public func start() {
-        // 1. Persist boot token to a 0600 file (best-effort fallback for the
-        //    daemon if os_log scrape misses).
+        // 1. Persist boot token to a 0600 file — the channel the daemon reads
+        //    (devicectl file copy) before calling /auth/rotate.
         try? bootToken.write(toFile: bootTokenPath, atomically: true, encoding: .utf8)
         try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: bootTokenPath)
 
-        // 2. Log the boot token EXACTLY ONCE so the daemon can scrape it.
-        //    The daemon will rotate immediately; this log line is dead within
-        //    seconds.
-        logger.notice("gstack-ios-qa-bootstrap token=\(self.bootToken, privacy: .public) port=\(self.port, privacy: .public) build=\(self.appBuildId, privacy: .public)")
+        // 2. Announce readiness EXACTLY ONCE. The token stays .private — the
+        //    unified log is readable device-wide, and the daemon reads the
+        //    token from the 0600 file, never from this line.
+        logger.notice("gstack-ios-qa-bootstrap token=\(self.bootToken, privacy: .private) port=\(self.port, privacy: .public) build=\(self.appBuildId, privacy: .public)")
 
         // 3. Bind IPv4 to loopback only (no tunnel path uses IPv4). IPv6 must
         //    bind the wildcard because the CoreDevice tunnel peer arrives on a

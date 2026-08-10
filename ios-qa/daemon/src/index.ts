@@ -19,7 +19,7 @@ import { probeTailscale, whoIs } from './tailscale-localapi';
 import { SessionTokenStore } from './session-tokens';
 import { mintForCaller } from './auth-mint';
 import { classifyRoute, proxyToDevice, type DeviceTunnel } from './proxy';
-import { writeAudit, writeAttempt, sanitizeReplacer } from './audit';
+import { writeAudit, writeAttempt, sanitizeReplacer, saltedHash } from './audit';
 import { bootstrapTunnel } from './tunnel-bootstrap';
 import { defaultSessionCachePath } from './session-cache';
 import { startTunnelKeepalive } from './devicectl';
@@ -241,9 +241,16 @@ async function handleLoopback(ctx: HandlerCtx): Promise<void> {
       return;
     }
 
-    // /auth/sessions — list active sessions (owner only).
+    // /auth/sessions — list active sessions (owner only). Raw token values
+    // never leave the store: any local process can hit this listener, so
+    // callers get a salted-hash id plus metadata, and revoke by identity or
+    // by the token they already hold from mint.
     if (method === 'GET' && path === '/auth/sessions') {
-      sendJson(res, 200, { sessions: tokenStore.list() });
+      const sessions = await Promise.all(tokenStore.list().map(async ({ token, ...meta }) => ({
+        token_id: await saltedHash(token),
+        ...meta,
+      })));
+      sendJson(res, 200, { sessions });
       return;
     }
 

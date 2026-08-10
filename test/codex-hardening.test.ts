@@ -368,10 +368,9 @@ describe('gstack-codex-probe: telemetry event emission', () => {
 // ── Step 2A argv guard ─────────────────────────────────────────────────────
 // Regression test for #1428: Codex CLI >=0.130.0 rejects passing a quoted
 // prompt argument together with `--base <branch>`. Step 2A must never combine
-// the two on the same line. Asserts across both the .tmpl source and the
-// generated SKILL.md so template drift can't silently re-introduce the bug.
+// the two on the same line.
 
-describe('codex SKILL.md.tmpl Step 2A: PROMPT + --base mutual exclusion guard', () => {
+describe('codex module Step 2A: PROMPT + --base mutual exclusion guard', () => {
   function extractStep2A(filePath: string): string {
     const content = fs.readFileSync(filePath, 'utf-8');
     const startIdx = content.indexOf('## Step 2A: Review Mode');
@@ -382,7 +381,7 @@ describe('codex SKILL.md.tmpl Step 2A: PROMPT + --base mutual exclusion guard', 
     return nextHeading === -1 ? tail : tail.slice(0, nextHeading + 2);
   }
 
-  for (const relPath of ['codex/SKILL.md.tmpl', 'codex/SKILL.md']) {
+  for (const relPath of ['skills/review/references/legacy/codex.md']) {
     test(`${relPath}: no \`codex review\` line combines a quoted prompt argument with --base`, () => {
       const section = extractStep2A(path.join(ROOT, relPath));
       // Find all lines invoking `codex review` (any prefix wrapper allowed).

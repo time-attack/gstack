@@ -1,7 +1,7 @@
 ---
 name: plan
 description: >-
-  Plan products, scope, architecture, developer experience, or executable specs before implementation. Use for ideas, strategic or engineering reviews, autoplan, and planning preferences.
+  Plan products, scope, architecture, developer experience, or executable specs, before implementation or in retrospect. Use for ideas, strategic or engineering reviews, autoplan, retrospectives, and planning preferences.
 ---
 
 # GStack Plan
@@ -88,7 +88,6 @@ Every specialist below is an internal implementation detail, including mandatory
 
 | Legacy invocation | Legacy alias | Public mode | Role | Module |
 |---|---|---|---|---|
-| `/gstack` | `catalog` | `Discovery` | supporting | `references/legacy/gstack.md` |
 | `/office-hours` | `product` | `Discovery` | mandatory | `references/legacy/office-hours.md` |
 | `/plan-ceo-review` | `ceo` | `Product` | mandatory | `references/legacy/plan-ceo-review.md` |
 | `/plan-eng-review` | `eng` | `Engineering` | mandatory | `references/legacy/plan-eng-review.md` |

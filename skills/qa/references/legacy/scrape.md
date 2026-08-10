@@ -19,8 +19,7 @@ One entry point for getting data off the web. Two paths under the hood:
    browser-skill's triggers, run it via `$B skill run <name>` and emit
    the JSON.
 2. **Prototype path** (~30s) — no matching skill yet, so drive the page
-   with `$B` primitives, return the JSON, and suggest `$qa --mode Report --module skillify` so the
-   next call lands on the match path.
+   with `$B` primitives and return the JSON.
 
 Read-only by contract. If the intent implies writing (submitting forms,
 clicking buttons that mutate state), refuse and route to `/automate`.
@@ -98,16 +97,6 @@ Emit the result as JSON on stdout (one document, not pretty-printed).
 Use a stable shape — typically `{ "items": [...], "count": N }` or
 similar — so downstream consumers can treat it as data.
 
-## Step 5 — Skillify nudge
-
-After a successful prototype, append exactly one line:
-
-> "Say $qa --mode Report --module skillify to make this a permanent skill (200ms on next call)."
-
-That is the entire nudge. Do not nag, do not list pros, do not push.
-Proactive surfacing is a Phase 3 knob (`gstack-config browser_skillify_prompts`),
-not this skill's job.
-
 ## When the prototype fails
 
 If the page loads but data extraction does not yield a sensible JSON shape
@@ -116,7 +105,6 @@ after 3-4 selector attempts:
 - Report what you tried, what came back, and what's blocking (lazy-loaded,
   JS-rendered, paywalled, etc.).
 - Do NOT write a partial result and call it done.
-- Do NOT suggest $qa --mode Report --module skillify on a broken prototype.
 - Ask the user whether they want to (a) try a different selector, (b)
   switch to a different page, or (c) stop.
 
@@ -147,21 +135,7 @@ this session, log it for future sessions:
 $GSTACK_BIN/gstack-learnings-log '{"skill":"scrape","type":"TYPE","key":"SHORT_KEY","insight":"DESCRIPTION","confidence":N,"source":"SOURCE","files":["path/to/relevant/file"]}' 2>/dev/null || echo "GSTACK_RUNTIME_ABSENT: gstack-learnings-log skipped"
 ```
 
-**Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`
-(user stated), `architecture` (structural decision), `tool` (library/framework insight),
-`operational` (project environment/CLI/workflow knowledge).
-
-**Sources:** `observed` (you found this in the code), `user-stated` (user told you),
-`inferred` (AI deduction), `cross-model` (both Claude and Codex agree).
-
-**Confidence:** 1-10. Be honest. An observed pattern you verified in the code is 8-9.
-An inference you're not sure about is 4-5. A user preference they explicitly stated is 10.
-
-**files:** Include the specific file paths this learning references. This enables
-staleness detection: if those files are later deleted, the learning can be flagged.
-
-**Only log genuine discoveries.** Don't log obvious things. Don't log things the user
-already knows. A good test: would this insight save time in a future session? If yes, log it.
+The shared taxonomy (types, sources, confidence, files, what is worth logging) is specified once in `references/LEARNINGS.md` — read it before logging.
 
 <!-- GSTACK2_BUG_FIX_START pr=679 anchor=GSTACK2_FIX_679_MATCH_USER_LANGUAGE -->
 ## Upstream judgment port: PR #679

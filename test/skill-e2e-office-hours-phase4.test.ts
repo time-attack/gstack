@@ -4,8 +4,8 @@
  * Reproduces the bug seen in production: agent in builder mode reaches Phase 4,
  * presents 3 architectural alternatives (A/B/C), writes "Recommendation: C" in
  * chat prose, and starts editing the design doc immediately — never calls
- * AskUserQuestion. The fix is the STOP gate added to office-hours/SKILL.md.tmpl
- * Phase 4 footer.
+ * AskUserQuestion. The fix is the STOP gate in the Phase 4 footer of
+ * skills/plan/references/legacy/office-hours.md.
  *
  * Test approach: SDK + captureInstruction (same proven pattern as
  * skill-e2e-plan-format.test.ts). Pre-seed builder mode + "skip Phase 1/2/3,
@@ -24,7 +24,7 @@ import { runSkillTest } from './helpers/session-runner';
 import {
   ROOT, runId,
   describeIfSelected, testConcurrentIfSelected,
-  logCost, assertRecommendationQuality,
+  installLegacySkill, logCost, assertRecommendationQuality,
   createEvalCollector, finalizeEvalCollector,
 } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
@@ -36,8 +36,9 @@ const evalCollector = createEvalCollector('e2e-office-hours-phase4');
 
 // Format predicates. The strict `Recommendation:[*\s]*Choose` regex used by
 // skill-e2e-plan-format pins down a specific template-example wording ("Choose
-// [X]"). The format spec at scripts/resolvers/preamble/generate-ask-user-format.ts
-// only requires `Recommendation: <choice> because <reason>` — `<choice>` can
+// [X]"). The format spec — now skills/plan/references/QUESTION-FORMAT.md, the one
+// question-format contract every preserved specialist inherits — only requires
+// `Recommendation: <choice> because <reason>`, and `<choice>` can
 // be the bare option label. judgeRecommendation.present (deterministic) checks
 // this canonical shape correctly; we don't need a redundant strict regex here.
 const BECAUSE_RE = /\bbecause\b/i;
@@ -69,26 +70,49 @@ that ships V1 client-side and promotes to gbrain in V1.5.
   run('git', ['add', '.']);
   run('git', ['commit', '-m', 'seed']);
 
-  // Extract only the AskUserQuestion Format spec + Phase 4 section from
-  // office-hours/SKILL.md per CLAUDE.md "extract, don't copy" rule. Copying
-  // the full ~2000-line SKILL.md burns Opus tokens on irrelevant phases and
-  // risks turn-limit timeouts. The format spec teaches the agent the
-  // Recommendation/because/options shape; Phase 4 is what we're testing.
-  fs.mkdirSync(path.join(dir, 'office-hours'), { recursive: true });
-  const fullSkill = fs.readFileSync(path.join(ROOT, 'office-hours', 'SKILL.md'), 'utf-8');
-  const fmtStart = fullSkill.indexOf('## AskUserQuestion Format');
-  const fmtEnd = fullSkill.indexOf('\n## ', fmtStart + 1);
-  const phase4Start = fullSkill.indexOf('## Phase 4: Alternatives Generation');
-  const phase4End = fullSkill.indexOf('\n## Phase 4.5', phase4Start);
-  if (fmtStart < 0 || phase4Start < 0 || phase4End < 0) {
-    throw new Error('skill-e2e-office-hours-phase4: failed to slice SKILL.md — section markers not found.');
+  // Install /office-hours the way a user reaches it today: the compat alias
+  // under its old name, plus the plan dispatcher it routes into. The 1.x
+  // `office-hours/` tree at the repo root is gone. installLegacySkill also
+  // validates the whole route (alias → dispatcher → preserved module) and
+  // throws on any dangling link, so a retired-name test cannot rot into a no-op.
+  const route = installLegacySkill(dir, 'office-hours');
+
+  // Extract only the question-format spec + Phase 4 section per CLAUDE.md
+  // "extract, don't copy". Reading the full 769-line module burns Opus tokens
+  // on irrelevant phases and risks turn-limit timeouts. The format spec teaches
+  // the agent the Recommendation/because/options shape; Phase 4 is under test.
+  //
+  // Two path facts changed with the 2.0 tree:
+  //   - The `## AskUserQuestion Format` section no longer lives in the
+  //     office-hours body. The dispatcher owns one question-format contract for
+  //     every specialist at `references/QUESTION-FORMAT.md`, and Phase 4 points
+  //     at it by name. It is 42 lines, so it goes in whole — no markers to rot.
+  //   - Phase 4 is now followed by `## Visual Sketch (UI ideas only)` before
+  //     `## Phase 4.5`. Ending the slice at Phase 4.5 would drag ~90 lines of
+  //     wireframe instructions into an alternatives test. End at Visual Sketch:
+  //     that still includes Phase 4's STOP gate, which is what this regression
+  //     exists to protect.
+  const dispatcherRefs = path.join(ROOT, 'skills', route.dispatcher, 'references');
+  const questionFormat = fs.readFileSync(path.join(dispatcherRefs, 'QUESTION-FORMAT.md'), 'utf-8');
+  const moduleBody = fs.readFileSync(path.join(dispatcherRefs, 'legacy', `${route.module}.md`), 'utf-8');
+  const phase4Start = moduleBody.indexOf('## Phase 4: Alternatives Generation');
+  const phase4End = moduleBody.indexOf('\n## Visual Sketch', phase4Start);
+  if (phase4Start < 0 || phase4End < 0) {
+    throw new Error(
+      `skill-e2e-office-hours-phase4: failed to slice ${route.module}.md — Phase 4 markers not found ` +
+        `(start=${phase4Start}, end=${phase4End}). An empty slice would test nothing.`,
+    );
   }
   const slice = [
     '# office-hours (Phase 4 slice for E2E test)\n',
-    fullSkill.slice(fmtStart, fmtEnd > fmtStart ? fmtEnd : fmtStart + 4000),
+    questionFormat,
     '\n',
-    fullSkill.slice(phase4Start, phase4End),
+    moduleBody.slice(phase4Start, phase4End),
   ].join('\n');
+  // Overwrite the routing alias installLegacySkill just wrote. The alias is a
+  // three-line dispatch stub; this test drives Phase 4 directly, so the slice is
+  // what "Read office-hours/SKILL.md" should return. The dispatcher tree stays
+  // on disk so Phase 4's own `references/QUESTION-FORMAT.md` pointer resolves.
   fs.writeFileSync(path.join(dir, 'office-hours', 'SKILL.md'), slice);
 
   return dir;
@@ -117,7 +141,10 @@ describeIfSelected('Office Hours Phase 4 — Architectural fork must surface Ask
 
   testConcurrentIfSelected('office-hours-phase4-fork', async () => {
     const result = await runSkillTest({
-      prompt: `Read office-hours/SKILL.md for the workflow.
+      prompt: `Read office-hours/SKILL.md for the workflow. It is a self-contained slice: the
+question-format contract and Phase 4 are both inlined there, so you do not need to look
+anything up. (The full dispatcher is on disk at skills/plan/ if you want it — there is no
+skill registry in this directory, so \`$plan\` is not resolvable by name.)
 
 Context: this is BUILDER MODE (Path B). The project is gbrain-retrieval — see README.md. I have a fully-formed plan and have already accepted all your Phase 3 premises. Skip Phase 1, Phase 2, and Phase 3 entirely.
 

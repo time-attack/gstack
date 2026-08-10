@@ -1,6 +1,6 @@
 /**
  * Tests the voyage-code-3 default contract in setup-gbrain's PGLite init
- * sequences. The contract lives in the skill TEMPLATE (.tmpl), not in a TS
+ * sequences. The contract lives in the skill MODULE markdown, not in a TS
  * helper — the skill follows AI-readable instructions.
  *
  * Contract (asserted here):
@@ -81,13 +81,13 @@ exit 0
 }
 
 /**
- * Verbatim reimplementation of the skill template's voyage-code-3
- * conditional. The template (setup-gbrain/SKILL.md.tmpl Path 3, Step 1.5
- * inside the rollback wrapper, Step 4.5 Path 4 Yes branch) instructs the
- * model to execute this bash; we execute the same bash here and assert the
- * argv passed to gbrain matches the contract.
+ * Verbatim reimplementation of the skill module's voyage-code-3
+ * conditional. The module (skills/plan/references/legacy/setup-gbrain.md
+ * Path 3, Step 1.5 inside the rollback wrapper, Step 4.5 Path 4 Yes branch)
+ * instructs the model to execute this bash; we execute the same bash here and
+ * assert the argv passed to gbrain matches the contract.
  *
- * If the template changes the flag set or the env-var name, this test
+ * If the module changes the flag set or the env-var name, this test
  * should fail until the shell here is updated too — by design.
  */
 function runInitWithVoyageGate(env: FakeEnv, voyageKey: string | undefined): string[] {
@@ -161,21 +161,21 @@ describe("voyage-code-3 default for gstack-driven PGLite init", () => {
   });
 });
 
-describe("template alignment: the .tmpl actually contains the voyage gate", () => {
-  // Belt-and-suspenders: if someone edits the template and drops the
+describe("module alignment: setup-gbrain.md actually contains the voyage gate", () => {
+  // Belt-and-suspenders: if someone edits the module and drops the
   // VOYAGE_API_KEY conditional without updating the test above, this catches
-  // it. The shell snippet under test must literally appear in the .tmpl.
-  const TEMPLATE_PATH = join(import.meta.dir, "..", "setup-gbrain", "SKILL.md.tmpl");
-  const tmpl = readFileSync(TEMPLATE_PATH, "utf-8");
+  // it. The shell snippet under test must literally appear in the module.
+  const MODULE_PATH = join(import.meta.dir, "..", "skills/plan/references/legacy/setup-gbrain.md");
+  const tmpl = readFileSync(MODULE_PATH, "utf-8");
 
-  it("setup-gbrain template gates the embedding-model flag on VOYAGE_API_KEY", () => {
+  it("setup-gbrain module gates the embedding-model flag on VOYAGE_API_KEY", () => {
     // Should appear at least once (currently 3 init sites use the same gate).
     expect(tmpl).toContain('if [ -n "${VOYAGE_API_KEY:-}" ]; then');
     expect(tmpl).toContain("--embedding-model voyage:voyage-code-3");
     expect(tmpl).toContain("--embedding-dimensions 1024");
   });
 
-  it("setup-gbrain template uses the conditional gate at all 3 PGLite init sites", () => {
+  it("setup-gbrain module uses the conditional gate at all 3 PGLite init sites", () => {
     // Count the gate occurrences. If a future edit adds/removes a PGLite
     // init site, update this expectation deliberately.
     const matches = tmpl.match(/if \[ -n "\$\{VOYAGE_API_KEY:-\}" \]; then/g);

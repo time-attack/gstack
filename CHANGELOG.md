@@ -1,11 +1,73 @@
 # Changelog
 
-> **GStack 2 draft in progress.** `main` carries the working draft of GStack 2
-> — not a released version. Current status is **BLOCKED** pending the remaining
-> release gates. See
-> [`docs/gstack-2/STATUS.md`](docs/gstack-2/STATUS.md) for the authoritative
-> completion state and remaining P0 gates. No GStack 2 release claim is made
-> here while that status holds.
+## [2.0.0.0] - 2026-08-09
+
+**GStack 2, public beta. Six skills. Everything else had to earn its way in.**
+
+GStack 1 was forty-four skills and a pile of scaffolding that billed your
+context window whether you needed it or not. GStack 2 is six things you can
+actually name: `/plan`, `/qa`, `/debug`, `/review`, `/ship`, and `/make-pdf`.
+Each one is a lazy dispatcher — the catalog your agent reads at discovery is
+pinned at least 70% below the 1.x baseline, and the specialist judgment loads
+only when a workflow actually reaches it. Install is the standard one-liner:
+`npx skills add time-attack/gstack/skills`. No runtime required, nothing
+phones home, and your 39 old slash commands still route to their new homes.
+
+### The numbers that matter
+
+Source: the committed install artifact
+([install-verify-2026-08-09.json](evals/installation/install-verify-2026-08-09.json)),
+the first completed paid gate runs
+([TEST-EVIDENCE.md](docs/gstack-2/TEST-EVIDENCE.md)), and the egress re-audit
+([EGRESS-AUDIT.md](docs/gstack-2/EGRESS-AUDIT.md)).
+
+| Metric | GStack 1 | GStack 2 beta |
+|---|---|---|
+| Discoverable skills | 44 | 6 |
+| Discovery catalog cost | ~1,100 token-equivalents | pinned ≥70% below that, every suite run |
+| Judgment loaded for a trivial ask | the monolith | the dispatcher's fast path only |
+| Hosts verified byte-identical | — | 7 (claude-code, codex, cursor, pi, openclaw, github-copilot, kimi) |
+| Open egress-audit findings | 8 | 0 — each fix ships with a test that fails without it |
+| Paid gate tier terminal summaries, ever | 0 | 3 completed runs, every failure attributed |
+
+### What you can do now
+
+- **Ask for judgment, not a catalog.** Name the task and the right skill
+  self-routes; the keyword router is gone because the six descriptions do its
+  job. Old muscle memory (`/office-hours`, `/qa-only`, `/retro`, …) still
+  resolves through opt-in compatibility aliases that carry zero copied prose.
+- **Trust what leaves your machine.** Session tokens never appear raw on any
+  local endpoint, boot tokens log private, previews fire no image beacons,
+  memory ingest secret-scans by default at the exact bytes it stages, cloud
+  eval uploads require explicit opt-in instead of an ambient API key, and an
+  unattested runtime download refuses instead of silently downgrading.
+- **Come back to a project and get context.** Session start recovers your
+  recent artifacts, last session, and active decisions again — the
+  welcome-back summary that quietly vanished during the 1.x migration is
+  restored and gate-tested.
+- **Ship the optional runtime later, or never.** The managed
+  browser/iOS/PDF runtime stays opt-in, fails closed until its signed release
+  exists, and now discloses its attestation state before asking for consent.
+
+### For contributors
+
+- The paid gate tier is sharded (one file per shard, external group-kill
+  timeouts) and produced its first terminal summaries in project history;
+  judge-threshold quality benchmarks moved to the periodic tier where the
+  tiering policy always said they belonged.
+- A per-module ablation instrument ships (`scripts/ablate.ts`): deterministic
+  scoring against planted ground truth, ablate/solo/set arms, resume, and a
+  verdict layer that cannot be talked into false deletions. Cuts now cite
+  measurements, not vibes — three modules and ~43KB of duplicated prose left
+  the tree this way, each with a named loss-check.
+- Hermetic PTY children can opt into registered skills
+  (`hermeticSkillsConfigDir()`), which un-silenced seven slash-command gates
+  that had been measuring nothing.
+
+> The optional managed runtime's signed `v2.0.0-rc.6` component release
+> publishes with the release tag; until then `setup` fails closed and the
+> Markdown-only install above is the supported path. Authoritative status:
+> [`docs/gstack-2/STATUS.md`](docs/gstack-2/STATUS.md).
 
 ## [1.66.0.0] - 2026-08-01
 

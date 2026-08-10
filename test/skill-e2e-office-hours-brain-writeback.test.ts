@@ -1,6 +1,11 @@
 /**
  * E2E: /office-hours brain-writeback path under fake gbrain CLI.
  *
+ * SKIPPED since f19d6cda — the CLI write-back surface this asserts on no longer
+ * ships. See the KNOWN ORPHANED SURFACE comment above the describe block for
+ * the evidence and the two ways out. The body below is preserved verbatim as
+ * the spec for what a restored write-back would have to satisfy.
+ *
  * The matched-pair check for v1.50.0.0's "brain-aware planning actually
  * works under Claude Code" headline: prove that when a user runs
  * /office-hours with gbrain on PATH, the agent actually calls
@@ -55,7 +60,6 @@ import { runSkillTest } from './helpers/session-runner';
 import {
   ROOT,
   runId,
-  describeIfSelected,
   testConcurrentIfSelected,
   logCost,
   recordE2E,
@@ -64,9 +68,52 @@ import {
 
 const evalCollector = createEvalCollector('e2e-office-hours-brain-writeback');
 
-describeIfSelected(
-  'Office Hours Brain Writeback E2E',
-  ['office-hours-brain-writeback'],
+// KNOWN ORPHANED SURFACE — the subject of this test does not ship any more.
+//
+// Everything below asserts on the 1.x CLI write-back path: a `SAVE_RESULTS`
+// block that the generator injected into `office-hours/SKILL.md` when gbrain
+// detection was on, which told the agent to run `gbrain put "office-hours/<slug>"
+// --content <design doc>` and then enrich `entities/<name>` stubs. Commit
+// f19d6cda deleted the 1.x tree and the generator with it. In the shipped 2.0
+// tree:
+//   - `grep -rn 'SAVE_RESULTS' skills/` returns nothing.
+//   - `grep -rn 'gbrain put' skills/` hits only sync-gbrain.md and
+//     setup-gbrain.md, never office-hours, and never with a design-doc payload.
+//   - nothing in skills/ references docs/gbrain-write-surfaces.md, so the
+//     on-demand template the compact block pointed at has no caller.
+//   - `scripts/gen-skill-docs.ts` is gone (skills/ is static, no regen step),
+//     so the beforeAll's `--respect-detection` regeneration cannot run at all.
+//
+// The 2.0 tree does have an office-hours brain write-back, but it is a
+// different surface: skills/plan/references/sections/office-hours/doc-and-handoff.md
+// "Brain Calibration Write-Back", which writes a `kind=bet` take through
+// `mcp__gbrain__takes_add` (MCP, not CLI) and is double-gated on
+// `brain_trust_policy=personal` plus the `BRAIN_CALIBRATION_WRITEBACK` flag,
+// which the module itself documents as false today. A fake `gbrain` shell
+// script on PATH cannot observe an MCP op, and a test that forced the flag on
+// would be asserting against a surface no user has enabled.
+//
+// Do NOT "fix" this by pointing the fake CLI at the takes_add path or by
+// hand-writing a SAVE_RESULTS block into the workdir's SKILL.md. Either one
+// invents the surface the test is supposed to be finding, which is exactly the
+// signal ("the shipped skill actually calls gbrain") that makes the test worth
+// its $1/run.
+//
+// Two honest ways out, both a decision above this file: port a CLI write-back
+// into skills/ (or flip the MCP path on and re-target this test at it), or
+// retire the office-hours brain-writeback claim and delete this file with it.
+//
+// Held as a named skip rather than a red: the beforeAll would throw ENOENT on
+// the deleted generator, and a permanently-red suite hides the next real break.
+const WRITEBACK_GONE_SKIP =
+  'Office Hours Brain Writeback E2E — SKIPPED (orphaned surface): no shipped skill ' +
+  'carries a gbrain CLI write-back since f19d6cda deleted the 1.x tree and its ' +
+  'generator; the 2.0 replacement is an MCP takes_add path gated off by default. ' +
+  'Decide: port a CLI write-back into skills/, or retire this test. See the comment ' +
+  'above this describe block.';
+
+describe.skip(
+  WRITEBACK_GONE_SKIP,
   () => {
     let workDir: string;
     let callsLogPath: string;

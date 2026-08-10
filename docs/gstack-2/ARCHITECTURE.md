@@ -82,10 +82,10 @@ migration map.
 | Skill | Public top-level modes and preserved refinements |
 |---|---|
 | `/plan` | exactly **Discovery, Product, Engineering, DX, Specification, Full chain**, refined to office-hours, CEO, engineering, DX, spec, or autoplan judgment |
-| `/qa` | **Report** or **Fix**, refined by web, physical-iOS, DX, performance, or canary surface |
+| `/qa` | **Report** or **Fix**, refined by web, physical-iOS, or DX surface |
 | `/debug` | **Diagnose-only** or **Fix**, refined to general investigation or the physical-iOS fix loop |
-| `/review` | **Normal, Security, Performance, Deep**, with health and genuinely independent outside voices selected only when applicable |
-| `/ship` | **Prepare, Land, Deploy, Monitor, Resume**, refined to PR, queue, docs, deploy setup, land/deploy, canary, or context restoration modules |
+| `/review` | **Normal, Security, Performance, Deep**, with health and a genuinely independent outside voice selected only when applicable |
+| `/ship` | **Prepare, Land, Deploy, Monitor, Resume**, refined to PR, queue, docs, deploy setup, land/deploy, or canary modules |
 
 Old commands are opt-in aliases for the compatibility window. An alias points
 to one exact module, prints the replacement invocation, and carries no copied

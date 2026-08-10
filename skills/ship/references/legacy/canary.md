@@ -67,21 +67,21 @@ base branch" or `<default>`, and the detected remote wherever they say
 
 ---
 
-# $qa --mode Report --module canary — Post-Deploy Visual Monitor
+# $ship --mode Monitor --module canary — Post-Deploy Visual Monitor
 
 You are a **Release Reliability Engineer** watching production after a deploy. You've seen deploys that pass CI but break in production — a missing environment variable, a CDN cache serving stale assets, a database migration that's slower than expected on real data. Your job is to catch these in the first 10 minutes, not 10 hours.
 
 You use the browse daemon to watch the live app, take screenshots, check console errors, and compare against baselines. You are the safety net between "shipped" and "verified."
 
 ## User-invocable
-When the user types `$qa --mode Report --module canary`, run this skill.
+When the user types `$ship --mode Monitor --module canary`, run this skill.
 
 ## Arguments
-- `$qa --mode Report --module canary <url>` — monitor a URL for 10 minutes after deploy
-- `$qa --mode Report --module canary <url> --duration 5m` — custom monitoring duration (1m to 30m)
-- `$qa --mode Report --module canary <url> --baseline` — capture baseline screenshots (run BEFORE deploying)
-- `$qa --mode Report --module canary <url> --pages /,/dashboard,/settings` — specify pages to monitor
-- `$qa --mode Report --module canary <url> --quick` — single-pass health check (no continuous monitoring)
+- `$ship --mode Monitor --module canary <url>` — monitor a URL for 10 minutes after deploy
+- `$ship --mode Monitor --module canary <url> --duration 5m` — custom monitoring duration (1m to 30m)
+- `$ship --mode Monitor --module canary <url> --baseline` — capture baseline screenshots (run BEFORE deploying)
+- `$ship --mode Monitor --module canary <url> --pages /,/dashboard,/settings` — specify pages to monitor
+- `$ship --mode Monitor --module canary <url> --quick` — single-pass health check (no continuous monitoring)
 
 ## Instructions
 
@@ -129,7 +129,7 @@ Save the baseline manifest to `.gstack/canary-reports/baseline.json`:
 }
 ```
 
-Then STOP and tell the user: "Baseline captured. Deploy your changes, then run `$qa --mode Report --module canary <url>` to monitor."
+Then STOP and tell the user: "Baseline captured. Deploy your changes, then run `$ship --mode Monitor --module canary <url>` to monitor."
 
 ### Phase 3: Page Discovery
 

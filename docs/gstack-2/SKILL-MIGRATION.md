@@ -2,7 +2,7 @@
 
 Pinned baseline: `bb57306d98c97011b0919c6132705a15b1579781`.
 
-GStack 2 exposes exactly five judgment dispatchers: `plan`, `qa`, `debug`, `review`, and `ship`, plus the `make-pdf` tool skill that installs with the same canonical tree (six discoverable skills total). The specialist bodies from 47 legacy templates remain provenance-pinned internal reference modules. The retired 1.x shared onboarding wrapper is excluded from canonical execution, and all 14 carved specialist sections are package-local lazy references loaded only at their original workflow point. Twenty-five primary modules are mandatory specialist inputs, and 22 supporting modules remain reachable through compatibility routing.
+GStack 2 exposes exactly five judgment dispatchers: `plan`, `qa`, `debug`, `review`, and `ship`, plus the `make-pdf` tool skill that installs with the same canonical tree (six discoverable skills total). The specialist bodies from 39 legacy templates remain provenance-pinned internal reference modules (42 at the 2026-08-04 unfreeze; the 2026-08-09 evidence-backed cut wave removed `plan/gstack.md`, `debug/guard.md`, and `debug/unfreeze.md` — routing, composition, and clear-the-boundary judgment now live in the dispatcher tables, the careful+freeze pair, and investigate.md's Scope Lock respectively, each with a named loss-check). The retired 1.x shared onboarding wrapper is excluded from canonical execution, and every carved specialist section is a package-local lazy reference loaded only at its original workflow point. Twenty-three primary modules are mandatory specialist inputs, and 19 supporting modules remain reachable through compatibility routing.
 
 The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; Review = `Normal | Security | Performance | Deep`; Ship = `Prepare | Land | Deploy | Monitor | Resume`. Richer legacy modes are internal aliases only.
 
@@ -10,7 +10,7 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 
 | Legacy invocation | Replacement | Visibility | Mandatory | Judgment overlays |
 |---|---|---|---|---|
-| `/gstack` | `$plan --mode Discovery --module gstack` | internal (internal) | no | #679, #879 |
+| `/gstack` | retired 2026-08-09 — the six skills self-route; alias explains and points at the installer | internal (internal) | no | — |
 | `/office-hours` | `$plan --mode Discovery --module office-hours` | internal (primary) | yes | #679, #2030, #1049, #1116, #886, #703, #2000, #879, #538, #1777, #2189 |
 | `/plan-ceo-review` | `$plan --mode Product --module plan-ceo-review` | internal (primary) | yes | #679, #2030, #886, #703, #879, #2189 |
 | `/plan-eng-review` | `$plan --mode Engineering --module plan-eng-review` | internal (primary) | yes | #679, #1071, #2030, #592, #886, #703, #879 |
@@ -28,33 +28,28 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 | `/qa-only` | `$qa --mode Report --module qa-only` | internal (primary) | yes | #679, #1484, #2030, #879, #1920 |
 | `/ios-qa` | `$qa --mode Report --module ios-qa` | internal (primary) | yes | #679, #879 |
 | `/devex-review` | `$qa --mode Report --module devex-review` | internal (primary) | yes | #679, #2030, #879 |
-| `/benchmark` | `$qa --mode Report --module benchmark` | internal (primary) | yes | #679, #879 |
-| `/canary` | `$qa --mode Report --module canary` | internal (primary) | yes | #679, #2186, #879 |
+| `/canary` | `$ship --mode Monitor --module canary` | internal (primary) | yes | #679, #2186, #879 |
 | `/browse` | `$qa --mode Report --module browse` | internal (internal) | no | #679, #2186, #879 |
 | `/open-gstack-browser` | `$qa --mode Report --module open-gstack-browser` | internal (internal) | no | #679, #879 |
 | `/setup-browser-cookies` | `$qa --mode Report --module setup-browser-cookies` | internal (internal) | no | #679, #879 |
 | `/pair-agent` | `$qa --mode Report --module pair-agent` | internal (internal) | no | #679, #879 |
 | `/scrape` | `$qa --mode Report --module scrape` | internal (internal) | no | #679, #2030, #879 |
-| `/skillify` | `$qa --mode Report --module skillify` | internal (internal) | no | #679, #2030, #879 |
-| `/benchmark-models` | `$qa --mode Report --module benchmark-models` | internal (internal) | no | #679, #879 |
 | `/investigate` | `$debug --mode Diagnose-only --module investigate` | internal (primary) | yes | #679, #2030, #2186, #879 |
 | `/ios-fix` | `$debug --mode Fix --module ios-fix` | internal (primary) | yes | #679, #879 |
 | `/careful` | `$debug --mode Diagnose-only --module careful` | internal (internal) | no | #679, #879 |
 | `/freeze` | `$debug --mode Diagnose-only --module freeze` | internal (internal) | no | #679, #879 |
-| `/guard` | `$debug --mode Diagnose-only --module guard` | internal (internal) | no | #679, #879 |
-| `/unfreeze` | `$debug --mode Diagnose-only --module unfreeze` | internal (internal) | no | #679, #879 |
+| `/guard` | `$debug --mode Diagnose-only --module careful` + `--module freeze` (cut 2026-08-09; composition wrapper had zero unique judgment) | internal (internal) | no | #679, #879 via constituents |
+| `/unfreeze` | `$debug --mode Diagnose-only --module investigate` (cut 2026-08-09; clear semantics folded into Scope Lock) | internal (internal) | no | #679, #879 via investigate |
 | `/review` | `$review --mode Normal --module review` | internal (primary) | yes | #610, #645, #679, #2030, #2141, #579, #886, #452, #879 |
 | `/cso` | `$review --mode Security --module cso` | internal (primary) | yes | #679, #2030, #1523, #1053, #879 |
 | `/health` | `$review --mode Deep --module health` | internal (primary) | yes | #679, #879 |
 | `/codex` | `$review --mode Deep --module codex` | internal (primary) | yes | #679, #879, #1079, #2370, #9109 |
-| `/claude` | `$review --mode Deep --module claude` | internal (primary) | yes | #679, #879, #2370, #9109 |
 | `/ship` | `$ship --mode Prepare --module ship` | internal (primary) | yes | #679, #884, #2030, #2186, #1102, #879, #1079 |
 | `/land-and-deploy` | `$ship --mode Land --module land-and-deploy` | internal (primary) | yes | #679, #884, #879, #1079 |
 | `/landing-report` | `$ship --mode Prepare --module landing-report` | internal (primary) | yes | #679, #879 |
 | `/document-release` | `$ship --mode Prepare --module document-release` | internal (primary) | yes | #679, #879, #1079 |
 | `/setup-deploy` | `$ship --mode Deploy --module setup-deploy` | internal (primary) | yes | #679, #879, #1078 |
 | `/document-generate` | `$ship --mode Prepare --module document-generate` | internal (internal) | no | #679, #879 |
-| `/gstack-upgrade` | `$ship --mode Prepare --module gstack-upgrade` | internal (internal) | no | #679, #879 |
 | `/ios-clean` | `$ship --mode Prepare --module ios-clean` | internal (internal) | no | #679, #879 |
 | `/ios-sync` | `$ship --mode Prepare --module ios-sync` | internal (internal) | no | #679, #879 |
 

@@ -16,30 +16,55 @@
  * minimum smoke that proves --execute end-to-end works.
  */
 
-import { describe, test, expect } from 'bun:test';
+import { expect } from 'bun:test';
+import {
+  ROOT, describeIfSelected, testIfSelected, installLegacySkill,
+} from './helpers/e2e-helpers';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
-const shouldRun = !!process.env.EVALS && process.env.EVALS_TIER === 'periodic';
-const describeE2E = shouldRun ? describe : describe.skip;
+describeIfSelected('/spec --execute end-to-end (periodic)', ['spec-execute'], () => {
+  testIfSelected('spec-execute', async () => {
+    // Reachability sanity, replacing two existsSync checks on `spec/SKILL.md.tmpl`
+    // and `spec/SKILL.md`. Commit f19d6cda deleted the 1.x root tree, so both
+    // paths are gone and neither the generator that produced them nor the
+    // spec-template-invariants / spec-template-sync suites that guarded them
+    // still exist. What a user reaches today is the compat alias, and
+    // installLegacySkill is the stronger check the old pair was reaching for:
+    // it throws on a missing alias, a missing `$dispatcher --mode` route, a
+    // dispatcher that is not in skills/, or a --module that dangles.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-spec-execute-'));
+    try {
+      const route = installLegacySkill(dir, 'spec');
+      expect(route.dispatcher).toBe('plan');
+      expect(route.mode).toBe('Specification');
+      expect(route.module).toBe('spec');
 
-const ROOT = path.resolve(import.meta.dir, '..');
-
-describeE2E('/spec --execute end-to-end (periodic)', () => {
-  test('phase gating + magical Phase 3 + quality gate + spawn — full pipeline', async () => {
-    // Sanity: spec template + generated SKILL.md exist at expected paths.
-    expect(fs.existsSync(path.join(ROOT, 'spec', 'SKILL.md.tmpl'))).toBe(true);
-    expect(fs.existsSync(path.join(ROOT, 'spec', 'SKILL.md'))).toBe(true);
+      // The phases this test is registered to exercise must still be IN the
+      // module the route lands on. Without this, the file would go green on a
+      // module that had been gutted down to a stub.
+      const moduleBody = fs.readFileSync(
+        path.join(ROOT, 'skills', route.dispatcher, 'references', 'legacy', `${route.module}.md`),
+        'utf-8',
+      );
+      for (const phase of [
+        '### Phase 1: Understand the "Why"',
+        '### Phase 3: Technical Interrogation',
+        '### Phase 4.5: Quality Gate',
+        '### Phase 5: File the Spec',
+      ]) {
+        expect(moduleBody, `${route.module}.md no longer carries "${phase}"`).toContain(phase);
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
 
     // Full PTY-driven E2E lives in a follow-up. For now this test exists as
     // the periodic-tier surface registered in E2E_TIERS so the diff-based
-    // selector knows to run it when spec/ changes. The deterministic
-    // template-invariant coverage in spec-template-invariants.test.ts +
-    // spec-template-sync.test.ts gates the gate tier; this stub is the
-    // periodic-tier hook for the full claude-pty-runner driven test.
-
-    // Mark as pending — replace with full PTY driver in follow-up TODO:
+    // selector knows to run it when the spec module or its alias changes.
+    //
+    // Replace with the full claude-pty-runner driven test per TODO:
     //   "/spec --execute E2E full pipeline test (v1.1)"
-    expect(true).toBe(true);
   }, 600_000);
 });

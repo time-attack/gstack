@@ -225,6 +225,48 @@ export function getHermeticDirs(): HermeticDirs {
   return cachedDirs;
 }
 
+let cachedSkillsConfigDir: string | null = null;
+
+/**
+ * A hermetic CLAUDE_CONFIG_DIR with the repo's shipped skills REGISTERED in
+ * user scope (symlinks into <repo>/skills and <repo>/skills/.compat, the
+ * dev-setup pattern). The default hermetic dir deliberately seeds no skills —
+ * correct for children that install their own or probe setup behavior — but a
+ * PTY test that types `/office-hours` needs the slash command to exist, or
+ * claude rejects it as Unknown command before any model turn and the gate
+ * measures nothing (observed unmeasured on main since at least 2026-08-02).
+ * Separate dir, same runRoot: opt-in per session, never contaminates the
+ * default-config children. Ends in `/.claude` for the same plan-path anchoring
+ * reason as HermeticDirs.configDir.
+ */
+export function hermeticSkillsConfigDir(): string {
+  if (cachedSkillsConfigDir) return cachedSkillsConfigDir;
+  const { runRoot } = getHermeticDirs();
+  const configDir = path.join(runRoot, 'with-skills', '.claude');
+  const skillsDir = path.join(configDir, 'skills');
+  fs.mkdirSync(skillsDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(configDir, '.claude.json'),
+    JSON.stringify(buildSeedConfig({
+      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.GSTACK_ANTHROPIC_API_KEY,
+      trustedDirs: [repoRoot()],
+    }), null, 2),
+  );
+  const skillsRoot = path.join(repoRoot(), 'skills');
+  for (const entry of fs.readdirSync(skillsRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name === '.compat') {
+      for (const alias of fs.readdirSync(path.join(skillsRoot, '.compat'), { withFileTypes: true })) {
+        if (alias.isDirectory()) fs.symlinkSync(path.join(skillsRoot, '.compat', alias.name), path.join(skillsDir, alias.name));
+      }
+      continue;
+    }
+    fs.symlinkSync(path.join(skillsRoot, entry.name), path.join(skillsDir, entry.name));
+  }
+  cachedSkillsConfigDir = configDir;
+  return configDir;
+}
+
 /** A dir younger than this is never GC'd even if its pid looks dead — guards
  * against PID reuse deleting a freshly-created dir whose original pid exited
  * and was recycled to an unrelated live process between create and GC. */

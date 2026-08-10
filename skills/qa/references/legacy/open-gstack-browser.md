@@ -194,7 +194,7 @@ Tell the user:
 > You're all set! Here's what you can do with the connected Chrome:
 >
 > **Watch Claude work in real time:**
-> - Run any gstack skill (`/qa`, `$qa --mode Report --module benchmark`) and watch
+> - Run any gstack skill (`/qa`, `/review`) and watch
 >   every action happen in the visible Chrome window + Side Panel feed
 > - No cookie import needed — the Playwright browser shares its own session
 >
@@ -211,7 +211,6 @@ Tell the user:
 > **What skills look like in headed mode:**
 > - `/qa` runs its full test suite in the visible browser — you see every page
 >   load, every click, every assertion
-> - `$qa --mode Report --module benchmark` measures performance in the headed browser
 
 Then proceed with whatever the user asked to do. If they didn't specify a task,
 ask what they'd like to test or browse.

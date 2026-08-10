@@ -1,10 +1,12 @@
 # gstack
 
-> **GStack 2.0 is under verification on `codex/gstack-2`.** It is not a
-> released 2.0 until every gate in
-> [`docs/gstack-2/STATUS.md`](docs/gstack-2/STATUS.md) passes. The material
-> below the GStack 2 quick start remains useful background, but host-specific
-> `./setup` instructions and the many-command catalog describe the 1.x
+> **GStack 2.0.0 public beta.** The Markdown-only skills install below is the
+> supported path; its evidence and the beta's known issues live in
+> [`docs/gstack-2/STATUS.md`](docs/gstack-2/STATUS.md). The optional managed
+> runtime publishes with the `v2.0.0-rc.6` release tag — until `setup` finds
+> it, every skill runs in judgment-only mode, which is a supported
+> configuration, not a failure. Material below the quick start about
+> host-specific `./setup` and the many-command catalog describes the 1.x
 > compatibility surface.
 
 GStack 2 presents one engineering judgment layer through exactly five public
@@ -215,6 +217,52 @@ Fork it. Improve it. Make it yours. And if you want to hate on free open source 
 - **First-time Claude Code users** — structured roles instead of a blank prompt
 - **Tech leads and staff engineers** — rigorous review, QA, and release automation on every PR
 
+## See it work
+
+*(This transcript uses the classic command names — they still route via the compatibility aliases. On the 2.0 surface you can also just describe the task, or start with `/plan`.)*
+
+```
+You:    I want to build a daily briefing app for my calendar.
+You:    /office-hours
+Claude: [asks about the pain — specific examples, not hypotheticals]
+
+You:    Multiple Google calendars, events with stale info, wrong locations.
+        Prep takes forever and the results aren't good enough...
+
+Claude: I'm going to push back on the framing. You said "daily briefing
+        app." But what you actually described is a personal chief of
+        staff AI.
+        [extracts 5 capabilities you didn't realize you were describing]
+        [challenges 4 premises — you agree, disagree, or adjust]
+        [generates 3 implementation approaches with effort estimates]
+        RECOMMENDATION: Ship the narrowest wedge tomorrow, learn from
+        real usage. The full vision is a 3-month project — start with
+        the daily briefing that actually works.
+        [writes design doc → feeds into downstream skills automatically]
+
+You:    /plan-ceo-review
+        [reads the design doc, challenges scope, runs 10-section review]
+
+You:    /plan-eng-review
+        [ASCII diagrams for data flow, state machines, error paths]
+        [test matrix, failure modes, security concerns]
+
+You:    Approve plan. Exit plan mode.
+        [writes 2,400 lines across 11 files. ~8 minutes.]
+
+You:    /review
+        [AUTO-FIXED] 2 issues. [ASK] Race condition → you approve fix.
+
+You:    /qa https://staging.myapp.com
+        [opens real browser, clicks through flows, finds and fixes a bug]
+
+You:    /ship
+        Tests: 42 → 51 (+9 new). PR: github.com/you/app/pull/42
+```
+
+You said "daily briefing app." The agent said "you're building a chief of staff AI" — because it listened to your pain, not your feature request. Eight commands, end to end. That is not a copilot. That is a team.
+
+
 <details>
 <summary>Legacy 1.x workflow and host-specific documentation</summary>
 
@@ -320,49 +368,6 @@ Or target a specific agent with `./setup --host <name>`:
 
 **Want to add support for another agent?** See [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md).
 It's one TypeScript config file, zero code changes.
-
-## See it work
-
-```
-You:    I want to build a daily briefing app for my calendar.
-You:    /office-hours
-Claude: [asks about the pain — specific examples, not hypotheticals]
-
-You:    Multiple Google calendars, events with stale info, wrong locations.
-        Prep takes forever and the results aren't good enough...
-
-Claude: I'm going to push back on the framing. You said "daily briefing
-        app." But what you actually described is a personal chief of
-        staff AI.
-        [extracts 5 capabilities you didn't realize you were describing]
-        [challenges 4 premises — you agree, disagree, or adjust]
-        [generates 3 implementation approaches with effort estimates]
-        RECOMMENDATION: Ship the narrowest wedge tomorrow, learn from
-        real usage. The full vision is a 3-month project — start with
-        the daily briefing that actually works.
-        [writes design doc → feeds into downstream skills automatically]
-
-You:    /plan-ceo-review
-        [reads the design doc, challenges scope, runs 10-section review]
-
-You:    /plan-eng-review
-        [ASCII diagrams for data flow, state machines, error paths]
-        [test matrix, failure modes, security concerns]
-
-You:    Approve plan. Exit plan mode.
-        [writes 2,400 lines across 11 files. ~8 minutes.]
-
-You:    /review
-        [AUTO-FIXED] 2 issues. [ASK] Race condition → you approve fix.
-
-You:    /qa https://staging.myapp.com
-        [opens real browser, clicks through flows, finds and fixes a bug]
-
-You:    /ship
-        Tests: 42 → 51 (+9 new). PR: github.com/you/app/pull/42
-```
-
-You said "daily briefing app." The agent said "you're building a chief of staff AI" — because it listened to your pain, not your feature request. Eight commands, end to end. That is not a copilot. That is a team.
 
 ## The sprint
 
@@ -513,7 +518,7 @@ them. Confirm the agent/scope with `npx skills remove --help`; a noninteractive
 selected removal has this shape:
 
 ```bash
-npx skills remove --skill plan design qa debug review ship \
+npx skills remove --skill plan qa debug review ship make-pdf \
   --agent <host> --yes
 ```
 

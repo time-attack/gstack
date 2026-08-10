@@ -8,7 +8,8 @@
  * was saved. We found out from users, not from tests.
  *
  * This file is the "never again" test. It enumerates every gstack skill name
- * from every SKILL.md.tmpl file in the repo and cross-checks against a
+ * from the SHIPPED surface (`skills/<name>/SKILL.md` plus the compatibility
+ * aliases in `skills/.compat/<name>/SKILL.md`) and cross-checks against a
  * per-host list of known built-in slash commands. If any gstack skill name
  * collides with a host built-in, this test fails and names the collision.
  *
@@ -52,6 +53,8 @@ const KNOWN_BUILTINS: Record<string, string[]> = {
     'context',        // Context usage display
     'continue',       // --continue / resume last conversation
     'cost',           // Cost display
+    'debug',          // Native debugging command (cited as shipped in CLAUDE.md's
+                      // GStack 2 canonical contract alongside /verify and /batch)
     'exit',           // Exit shell
     'help',           // Help
     'init',           // Initialize a new CLAUDE.md file
@@ -81,6 +84,8 @@ const KNOWN_BUILTINS: Record<string, string[]> = {
 // review.
 const KNOWN_COLLISIONS_TOLERATED: Record<string, string> = {
   // skill name → one-line justification + action plan
+  'debug': 'gstack /debug is one of the five judgment dispatchers the CLAUDE.md canonical contract names deliberately, and it is reached by Skill-tool routing on the request ("this is failing, find the cause") rather than by a typed slash command, so it coexists with the native /debug the same way /plan does. COST, stated plainly: a user who TYPES /debug gets the host built-in, not gstack — same shadowing shape as the 2026 /checkpoint incident, minus the silent-data-loss part. Watch for user reports of "I typed /debug and gstack never ran"; if they arrive, namespace to /gstack-debug.',
+  'plan': 'gstack /plan is a canonical-contract dispatcher (six modes: Discovery, Product, Engineering, DX, Specification, Full chain) invoked through the Skill tool by request match, while Claude Code /plan is a mode toggle bound to Shift+Tab — both are live in the same session today, so the Skill-tool path is not blocked. COST, stated plainly: the TYPED /plan reaches the host toggle, not gstack. Watch for user reports; namespace to /gstack-plan if they arrive.',
   'review': 'gstack /review (pre-landing diff analysis) pre-dates the Claude Code built-in /review (Review a pull request). The gstack skill is much richer (SQL safety, LLM trust boundary, specialist dispatch). Watch for user confusion reports and consider renaming to /diff-review or /pre-land if the collision bites. TODO: track user-reported incidents in TODOS.md.',
 };
 
@@ -101,27 +106,30 @@ const GENERIC_VERB_WATCHLIST = [
 
 interface GstackSkill {
   name: string;
-  templatePath: string;
+  skillPath: string;
 }
 
 function enumerateGstackSkills(): GstackSkill[] {
+  const SKILLS = path.join(ROOT, 'skills');
   const skills: GstackSkill[] = [];
-  // Scan one level deep for */SKILL.md.tmpl plus root SKILL.md.tmpl.
-  const candidates = [
-    path.join(ROOT, 'SKILL.md.tmpl'),
-    ...fs.readdirSync(ROOT, { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .map((d) => path.join(ROOT, d.name, 'SKILL.md.tmpl')),
-  ];
-  for (const tmpl of candidates) {
-    if (!fs.existsSync(tmpl)) continue;
-    const content = fs.readFileSync(tmpl, 'utf-8');
-    // Parse the 'name:' field from YAML frontmatter.
-    const frontmatter = content.match(/^---\n([\s\S]+?)\n---/);
-    if (!frontmatter) continue;
-    const nameMatch = frontmatter[1].match(/^name:\s*(\S+)/m);
-    if (!nameMatch) continue;
-    skills.push({ name: nameMatch[1].trim(), templatePath: tmpl });
+  // The shipped surface: skills/<name>/SKILL.md (six dispatchers) plus
+  // skills/.compat/<name>/SKILL.md (old-name aliases). Aliases count — a
+  // shadowed alias is exactly how the /checkpoint incident reached users.
+  // Nothing here reads .tmpl files; the retired 1.x tree at ROOT is ignored.
+  for (const dir of [SKILLS, path.join(SKILLS, '.compat')]) {
+    if (!fs.existsSync(dir)) continue;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const skillFile = path.join(dir, entry.name, 'SKILL.md');
+      if (!fs.existsSync(skillFile)) continue;
+      const content = fs.readFileSync(skillFile, 'utf-8');
+      // Parse the 'name:' field from YAML frontmatter.
+      const frontmatter = content.match(/^---\n([\s\S]+?)\n---/);
+      if (!frontmatter) continue;
+      const nameMatch = frontmatter[1].match(/^name:\s*(\S+)/m);
+      if (!nameMatch) continue;
+      skills.push({ name: nameMatch[1].trim(), skillPath: skillFile });
+    }
   }
   return skills;
 }
@@ -132,18 +140,20 @@ describe('skill-collision-sentinel', () => {
   const skills = enumerateGstackSkills();
 
   test('at least one skill is discovered (sanity)', () => {
-    // If this fails, the enumerator broke, not the collision check.
-    expect(skills.length).toBeGreaterThan(10);
+    // If this fails, the enumerator broke, not the collision check. Floor is
+    // the six canonical dispatchers; the ~39 .compat aliases churn, so don't
+    // pin a number that a single alias deletion turns red.
+    expect(skills.length).toBeGreaterThanOrEqual(6);
   });
 
   test('no duplicate skill names within gstack', () => {
     const seen = new Map<string, string>();
     const dupes: string[] = [];
-    for (const { name, templatePath } of skills) {
+    for (const { name, skillPath } of skills) {
       if (seen.has(name)) {
-        dupes.push(`${name} appears in both ${seen.get(name)} and ${templatePath}`);
+        dupes.push(`${name} appears in both ${seen.get(name)} and ${skillPath}`);
       } else {
-        seen.set(name, templatePath);
+        seen.set(name, skillPath);
       }
     }
     if (dupes.length > 0) {

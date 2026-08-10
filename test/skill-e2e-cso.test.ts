@@ -1,8 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { runSkillTest } from './helpers/session-runner';
 import {
-  ROOT, runId, evalsEnabled,
-  describeIfSelected, logCost, recordE2E,
+  describeIfSelected, installLegacySkill, logCost, recordE2E,
   createEvalCollector, finalizeEvalCollector,
 } from './helpers/e2e-helpers';
 import { spawnSync } from 'child_process';
@@ -16,12 +15,54 @@ afterAll(() => {
   finalizeEvalCollector(evalCollector);
 });
 
+/**
+ * Install /cso the way a user reaches it today, in a temp dir of its own.
+ *
+ * /cso is retired: the name now resolves to `skills/.compat/cso/SKILL.md`, a
+ * routing stub that dispatches to `$review --mode Security --module cso`, and the
+ * review dispatcher lazily reads `references/legacy/cso.md`, which in turn defers
+ * the scope-gated phases to `references/sections/cso/audit-phases.md`.
+ * `installLegacySkill` lays down the alias plus the whole dispatcher tree, and
+ * throws if any link in that chain is missing.
+ *
+ * Deliberately NOT installed inside the repo under audit — these tests point at an
+ * absolute path, exactly as they did when they read the 1.x `cso/SKILL.md` from the
+ * repo root. Copying gstack's own review tree into the fixture would hand the audit
+ * ~2500 extra lines to scan, including `references/support/lib/redact-patterns.ts`
+ * (a catalog of live-format credential prefixes). A security test must see the
+ * planted vulnerabilities and nothing else.
+ */
+function installCsoSkill(): { dir: string; route: ReturnType<typeof installLegacySkill> } {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-cso-skill-'));
+  return { dir, route: installLegacySkill(dir, 'cso') };
+}
+
+/**
+ * The routing preamble every /cso prompt needs now that the specialist is three
+ * lazy reads deep. Naming `audit-phases.md` is load-bearing, not convenience:
+ * Phases 2-11 live there, and Phases 2 (secrets/.env), 4 (unpinned actions),
+ * 5 (Dockerfile USER) and 6 (webhook signatures) are the exact phases these tests
+ * assert on. An agent that stops at cso.md reads the mode resolution and the
+ * findings format but never the checks.
+ */
+function csoRoutingPreamble(skillDir: string, route: ReturnType<typeof installLegacySkill>): string {
+  return `Read the file ${skillDir}/cso/SKILL.md for the CSO skill instructions. It is a
+routing alias, not the audit: follow its dispatch (\`${route.invocation}\`) into
+${skillDir}/skills/${route.dispatcher}/SKILL.md, then read that dispatcher's
+references/legacy/${route.module}.md module. That module defers its scope-gated phases
+(2-11) to references/sections/cso/audit-phases.md — read that too, for the phases your
+resolved scope selects. All three are required; the audit checks live in the last one.
+Paths written inside those files are relative to ${skillDir}/skills/${route.dispatcher}/.`;
+}
+
 // --- CSO v2 E2E Tests ---
 
 describeIfSelected('CSO v2 — full audit', ['cso-full-audit'], () => {
   let csoDir: string;
+  let skill: ReturnType<typeof installCsoSkill>;
 
   beforeAll(() => {
+    skill = installCsoSkill();
     csoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-cso-'));
 
     const run = (cmd: string, args: string[]) =>
@@ -59,13 +100,14 @@ app.listen(3000);
 
   afterAll(() => {
     try { fs.rmSync(csoDir, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(skill.dir, { recursive: true, force: true }); } catch {}
   });
 
   test('/cso finds planted vulnerabilities', async () => {
     const result = await runSkillTest({
-      prompt: `Read the file ${path.join(ROOT, 'cso', 'SKILL.md')} for the CSO skill instructions.
+      prompt: `${csoRoutingPreamble(skill.dir, skill.route)}
 
-Run /cso on this repo (full daily audit, no flags).
+Run /cso on this repo (full daily audit, no flags) — that is every phase, 0 through 14.
 
 IMPORTANT:
 - Do NOT use AskUserQuestion — skip any interactive prompts.
@@ -73,9 +115,12 @@ IMPORTANT:
 - Produce the SECURITY FINDINGS table.
 - Save the report to .gstack/security-reports/.`,
       workingDirectory: csoDir,
-      maxTurns: 30,
+      // 30 -> 45, 300s -> 480s: the audit is now four lazy reads deep (alias,
+      // review dispatcher, cso module, audit-phases) plus the per-invocation
+      // references, where 1.x was one monolith read. ~8 Read turns before Phase 0.
+      maxTurns: 45,
       allowedTools: ['Bash', 'Read', 'Write', 'Edit', 'Grep', 'Glob', 'Agent'],
-      timeout: 300_000,
+      timeout: 480_000,
     });
 
     logCost('cso', result);
@@ -97,22 +142,30 @@ IMPORTANT:
       output.includes('security findings') || output.includes('SECURITY FINDINGS')
     ).toBe(true);
 
-    // Should save a report
+    // Should save a report. Not existsSync-guarded: `if (fs.existsSync(dir))` let an
+    // agent that wrote NOTHING pass this check, so the Phase 14 half of the test was
+    // worth nothing. Safe to harden — every line here runs only after
+    // `expect(result.exitReason).toBe('success')` above, so an agent that reached
+    // this point finished cleanly and had every turn it needed for Phase 14, which
+    // always runs regardless of scope flag.
     const reportDir = path.join(csoDir, '.gstack', 'security-reports');
-    const reportExists = fs.existsSync(reportDir);
-    if (reportExists) {
-      const reports = fs.readdirSync(reportDir).filter(f => f.endsWith('.json'));
-      expect(reports.length).toBeGreaterThanOrEqual(1);
-    }
+    expect(
+      fs.existsSync(reportDir),
+      `no report directory at ${reportDir} — the audit skipped Phase 14 (Save Report).`,
+    ).toBe(true);
+    const reports = fs.readdirSync(reportDir).filter(f => f.endsWith('.json'));
+    expect(reports.length).toBeGreaterThanOrEqual(1);
 
     recordE2E(evalCollector, 'cso-full-audit', 'e2e-cso', result);
-  }, 300_000);
+  }, 480_000);
 });
 
 describeIfSelected('CSO v2 — diff mode', ['cso-diff-mode'], () => {
   let csoDiffDir: string;
+  let skill: ReturnType<typeof installCsoSkill>;
 
   beforeAll(() => {
+    skill = installCsoSkill();
     csoDiffDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-cso-diff-'));
 
     const run = (cmd: string, args: string[]) =>
@@ -148,22 +201,28 @@ app.post('/webhook/stripe', (req, res) => {
 
   afterAll(() => {
     try { fs.rmSync(csoDiffDir, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(skill.dir, { recursive: true, force: true }); } catch {}
   });
 
   test('/cso --diff scopes to branch changes', async () => {
     const result = await runSkillTest({
-      prompt: `Read the file ${path.join(ROOT, 'cso', 'SKILL.md')} for the CSO skill instructions.
+      prompt: `${csoRoutingPreamble(skill.dir, skill.route)}
 
 Run /cso --diff on this repo. The base branch is "main".
 
 IMPORTANT:
 - Do NOT use AskUserQuestion — skip any interactive prompts.
 - Focus on changes in the current branch vs main.
-- The webhook.ts file was added on this branch — it should be analyzed.`,
+- The webhook.ts file was added on this branch — it should be analyzed.
+- This is a scoped security audit, not a general diff review: the dispatcher's
+  trivial-change fast path does not apply, because the alias above selects the
+  Security mode and the cso module explicitly. Read the module chain.`,
       workingDirectory: csoDiffDir,
-      maxTurns: 25,
+      // 25 -> 40, 240s -> 420s: same four-read dispatch chain as the full audit,
+      // against a smaller scope.
+      maxTurns: 40,
       allowedTools: ['Bash', 'Read', 'Write', 'Edit', 'Grep', 'Glob', 'Agent'],
-      timeout: 240_000,
+      timeout: 420_000,
     });
 
     logCost('cso', result);
@@ -176,13 +235,15 @@ IMPORTANT:
     ).toBe(true);
 
     recordE2E(evalCollector, 'cso-diff-mode', 'e2e-cso', result);
-  }, 240_000);
+  }, 420_000);
 });
 
 describeIfSelected('CSO v2 — infra scope', ['cso-infra-scope'], () => {
   let csoInfraDir: string;
+  let skill: ReturnType<typeof installCsoSkill>;
 
   beforeAll(() => {
+    skill = installCsoSkill();
     csoInfraDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-cso-infra-'));
 
     const run = (cmd: string, args: string[]) =>
@@ -222,11 +283,12 @@ CMD ["node", "server.js"]
 
   afterAll(() => {
     try { fs.rmSync(csoInfraDir, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(skill.dir, { recursive: true, force: true }); } catch {}
   });
 
   test('/cso --infra runs infrastructure phases only', async () => {
     const result = await runSkillTest({
-      prompt: `Read the file ${path.join(ROOT, 'cso', 'SKILL.md')} for the CSO skill instructions.
+      prompt: `${csoRoutingPreamble(skill.dir, skill.route)}
 
 Run /cso --infra on this repo. This should run infrastructure-only phases (0-6, 12-14).
 
@@ -235,12 +297,14 @@ IMPORTANT:
 - This is a TINY repo with only 3 files: .github/workflows/ci.yml, Dockerfile, and package.json. Do NOT waste turns exploring — just read those files directly and audit them.
 - The Dockerfile has no USER directive (runs as root). The CI workflow uses an unpinned third-party GitHub Action (some-third-party/action@main).
 - Focus on infrastructure findings, NOT code-level OWASP scanning.
-- Skip the preamble (gstack-update-check, telemetry, etc.) — go straight to the audit.
+- The audit-phases file holds phases 2-11; under --infra you run only 2 through 6 from it, per the scope gate at the top of that file.
+- Skip the optional-runtime capability setup in references/RUNTIME.md — no bootstrap, no browser, no doctor. Go straight to the audit.
 - Do NOT use the Agent tool for exploration or verification — read the files yourself. This repo is too small to need subagents.`,
       workingDirectory: csoInfraDir,
-      maxTurns: 30,
+      // 30 -> 45, 360s -> 480s: same four-read dispatch chain before Phase 0.
+      maxTurns: 45,
       allowedTools: ['Bash', 'Read', 'Write', 'Edit', 'Grep', 'Glob'],
-      timeout: 360_000,
+      timeout: 480_000,
     });
 
     logCost('cso', result);
@@ -254,5 +318,5 @@ IMPORTANT:
     ).toBe(true);
 
     recordE2E(evalCollector, 'cso-infra-scope', 'e2e-cso', result);
-  }, 360_000);
+  }, 480_000);
 });

@@ -8,11 +8,14 @@
  * frontmatter regressions, missing generated header, empty/trivial bodies,
  * and dangling SKILL.md.tmpl-without-SKILL.md mismatches.
  *
- * Pairs with test/skill-coverage-matrix.ts (the registry) and
- * test/parity-suite.test.ts (the content-invariant suite). Together,
- * v1.45.0.0 ships with: floor (this file) + matrix (registry CI gate)
- * + invariants (content per skill family) + size budget. That's the
- * eval-first foundation the v2.0.0.0 sections/ work builds on.
+ * Pairs with test/skill-coverage-matrix.ts (the registry) and the
+ * matrix-level gate in test/skill-coverage-matrix.test.ts.
+ *
+ * Scope note: discovery scans REPO_ROOT for `<dir>/SKILL.md`, so this
+ * covers only root-level skill dirs (browse, make-pdf, ios-qa after the
+ * 1.x root-tree deletion). The shipped GStack 2 dispatchers under
+ * `skills/*` are NOT covered — see the KNOWN GAP note in
+ * test/skill-coverage-matrix.ts.
  */
 
 import { describe, test, expect } from 'bun:test';

@@ -27,6 +27,7 @@ import { ExitCode } from "./types";
 import * as browseClient from "./browseClient";
 import {
   RenderTab,
+  blockRemoteImages,
   contentWidthInches,
   convertDiagnosticsForDocx,
   extractDiagramFences,
@@ -357,9 +358,18 @@ export async function preview(opts: PreviewOptions): Promise<string> {
   });
   progress.end("Rendering HTML", `${rendered.meta.wordCount} words`);
 
+  // Offline posture holds in preview too: opening the HTML in a browser
+  // would GET every remote <img> (a beacon per image). Same gate + visible
+  // placeholder as the generate-path inliner, behind the same flag.
+  const previewHtml = opts.allowNetwork === true
+    ? rendered.html
+    : blockRemoteImages(rendered.html, (msg) => {
+        if (!opts.quiet) process.stderr.write(`\r\x1b[K[make-pdf] warning: ${msg}\n`);
+      });
+
   // Write to a stable path under /tmp so the user can reload in the same tab.
   const previewPath = path.join(os.tmpdir(), `make-pdf-preview-${deriveSlug(input)}.html`);
-  fs.writeFileSync(previewPath, rendered.html, "utf8");
+  fs.writeFileSync(previewPath, previewHtml, "utf8");
 
   progress.begin("Opening preview");
   tryOpen(previewPath);

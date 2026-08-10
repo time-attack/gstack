@@ -1,5 +1,29 @@
 # GStack 2 status
 
+**Status at the 2026-08-09 checkpoint: `PUBLIC-BETA-READY` (pending only the
+post-merge `v2.0.0-rc.6` tag for the optional runtime).**
+
+The canonical install — `npx skills add time-attack/gstack/skills`, Markdown
+only, no runtime — is fully evidenced on the current tree: six-skill
+discovery, byte-identical placement for all seven hosts, selected installs,
+alias opt-in, and clean removal
+([install-verify-2026-08-09.json](../../evals/installation/install-verify-2026-08-09.json)).
+The paid gate tier completed its first-ever full runs on 2026-08-09 (details
+below). The eight open egress-audit P2 findings are fixed in tree, each with a
+test that fails without the fix ([EGRESS-AUDIT.md](./EGRESS-AUDIT.md)). The
+optional managed runtime remains gated on the signed `v2.0.0-rc.6` release,
+which the tag-triggered six-target attestation workflow
+(`.github/workflows/release-artifacts.yml`) publishes post-merge; the beta
+ships without it by design and `setup` fails closed until it exists.
+
+Superseded gate: per the settled 2026-07-29 decision (decision store), per-host
+UI-launch cells are replaced by deterministic installer verification; the
+historical adversarial/UI-cell evidence below is retained as history. That
+decision's apparatus deletion is only partially executed and is sequenced as
+post-beta work.
+
+---
+
 **Status at the 2026-07-30 checkpoint: `BLOCKED` (primary live gate cleared).**
 
 The candidate contains substantial implementation, but it is not yet a released
@@ -18,17 +42,23 @@ installer-verified only pending host availability. Native CI is green on
 macOS, Ubuntu, Windows, and the Dev Container. No release-branch push, draft
 PR, or PR-ready claim is authorized by this status.
 
-**The paid gate tier has never completed a run in this project's history.** Three
-attempts are on record and none produced a terminal summary; the most recent
-(2026-08-01) executed 22 of 85 declared gate tests before going silent for 89% of
-its wall clock. Its five failures are pre-existing, reproducing identically in
-the prior release's run. The harness's historical "no regressions" output was a
-self-comparison against each run's own in-progress accumulator, so no prior
-release's green-eval claim is meaningful. Today the project's only green tier is
-the free suite (`bun test`: 25/25 shards, ~5,300 tests across 333 files). Read
-the receipts in
-[TEST-EVIDENCE.md](./TEST-EVIDENCE.md#paid-gate-tier--never-completed-forensics-2026-08-01)
-before citing any eval result.
+**The paid gate tier completed its first-ever runs on 2026-08-09** through the
+sharded runner: run #1 31/48 shards, run #2 37/47 after the run-#1 fixes, and
+targeted passes #3/#4 over the last nine files (pass #3: 10 pass / 2 fail, both
+first-measurement findings from gates that had never executed their subject —
+one budget recalibrated and re-run, one genuine format-adherence finding
+recorded as a beta known issue). Every failure across all runs is
+attributed with receipts — none was model-judgment regression from this branch;
+the census spans machine environment (missing compiled browse binary), a
+harness-wide defect that had silently unmeasured all seven PTY slash-command
+gates since at least 2026-08-02 (children had no skills registered), one
+branch-caused test breakage (judge slices pointing at deduped headings, fixed),
+mis-tiered judge-threshold benchmarks (moved to periodic per the tiering
+policy), stale 1.x-era test budgets, and one genuine product regression the
+gate caught and this branch fixed (the lost context-recovery preamble). Full
+census: [TEST-EVIDENCE.md](./TEST-EVIDENCE.md#paid-gate-tier--first-completed-runs-2026-08-09-releasegstack2-public-beta).
+The historical never-completed forensics remain below it. The free suite is
+green on this tree (exit 0, all shards, 2026-08-09).
 
 ## Implemented candidate surface
 
@@ -71,9 +101,14 @@ before citing any eval result.
   1.x baseline of about 1,100 token-equivalents; the restored import-free
   `test/gstack2-skills.test.ts` enforces the at-least-70%-below-the-1.x-baseline
   ceiling across all six skills on every free-suite run.
-- [x] The pinned inventory contains 47 preserved modules, 14 carved sections,
+- [x] The pinned inventory records 47 preserved modules, 14 carved sections,
   19 scenarios, 34 regression definitions, and 70 assets
-  ([JUDGMENT-PROVENANCE.json](./JUDGMENT-PROVENANCE.json)).
+  ([JUDGMENT-PROVENANCE.json](./JUDGMENT-PROVENANCE.json)). That file stays the
+  provenance baseline and is not rewritten. The current tree carries 42 legacy
+  modules, 16 carved sections, and 18 scenarios: the native-overlap wave cut the
+  modules Claude Code now ships natively, plus provably dead routes and
+  byte-identical duplicates ([SKILL-MIGRATION.md](./SKILL-MIGRATION.md) has the
+  live map).
 - [x] Compatibility aliases remain opt-in and outside default six-skill
   discovery; each prints its replacement and contains no copied judgment.
 - [x] Judgment provenance, behavioral contracts, 19 structured scenarios, and
@@ -227,7 +262,11 @@ before citing any eval result.
 
 ## Blocking or incomplete P0 evidence
 
-- [ ] **The paid gate tier has produced no evidence, ever.** `bun run test:gate`
+- [x] RESOLVED 2026-08-09: the tier completed three runs (see the completed-runs
+  section of [TEST-EVIDENCE.md](./TEST-EVIDENCE.md)); the four defects below are
+  each fixed on tree (sharded runner + heartbeat, retired-skill tests removed,
+  unparseable file deleted, `findPreviousRun` skips `_partial`). Historical
+  record follows. ~~**The paid gate tier has produced no evidence, ever.** `bun run test:gate`~~
   has never run to a terminal summary. Attempts on record: `EXIT=1` (2026-07-13,
   never started — working directory deleted), `EXIT=timeout` (2026-07-31,
   watchdog kill, 25 failures recorded before the kill), `EXIT=-15` (2026-08-01,
@@ -277,18 +316,18 @@ before citing any eval result.
   ships static, so both rows are moot-by-design; their recorded evidence is
   removed-with-apparatus, not re-runnable. See
   [ARCHITECTURE.md](./ARCHITECTURE.md).
-- [ ] Remaining before `DONE`: (a) per-host UI launch coverage — four of seven
-  hosts carry live UI evidence (Codex full 4/4 suite; Claude Code and Cursor
-  passed scored UI-launch cells; Pi launched but its scored cell is a retained
-  failure at 2/5 mandated reads). Still open: Kimi (blocked on an expired
-  operator OAuth grant; requires interactive `kimi login`), OpenClaw
-  (installer-verified only; CLI not installed here, though
-  `npm view openclaw` shows `openclaw@2026.7.1-2` ships a `bin`), and GitHub
-  Copilot (installer-verified only; requires a paid Copilot seat), plus a
-  passing Pi cell; (b) the official
-  signed `v2.0.0-rc.6` runtime bootstrap exercised through the production install
-  path. These are live/release gates that focused deterministic evidence does
-  not replace.
+- [ ] Remaining before `DONE`: (a) SUPERSEDED 2026-08-09 — per the settled
+  2026-07-29 decision, per-host UI-launch cells are replaced by deterministic
+  installer verification, refreshed against this tree on 2026-08-09 for all
+  seven hosts
+  ([install-verify-2026-08-09.json](../../evals/installation/install-verify-2026-08-09.json));
+  the historical UI-cell evidence (Codex 4/4, Claude Code and Cursor 13/13
+  cells, Pi retained failure, Kimi OAuth-blocked) is retained as history.
+  (b) the official signed `v2.0.0-rc.6` runtime bootstrap exercised through
+  the production install path — the tag-triggered six-target attestation
+  workflow publishes it post-merge; this is the single remaining release gate,
+  and it gates only the OPTIONAL runtime, not the canonical Markdown-only
+  install the public beta ships.
 - [x] Gate (c), the full retained-tool egress (privacy) audit. Current
   authority: the 2026-07-30 re-audit in [EGRESS-AUDIT.md](./EGRESS-AUDIT.md),
   which supersedes the 2026-07-28 run (that run passed at zero violations,
@@ -298,12 +337,14 @@ before citing any eval result.
   this wave: the anonymous-tier install ping, hardcoded update upstream,
   deepeval default-on telemetry, `/health` root-token carve-outs, StateServer
   wildcard bind, gbrain-sync policy bypass, make-pdf raw-HTML offline-gate
-  bypass, and Braintrust key-presence-equals-consent banner. Still open
-  (all P2): ios-qa `GET /auth/sessions` raw-token exposure, deepeval
-  `evaluate()` ambient-key auto-upload, browse local telemetry env-only off
-  switch, cosign silent SHA-256 downgrade, StateServer boot-token os_log,
-  deprecated brain-consumer/reader curl scripts, and make-pdf preview
-  remote images. Historical evidence:
+  bypass, and Braintrust key-presence-equals-consent banner. UPDATE
+  2026-08-09: the seven remaining P2s — ios-qa `GET /auth/sessions` raw-token
+  exposure, deepeval `evaluate()` ambient-key auto-upload, browse local
+  telemetry env-only off switch, cosign silent SHA-256 downgrade, StateServer
+  boot-token os_log, deprecated brain-consumer/reader curl scripts, make-pdf
+  preview remote images — plus the memory-ingest opt-in-only secret scan are
+  ALL fixed in tree, each with a test that fails without the fix (per-row
+  status in [EGRESS-AUDIT.md](./EGRESS-AUDIT.md)). Historical evidence:
   [evals/privacy/egress-audit-2026-07-28.md](../../evals/privacy/egress-audit-2026-07-28.md)
   (+ machine-readable `.json`) and
   [PRIVACY.md](./PRIVACY.md#retained-tool-egress-audit-2026-07-28).
@@ -312,8 +353,8 @@ before citing any eval result.
 
 | Evidence | Path | State |
 |---|---|---|
-| **Paid gate tier (`bun run test:gate`)** | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md#paid-gate-tier--never-completed-forensics-2026-08-01) | **NEVER COMPLETED — no evidence.** Three attempts on record, zero terminal summaries: `EXIT=1` (never started), `EXIT=timeout` (watchdog), `EXIT=-15` (external SIGTERM after 2h23m21s). The last attempt executed **22 of 85 declared gate tests (26%)**, then produced no output for 2h08m12s (89% of wall clock) while a hung child held its concurrency slot. Its 5 failures are pre-existing (identical names and order in the v1.65.0.0 run) and 3 of them plus 1 unparseable dead file target skills retired in `d8b4a061`. The harness's historical "no regressions" lines were self-comparisons against the run's own `_partial` accumulator and carry no information. |
-| **Free suite (`bun test`)** | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md) | **Green — 25/25 shards, ~5,300 tests across 333 files** (macOS, current head, 2026-08-01). The only tier the project can claim green today. |
+| **Paid gate tier** | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md#paid-gate-tier--first-completed-runs-2026-08-09-releasegstack2-public-beta) | **COMPLETED 2026-08-09** — three sharded runs, every failure attributed with receipts; see the census. Historical: **NEVER COMPLETED before this branch.** Three attempts on record, zero terminal summaries: `EXIT=1` (never started), `EXIT=timeout` (watchdog), `EXIT=-15` (external SIGTERM after 2h23m21s). The last attempt executed **22 of 85 declared gate tests (26%)**, then produced no output for 2h08m12s (89% of wall clock) while a hung child held its concurrency slot. Its 5 failures are pre-existing (identical names and order in the v1.65.0.0 run) and 3 of them plus 1 unparseable dead file target skills retired in `d8b4a061`. The harness's historical "no regressions" lines were self-comparisons against the run's own `_partial` accumulator and carry no information. |
+| **Free suite (`bun test`)** | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md) | **Green — exit 0, all singleton shards** (macOS, release/gstack2-public-beta, 2026-08-09; includes a fix for a stale registry entry that had broken the suite on main after f19d6cda). |
 | Measured baseline | [BASELINE.md](./BASELINE.md) | Recorded |
 | Candidate and baseline command ledger | [TEST-EVIDENCE.md](./TEST-EVIDENCE.md) | Runtime-absent, SIGINT, and native matrix pass; live v3 passed 4/4 on 2026-07-22 |
 | Native CI matrix | [native-2026-07-17.json](../../evals/ci/native-2026-07-17.json) | macOS, Ubuntu, Windows, installer, and Dev Container green |
@@ -325,8 +366,8 @@ before citing any eval result.
 | Structured scenarios | [SCENARIOS.md](./SCENARIOS.md) | 19/19 structured routing fixtures green |
 | Backlog traceability | [BACKLOG-MAP.json](./BACKLOG-MAP.json) | 820 unique items mapped (snapshots refreshed 2026-07-28) |
 | Context integration | [CONTEXT-DEV.md](./CONTEXT-DEV.md) | Automated contract 22/139 green; verified-key official-endpoint live smoke passed |
-| Host matrix | [HOST-COMPATIBILITY.md](./HOST-COMPATIBILITY.md) | 510/510 checks; Codex runtime-absent run + 4/4 live v3 passed; claude/cursor UI cells passed; pi cell retained failed; kimi auth-blocked; openclaw/copilot pending availability |
-| Privacy boundary | [PRIVACY.md](./PRIVACY.md), [EGRESS-AUDIT.md](./EGRESS-AUDIT.md) | Implemented contract; 2026-07-30 re-audit is current authority (supersedes the 2026-07-28 zero-violation pass): P1/P2 violations found, all P1s fixed and verified in tree, seven P2 items open |
+| Host matrix | [HOST-COMPATIBILITY.md](./HOST-COMPATIBILITY.md), [install-verify-2026-08-09.json](../../evals/installation/install-verify-2026-08-09.json) | Deterministic installer verification refreshed 2026-08-09 on this tree: seven hosts, six skills each, byte-identical. UI cells superseded per the 2026-07-29 decision; historical cells retained |
+| Privacy boundary | [PRIVACY.md](./PRIVACY.md), [EGRESS-AUDIT.md](./EGRESS-AUDIT.md) | Implemented contract; 2026-07-30 re-audit found P1/P2 violations — all P1s fixed that wave, and ALL remaining P2s (plus the memory-ingest scan default) fixed 2026-08-09, each with a fail-without-fix test |
 | Physical iOS | [IOS-PHYSICAL-DEVICE.md](./IOS-PHYSICAL-DEVICE.md), [live artifact](./evidence/ios-physical-device-2026-07-20T17-49-19-302Z.json) | 12/12 harness tests and five-of-five live iterations passed on a wired paired iPhone |
 | Upgrade/recovery | [UPGRADE-AND-ROLLBACK.md](./UPGRADE-AND-ROLLBACK.md) | Runtime installer 25 pass / 341 assertions; deterministic clean macOS arm64 bundle audit recorded |
 
@@ -341,5 +382,7 @@ before citing any eval result.
 - A fixture-backed structural result does not replace a live browser, physical
   device, external account, native OS, or host-install result where the gate
   explicitly requires one.
-- Do not market or release this branch as GStack 2 while this status is
-  `BLOCKED`.
+- The 2026-08-09 checkpoint supersedes `BLOCKED`: this branch may release as
+  the GStack 2 PUBLIC BETA (canonical Markdown-only install). Do not claim the
+  optional managed runtime is released until the signed `v2.0.0-rc.6` bootstrap
+  has been exercised through the production install path post-tag.

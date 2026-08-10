@@ -141,7 +141,7 @@ you missed it.>
 - [x] All Rails tests pass (N runs, 0 failures)
 - [x] All Vitest tests pass (N tests)
 
-🤖 Generated with [Claude Code](https:/$review --mode Deep --module claude.com/claude-code)
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
 #### Redaction scan (PR body + title) — runs before create AND edit

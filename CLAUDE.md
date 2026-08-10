@@ -3,487 +3,250 @@
 ## GStack 2 canonical contract
 
 The judgment surface is exactly `/plan`, `/qa`, `/debug`, `/review`, and `/ship`.
-They are lazy dispatchers over the preserved modules under
-`skills/*/references/legacy/`; do not rewrite or summarize away the original
-question pressure, rubrics, pushback, approval gates, evidence, artifacts,
-mutation boundaries, recommendations, or voice. Compatibility aliases under
-`skills/.compat/*/SKILL.md` route old names (e.g. `/office-hours`, `/qa-only`)
-to a dispatcher invocation and contain no judgment. `make-pdf` is a tool skill
-(not a judgment dispatcher) at `skills/make-pdf/`; it ships in the
-same canonical tree, so `npx skills add time-attack/gstack/skills` yields six
-discoverable skills (five dispatchers plus make-pdf).
+They are lazy dispatchers over the modules under `skills/*/references/legacy/`.
+Compatibility aliases under `skills/.compat/*/SKILL.md` route old names (e.g.
+`/office-hours`, `/qa-only`) to a dispatcher invocation and contain no judgment.
+`make-pdf` is a tool skill (not a judgment dispatcher) at `skills/make-pdf/`; it
+ships in the same canonical tree, so `npx skills add time-attack/gstack/skills`
+yields six discoverable skills.
 
 `/plan` has exactly six top-level modes: Discovery, Product, Engineering, DX,
 Specification, and Full chain. Do not expose its internal aliases as more
 top-level modes.
 
-Canonical install is `npx skills add time-attack/gstack/skills`. Standard installers
-own host placement and scope. Do not add host-specific install logic to the 2.0
-path. Pure judgment must work without the optional `bin/gstack` runtime.
-The host-neutral `./setup` installs only that managed runtime/capability bundle;
-it never owns host skill placement.
+Canonical install is `npx skills add time-attack/gstack/skills`. Standard
+installers own host placement and scope; do not add host-specific install logic
+to the 2.0 path. Pure judgment must work without the optional `bin/gstack`
+runtime. The host-neutral `./setup` installs only the managed runtime/capability
+bundle; it never owns host skill placement.
 
-`skills/` is the STATIC source of truth — the generator (`scripts/gstack2/`),
-`compat/`, and the parity harness were deleted; there is no regeneration step.
-The regression fixtures under `evals/parity/regressions/` remain as static
-test data.
-Edit files under `skills/` directly. The preserved legacy modules under
-`skills/*/references/legacy/` take bug fixes and mechanical corrections only;
-never rewrite, compress, or summarize the preserved judgment prose.
+`skills/` is the STATIC source of truth. The generator (`scripts/gstack2/`,
+`scripts/gen-skill-docs.ts`) and `compat/` were deleted; there is no
+regeneration step, so edit files under `skills/` directly. Legacy 1.x `.tmpl`
+files still in the tree are historical inputs with no build path.
+
+### The cut rule
+
+The modules under `skills/*/references/legacy/` are not frozen. The old rule
+said never rewrite, compress, or summarize them, which in practice meant never
+find out whether they earn their tokens. The rule now says do not act without
+finding out: **a cut states what it removes, why the host or a surviving module
+already covers it, and what check would catch the loss.** Unexamined cuts are
+still forbidden, and so is keeping 50KB because nobody measured it.
+
+Two facts frame every cut. Claude Code now ships `/code-review` at six effort
+tiers, `/security-review`, `/verify`, `/debug`, `/plan`, `/batch` and
+`/commit-push-pr` natively, so judgment that duplicates them is dead weight
+rather than heritage. And Anthropic deleted over 80% of Claude Code's own system
+prompt for the Opus 5 generation, roughly 800 tokens down to 164, with no
+measurable loss on coding evals. Deleting instruction text is normal maintenance
+of a tool built for current models, not damage to it.
+
+What stays, and why it is not sentiment: judgment that fights the model's own
+training or reaches something the host cannot. The founder pressure in
+`office-hours.md` is adversarial where a base model is agreeable. `codex.md` is
+a second model family, where every native review tier is Claude reviewing
+Claude. `health.md` trends a repo over time, where native reads one diff. The
+browser, physical iOS, and PDF are affordances no prompt conjures. The
+structural templates in `sections/ship/` are what make a PR body identical on
+the third run. Voice stays out of scope entirely, per the community-PR
+guardrail below.
+
+### Boundaries
 
 The runtime is host-neutral, uses `$GSTACK_HOME` or `~/.gstack`, and keeps state
-as locked/atomically written JSON and JSONL. Network mode defaults off.
-New external services (Context.dev, benchmark/eval backends, and the like) are
-allowed, but each must be optional, off by default, and consent-gated: send only
-what the user approves, and use typed failure codes. Context.dev specifically may
-receive only public URLs after explicit consent.
-`gstack context options` and `context select host|local-browser|none` persist
-fallback selection without granting Context.dev consent.
-The optional code-intelligence provider contract (GBrain, Sourcebot, Graphify
-via `gstack-code-intelligence`) follows the same rule: no provider selected by
-default, callers fall back to grep / the file-only decision store, and any
-provider that sends code off-machine requires explicit per-repo egress consent.
-The existing browser stays local. Physical iOS uses only DebugBridge/CoreDevice.
-Do not add cloud browsers, alternate iOS drivers, local image models,
-workflow engines, or a new state database.
+as locked/atomically written JSON and JSONL. Network mode defaults off. New
+external services are allowed, but each must be optional, off by default, and
+consent-gated: send only what the user approves, and use typed failure codes.
+Context.dev may receive only public URLs after explicit consent. The optional
+code-intelligence providers follow the same rule: none selected by default,
+callers fall back to grep / the file-only decision store, and any provider that
+sends code off-machine requires explicit per-repo egress consent. The browser
+stays local; physical iOS uses only DebugBridge/CoreDevice. Do not add cloud
+browsers, alternate iOS drivers, local image models, workflow engines, or a new
+state database. Full rationale: [docs/gstack-2/ARCHITECTURE.md](docs/gstack-2/ARCHITECTURE.md).
 
-Current completion claims must come from
+Completion claims must come from
 [`docs/gstack-2/STATUS.md`](docs/gstack-2/STATUS.md) and
 [`docs/gstack-2/TEST-EVIDENCE.md`](docs/gstack-2/TEST-EVIDENCE.md). A generated
 plan, static keyword test, or narrow green suite is not release evidence.
 
-The remaining sections describe the retained 1.x development and subsystem
-details. They continue to apply when touching those components, but their
-multi-host generation/setup path is not the canonical GStack 2 distribution.
+## Deploying to the active skill
 
-## Commands
+The standard Agent Skills installer owns host placement, scope, updates, and
+removal. Do not deploy by copying into a host-specific skill directory; refresh
+installed skills through that same installer. For local development,
+`bin/dev-setup` links the current worktree and keeps any brain-aware render in
+the ignored `.claude/gstack-rendered/`.
 
-```bash
-bun install          # install dependencies
-bun test             # run free tests (browse + snapshot + skill validation)
-bun run test:evals   # run paid evals: LLM judge + E2E (diff-based, ~$4/run max)
-bun run test:evals:all  # run ALL paid evals regardless of diff
-bun run test:gate    # run gate-tier tests only (CI default, blocks merge)
-bun run test:periodic  # run periodic-tier tests only (weekly cron / manual)
-bun run test:e2e     # run E2E tests only (diff-based, ~$3.85/run max)
-bun run test:e2e:all # run ALL E2E tests regardless of diff
-bun run eval:select  # show which tests would run based on current diff
-bun run dev <cmd>    # run CLI in dev mode, e.g. bun run dev goto https://example.com
-bun run build        # compile binaries (browse, make-pdf) — no doc generation step
-bun run eval:list    # list all eval runs from ~/.gstack-dev/evals/
-bun run eval:compare # compare two eval runs (auto-picks most recent)
-bun run eval:summary # aggregate stats across all eval runs
-bun run slop          # full slop-scan report (all files)
-bun run slop:diff     # slop findings in files changed on this branch only
-```
+## Read when relevant
 
-`test:evals` requires `ANTHROPIC_API_KEY`. Codex E2E tests (`test/codex-e2e.test.ts`)
-use Codex's own auth from `~/.codex/` config — no `OPENAI_API_KEY` env var needed.
+These are loaded on demand, not every session. Read the file when the work
+matches:
 
-**Env keys in Conductor workspaces.** The `GSTACK_*` env-shim (v1.39.2.0+,
-`lib/conductor-env-shim.ts`) promotes `GSTACK_ANTHROPIC_API_KEY` /
-`GSTACK_OPENAI_API_KEY` to their canonical names inside gstack's TS binaries.
-Tests run through gstack entrypoints inherit this promotion automatically.
-Don't echo the key value to stdout, logs, or shell history. The historical
-"never pass `env:` to `runAgentSdkTest`" rule is retired: the failure was
-partial-env replacement (the SDK's `Options.env` REPLACES the child's entire
-environment, so an object without the key broke auth). The runner now always
-passes a COMPLETE hermetic env with per-test `env:` merged last, so per-test
-overrides are safe; ambient `process.env.ANTHROPIC_API_KEY` mutation also
-still works (the env builder reads process.env at call time).
+| When | Read |
+|------|------|
+| Writing a CHANGELOG entry or picking a version bump | [docs/CHANGELOG-STYLE.md](docs/CHANGELOG-STYLE.md) |
+| Adding an upgrade migration | CONTRIBUTING.md, "Upgrade migrations" |
+| Builder philosophy, completeness, search-before-building | [ETHOS.md](ETHOS.md) |
+| Skill routing table | [AGENTS.md](AGENTS.md) |
+| Subsystem architecture (tunnel listeners, SSE, CDP, sanitization) | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Publishing OpenClaw skills | `clawhub publish <dir> --slug … --version …` (not `clawhub skill publish`) |
 
-**Hermetic local E2E (default).** Every E2E runner (claude -p, PTY, Agent
-SDK, codex, gemini) spawns children through `test/helpers/hermetic-env.ts`:
-allowlist-scrubbed env (operator `CONDUCTOR_*`, `CLAUDE_*`, `GSTACK_*`,
-`MCP_*`, `GBRAIN_*`, and credentials like `GH_TOKEN` never reach children),
-a fresh seeded `CLAUDE_CONFIG_DIR` (no operator `~/.claude` CLAUDE.md /
-MCP servers / skills), a temp `GSTACK_HOME`, and `--strict-mcp-config`.
-Local eval signal matches CI. Debug against real operator state with
-`EVALS_HERMETIC=0` (restores the legacy env AND drops the strict-MCP flag).
-Per-test `env:` overrides merge last, so deliberate contamination
-(`CONDUCTOR_WORKSPACE_PATH`, per-test `GSTACK_HOME`) keeps working. Wiring
-is pinned by `test/hermetic-wiring.test.ts` (static tripwire) and two
-gate-tier canaries in `test/skill-e2e-hermetic-canary.test.ts`.
+Available scripts are in `package.json`; `bun run eval:select` previews which
+paid tests a diff selects. `bun run test` is the sharded free suite (bare
+`bun test` bypasses the `scripts/test-free-strict.ts` wrapper that works around
+a Bun runner bug where failures print on a zero exit).
 
-E2E tests stream progress in real-time (tool-by-tool via `--output-format stream-json
---verbose`). Results are persisted to `~/.gstack-dev/evals/` with auto-comparison
-against the previous run.
+## Test environment
 
-**Diff-based test selection:** `test:evals` and `test:e2e` auto-select tests based
-on `git diff` against the base branch. Each test declares its file dependencies in
-`test/helpers/touchfiles.ts`. Changes to global touchfiles (session-runner, eval-store,
-touchfiles.ts itself) trigger all tests. Use `EVALS_ALL=1` or the `:all` script
-variants to force all tests. Run `eval:select` to preview which tests would run.
+**Never echo an API key value** to stdout, logs, or shell history.
 
-**Two-tier system:** Tests are classified as `gate` or `periodic` in `E2E_TIERS`
-(in `test/helpers/touchfiles.ts`). CI runs only gate tests (`EVALS_TIER=gate`);
-periodic tests run weekly via cron or manually. Use `EVALS_TIER=gate` or
-`EVALS_TIER=periodic` to filter. When adding new E2E tests, classify them:
-1. Safety guardrail or deterministic functional test? -> `gate`
-2. Quality benchmark, Opus model test, or non-deterministic? -> `periodic`
-3. Requires external service (Codex, Gemini)? -> `periodic`
+`test:evals` requires `ANTHROPIC_API_KEY`. Codex E2E tests use Codex's own auth
+from `~/.codex/`; no `OPENAI_API_KEY` needed.
 
-## Testing
+**Hermetic local E2E (default).** Every E2E runner (claude -p, PTY, Agent SDK,
+codex, gemini) spawns children through `test/helpers/hermetic-env.ts`:
+allowlist-scrubbed env (operator `CONDUCTOR_*`, `CLAUDE_*`, `GSTACK_*`, `MCP_*`,
+`GBRAIN_*`, and credentials like `GH_TOKEN` never reach children), a fresh
+seeded `CLAUDE_CONFIG_DIR`, a temp `GSTACK_HOME`, and `--strict-mcp-config`. So
+local eval signal matches CI. Debug against real operator state with
+`EVALS_HERMETIC=0`. Per-test `env:` overrides merge last, so deliberate
+contamination keeps working. Wiring is pinned by `test/hermetic-wiring.test.ts`.
 
-```bash
-bun test             # run before every commit — free, <2s
-bun run test:evals   # run before shipping — paid, diff-based (~$4/run max)
-```
+The runner always passes a COMPLETE env, so per-test `env:` is safe. The
+historical "never pass `env:` to `runAgentSdkTest`" rule is retired; the real
+failure was partial-env replacement, since the SDK's `Options.env` REPLACES the
+child's entire environment.
 
-`bun test` runs skill validation and browse integration tests. `bun run test:evals` runs LLM-judge quality evals and E2E
-tests via `claude -p`. Both must pass before creating a PR.
+Tests are classified `gate` or `periodic` in `E2E_TIERS`
+(`test/helpers/touchfiles.ts`). CI runs gate only. When adding an E2E test: a
+safety guardrail or deterministic functional test is `gate`; a quality
+benchmark, Opus test, non-deterministic test, or one needing an external
+service is `periodic`.
 
-## Project structure
+**E2E fixtures: extract, don't copy.** Never copy a full SKILL.md into a fixture
+(1500-2000 lines causes timeouts and turn-limit flake). Slice the one section
+the test needs.
 
-```
-gstack/
-├── skills/          # STATIC GStack 2 skill tree (source of truth, no generator)
-│   ├── plan/ qa/ debug/ review/ ship/  # The five judgment dispatchers
-│   │   └── references/legacy/  # Preserved specialist modules — never rewrite
-│   ├── make-pdf/    # Tool skill (sixth discoverable skill)
-│   └── .compat/     # Old-name aliases (office-hours, qa-only, ...) — routing only
-├── browse/          # Headless browser CLI (Playwright)
-│   ├── src/         # CLI + server + commands
-│   │   ├── commands.ts  # Command registry (single source of truth)
-│   │   └── snapshot.ts  # SNAPSHOT_FLAGS metadata array
-│   ├── test/        # Integration tests + fixtures
-│   └── dist/        # Compiled binary (gitignored)
-├── scripts/         # Build + DX tooling (build.sh, eval-*.ts, test-free-*.ts, slop-diff.ts)
-├── test/            # Skill validation + eval tests
-│   ├── helpers/     # skill-parser.ts, session-runner.ts, llm-judge.ts, eval-store.ts
-│   ├── fixtures/    # Ground truth JSON, planted-bug fixtures, eval baselines
-│   ├── skill-validation.test.ts  # Tier 1: static validation (free, <1s)
-│   ├── skill-llm-eval.test.ts   # Tier 3: LLM-as-judge (~$0.15/run)
-│   └── skill-e2e-*.test.ts       # Tier 2: E2E via claude -p (~$3.85/run, split by category)
-├── qa-only/         # /qa-only skill (report-only QA, no fixes)
-├── ship/            # Ship workflow skill
-├── review/          # PR review skill
-├── plan-ceo-review/ # /plan-ceo-review skill
-├── plan-eng-review/ # /plan-eng-review skill
-├── autoplan/        # /autoplan skill (auto-review pipeline: CEO → design → eng)
-├── benchmark/       # /benchmark skill (performance regression detection)
-├── canary/          # /canary skill (post-deploy monitoring loop)
-├── codex/           # /codex skill (multi-AI second opinion via OpenAI Codex CLI)
-├── land-and-deploy/ # /land-and-deploy skill (merge → deploy → canary verify)
-├── office-hours/    # /office-hours skill (YC Office Hours — startup diagnostic + builder brainstorm)
-├── investigate/     # /investigate skill (systematic root-cause debugging)
-├── spec/            # /spec skill (five-phase spec → GitHub issue, optional agent spawn, /ship auto-closes)
-├── retro/           # Retrospective skill (includes /retro global cross-project mode)
-├── bin/             # CLI utilities (gstack-repo-mode, gstack-slug, gstack-config, etc.)
-├── document-release/ # /document-release skill (post-ship doc updates + Diataxis coverage map)
-├── document-generate/ # /document-generate skill (Diataxis doc generator: tutorial/how-to/reference/explanation)
-├── cso/             # /cso skill (OWASP Top 10 + STRIDE security audit)
-├── open-gstack-browser/  # /open-gstack-browser skill (launch GStack Browser)
-├── connect-chrome/  # symlink → open-gstack-browser (backwards compat)
-├── extension/       # Chrome extension (side panel + activity feed + CSS inspector)
-├── lib/             # Shared libraries (worktree.ts)
-├── docs/designs/    # Design documents
-├── setup-deploy/    # /setup-deploy skill (one-time deploy config)
-├── .github/         # CI workflows + Docker image
-│   ├── workflows/   # evals.yml (E2E on Ubicloud), skill-docs.yml, actionlint.yml
-│   └── docker/      # Dockerfile.ci (pre-baked toolchain + Playwright/Chromium)
-├── contrib/         # Contributor-only tools (never installed for users)
-│   └── add-host/    # /gstack-contrib-add-host skill
-├── setup            # One-time setup: build binary + install managed runtime bundle
-├── ETHOS.md         # Builder philosophy (Boil the Ocean, Search Before Building)
-└── package.json     # Build scripts for browse
-```
+## Running long jobs and evals
 
-## SKILL.md workflow
+When **you** launch a long eval, run it through `bin/gstack-detach` — never a
+plain backgrounded Bash task. A plain background task lives in the harness's
+process group, so a SIGTERM on a turn boundary kills the run mid-flight; on
+macOS it can also die to idle-sleep. `gstack-detach` gives it a fresh session
+and wraps it in `caffeinate -i`.
 
-SKILL.md files under `skills/` are **static** — the generator
-(`scripts/gen-skill-docs.ts`) was deleted, so there is no regeneration step.
-Edit the SKILL.md files directly. Legacy 1.x `.tmpl` files still in the tree
-are historical inputs with no build path; don't edit them expecting output.
+Prefer the `eval:bg*` scripts — they add a machine-wide `gstack-evals` lock (so
+concurrent worktrees serialize instead of saturating the model API and
+mass-timing-out), a watchdog, and a run-scoped log. Then **poll the printed
+logfile** and break on the `### gstack-detach EXIT=<code> ###` sentinel, which
+marks success AND failure, so silence is never mistaken for success. The
+detached run survives your watcher being reaped.
 
-To add a new browse command: add it to `browse/src/commands.ts` and rebuild.
-To add a snapshot flag: add it to `SNAPSHOT_FLAGS` in `browse/src/snapshot.ts` and rebuild.
+Poll until completion. A full suite can take 30-45 minutes; do all the cycles
+and report progress at each check. Never say you'll check later and stop.
+Humans running evals in their own terminal don't need this — Ctrl-C is intended
+there.
 
-**Size budget:** `test/skill-size-budget.test.ts` guards skill size. It is a
-"watch for feature bloat" guardrail, not a compression mandate — if a skill
-grows, look at WHAT grew and whether it belongs inline or as a reference doc;
-only compress carefully-tuned prose as a last resort. Cuts to preserved
-judgment (coverage audit, review army, voice) have real quality cost and are
-forbidden by the canonical contract.
+## E2E eval failure blame protocol
 
-## Platform-agnostic design
-
-Skills must NEVER hardcode framework-specific commands, file patterns, or directory
-structures. Instead:
-
-1. **Read CLAUDE.md** for project-specific config (test commands, eval commands, etc.)
-2. **If missing, AskUserQuestion** — let the user tell you or let gstack search the repo
-3. **Persist the answer to CLAUDE.md** so we never have to ask again
-
-This applies to test commands, eval commands, deploy commands, and any other
-project-specific behavior. The project owns its config; gstack reads it.
+Never claim a failure is "not related to our changes" without proving it. These
+systems have invisible couplings: a preamble text change alters agent behavior,
+a new helper changes timing. To attribute a failure to pre-existing, run the
+same eval on the base branch and show it fails there too. If it passes on main
+and fails on the branch, it IS your change. If you can't run it on main, say
+"unverified" and flag it as a risk in the PR body. "Pre-existing" without
+receipts is a lazy claim.
 
 ## Writing SKILL files
 
-SKILL.md files are **prompts read by Claude**, not bash scripts.
-Each bash code block runs in a separate shell — variables do not persist between blocks.
+SKILL.md files are prompts read by Claude, not bash scripts, and **each bash
+block runs in a separate shell** — variables do not persist between blocks. So
+carry state in prose ("the base branch detected in Step 0"), not shell
+variables. Express conditionals as numbered English steps rather than nested
+`if/elif`. Keep each block independently runnable. Don't hardcode branch names;
+detect the base branch dynamically and call it "the base branch" in prose.
 
-Rules:
-- **Use natural language for logic and state.** Don't use shell variables to pass
-  state between code blocks. Instead, tell Claude what to remember and reference
-  it in prose (e.g., "the base branch detected in Step 0").
-- **Don't hardcode branch names.** Detect `main`/`master`/etc dynamically via
-  `gh pr view` or `gh repo view`. Use "the base branch" in prose, `<base>` in
-  code block placeholders.
-- **Keep bash blocks self-contained.** Each code block should work independently.
-  If a block needs context from a previous step, restate it in the prose above.
-- **Express conditionals as English.** Instead of nested `if/elif/else` in bash,
-  write numbered decision steps: "1. If X, do Y. 2. Otherwise, do Z."
+`test/gstack2-skills.test.ts` guards the discovery catalog (70% below the 1.x
+baseline, 40K tokens per SKILL.md) and `test/context-bill.test.ts` pins the
+eager-read tier byte-exactly and fails on an orphaned legacy module. Both are
+watch-for-bloat guardrails, not compression mandates: when a skill grows, look
+at WHAT grew and whether it belongs inline or as a reference doc.
 
-## Writing style (V1)
+Known gap: nothing enforces a floor, so a legacy module can be gutted without
+tripping a test. The old floor lived in `skill-size-budget.test.ts`, which only
+ever measured the 1.x root tree.
 
-Default output from every judgment skill follows the writing-style rules baked
-into the skill files: jargon glossed on first use (curated list in
-`skills/*/references/support/scripts/jargon-list.json`), questions framed in
-outcome terms ("what breaks for your users if...") not implementation terms,
-short sentences, decisions close with user impact. Power users who want the
-tighter V0 prose set `gstack-config set explain_level terse` (binary switch,
-no middle mode). See `docs/designs/PLAN_TUNING_V1.md` for the full design
-rationale. The review pacing overhaul that originally tried to ride alongside
-writing-style was extracted to V1.1 — see `docs/designs/PACING_UPDATES_V0.md`.
+## Platform-agnostic design
+
+Skills must never hardcode framework-specific commands, file patterns, or
+directory structures. Read CLAUDE.md for project config; if it's missing, ask
+via AskUserQuestion, then persist the answer to CLAUDE.md so it's never asked
+twice. The project owns its config; gstack reads it.
 
 ## Browser interaction
 
-When you need to interact with a browser (QA, dogfooding, cookie setup), use the
-`/browse` skill or run the browse binary directly via `$B <command>`. NEVER use
-`mcp__claude-in-chrome__*` tools — they are slow, unreliable, and not what this
-project uses.
+Use the `/browse` skill or the browse binary via `$B <command>`. NEVER use
+`mcp__claude-in-chrome__*` tools — slow, unreliable, and not what this project
+uses.
 
-**`/health` MUST NOT surface any shell-grant token.** It already leaks
-`AUTH_TOKEN` to localhost callers in headed mode (a v1.1+ TODO). Don't
-make that worse by adding new secrets to the payload.
+**`/health` MUST NOT surface any shell-grant token.** Do not add new secrets to
+that payload.
 
-**Transport-layer security** (v1.6.0.0+). When `pair-agent` starts an ngrok tunnel,
-the daemon binds two HTTP listeners: a local listener (127.0.0.1, full command
-surface, never forwarded) and a tunnel listener (locked allowlist: `/connect`,
-`/command` with a scoped token + 26-command browser-driving allowlist).
-ngrok forwards only the tunnel port. Root tokens over the tunnel
-return 403. SSE endpoints use a 30-minute HttpOnly `gstack_sse` cookie minted via
-`POST /sse-session` (never valid against `/command`). Tunnel-surface rejections go
-to `~/.gstack/security/attempts.jsonl` via `tunnel-denial-log.ts`. Before editing
-`server.ts`, `sse-session-cookie.ts`, or `tunnel-denial-log.ts`, read
-[ARCHITECTURE.md](ARCHITECTURE.md#dual-listener-tunnel-architecture-v1600) —
-the module boundary (no imports from `token-registry.ts` into `sse-session-cookie.ts`)
-is load-bearing for scope isolation.
+Subsystem invariants (dual-listener tunnel scope isolation, Unicode
+sanitization at server egress, the `createSseEndpoint` cleanup contract, CDP
+session lifecycle, the `_link_or_copy` setup helper) are documented in
+[ARCHITECTURE.md](ARCHITECTURE.md) and each is pinned by a CI tripwire test.
+Read the relevant section before editing `server.ts`, `sse-helpers.ts`,
+`sse-session-cookie.ts`, `tunnel-denial-log.ts`, or `setup`.
 
-**Unicode sanitization at server egress** (v1.38.0.0+). Every server egress that
-ships page-content-derived strings MUST go through `JSON.stringify(payload,
-sanitizeReplacer)` for object payloads or `sanitizeLoneSurrogates(body)` for text
-bodies. Lone UTF-16 surrogate halves from CDP page content otherwise reach the
-Anthropic API as `\uD800`-style escapes and trigger a 400. Wired at four egress
-points today: `handleCommandInternal` (HTTP + batch via a sanitizing wrapper around
-`handleCommandInternalImpl`) and both SSE producers (`/activity/stream`,
-`/inspector/events`). Post-stringify regex is a no-op — `JSON.stringify` has
-already escaped the surrogate before regex could match, so the replacer must run
-inside the encoding pipeline. Before adding a new SSE/WebSocket writer or HTTP
-response in `server.ts`, read
-[ARCHITECTURE.md](ARCHITECTURE.md#unicode-sanitization-at-server-egress-v13800).
-`browse/test/server-sanitize-surrogates.test.ts` pins the wiring with invariant
-tests, so bypasses fail CI.
-
-**SSE endpoint helper** (v1.51.0.0+). New SSE endpoints in `server.ts` MUST route
-through `createSseEndpoint(req, config)` from `browse/src/sse-helpers.ts`. The
-helper owns the cleanup contract (abort + enqueue-throw + heartbeat-throw, all
-idempotent) and bakes in `sanitizeLoneSurrogates` on every JSON.stringify, so
-new subscribers can't accidentally regress either invariant. Inline
-`ReadableStream` wiring leaked subscribers when the TCP connection died without
-firing `req.signal.abort` (Chromium MV3 service-worker suspend, intermediate
-proxy half-close). `/activity/stream`, `/inspector/events`, and `/memory`
-(SSE-eligible) all route through it. `browse/test/sse-helpers.test.ts` pins the
-cleanup contract.
-
-**CDP session lifecycle** (v1.51.0.0+). Direct `page.context().newCDPSession(page)`
-calls outside `browse/src/cdp-bridge.ts` fail CI via the static-grep tripwire in
-`browse/test/cdp-session-cleanup.test.ts`. Use `withCdpSession(page, async (s) => {...})`
-for one-shot CDP work (try/finally detach) or `getOrCreateCdpSession(page, cache)`
-for cached sessions tied to a page's lifetime (close-detach via `Map<page, session>`).
-Three sites migrated: cdp-bridge frame events, write-commands archive capture,
-cdp-inspector. The helpers prevent the per-session leak class where successful-path
-detach happened but error-path detach was missed.
-
-**Setup symlink hardening** (v1.38.0.0+). Every link site in `setup` MUST route
-through the `_link_or_copy SRC DST` helper near the `IS_WINDOWS` detection. On
-Windows without Developer Mode, plain `ln -snf` produces frozen file copies that
-don't refresh on `git pull` — silent staleness across every host adapter. The
-helper preserves `ln -snf` on Unix and switches to `cp -R` / `cp -f` on Windows.
-`test/setup-windows-fallback.test.ts` enforces a static invariant: a single raw
-`ln` call outside the helper body fails CI. Windows users get a one-line note
-from `_print_windows_copy_note_once` reminding them to re-run `./setup` after
-every `git pull`.
-
-**Page-content security layers** (defense against prompt injection in
-page content the browser reads):
-
-| Layer | Module | Notes |
-|-------|--------|-------|
-| L1-L3 | `content-security.ts` | datamarking, hidden element strip, ARIA regex, URL blocklist, envelope wrapping |
-| L5 | `security.ts` (canary) | inject + check |
-| L6 | `security.ts` (combineVerdict) | threshold aggregation |
-
-`security.ts` is pure-string (canary, verdict combiner, attack log, status)
-and safe to import from the compiled `browse/dist/browse` binary — it loads
-no native modules. The prompt-injection ML classifier (TestSavantAI/DeBERTa
-ONNX) and its in-browser sidebar/terminal caller were removed.
-
-## Dev symlink awareness
-
-When developing gstack, `.claude/skills/gstack` may be a symlink back to this
-working directory (gitignored). This means skill changes are **live immediately**,
-great for rapid iteration, risky during big refactors where half-written skills
-could break other Claude Code sessions using gstack concurrently.
-
-**Check once per session:** Run `ls -la .claude/skills/gstack` to see if it's a
-symlink or a real copy. If it's a symlink to your working directory, be aware that:
-- SKILL.md edits immediately affect all gstack invocations
-- Breaking changes to skill files can break concurrent gstack sessions
-- During large refactors, remove the symlink (`rm .claude/skills/gstack`) so the
-  global install at `~/.claude/skills/gstack/` is used instead
-
-**Prefix setting:** Setup creates real directories (not symlinks) at the top level
-with a SKILL.md symlink inside (e.g., `qa/SKILL.md -> gstack/qa/SKILL.md`). This
-ensures Claude discovers them as top-level skills, not nested under `gstack/`.
-Names are either short (`qa`) or namespaced (`gstack-qa`), controlled by
-`skill_prefix` in `~/.gstack/config.yaml`. Pass `--no-prefix` or `--prefix` to
-skip the interactive prompt.
-
-**Note:** Vendoring gstack into a project's repo is deprecated. Use global install
-+ `./setup --team` instead. See README.md for team mode instructions.
-
-**For plan reviews:** When reviewing plans that modify skill files, consider
-whether the changes should be tested in isolation
-before going live (especially if the user is actively using gstack in other windows).
-
-**Upgrade migrations:** When a change modifies on-disk state (directory structure,
-config format, stale files) in ways that could break existing user installs, add a
-migration script to `gstack-upgrade/migrations/`. Read CONTRIBUTING.md's "Upgrade
-migrations" section for the format and testing requirements. The upgrade skill runs
-these automatically after `./setup` during `/gstack-upgrade`.
+Page content the browser reads passes prompt-injection layers in
+`browse/src/content-security.ts` (datamarking, hidden-element strip, ARIA
+regex, URL blocklist, envelope wrapping) and `browse/src/security.ts` (canary
+inject/check, verdict combiner). `security.ts` is pure-string and safe to
+import from the compiled binary; it loads no native modules.
 
 ## Compiled binaries — NEVER commit dist/ directories
 
-`browse/dist/` and `make-pdf/dist/` contain compiled Bun binaries (~58MB each).
-These are Mach-O arm64 only — they do NOT work on Linux, Windows, or Intel Macs.
-The `./setup` script builds from source for every platform, and the directories
-are gitignored.
+`browse/dist/` and `make-pdf/dist/` hold compiled Bun binaries. They are
+platform-specific, `./setup` builds them from source, and they are gitignored.
 
-**NEVER stage or commit these files.** When staging files, always use specific
-filenames (`git add file1 file2`) — never `git add .` or `git add -A`, which
-could accidentally include build artifacts.
+**Never stage or commit them.** When staging, always use specific filenames
+(`git add file1 file2`) — never `git add .` or `git add -A`.
 
 ## Redaction guard (PII / secrets / legal content)
 
-Shared redaction engine catches credentials, PII, and legal/damaging content
-before it reaches an external sink (codex dispatch, GitHub issue/PR body, pushed
-commit). It is a **guardrail, not airtight enforcement** — `git push --no-verify`,
-direct `gh issue create`, and `GSTACK_REDACT_PREPUSH=skip` all bypass it. It
-catches accidents and carelessness, the 99% case. Do not claim it stops a
-determined leaker (a CHANGELOG line that does would fail a hostile screenshotter).
+A shared engine catches credentials, PII, and legal/damaging content before it
+reaches an external sink (codex dispatch, GitHub issue/PR body, pushed commit).
+It is a **guardrail, not airtight enforcement** — `git push --no-verify`, direct
+`gh issue create`, and `GSTACK_REDACT_PREPUSH=skip` all bypass it. It catches
+accidents and carelessness, the 99% case. Do not claim it stops a determined
+leaker.
 
-- **Engine + taxonomy:** `lib/redact-patterns.ts` (the single source of truth —
-  3 tiers; HIGH = genuinely-secret credentials that block, MEDIUM = PII/legal/
-  internal + high-FP credential shapes that confirm via AskUserQuestion, LOW =
-  FYI) and `lib/redact-engine.ts` (pure `scan()` + `applyRedactions()`).
-  Calibration matters: a gate that cries wolf gets ignored, so context-variable
-  shapes (Stripe `pk_live_`, Google `AIza`, JWT, env `*_KEY=`) sit at MEDIUM.
-- **CLI:** `bin/gstack-redact` (exit 0 clean / 2 MEDIUM / 3 HIGH; `--json`,
-  `--auto-redact`, `--repo-visibility`, `--from-file`). `bin/gstack-redact-prepush`
-  is the opt-in git hook.
-- **Skill docs carry the taxonomy statically** (the redact-doc resolver is gone
-  with the generator); when the engine's tiers or invocation contract change,
-  update the redaction prose in the affected skill files under `skills/` too.
-- **Scan-at-sink:** always scan the EXACT bytes that will be sent — write to a
-  temp file, scan that file, pass the SAME file to `gh`/`git`. Never scan a string
-  then re-render (that reopens a scan-vs-send gap).
-- **Visibility (no tier promotion):** resolve once per run, order = local config
-  (`gstack-config get redact_repo_visibility`, ~/.gstack so never committed) → gh
-  → glab → unknown(=public-strict). Public repos get STERNER per-finding
-  confirmation (no batch-acknowledge, no silent-proceed); MEDIUM is never
+`lib/redact-patterns.ts` is the single source of truth for the 3-tier taxonomy
+(HIGH blocks, MEDIUM confirms via AskUserQuestion, LOW is FYI);
+`lib/redact-engine.ts` is the pure `scan()` + `applyRedactions()`. Calibration
+matters: a gate that cries wolf gets ignored, so context-variable shapes sit at
+MEDIUM. CLI is `bin/gstack-redact` (exit 0 clean / 2 MEDIUM / 3 HIGH).
+
+The rules that must not erode:
+
+- **Scan-at-sink.** Always scan the EXACT bytes that will be sent: write to a
+  temp file, scan that file, pass the SAME file to `gh`/`git`. Never scan a
+  string then re-render — that reopens a scan-vs-send gap.
+- **No tier promotion.** Resolve repo visibility once per run: local config →
+  gh → glab → unknown (= public-strict). Public repos get STERNER per-finding
+  confirmation, no batch-acknowledge and no silent-proceed. MEDIUM is never
   auto-promoted to HIGH.
-- **Tool-attributed fences:** wrap Codex/Greptile/eval output in ` ```codex-review `
-  / ` ```greptile ` fences so example credentials those tools quote WARN-degrade
-  instead of blocking. A live-format credential inside the fence still blocks.
-- **Config keys:** `redact_repo_visibility` (public|private|unknown, local-only
-  override for repos gh/glab can't read), `redact_prepush_hook` (true|false).
-  There is intentionally NO key to disable HIGH blocking.
-- **Audit:** the /spec semantic pass appends a content-free record (categories +
-  body sha256, no spec text) to `~/.gstack/security/semantic-reviews.jsonl` (0600).
-
-## Commit style
-
-**Always bisect commits.** Every commit should be a single logical change. When
-you've made multiple changes (e.g., a rename + a rewrite + new tests), split them
-into separate commits before pushing. Each commit should be independently
-understandable and revertable.
-
-Examples of good bisection:
-- Rename/move separate from behavior changes
-- Test infrastructure (touchfiles, helpers) separate from test implementations
-- Template changes separate from generated file regeneration
-- Mechanical refactors separate from new features
-
-When the user says "bisect commit" or "bisect and push," split staged/unstaged
-changes into logical commits and push.
-
-## Slop-scan: AI code quality, not AI code hiding
-
-We use [slop-scan](https://github.com/benvinegar/slop-scan) to catch patterns where
-AI-generated code is genuinely worse than what a human would write. We are NOT trying
-to pass as human code. We are AI-coded and proud of it. The goal is code quality.
-
-```bash
-npx slop-scan scan .          # human-readable report
-npx slop-scan scan . --json   # machine-readable for diffing
-```
-
-Config: `slop-scan.config.json` at repo root (currently excludes `**/vendor/**`).
-
-### What to fix (genuine quality improvements)
-
-- **Empty catches around file ops** — use `safeUnlink()` (ignores ENOENT, rethrows
-  EPERM/EIO). A swallowed EPERM in cleanup means silent data loss.
-- **Empty catches around process kills** — use `safeKill()` (ignores ESRCH, rethrows
-  EPERM). A swallowed EPERM means you think you killed something you didn't.
-- **Redundant `return await`** — remove when there's no enclosing try block. Saves a
-  microtask, signals intent.
-- **Typed exception catches** — `catch (err) { if (!(err instanceof TypeError)) throw err }`
-  is genuinely better than `catch {}` when the try block does URL parsing or DOM work.
-  You know what error you expect, so say so.
-
-### What NOT to fix (linter gaming, not quality)
-
-- **String-matching on error messages** — `err.message.includes('closed')` is brittle.
-  Playwright/Chrome can change wording anytime. If a fire-and-forget operation can fail
-  for ANY reason and you don't care, `catch {}` is the correct pattern.
-- **Adding comments to exempt pass-through wrappers** — "alias for active session" above
-  a method just to trip slop-scan's exemption rule is noise, not documentation.
-- **Converting extension catch-and-log to selective rethrow** — Chrome extensions crash
-  entirely on uncaught errors. If the catch logs and continues, that IS the right pattern
-  for extension code. Don't make it throw.
-- **Tightening best-effort cleanup paths** — shutdown, emergency cleanup, and disconnect
-  code should use `safeUnlinkQuiet()` (swallows ALL errors). A cleanup path that throws
-  on EPERM means the rest of cleanup doesn't run. That's worse.
-
-### Utilities in `browse/src/error-handling.ts`
-
-| Function | Use when | Behavior |
-|----------|----------|----------|
-| `safeUnlink(path)` | Normal file deletion | Ignores ENOENT, rethrows others |
-| `safeUnlinkQuiet(path)` | Shutdown/emergency cleanup | Swallows all errors |
-| `safeKill(pid, signal)` | Sending signals | Ignores ESRCH, rethrows others |
-| `isProcessAlive(pid)` | Boolean process checks | Returns true/false, never throws |
-
-### Score tracking
-
-Baseline (2026-04-09, before cleanup): 100 findings, 432.8 score, 2.38 score/file.
-After cleanup: 90 findings, 358.1 score, 1.96 score/file.
-
-Don't chase the number. Fix patterns that represent actual code quality problems.
-Accept findings where the "sloppy" pattern is the correct engineering choice.
+- **There is intentionally NO config key to disable HIGH blocking.**
+- **Tool-attributed fences.** Wrap Codex/Greptile/eval output in
+  ` ```codex-review ` / ` ```greptile ` fences so example credentials those
+  tools quote WARN-degrade instead of blocking. A live-format credential inside
+  a fence still blocks.
+- Skill docs carry the taxonomy statically (the redact-doc resolver went with
+  the generator), so when the engine's tiers change, update the redaction prose
+  under `skills/` too.
 
 ## Community PR guardrails
 
@@ -505,450 +268,71 @@ No auto-merging. No "I'll just clean this up."
 
 ## Checking out PRs from garrytan-agents
 
-When the user says "check out <PR link>" and the PR is from `garrytan-agents/gstack`
-(or any other fork that is NOT a collaborator on `garrytan/gstack`), do NOT just
-`gh pr checkout`. Fork PRs don't receive base-repo secrets (`ANTHROPIC_API_KEY`,
-`OPENAI_API_KEY`, etc.), so the eval/E2E CI jobs fail with empty-env auth errors
-regardless of what's set on the base repo.
-
-**Workflow:** push the branch to `garrytan/gstack` (the base repo) and re-target
-the PR from there.
-
-Concretely, after `gh pr checkout <N>`:
-
-1. Note the original PR number and head branch name.
-2. Push the same branch to the base repo: `git push origin HEAD:<branch-name>`
-   (origin = `garrytan/gstack`, since the worktree is set up with that remote).
-3. Close the fork PR (`gh pr close <N> --comment "moving to base-repo branch for secret access"`).
-4. Open a new PR from the base-repo branch: `gh pr create --base main --head <branch-name>`.
-5. New PR's workflows will get secrets automatically.
-
-Why not fix it on the fork side? `garrytan-agents` isn't a collaborator on
-`garrytan/gstack`. Adding it as a collaborator (option A) or flipping the
-repo-wide "send secrets to fork PRs" toggle (option B) would let secrets reach
-fork PRs from anyone — broader blast radius than just moving this one branch.
-Option C (this section) keeps secret-distribution scope tight.
-
-If the user asks you to skip the move (e.g., "just leave it as a fork PR"),
-respect that — eval CI will fail with empty-env auth, but check-freshness,
-workflow-lint, and windows-tests will still pass on the fork PR.
-
-## CHANGELOG + VERSION style
-
-**Versioning invariant (workspace-aware ship).** VERSION is a monotonic ordered
-release identifier, not a strict semver commitment. The bump level
-(major/minor/patch/micro) expresses intent at ship time. Queue-advancing past a
-claimed version within the same bump level is explicitly permitted — if branch A
-claims v1.7.0.0 as a MINOR and branch B is also a MINOR, B lands at v1.8.0.0
-(still a MINOR relative to main). Downstream consumers must NOT rely on
-"MINOR = feature-only, PATCH = fix-only" as a strict contract. This is why
-`bin/gstack-next-version` advances within the chosen bump level rather than
-repicking the level when collisions happen.
-
-**Scale-aware bumps — use common sense.** When the diff is big, bump MINOR (or
-MAJOR), not PATCH. PATCH is for bug fixes and small additions; MINOR is for
-substantial new capability or substantial reduction; MAJOR is for breaking
-changes. Rough guideposts (don't treat as rules, treat as smell-checks):
-
-- **PATCH (X.Y.Z+1.0)**: bug fix, doc tweak, small additive change, single
-  test/file added. Net diff under ~500 lines, no new user-facing capability.
-- **MINOR (X.Y+1.0.0)**: new capability shipped (skill, harness, command, big
-  refactor), substantial code reduction (compression, migration), or coordinated
-  multi-file change. Net diff over ~2000 lines added/removed, OR a user-visible
-  feature you'd put in a tweet.
-- **MAJOR (X+1.0.0.0)**: breaking change to public surface (CLI flag rename,
-  skill removed, config format changed), OR a release big enough to be the
-  headline of a blog post.
-
-If you find yourself debating "is 10K added + 24K removed really a PATCH?" — it
-isn't. Bump MINOR. Same for "this adds a whole new test harness with 6 new E2E
-tests + helper utilities" — MINOR. The bump level is communication to the user
-about what kind of release this is; don't undersell it.
-
-When merging origin/main brings a higher VERSION, re-evaluate the bump level
-against the SCALE of your branch's work, not just whether main moved forward.
-If main bumped MINOR and your branch is also a substantial change, you bump
-MINOR again on top (e.g., main at v1.14.0.0, your branch lands v1.15.0.0).
-
-**VERSION and CHANGELOG are branch-scoped.** Every feature branch that ships gets its
-own version bump and CHANGELOG entry. The entry describes what THIS branch adds —
-not what was already on main.
-
-**The CHANGELOG entry is the diff between main and the shipping branch — what users
-get when they upgrade. NOT how the branch got there.** A reader landing on the entry
-should learn what they can do now that they couldn't before; they should not learn
-about the branch's internal version bumps, the bugs we caught and fixed mid-branch,
-the plan reviews we ran, or the commits we squashed. That is branch development
-narrative. It belongs in PR descriptions and commit messages, not CHANGELOG.
-
-**Never reference branch-internal versions in a CHANGELOG entry.** If your branch
-bumped VERSION from v1.5.0.0 → v1.5.1.0 → v1.6.0.0 during development and only the
-final v1.6.0.0 ships to main, the entry must read as if v1.5.1.0 never existed.
-Concretely, NEVER write:
-- "v1.5.1.0 had a bug that v1.6.0.0 fixes" — readers don't know about v1.5.1.0; it's
-  a branch-internal artifact.
-- "The shipping headline of v1.5.1.0 was broken because..." — same reason. From main's
-  perspective, v1.5.1.0 was never released.
-- "Pre-fix tests encoded the broken behavior" — that's a contributor's victory lap,
-  not a user benefit.
-- "Two surgical edits, both in the dispatch path" — micro-narrative of the patch.
-
-Instead, describe the released system: "Browser-skills run end-to-end with the
-expected tab-access semantics." If a property of the shipped system is worth calling
-out (e.g., "skill spawns get permissive tab access; pair-agent tunnel tokens require
-ownership"), document it as a property, not as a fix. The shipped system is what
-the user gets; the path to that system is invisible to them.
-
-**When to write the CHANGELOG entry:**
-- At `/ship` time (Step 13), not during development or mid-branch.
-- The entry covers ALL commits on this branch vs the base branch.
-- Never fold new work into an existing CHANGELOG entry from a prior version that
-  already landed on main. If main has v0.10.0.0 and your branch adds features,
-  bump to v0.10.1.0 with a new entry — don't edit the v0.10.0.0 entry.
-
-**Key questions before writing:**
-1. What branch am I on? What did THIS branch change?
-2. Is the base branch version already released? (If yes, bump and create new entry.)
-3. Does an existing entry on this branch already cover earlier work? (If yes, replace
-   it with one unified entry for the final version.)
-
-**Merging main does NOT mean adopting main's version.** When you merge origin/main into
-a feature branch, main may bring new CHANGELOG entries and a higher VERSION. Your branch
-still needs its OWN version bump on top. If main is at v0.13.8.0 and your branch adds
-features, bump to v0.13.9.0 with a new entry. Never jam your changes into an entry that
-already landed on main. Your entry goes on top because your branch lands next.
-
-**After merging main, always check:**
-- Does CHANGELOG have your branch's own entry separate from main's entries?
-- Is VERSION higher than main's VERSION?
-- Is your entry the topmost entry in CHANGELOG (above main's latest)?
-If any answer is no, fix it before continuing.
-
-**After any CHANGELOG edit that moves, adds, or removes entries,** immediately run
-`grep "^## \[" CHANGELOG.md` to verify no duplicates and a sensible reverse-chronological
-order. Gaps between version numbers are fine. A branch that ships at v1.6.4.0 without
-a prior v1.5.2.0 or v1.5.3.0 entry on main is correct — those were branch-internal
-version numbers that never landed. Do not back-fill gaps with placeholder entries.
-
-**Never orphan branch-internal versions.** If your branch bumped VERSION several times
-during development (v1.5.1.0 → v1.5.2.0 → v1.6.4.0, say) and those earlier entries were
-never released to main, the final ship consolidates ALL of them into a single entry at
-the final version (v1.6.4.0). Collapse them — delete the old entries and move their
-content into the final entry, re-version table columns accordingly. Readers see one
-release, not a branch diary. Gaps are fine (v1.6.3.0 → v1.6.4.0 with no v1.5.x
-in between on main is correct).
-
-CHANGELOG.md is **for users**, not contributors. Write it like product release notes:
-
-- Lead with what the user can now **do** that they couldn't before. Sell the feature.
-- Use plain language, not implementation details. "You can now..." not "Refactored the..."
-- **Never mention TODOS.md, internal tracking, eval infrastructure, or contributor-facing
-  details.** These are invisible to users and meaningless to them.
-- Put contributor/internal changes in a separate "For contributors" section at the bottom.
-- Every entry should make someone think "oh nice, I want to try that."
-- No jargon: say "every question now tells you which project and branch you're in" not
-  "AskUserQuestion format standardized across skill templates via preamble resolver."
-
-**Only document what shipped between main and this change.** Readers do not care how
-we got here. Keep out of the CHANGELOG, always:
-
-- Branch resyncs, merge commits with main, rebase activity.
-- Plan approvals, review outcomes (CEO / eng / design / outside-voice / codex findings),
-  AskUserQuestion decisions, scope negotiations.
-- "Work queued," "plan approved," "in-progress," "will ship later" — the CHANGELOG
-  documents what DID ship, not what MIGHT ship.
-- Version-bump housekeeping when no user-facing work actually landed.
-
-If the diff between the base branch version and this version has no user-facing change
-(only merges, only CHANGELOG edits, only placeholder work), the honest entry is one
-sentence: "Version bump for branch-ahead discipline. No user-facing changes yet." Stop
-there. Do not pad. Do not explain the plan that will ship eventually. Do not narrate
-the branch's history. When real work lands, the entry will replace this at /ship time.
-
-### Release-summary format (every `## [X.Y.Z]` entry)
-
-Every version entry in `CHANGELOG.md` MUST start with a release-summary section in
-the GStack/Garry voice, one viewport's worth of prose + tables that lands like a
-verdict, not marketing. The itemized changelog (subsections, bullets, files) goes
-BELOW that summary, separated by a `### Itemized changes` header.
-
-The release-summary section gets read by humans, by the auto-update agent, and by
-anyone deciding whether to upgrade. The itemized list is for agents that need to
-know exactly what changed.
-
-Structure for the top of every `## [X.Y.Z]` entry:
-
-1. **Two-line bold headline** (10-14 words total). Should land like a verdict, not
-   marketing. Sound like someone who shipped today and cares whether it works.
-2. **Lead paragraph** (3-5 sentences). What shipped, what changed for the user.
-   Specific, concrete, no AI vocabulary, no em dashes, no hype.
-3. **A "The X numbers that matter" section** with:
-   - One short setup paragraph naming the source of the numbers (real production
-     deployment OR a reproducible benchmark, name the file/command to run).
-   - A table of 3-6 key metrics with BEFORE / AFTER / Δ columns.
-   - A second optional table for per-category breakdown if relevant.
-   - 1-2 sentences interpreting the most striking number in concrete user terms.
-4. **A "What this means for [audience]" closing paragraph** (2-4 sentences) tying
-   the metrics to a real workflow shift. End with what to do.
-
-Voice rules for the release summary:
-- No em dashes (use commas, periods, "...").
-- No AI vocabulary (delve, robust, comprehensive, nuanced, fundamental, etc.) or
-  banned phrases ("here's the kicker", "the bottom line", etc.).
-- Real numbers, real file names, real commands. Not "fast" but "~30s on 30K pages."
-- Short paragraphs, mix one-sentence punches with 2-3 sentence runs.
-- Connect to user outcomes: "the agent does ~3x less reading" beats "improved precision."
-- Be direct about quality. "Well-designed" or "this is a mess." No dancing.
-
-Source material:
-- CHANGELOG previous entry for prior context.
-- Benchmark files or `/retro` output for headline numbers.
-- Recent commits (`git log <prev-version>..HEAD --oneline`) for what shipped.
-- Don't make up numbers. If a metric isn't in a benchmark or production data,
-  don't include it. Say "no measurement yet" if asked.
-
-Target length: ~250-350 words for the summary. Should render as one viewport.
-
-### Itemized changes (below the release summary)
-
-Write `### Itemized changes` and continue with the detailed subsections (Added,
-Changed, Fixed, For contributors). Same rules as the user-facing voice guidance
-above, plus:
-
-- **Always credit community contributions.** When an entry includes work from a
-  community PR, name the contributor with `Contributed by @username`. Contributors
-  did real work. Thank them publicly every time, no exceptions.
-
-## AI effort compression
-
-When estimating or discussing effort, always show both human-team and CC+gstack time:
-
-| Task type | Human team | CC+gstack | Compression |
-|-----------|-----------|-----------|-------------|
-| Boilerplate / scaffolding | 2 days | 15 min | ~100x |
-| Test writing | 1 day | 15 min | ~50x |
-| Feature implementation | 1 week | 30 min | ~30x |
-| Bug fix + regression test | 4 hours | 15 min | ~20x |
-| Architecture / design | 2 days | 4 hours | ~5x |
-| Research / exploration | 1 day | 3 hours | ~3x |
-
-Completeness is cheap. Don't recommend shortcuts when the complete implementation
-is achievable. Boil the ocean — the complete thing is the goal; only genuinely
-unrelated multi-quarter migrations are separate scope, never an excuse for a
-shortcut. See the Completeness Principle in the skill preamble for the full
-philosophy.
-
-## Search before building
-
-Before designing any solution that involves concurrency, unfamiliar patterns,
-infrastructure, or anything where the runtime/framework might have a built-in:
-
-1. Search for "{runtime} {thing} built-in"
-2. Search for "{thing} best practice {current year}"
-3. Check official runtime/framework docs
-
-Three layers of knowledge: tried-and-true (Layer 1), new-and-popular (Layer 2),
-first-principles (Layer 3). Prize Layer 3 above all. See ETHOS.md for the full
-builder philosophy.
-
-## Local plans
-
-Contributors can store long-range vision docs and design documents in `~/.gstack-dev/plans/`.
-These are local-only (not checked in). When reviewing TODOS.md, check `plans/` for candidates
-that may be ready to promote to TODOs or implement.
-
-## E2E eval failure blame protocol
-
-When an E2E eval fails during `/ship` or any other workflow, **never claim "not
-related to our changes" without proving it.** These systems have invisible couplings —
-a preamble text change affects agent behavior, a new helper changes timing, a
-regenerated SKILL.md shifts prompt context.
-
-**Required before attributing a failure to "pre-existing":**
-1. Run the same eval on main (or base branch) and show it fails there too
-2. If it passes on main but fails on the branch — it IS your change. Trace the blame.
-3. If you can't run on main, say "unverified — may or may not be related" and flag it
-   as a risk in the PR body
-
-"Pre-existing" without receipts is a lazy claim. Prove it or don't say it.
-
-## Long-running tasks: don't give up
-
-When running evals, E2E tests, or any long-running background task, **poll until
-completion**. Use `sleep 180 && echo "ready"` + `TaskOutput` in a loop every 3
-minutes. Never switch to blocking mode and give up when the poll times out. Never
-say "I'll be notified when it completes" and stop checking — keep the loop going
-until the task finishes or the user tells you to stop.
-
-The full E2E suite can take 30-45 minutes. That's 10-15 polling cycles. Do all of
-them. Report progress at each check (which tests passed, which are running, any
-failures so far). The user wants to see the run complete, not a promise that
-you'll check later.
-
-## Running evals as an agent: always detach (SIGTERM-proof)
-
-When **you (an agent/harness)** launch a long eval/benchmark run, run it through
-`bin/gstack-detach` — NEVER as a plain backgrounded Bash task. A plain background
-task lives in the harness's process group, so a SIGTERM ("polite quit") on a turn
-boundary, a stopped Monitor, or an interruption kills the run mid-flight (observed:
-`script "test:gate" was terminated by signal SIGTERM` ~40 min into a run). On macOS
-the run can also die to idle-sleep. `gstack-detach` fixes both: a fresh session
-(escapes the group SIGTERM) wrapped in `caffeinate -i` (blocks idle-sleep).
-
-- Use the `eval:bg*` scripts (`eval:bg`, `eval:bg:all`, `eval:bg:gate`,
-  `eval:bg:periodic`) — they wrap the eval command in `gstack-detach` with the
-  machine-wide `gstack-evals` lock (concurrent worktrees serialize instead of
-  saturating the shared model API), a per-tier watchdog, and a **run-scoped** log
-  under `~/.gstack-dev/eval-runs/` (no shared-`/tmp` collision). Each prints its
-  log path. Or call `gstack-detach [--lock NAME] [--timeout SECS] [--label LBL] --
-  <cmd>` directly for any long agent job. Export `ANTHROPIC_API_KEY` first (never
-  pass keys in argv).
-- Then **poll the printed logfile** with a death-aware watcher: break on the
-  guaranteed `### gstack-detach EXIT=<code> ###` sentinel (success AND failure are
-  both marked, so silence is never mistaken for success). The detached run survives
-  even if your watcher gets reaped, so re-checking the log always works.
-- Why the lock: a shared dev box with several Conductor worktrees will rate-limit
-  the model API if two eval suites run at once (15-way concurrency each), which
-  mass-times-out E2E tests. The lock makes the second run WAIT, not collide.
-- Humans running `bun run test:evals` foreground in their own terminal don't need
-  this — Ctrl-C is intended there. Detachment is for agent-launched runs only.
-
-## E2E test fixtures: extract, don't copy
-
-**NEVER copy a full SKILL.md file into an E2E test fixture.** SKILL.md files are
-1500-2000 lines. When `claude -p` reads a file that large, context bloat causes
-timeouts, flaky turn limits, and tests that take 5-10x longer than necessary.
-
-Instead, extract only the section the test actually needs:
-
-```typescript
-// BAD — agent reads 1900 lines, burns tokens on irrelevant sections
-fs.copyFileSync(path.join(ROOT, 'ship', 'SKILL.md'), path.join(dir, 'ship-SKILL.md'));
-
-// GOOD — agent reads ~60 lines, finishes in 38s instead of timing out
-const full = fs.readFileSync(path.join(ROOT, 'ship', 'SKILL.md'), 'utf-8');
-const start = full.indexOf('## Review Readiness Dashboard');
-const end = full.indexOf('\n---\n', start);
-fs.writeFileSync(path.join(dir, 'ship-SKILL.md'), full.slice(start, end > start ? end : undefined));
-```
-
-Also when running targeted E2E tests to debug failures:
-- Run in **foreground** (`bun test ...`), not background with `&` and `tee`
-- Never `pkill` running eval processes and restart — you lose results and waste money
-- One clean run beats three killed-and-restarted runs
-
-## Publishing native OpenClaw skills to ClawHub
-
-Native OpenClaw skills live in `openclaw/skills/gstack-openclaw-*/SKILL.md`. These are
-hand-crafted methodology skills (not generated by the pipeline) published to ClawHub
-so any OpenClaw user can install them.
-
-**Publishing:** The command is `clawhub publish` (NOT `clawhub skill publish`):
-
-```bash
-clawhub publish openclaw/skills/gstack-openclaw-office-hours \
-  --slug gstack-openclaw-office-hours --name "gstack Office Hours" \
-  --version 1.0.0 --changelog "description of changes"
-```
-
-Repeat for each skill: `gstack-openclaw-ceo-review`, `gstack-openclaw-investigate`,
-`gstack-openclaw-retro`. Bump `--version` on each update.
-
-**Auth:** `clawhub login` (opens browser for GitHub auth). `clawhub whoami` to verify.
-
-**Updating:** Same `clawhub publish` command with a higher `--version` and `--changelog`.
-
-**Verification:** `clawhub search gstack` to confirm they're live.
-
-## Deploying to the active skill
-
-The standard Agent Skills installer owns host detection, scope, placement,
-updates, and removal. Do not deploy by resetting or copying into a
-host-specific skill directory. After a release is published, refresh the
-installed skills through the same standard installer used for installation.
-
-For local development, run `bin/dev-setup`; it links the current worktree and
-keeps any brain-aware render in the ignored `.claude/gstack-rendered/`
-directory. `gstack-config gbrain-refresh` refreshes managed detection state
-only. If that changes generated skill content, rerun the standard Agent Skills
-installer rather than mutating an installed host tree in place.
-
-## Skill routing
-
-When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
-
-Key routing rules:
-- Product framing, strategy, scope, architecture, DX, specs, or a full planning pipeline → invoke `/plan` with the preserved specialist mode.
-- Web/device QA, report-only versus fixes, DX journeys, performance, or canaries → invoke `/qa`.
-- Bugs and unknown failures → invoke `/debug`; prove root cause before mutation.
-- Diff, security, compatibility, or repository-health review → invoke `/review`.
-- PR preparation, landing, deploy, monitoring, release docs, or rollback → invoke `/ship`.
-- Old names such as `/office-hours`, `/investigate`, and `/qa-only` route through the compatibility aliases in `skills/.compat/`; they are not additional public skills.
+Fork PRs don't receive base-repo secrets, so eval/E2E CI fails with empty-env
+auth no matter what's set on the base repo. When the user says "check out <PR
+link>" and the PR is from a non-collaborator fork, don't just `gh pr checkout`.
+After checking out: push the branch to the base repo (`git push origin
+HEAD:<branch>`), close the fork PR explaining the move, and open a new PR from
+the base-repo branch. The new PR gets secrets automatically.
+
+This keeps secret-distribution scope tight — adding the fork as a collaborator
+or flipping the repo-wide send-secrets-to-forks toggle would let secrets reach
+fork PRs from anyone. If the user asks to skip the move, respect it; eval CI
+will fail on auth but the other checks still run.
+
+## Commit style
+
+**Always bisect commits.** Every commit is a single logical change: rename/move
+separate from behavior change, test infrastructure separate from test
+implementation, mechanical refactor separate from new feature. When the user
+says "bisect commit" or "bisect and push," split the working tree into logical
+commits and push.
+
+## Slop-scan: AI code quality, not AI code hiding
+
+`npx slop-scan scan .` catches patterns where AI-generated code is genuinely
+worse than a human would write. We are NOT trying to pass as human code. We are
+AI-coded and proud of it. The goal is code quality, so **don't chase the
+number** — accept findings where the "sloppy" pattern is the correct
+engineering choice.
+
+Worth fixing: empty catches around file ops or process kills (use `safeUnlink`
+/ `safeKill` from `browse/src/error-handling.ts` — a swallowed EPERM means
+silent data loss, or that you think you killed something you didn't); redundant
+`return await`; typed exception catches where you know the error you expect.
+
+NOT worth fixing, because the pattern is already right: string-matching on
+error messages is brittle, so if a fire-and-forget operation can fail for ANY
+reason and you don't care, `catch {}` is correct. Chrome extensions crash
+entirely on uncaught errors, so catch-and-log is right there. Shutdown and
+emergency cleanup should use `safeUnlinkQuiet` (swallows all) — a cleanup path
+that throws on EPERM means the rest of cleanup doesn't run. And don't add
+comments to pass-through wrappers just to trip the exemption rule.
 
 ## Cross-session decision memory
 
-Durable decisions and their rationale are captured in an append-only, event-sourced
-store at `~/.gstack/projects/<slug>/decisions.jsonl` so neither you nor the user
-re-litigates a settled call or loses the "why" across sessions. This is the reliable,
-file-only path: it works with gbrain OFF. (gbrain semantic recall is an optional
-enhancement layered on top, never a dependency.)
+Durable decisions and their rationale live in an append-only store at
+`~/.gstack/projects/<slug>/decisions.jsonl`, so a settled call isn't
+re-litigated and the "why" survives across sessions. It is file-only and works
+with gbrain off.
 
-- **Resurface** active decisions before re-deciding: `bin/gstack-decision-search`
-  (`--recent N`, `--scope repo|branch|issue`, `--query KW`, `--all`, `--json`).
-  Add `--semantic` (with `--query`) to append related hits from gbrain memory when
-  it's up; it degrades silently to the reliable file results when gbrain is off.
-  Session start already surfaces scope-relevant active decisions via Context Recovery.
-  If a decision is listed, treat it as settled with its rationale; if you're about to
-  reverse it, say so explicitly.
-- **Capture** a DURABLE decision when you or the user make one:
-  `bin/gstack-decision-log '{"decision":"...","rationale":"...","scope":"repo|branch|issue","source":"user|skill|agent","confidence":1-10}'`.
-  Reverse a prior call with `--supersede <id>`; expunge an accidental secret with
-  `--redact <id>`; rewrite the log to the active set with `--compact`. Non-interactive
-  (never prompts), injection-sanitized, and HIGH-secret-blocking on write.
-- **Durable means:** architecture choice, scope cut, tool/vendor choice, or a reversal
-  of a prior call. NOT a turn-level edit, a phrasing tweak, or anything trivially
-  re-derivable. Capture is curated at the source — log durable decisions only, or the
-  store becomes noise.
+**Resurface before re-deciding:** `bin/gstack-decision-search` (`--recent`,
+`--scope`, `--query`, `--json`; `--semantic` appends gbrain hits and degrades
+silently when it's down). If a decision is listed, treat it as settled with its
+rationale; if you're about to reverse it, say so explicitly.
 
-## GBrain Search Guidance (configured by /sync-gbrain)
-<!-- gstack-gbrain-search-guidance:start -->
+**Capture** with `bin/gstack-decision-log` (`--supersede <id>` to reverse,
+`--redact <id>` to expunge a secret, `--compact` to rewrite to the active set).
+Durable means an architecture choice, scope cut, tool/vendor choice, or a
+reversal — NOT a turn-level edit or anything trivially re-derivable. Capture is
+curated at the source, or the store becomes noise.
 
-GBrain is set up and synced on this machine. The agent should prefer gbrain
-over Grep when the question is semantic or when you don't know the exact
-identifier yet.
+## GBrain search
 
-**This worktree is pinned to a worktree-scoped code source** via the
-`.gbrain-source` file in the repo root (kubectl-style context). Any
-`gbrain code-def`, `code-refs`, `code-callers`, `code-callees`, or `query`
-call from anywhere under this worktree routes to that source by default —
-no `--source` flag needed. Conductor sibling worktrees of the same repo
-each have their own pin and their own indexed pages, so semantic results
-match the actual code on disk in this worktree.
+When gbrain is synced on this machine, `/sync-gbrain` writes its own guidance
+block below, between `<!-- gstack-gbrain-search-guidance:start -->` and `:end`
+markers, and removes it when the capability goes away. Do not hand-maintain
+that block: it is a capability claim, only true while the index exists, and
+`/sync-gbrain` replaces the whole marked region in place.
 
-Two indexed corpora available via the `gbrain` CLI:
-- This worktree's code (auto-pinned via `.gbrain-source`).
-- `~/.gstack/` curated memory (registered as `gstack-brain-<user>` source via
-  the existing federation pipeline).
-
-Prefer gbrain when:
-- "Where is X handled?" / semantic intent, no exact string yet:
-    `gbrain search "<terms>"` or `gbrain query "<question>"`
-- "Where is symbol Y defined?" / symbol-based code questions:
-    `gbrain code-def <symbol>` or `gbrain code-refs <symbol>`
-- "What calls Y?" / "What does Y depend on?":
-    `gbrain code-callers <symbol>` / `gbrain code-callees <symbol>`
-- "What did we decide last time?" / past plans, retros, learnings:
-    `gbrain search "<terms>" --source gstack-brain-<user>`
-
-Grep is still right for known exact strings, regex, multiline patterns, and
-file globs. Run `/sync-gbrain` after meaningful code changes; for ongoing
-auto-sync across all worktrees, run `gbrain autopilot --install` once per
-machine — gbrain's daemon handles incremental refresh on a schedule.
-
-Safety: don't run `/sync-gbrain` while `gbrain autopilot` is active — the
-orchestrator refuses destructive source ops when it detects a running autopilot
-to avoid racing it (#1734). Prefer registering user repos with `gbrain sources
-add --path <dir>` (no `--url`): URL-managed sources can auto-reclone, and the
-sync code walk for them requires an explicit `--allow-reclone` opt-in.
-
-<!-- gstack-gbrain-search-guidance:end -->
+Absent that block, assume no index and use Grep.

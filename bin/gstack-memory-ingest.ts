@@ -26,7 +26,9 @@
  *   ~/.gstack/builder-profile.jsonl                 — typed: builder-profile-entry
  *
  * State: ~/.gstack/.transcript-ingest-state.json (LOCAL per ED1, never synced).
- * Secret scanning: gitleaks via lib/gstack-memory-helpers#secretScanFile (D19).
+ * Secret scanning: default-ON redact-engine scan() over the staged page bodies
+ * (EGRESS-AUDIT P2; --no-scan-secrets to opt out), plus opt-in gitleaks via
+ * lib/gstack-memory-helpers#secretScanFile (D19, --scan-secrets).
  * Concurrent-write handling: partial-flag + re-ingest on next pass (D10).
  *
  * V1.0 NOTE: Cursor SQLite extraction is a V1.0.1 follow-up. The plan promoted it to
@@ -67,6 +69,7 @@ import {
 import { execGbrainText, spawnGbrainAsync } from "../lib/gbrain-exec";
 import { writeReceipt } from "../lib/egress-receipt.js";
 import { checkOwnedStagingDir, STAGING_MARKER } from "../lib/staging-guard";
+import { scan, exitCodeFor } from "../lib/redact-engine";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -87,6 +90,18 @@ interface CliArgs {
    * has its own scanner. Setting this adds ~4-8 min to cold runs.
    */
   scanSecrets: boolean;
+  /**
+   * Opt OUT of the default-ON redact-engine gate over the staged page
+   * bodies (EGRESS-AUDIT P2). Explicit and logged — the gbrain DB can be
+   * a remote Postgres, so ingest is a potential off-machine send.
+   */
+  noScanSecrets: boolean;
+  /**
+   * Acknowledge MEDIUM findings (PII, context-variable shapes) and ingest
+   * those files anyway — the non-interactive analog of the AskUserQuestion
+   * confirm tier. HIGH always refuses; there is deliberately no flag for it.
+   */
+  ackMedium: boolean;
 }
 
 type MemoryType =
@@ -198,9 +213,13 @@ Options:
   --limit <N>          Stop after N pages written (smoke testing).
   --no-write           Skip gbrain put calls (still updates state file).
                        Used by tests + dry runs without actual ingest.
-  --scan-secrets       Opt-in per-file gitleaks scan during prepare. Off by
-                       default; gstack-brain-sync already gates the git-push
-                       boundary. Adds ~4-8 min to cold runs.
+  --no-scan-secrets    Opt out of the default redact-engine secret gate over
+                       the staged page bodies. Otherwise HIGH findings refuse
+                       the file; MEDIUM refuses unless --ack-medium.
+  --ack-medium         Ingest files with MEDIUM findings (PII, context-variable
+                       shapes) anyway. HIGH still refuses.
+  --scan-secrets       Additional opt-in per-file gitleaks scan during prepare.
+                       Adds ~4-8 min to cold runs.
   --help               This text.
 `);
 }
@@ -216,6 +235,8 @@ function parseArgs(): CliArgs {
   let sources: Set<MemoryType> = new Set(ALL_TYPES);
   let noWrite = process.env.GSTACK_MEMORY_INGEST_NO_WRITE === "1";
   let scanSecrets = process.env.GSTACK_MEMORY_INGEST_SCAN_SECRETS === "1";
+  let noScanSecrets = process.env.GSTACK_MEMORY_INGEST_NO_SCAN_SECRETS === "1";
+  let ackMedium = process.env.GSTACK_MEMORY_INGEST_ACK_MEDIUM === "1";
 
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -229,6 +250,8 @@ function parseArgs(): CliArgs {
       case "--all-history": allHistory = true; break;
       case "--no-write": noWrite = true; break;
       case "--scan-secrets": scanSecrets = true; break;
+      case "--no-scan-secrets": noScanSecrets = true; break;
+      case "--ack-medium": ackMedium = true; break;
       case "--limit":
         limit = parseInt(args[++i] || "0", 10);
         if (!Number.isFinite(limit) || limit <= 0) {
@@ -256,7 +279,7 @@ function parseArgs(): CliArgs {
     }
   }
 
-  return { mode, quiet, benchmark, includeUnattributed, allHistory, sources, limit, noWrite, scanSecrets };
+  return { mode, quiet, benchmark, includeUnattributed, allHistory, sources, limit, noWrite, scanSecrets, noScanSecrets, ackMedium };
 }
 
 // ── State file ─────────────────────────────────────────────────────────────
@@ -1097,21 +1120,25 @@ async function probeMode(args: CliArgs): Promise<ProbeReport> {
  * frontmatter. Returns the PreparedPage[] to stage + counts of files
  * filtered at each gate.
  *
- * Secret scanning policy (post 2026-05-10 perf review):
+ * Secret scanning policy (EGRESS-AUDIT P2, supersedes the 2026-05-10
+ * opt-in-only stance):
  *
- *   The actual cross-machine exfiltration boundary is `gstack-brain-sync`,
- *   which runs a regex-based secret scanner on the staged diff before
- *   `git commit` (see bin/gstack-brain-sync:78-110: AWS keys, GitHub
- *   tokens, OpenAI keys, PEM blocks, JWTs, bearer-token-in-JSON). That's
- *   the right place — it gates content leaving the machine.
+ *   The gbrain DB is user-configured and may be a remote Postgres/Supabase,
+ *   so ingest is a potential off-machine send — not just a local-file-to-
+ *   local-PGLite move. The default gate is therefore ON: the shared
+ *   redact-engine scan() (lib/redact-patterns.ts taxonomy, the single
+ *   source of truth) runs over the EXACT rendered bytes staged for
+ *   `gbrain import` (scan-at-sink, not the raw source file). It is pure
+ *   in-process regex, so it costs nothing like the ~470s/cold-run that got
+ *   the old per-file gitleaks gate demoted. HIGH refuses the file with a
+ *   typed SECRET_SCAN_HIGH; MEDIUM refuses with SECRET_SCAN_MEDIUM unless
+ *   --ack-medium (non-interactive analog of the AskUserQuestion confirm
+ *   tier); LOW/WARN never gate — same contract as bin/gstack-redact's
+ *   exit codes. --no-scan-secrets is the explicit opt-out.
  *
- *   memory-ingest, by contrast, moves data from one local file to a
- *   local PGLite database. Scanning every source file at ingest time
- *   doesn't change exposure (the secret already lives in plaintext
- *   where the user keeps their transcripts and artifacts) but costs
- *   ~470s on cold runs. We removed the per-file gitleaks gate as
- *   redundant defense-in-depth and made it opt-in via `--scan-secrets`
- *   for users who want belt-and-suspenders.
+ *   The gitleaks source-file scan stays opt-in via `--scan-secrets` as
+ *   belt-and-suspenders; `gstack-brain-sync` still gates the git-push
+ *   boundary with its own scanner.
  */
 function preparePages(
   args: CliArgs,
@@ -1142,8 +1169,8 @@ function preparePages(
 
     // Optional belt-and-suspenders: when --scan-secrets is set, scan the
     // source file with gitleaks and skip dirty ones. Off by default
-    // because gstack-brain-sync already gates the cross-machine boundary
-    // and per-file gitleaks costs ~256ms/file (4-8 min on a real corpus).
+    // because per-file gitleaks costs ~256ms/file (4-8 min on a real
+    // corpus); the default engine gate below covers the staged bytes.
     if (args.scanSecrets) {
       const scan = secretScanFile(path);
       if (scan.scanner === "gitleaks" && scan.findings.length > 0) {
@@ -1186,10 +1213,31 @@ function preparePages(
       continue;
     }
 
+    const rendered_body = renderPageBody(page);
+
+    // Default-ON secret gate over the exact bytes staged for gbrain import.
+    // Refusals print even under --quiet: a silently skipped secret-bearing
+    // file is exactly the surprise this gate exists to prevent. Finding ids
+    // (pattern names) are safe to print; secret values never are.
+    if (!args.noScanSecrets) {
+      const result = scan(rendered_body);
+      const gate = exitCodeFor(result);
+      if (gate === 3 || (gate === 2 && !args.ackMedium)) {
+        skippedSecret++;
+        const tier = gate === 3 ? "HIGH" : "MEDIUM";
+        const ids = [...new Set(
+          result.findings.filter((f) => f.severity === tier).map((f) => f.id),
+        )].join(",");
+        const hint = gate === 2 ? "; pass --ack-medium to ingest anyway" : "";
+        console.error(`[secret-scan] SECRET_SCAN_${tier}: ${path} (${ids}) — ingest refused${hint}`);
+        continue;
+      }
+    }
+
     prepared.push({
       slug: page.slug,
       source_path: path,
-      rendered_body: renderPageBody(page),
+      rendered_body,
       page_slug: page.slug,
       partial: page.partial ?? false,
     });

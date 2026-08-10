@@ -1,6 +1,6 @@
 # GStack 2 routing scenarios
 
-The 19 executable fixtures route from structured stage/surface/authorization/evidence signals. Their prompts intentionally avoid public skill and mode names.
+The 18 executable fixtures route from structured stage/surface/authorization/evidence signals. Their prompts intentionally avoid public skill and mode names.
 
 | ID | Expected decision | Active | Mutation | Evidence basis | Gap |
 |---|---|---|---|---|---|
@@ -13,9 +13,8 @@ The 19 executable fixtures route from structured stage/surface/authorization/evi
 | `browser-findings-only` | `qa:Report` | `qa-only` | `report-only` | surface=web; mutation_authorized=false | — |
 | `browser-fix-and-verify` | `qa:Fix` | `qa` | `fix-safe` | surface=web; mutation_authorized=true | — |
 | `device-state-journey` | `qa:Report` | `ios-qa` | `report-only` | surface=ios; real_device=true | — |
-| `cli-api-journey` | `qa:Report` | `devex-review`, `qa-only`, `investigate`, `system-functional` | `report-only` | surface=developer-workflow; journey_measurement=true; functional_backend_harness=true | — |
-| `measured-page-regression` | `qa:Report` | `benchmark` | `report-only` | measurement=performance; baseline_exists=true | — |
-| `production-threshold-watch` | `qa:Report` | `canary` | `report-only` | deployed=true; thresholds_declared=true | — |
+| `cli-api-journey` | `qa:Report` | `devex-review`, `qa-only`, `system-functional` | `report-only` | surface=developer-workflow; journey_measurement=true; functional_backend_harness=true | — |
+| `production-threshold-watch` | `ship:Monitor` | `canary` | `report-only` | deployed=true; thresholds_declared=true | — |
 | `unknown-intermittent-cause` | `debug:Diagnose-only` | `investigate` | `investigate-only` | cause_known=false; intermittent=true | — |
 | `reproducible-device-defect` | `debug:Fix` | `ios-fix` | `fix-safe` | platform=ios; reproducible=true | — |
 | `ci-script-change-review` | `review:Normal` | `review` | `fix-safe` | change_exists=true; audit_focus=broad | — |

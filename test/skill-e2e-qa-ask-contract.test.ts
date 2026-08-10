@@ -61,10 +61,20 @@ describeIfSelected('QA ask-contract E2E', ['qa-ask-contract'], () => {
       'export function add(a, b) { return a + b; }\n');
 
     // Extract ONLY the Test Framework Bootstrap section (detection + ask
-    // contract) — never copy the full 1700-line SKILL.md into a fixture.
-    const full = fs.readFileSync(path.join(ROOT, 'qa', 'SKILL.md'), 'utf-8');
+    // contract) — never copy the full module into a fixture.
+    //
+    // SOURCE MOVED, CONTRACT DID NOT. `qa` was never retired, so there is no
+    // skills/.compat/qa alias: /qa IS a shipped dispatcher. The section left
+    // the 1.x monolith (qa/SKILL.md, deleted in f19d6cda) for the preserved
+    // module the dispatcher lazily loads. Extracting the same section keeps
+    // this a contract test on the same prose rather than on the dispatcher's
+    // routing table, which says nothing about test-command probing.
+    const MODULE = path.join(ROOT, 'skills', 'qa', 'references', 'legacy', 'qa.md');
+    const full = fs.readFileSync(MODULE, 'utf-8');
     const start = full.indexOf('## Test Framework Bootstrap');
-    if (start < 0) throw new Error('qa/SKILL.md: "## Test Framework Bootstrap" section not found');
+    if (start < 0) {
+      throw new Error(`${MODULE}: "## Test Framework Bootstrap" section not found`);
+    }
     const end = full.indexOf('\n## ', start);
     fs.mkdirSync(path.join(projDir, 'qa'), { recursive: true });
     fs.writeFileSync(

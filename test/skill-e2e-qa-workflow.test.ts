@@ -3,7 +3,7 @@ import { runSkillTest } from './helpers/session-runner';
 import {
   ROOT, browseBin, runId, evalsEnabled,
   describeIfSelected, testConcurrentIfSelected,
-  copyDirSync, setupBrowseShims, logCost, recordE2E,
+  copyDirSync, installLegacySkill, setupBrowseShims, logCost, recordE2E,
   createEvalCollector, finalizeEvalCollector,
 } from './helpers/e2e-helpers';
 import { startTestServer } from '../browse/test/test-server';
@@ -13,6 +13,28 @@ import * as path from 'path';
 import * as os from 'os';
 
 const evalCollector = createEvalCollector('e2e-qa-workflow');
+
+/**
+ * Install the LIVE `qa` dispatcher into an E2E workdir at `<workDir>/skills/qa/`.
+ *
+ * `qa` is one of the five shipped dispatchers, so there is no `skills/.compat/qa`
+ * alias to route through — it IS the skill. (`qa-only` was retired and DOES have
+ * one; that path goes through `installLegacySkill`.)
+ *
+ * Copied as a TREE, never flattened. The dispatcher addresses everything it
+ * lazily reads relative to its own root — `references/legacy/qa.md`,
+ * `references/SHARED-JUDGMENT.md`, `references/artifacts/qa/templates/…`. The
+ * old flat `<workDir>/qa/SKILL.md` copy worked because 1.x shipped one
+ * self-contained monolith; flattening a lazy dispatcher dead-ends every read.
+ */
+function installDispatcher(workDir: string, name: string): string {
+  const src = path.join(ROOT, 'skills', name);
+  if (!fs.existsSync(src)) {
+    throw new Error(`installDispatcher("${name}"): no dispatcher at skills/${name}/.`);
+  }
+  copyDirSync(src, path.join(workDir, 'skills', name));
+  return `skills/${name}`;
+}
 
 // --- B4: QA skill E2E ---
 
@@ -25,8 +47,8 @@ describeIfSelected('QA skill E2E', ['qa-quick'], () => {
     qaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-qa-'));
     setupBrowseShims(qaDir);
 
-    // Copy qa skill files into tmpDir
-    copyDirSync(path.join(ROOT, 'qa'), path.join(qaDir, 'qa'));
+    // The shipped qa dispatcher, as a tree (see installDispatcher).
+    installDispatcher(qaDir, 'qa');
 
     // Create report directory
     fs.mkdirSync(path.join(qaDir, 'qa-reports'), { recursive: true });
@@ -44,16 +66,28 @@ describeIfSelected('QA skill E2E', ['qa-quick'], () => {
 The test server is already running at: ${testServer.url}
 Target page: ${testServer.url}/basic.html
 
-Read the file qa/SKILL.md for the QA workflow instructions.
-Skip the preamble bash block, lake intro, telemetry, and contributor mode sections — go straight to the QA workflow.
+Read the file skills/qa/SKILL.md for the QA workflow instructions. It is a lazy
+dispatcher, not a self-contained skill: follow its dispatch (\`$qa --mode Fix\`) and
+read the specialist module it routes to at skills/qa/references/legacy/qa.md. That
+module carries the actual workflow. Paths inside both files are relative to
+skills/qa/ (so \`references/SHARED-JUDGMENT.md\` means
+skills/qa/references/SHARED-JUDGMENT.md).
+
+The browse binary is already assigned to $B above — skip the optional-runtime
+capability setup in references/RUNTIME.md entirely (no bootstrap, no browser-provider
+selection, no doctor). Go straight to the QA workflow.
 
 Run a Quick-depth QA test on ${testServer.url}/basic.html
 Do NOT use AskUserQuestion — run Quick tier directly.
 Do NOT try to start a server or discover ports — the URL above is ready.
 Write your report to ${qaDir}/qa-reports/qa-report.md`,
       workingDirectory: qaDir,
-      maxTurns: 35,
-      timeout: 240_000,
+      // 35 -> 45: the workflow moved from one monolith read to a dispatcher read
+      // plus the qa module plus the per-invocation references (SHARED-JUDGMENT,
+      // AUTHORITY-POLICY, RUNTIME, WEB-CONTEXT). ~6 Read turns before the first
+      // browse command, where 1.x spent 1.
+      maxTurns: 45,
+      timeout: 330_000,
       testName: 'qa-quick',
       runId,
     });
@@ -68,13 +102,14 @@ Write your report to ${qaDir}/qa-reports/qa-report.md`,
     }
     // Accept error_max_turns — the agent doing thorough QA work is not a failure
     expect(['success', 'error_max_turns']).toContain(result.exitReason);
-  }, 300_000);
+  }, 420_000);
 });
 
 // --- QA-Only E2E (report-only, no fixes) ---
 
 describeIfSelected('QA-Only skill E2E', ['qa-only-no-fix'], () => {
   let qaOnlyDir: string;
+  let qaOnlyRoute: ReturnType<typeof installLegacySkill>;
   let testServer: ReturnType<typeof startTestServer>;
 
   beforeAll(() => {
@@ -82,15 +117,17 @@ describeIfSelected('QA-Only skill E2E', ['qa-only-no-fix'], () => {
     qaOnlyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-qa-only-'));
     setupBrowseShims(qaOnlyDir);
 
-    // Copy qa-only skill files
-    copyDirSync(path.join(ROOT, 'qa-only'), path.join(qaOnlyDir, 'qa-only'));
+    // /qa-only is retired. A user who types it now lands on the compat alias,
+    // which dispatches to `$qa --mode Report --module qa-only`. Install both, so
+    // the prompt's "Read qa-only/SKILL.md" resolves to what actually ships.
+    // Throws if the alias, the dispatcher, or the routed module is missing.
+    qaOnlyRoute = installLegacySkill(qaOnlyDir, 'qa-only');
 
-    // Copy qa templates (qa-only references qa/templates/qa-report-template.md)
-    fs.mkdirSync(path.join(qaOnlyDir, 'qa', 'templates'), { recursive: true });
-    fs.copyFileSync(
-      path.join(ROOT, 'qa', 'templates', 'qa-report-template.md'),
-      path.join(qaOnlyDir, 'qa', 'templates', 'qa-report-template.md'),
-    );
+    // No separate template copy: the report template the qa-only module asks for
+    // now ships INSIDE the dispatcher tree that installLegacySkill just copied,
+    // at skills/qa/references/artifacts/qa/templates/qa-report-template.md (the
+    // relocation is recorded in skills/qa/references/ASSETS.md). The old
+    // hand-copy read ROOT/qa/templates/, which no longer exists.
 
     // Init git repo (qa-only checks for feature branch in diff-aware mode)
     const run = (cmd: string, args: string[]) =>
@@ -110,20 +147,29 @@ describeIfSelected('QA-Only skill E2E', ['qa-only-no-fix'], () => {
 
   testConcurrentIfSelected('qa-only-no-fix', async () => {
     const result = await runSkillTest({
-      prompt: `IMPORTANT: The browse binary is already assigned below as B. Do NOT search for it or run the SKILL.md setup block — just use $B directly.
+      prompt: `IMPORTANT: The browse binary is already assigned below as B. Do NOT search for it, and skip the optional-runtime capability setup in references/RUNTIME.md entirely (no bootstrap, no browser-provider selection, no doctor) — just use $B directly.
 
 B="${browseBin}"
 
-Read the file qa-only/SKILL.md for the QA-only workflow instructions.
-Skip the preamble bash block, lake intro, telemetry, and contributor mode sections — go straight to the QA workflow.
+Read the file qa-only/SKILL.md for the QA-only workflow instructions. It is a routing
+alias, not the workflow: follow its dispatch (\`${qaOnlyRoute.invocation}\`) into
+skills/${qaOnlyRoute.dispatcher}/SKILL.md, then read that dispatcher's
+references/legacy/${qaOnlyRoute.module}.md module, which carries the actual QA-only
+workflow. Paths inside those files are relative to skills/${qaOnlyRoute.dispatcher}/.
+
+The report template that module asks for as \`qa/templates/qa-report-template.md\` now
+lives at skills/${qaOnlyRoute.dispatcher}/references/artifacts/qa/templates/qa-report-template.md.
 
 Run a Quick QA test on ${testServer.url}/qa-eval.html
 Do NOT use AskUserQuestion — run Quick tier directly.
 Write your report to ${qaOnlyDir}/qa-reports/qa-only-report.md`,
       workingDirectory: qaOnlyDir,
-      maxTurns: 40,
+      // 40 -> 50, 180s -> 300s: alias + dispatcher + qa-only module + the
+      // per-invocation references is ~6 Read turns before the first browse
+      // command, where the 1.x monolith was 1.
+      maxTurns: 50,
       allowedTools: ['Bash', 'Read', 'Write', 'Glob'],  // NO Edit — the critical guardrail
-      timeout: 180_000,
+      timeout: 300_000,
       testName: 'qa-only-no-fix',
       runId,
     });
@@ -155,7 +201,7 @@ Write your report to ${qaOnlyDir}/qa-reports/qa-only-report.md`,
       (l: string) => l.trim() && !l.includes('.prompt-tmp') && !l.includes('.gstack/') && !l.includes('qa-reports/'),
     );
     expect(statusLines.filter((l: string) => l.startsWith(' M') || l.startsWith('M '))).toHaveLength(0);
-  }, 240_000);
+  }, 420_000);
 });
 
 // --- QA Fix Loop E2E ---
@@ -168,8 +214,8 @@ describeIfSelected('QA Fix Loop E2E', ['qa-fix-loop'], () => {
     qaFixDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-qa-fix-'));
     setupBrowseShims(qaFixDir);
 
-    // Copy qa skill files
-    copyDirSync(path.join(ROOT, 'qa'), path.join(qaFixDir, 'qa'));
+    // The shipped qa dispatcher, as a tree (see installDispatcher).
+    installDispatcher(qaFixDir, 'qa');
 
     // Create a simple HTML page with obvious fixable bugs
     fs.writeFileSync(path.join(qaFixDir, 'index.html'), `<!DOCTYPE html>
@@ -233,19 +279,30 @@ describeIfSelected('QA Fix Loop E2E', ['qa-fix-loop'], () => {
     const result = await runSkillTest({
       prompt: `You have a browse binary at ${browseBin}. Assign it to B variable like: B="${browseBin}"
 
-Read the file qa/SKILL.md for the QA workflow instructions.
-Skip the preamble bash block, lake intro, telemetry, and contributor mode sections — go straight to the QA workflow.
+Read the file skills/qa/SKILL.md for the QA workflow instructions. It is a lazy
+dispatcher, not a self-contained skill: follow its dispatch (\`$qa --mode Fix\`) and
+read the specialist module it routes to at skills/qa/references/legacy/qa.md. That
+module carries the actual test-and-fix workflow, including the one-commit-per-fix
+rule. Paths inside both files are relative to skills/qa/.
+
+The browse binary is already assigned to $B above — skip the optional-runtime
+capability setup in references/RUNTIME.md entirely (no bootstrap, no browser-provider
+selection, no doctor). Go straight to the QA workflow.
 
 Run a Quick-tier QA test on ${qaFixUrl}
 The source code for this page is at ${qaFixDir}/index.html — you can fix bugs there.
+You are authorized to modify ${qaFixDir}/index.html and to commit those fixes.
 Do NOT use AskUserQuestion — run Quick tier directly.
 Write your report to ${qaFixDir}/qa-reports/qa-report.md
 
 This is a test+fix loop: find bugs, fix them in the source code, commit each fix, and re-verify.`,
       workingDirectory: qaFixDir,
-      maxTurns: 40,
+      // 40 -> 50, 420s -> 500s: ~6 extra Read turns for dispatcher + qa module +
+      // per-invocation references before the loop starts. The loop budget itself
+      // is unchanged.
+      maxTurns: 50,
       allowedTools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'],
-      timeout: 420_000,
+      timeout: 500_000,
       testName: 'qa-fix-loop',
       runId,
     });
@@ -269,82 +326,19 @@ This is a test+fix loop: find bugs, fix them in the source code, commit each fix
     // Verify Edit tool was used (agent actually modified source code)
     const editCalls = result.toolCalls.filter(tc => tc.tool === 'Edit');
     expect(editCalls.length).toBeGreaterThan(0);
-  }, 480_000);
+  }, 600_000);
 });
 
 // --- Test Bootstrap E2E ---
 
+// NOTE: this test never reads a skill. Its prompt is a standalone "set up vitest"
+// instruction against a project it builds inline (`bsDir`). It used to carry a
+// describe-level fixture — a second temp repo, a Bun server, and a copy of the 1.x
+// `qa/` monolith — that no test body ever referenced. That copy read ROOT/qa/, which
+// the 1.x deletion removed, so it was both dead and a hard ENOENT in beforeAll.
+// Deleted rather than re-pointed: installing a skill tree nothing reads is the same
+// vacuous-install bug in a slower form.
 describeIfSelected('Test Bootstrap E2E', ['qa-bootstrap'], () => {
-  let bootstrapDir: string;
-  let bootstrapServer: ReturnType<typeof Bun.serve>;
-
-  beforeAll(() => {
-    bootstrapDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-bootstrap-'));
-    setupBrowseShims(bootstrapDir);
-
-    // Copy qa skill files
-    copyDirSync(path.join(ROOT, 'qa'), path.join(bootstrapDir, 'qa'));
-
-    // Create a minimal Node.js project with NO test framework
-    fs.writeFileSync(path.join(bootstrapDir, 'package.json'), JSON.stringify({
-      name: 'test-bootstrap-app',
-      version: '1.0.0',
-      type: 'module',
-    }, null, 2));
-
-    // Create a simple app file with a bug
-    fs.writeFileSync(path.join(bootstrapDir, 'app.js'), `
-export function add(a, b) { return a + b; }
-export function subtract(a, b) { return a - b; }
-export function divide(a, b) { return a / b; } // BUG: no zero check
-`);
-
-    // Create a simple HTML page with a bug
-    fs.writeFileSync(path.join(bootstrapDir, 'index.html'), `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><title>Bootstrap Test</title></head>
-<body>
-  <h1>Test App</h1>
-  <a href="/nonexistent-page">Broken Link</a>
-  <script>console.error("ReferenceError: undefinedVar is not defined");</script>
-</body>
-</html>
-`);
-
-    // Init git repo
-    const run = (cmd: string, args: string[]) =>
-      spawnSync(cmd, args, { cwd: bootstrapDir, stdio: 'pipe', timeout: 5000 });
-    run('git', ['init', '-b', 'main']);
-    run('git', ['config', 'user.email', 'test@test.com']);
-    run('git', ['config', 'user.name', 'Test']);
-    run('git', ['add', '.']);
-    run('git', ['commit', '-m', 'initial commit']);
-
-    // Serve from working directory
-    bootstrapServer = Bun.serve({
-      port: 0,
-      hostname: '127.0.0.1',
-      fetch(req) {
-        const url = new URL(req.url);
-        let filePath = url.pathname === '/' ? '/index.html' : url.pathname;
-        filePath = filePath.replace(/^\//, '');
-        const fullPath = path.join(bootstrapDir, filePath);
-        if (!fs.existsSync(fullPath)) {
-          return new Response('Not Found', { status: 404 });
-        }
-        const content = fs.readFileSync(fullPath, 'utf-8');
-        return new Response(content, {
-          headers: { 'Content-Type': 'text/html' },
-        });
-      },
-    });
-  });
-
-  afterAll(() => {
-    bootstrapServer?.stop();
-    try { fs.rmSync(bootstrapDir, { recursive: true, force: true }); } catch {}
-  });
-
   testConcurrentIfSelected('qa-bootstrap', async () => {
     // Test ONLY the bootstrap phase — install vitest, create config, write one test
     const bsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-e2e-bs-'));

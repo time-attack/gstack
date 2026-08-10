@@ -12,6 +12,7 @@ import zlib from "node:zlib";
 
 import {
   StrictModeError,
+  blockRemoteImages,
   buildDiagnosticBlock,
   buildDiagramFigure,
   contentWidthInches,
@@ -330,6 +331,23 @@ describe("inlineLocalImages", () => {
     expect(() =>
       inlineLocalImages(`<img src="https://example.com/x.png">`, { ...base, strict: true, warn: () => {} }),
     ).toThrow(StrictModeError);
+  });
+
+  test("blockRemoteImages (preview gate): remote <img> → placeholder, local/data pass", () => {
+    // Preview skips the inliner, so this gate is what stops a GET beacon
+    // per remote image when the preview HTML opens in a browser.
+    const warnings: string[] = [];
+    const html =
+      `<img src="https://evil.example/beacon.png" alt="r">` +
+      `<img src="local.png" alt="l">` +
+      `<img src="data:image/png;base64,AAAA" alt="d">`;
+    const out = blockRemoteImages(html, (m) => warnings.push(m));
+    expect(out).not.toMatch(/<img[^>]*https?:/i);
+    expect(out).toContain("remote image blocked");
+    expect(out).toContain(`<img src="local.png" alt="l">`);
+    expect(out).toContain(`data:image/png;base64,AAAA`);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("offline posture");
   });
 
   test("existing data URI gets dimension annotations only", () => {
