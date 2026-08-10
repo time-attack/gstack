@@ -532,7 +532,8 @@ async function fetchJson(fetch_, url, options = {}) {
   if (!response.ok) {
     if (options.official && response.status === 404) {
       throw bootstrapError(
-        `Official runtime release ${BOOTSTRAP_RELEASE_TAG} is not published at ${url}. No files were downloaded or installed.`,
+        `Official runtime release ${BOOTSTRAP_RELEASE_TAG} is not published at ${url}. No files were downloaded or installed. ` +
+          `The runtime is optional: every skill runs in judgment-only mode without it. Retry after the release is published.`,
         "BOOTSTRAP_RELEASE_UNAVAILABLE",
       );
     }
