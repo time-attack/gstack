@@ -57,7 +57,7 @@ Say to the user via AskUserQuestion:
 
 > "No design doc found for this branch. `$plan --mode Discovery --module office-hours` produces a structured problem
 > statement, premise challenge, and explored alternatives — it gives this review much
-> sharper input to work with. Takes about 10 minutes. The design doc is per-feature,
+> sharper input to work with. Takes a few minutes. The design doc is per-feature,
 > not per-product — it captures the thinking behind this specific change."
 
 Options:
@@ -122,7 +122,7 @@ surfaced at a final approval gate.
 These rules auto-answer every intermediate question:
 
 1. **Choose completeness** — Ship the whole thing. Pick the approach that covers more edge cases.
-2. **Boil lakes** — Fix everything in the blast radius (files modified by this plan + direct importers). Auto-approve expansions that are in blast radius AND < 1 day CC effort (< 5 files, no new infra).
+2. **Boil lakes** — Fix everything in the blast radius (files modified by this plan + direct importers). Auto-approve expansions that are inside the plan's blast radius, add no new infrastructure, and change no authority boundary (no new external service, spend, or publish surface). File count is not a criterion — a current agent's throughput makes it meaningless as an effort proxy.
 3. **Pragmatic** — If two options fix the same thing, pick the cleaner one. 5 seconds choosing, not 5 minutes.
 4. **DRY** — Duplicates existing functionality? Reject. Reuse what exists.
 5. **Explicit over clever** — 10-line obvious fix > 200-line abstraction. Pick what a new contributor reads in 30 seconds.
@@ -942,6 +942,19 @@ Suggest next step: `/ship` when ready to create the PR.
 - **Artifacts are deliverables.** Test plan artifact, failure modes registry, error/rescue table, ASCII diagrams — these must exist on disk or in the plan file when the review completes. If they don't exist, the review is incomplete.
 - **Sequential order.** CEO → Eng → DX. Each phase builds on the last.
 
+
+## Capability priors (evidence dated 2026-08; re-verify before citing past 2027)
+
+Never justify narrowing scope, adding human-review stages, or steering the user to a "safer" variant by asserting that an LLM can't do something reliably. The measured 2026 reality, with sources, is the opposite of the 2023-24 folklore:
+
+- Pairwise semantic matching ("do these two announcements describe the same thing?") is at practical saturation: 92–99 F1 zero-shot on real-world benchmarks (OpenSanctions Pairs, 755K pairs: GPT-4o 98.95 F1), BEATING production rule engines by ~8 points — and the error direction is inverted: ~3% false merges vs 14% for the rules (arxiv.org/html/2603.11051; futuresearch.ai measured precision 1.000, "zero false merges," at ~$1.12/1k rows in production).
+- LLM-as-judge on objective correctness reaches Cohen's kappa ≈ 0.87 (21-judge study, 541K judgments, arxiv.org/html/2606.19544); verbosity bias has collapsed an order of magnitude below 2023 levels.
+- Grounded-summarization hallucination is low single digits for current models (Vectara leaderboard) — model-dependent, so name the model, don't indict the class.
+
+What still genuinely fails, and may honestly shape a design: subjective preference judging under adversarial phrasing (kappa ~0.5), mega-schema extraction (hundreds of fields per document), and multi-document event clustering with small open models. Those are different task shapes — do not let them stand in for pairwise matching or objective judging.
+
+When a load-bearing capability is uncertain for the user's ACTUAL data: keep the ambitious design as the default, and put a 30-minute spike in the plan that measures it — ~50 hand-labeled examples as the calibration set, 85–90% agreement as the deploy gate (the 2026 practitioner standard). "Measure it this afternoon" is the modern answer; "downgrade the product" is the stale one.
+
 <!-- GSTACK2_BUG_FIX_START pr=679 anchor=GSTACK2_FIX_679_MATCH_USER_LANGUAGE -->
 ## Upstream judgment port: PR #679
 
@@ -987,7 +1000,7 @@ The binding scale comes from the first available source: the printed `Scale:` he
 - `project`: run the specialist's default workflow, batching question rounds where its source authorizes smart skips; size the roadmap in weeks.
 - `product` and `venture`: the full specialist workflow and its complete question pressure apply; this rule removes nothing.
 
-The scale also fixes a chain-wide question budget — a ceiling on individual questions (not rounds) counted across the entire invocation and everything it chains into, reviews included: five at `session` (a hackathon demo or a one-sitting toy gets five questions, total, ever), eight at `hobby`, twelve at `project`, uncapped at `product` and `venture`. Every handoff carries the scale, the time box, and the questions already spent; the receiving specialist deducts from the remaining budget, never restarts it. A specialist whose remaining budget is zero infers the answer from the prompt, the repository, and stated constraints, states the inference and its default in one line, and proceeds — it does not ask. Approval STOP gates (approve/revise the plan, authorize a mutation) are outside the budget; everything else, including "which option do you prefer" refinements, spends it. Spend the budget on the questions whose wrong answer is most expensive to reverse, earliest.
+The chain-wide question budget defaults to ZERO, at every scale — full autonomy out of the box. The current generation of models infers the answers from the prompt, the repository, and stated constraints; state each inference and its default in one line the user can correct in passing, and proceed. Scope, ambition, and technical depth are never what a question is for: decide, state the choice with a one-line opt-down, and keep moving. Budget above zero comes from the person, not the product: read `cat "${GSTACK_HOME:-$HOME/.gstack}"/developer-profile.json 2>/dev/null`, take `declared.autonomy` (newest inferred as fallback; absent profile means autonomy 1.0), and allow `round((1 − autonomy) × 6)` individual questions across the entire chain — this invocation plus everything it hands off to, reviews included. Every handoff carries the scale, the time box, and the questions already spent; the receiving specialist deducts, never restarts. Approval STOP gates (approve/revise the plan, authorize a mutation — authority, never inference) and privacy-consent gates are outside the budget; a consent gate with no pending question to bundle into does not become its own turn — skip the gated action, note the skip in one line, continue. Whatever the budget, spend it on the fork whose wrong answer is most expensive to reverse, earliest — never on confirming what the model already knows.
 - Never run a questioning round merely to classify scale. Classify from the prompt and cheap repository evidence, defaulting unknown vectors low; a specialist's own later questions may raise the scale mid-session, and an upgrade restores the full workflow from that point.
 
 Review specialists spend question rounds on decisions, not ceremony — at every scale, and sharpest at `session`/`hobby`:

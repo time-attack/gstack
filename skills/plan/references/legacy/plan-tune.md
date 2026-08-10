@@ -20,7 +20,9 @@ memorize them.
 
 **v1 scope (observational):** typed question registry, per-question explicit
 preferences, question logging, dual-track profile (declared + inferred),
-plain-English inspection. No skills adapt behavior based on the profile yet.
+plain-English inspection. The profile is consumed: office-hours scales its
+chain-wide question budget by the autonomy dimension (high autonomy halves
+it, low adds two), so tuning here changes how much /plan asks.
 
 Canonical reference: `docs/designs/PLAN_TUNING_V0.md`.
 
