@@ -1,7 +1,7 @@
 ---
 name: qa
 description: >-
-  Report on or fix validated product defects. Use for web/browser QA, real-device iOS, developer journeys, or accessibility.
+  Report on or fix validated product defects. Use for web/browser QA, real-device iOS, developer journeys, accessibility, or recorded walkthroughs.
 ---
 
 # GStack QA
@@ -48,7 +48,7 @@ When that trigger fires, read `references/FAST-PATH.md` and follow it. It is bin
 
 | Mode | Target | Infer when | Candidate internal specialists |
 |---|---|---|---|
-| `Report` | Any supported test surface | The user asks for evidence or findings without authorizing product-code changes. | `references/legacy/qa-only.md`, `references/legacy/ios-qa.md`, `references/legacy/devex-review.md` |
+| `Report` | Any supported test surface | The user asks for evidence or findings without authorizing product-code changes. | `references/legacy/qa-only.md`, `references/legacy/ios-qa.md`, `references/legacy/devex-review.md`, `references/legacy/recording.md` |
 | `Fix` | Any supported test surface | The user explicitly authorizes validated bug fixes and exact-journey re-verification. | `references/legacy/qa.md` |
 
 ## Hard rules
@@ -58,6 +58,7 @@ When that trigger fires, read `references/FAST-PATH.md` and follow it. It is bin
 - Project test, build, and eval commands are project-owned. Before running any, resolve the command from the project's CLAUDE.md (or equivalent project config). If none is declared, ask the user (AskUserQuestion) and persist the answer to the project's CLAUDE.md so it is never asked again. Never probe-run `npm test`, `jest`, `pytest`, `bun test`, or any other framework guess to discover the command.
 - For APIs, CLIs, backend jobs, workers, and webhooks, activate system-functional with the preserved DX journey and report/fix boundary; run repository-native probes and disclose every untested surface. A non-browser target does not load a browser-centric module. `references/legacy/qa-only.md` and `references/legacy/qa.md` test web applications through a browser; against an API, CLI, job, worker, or webhook they contradict the surface under test, so they go on the Skipped modules line with the reason `non-browser target`, the `browser-*` and `scrape` aliases stay unloaded, and the Evidence, mutation, and exit section of `references/SYSTEM-FUNCTIONAL.md` carries the report-versus-fix boundary in their place. Mandatory means mandatory for its lane, not for every target.
 - `references/legacy/devex-review.md` audits developer experience, not functional correctness. Read it only when the scope evaluates install, setup, onboarding, upgrade path, or the ergonomics of the API, CLI, or SDK as a product. Depth never triggers it on its own: a Standard or Deep functional pass over an API, CLI, job, worker, or webhook leaves it unloaded, because it measures time to first working call, documentation quality, and ecosystem health, not whether the surface behaves to its contract. When it stays unloaded, name it on the Skipped modules line with the reason `no developer-experience surface`.
+- `references/legacy/recording.md` is the walkthrough camera: activate it when the requested artifact is a screen recording, video, or opened recording of an agent using a web or physical iOS app. It starts capture, then loads qa-only or ios-qa (or qa.md when Fix is authorized). It is not a substitute for those specialists. When the artifact is not a recording, name it on the Skipped modules line with the reason `no recording requested`.
 
 ## Internal specialist routing aliases
 
@@ -74,6 +75,7 @@ Every specialist below is an internal implementation detail, including mandatory
 | `/setup-browser-cookies` | `browser-auth` | `Report` | supporting | `references/legacy/setup-browser-cookies.md` |
 | `/pair-agent` | `browser-pair` | `Report` | supporting | `references/legacy/pair-agent.md` |
 | `/scrape` | `scrape` | `Report` | supporting | `references/legacy/scrape.md` |
+| `/recording` | `recording` | `Report` | supporting | `references/legacy/recording.md` |
 
 ## Completeness invariant
 

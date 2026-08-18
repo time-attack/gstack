@@ -46,6 +46,7 @@ export const META_COMMANDS = new Set([
   'connect', 'disconnect', 'focus',
   'inbox',
   'watch',
+  'record',
   'state',
   'frame',
   'ux-audit',
@@ -175,6 +176,7 @@ export const COMMAND_DESCRIPTIONS: Record<string, { category: string; descriptio
   'inbox':   { category: 'Meta', description: 'List messages from sidebar scout inbox', usage: 'inbox [--clear]' },
   // Watch
   'watch':   { category: 'Meta', description: 'Passive observation — periodic snapshots while user browses', usage: 'watch [stop]' },
+  'record':  { category: 'Visual', description: 'Screen-record the agent driving the current page. start writes JPEG frames via CDP screencast; stop encodes to mp4 (ffmpeg) or an HTML player and can open it. Not available over the pair-agent tunnel.', usage: 'record start [path] [--fps N] [--quality Q] | record stop [--open] [--keep-frames] | record status | record open [path]' },
   // State
   'state':   { category: 'Server', description: 'Save/load browser state (cookies + URLs)', usage: 'state save|load <name>' },
   // Frame
@@ -232,6 +234,7 @@ export function canonicalizeCommand(cmd: string): string {
  */
 export const NEW_IN_VERSION: Record<string, string> = {
   'load-html': '0.19.0.0',
+  'record': '2.0.0.0',
 };
 
 /**

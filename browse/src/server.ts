@@ -1411,6 +1411,12 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
     safeUnlinkQuiet(shutdownStateFile);
 
     console.log('[browse] Shutting down...');
+    try {
+      const { flushRecordingOnShutdown } = await import('./screencast');
+      await flushRecordingOnShutdown();
+    } catch (err: any) {
+      console.warn('[browse] Failed to flush recording:', err?.message ?? err);
+    }
     try { detachSession(); } catch (err: any) {
       console.warn('[browse] Failed to detach CDP session:', err.message);
     }

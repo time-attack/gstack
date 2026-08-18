@@ -1171,6 +1171,11 @@ export async function handleMetaCommand(
       return await handleMemoryCommand(args, bm);
     }
 
+    case 'record': {
+      const { handleRecordCommand } = await import('./screencast');
+      return await handleRecordCommand(args, bm);
+    }
+
     default:
       throw new Error(`Unknown meta command: ${command}`);
   }
