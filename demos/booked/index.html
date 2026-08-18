@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Booked — flights, without the stress</title>
+  <link rel="icon" href="./mark.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,640&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --sand: #f3eee4;
+      --paper: #fffaf3;
+      --ink: #1d1915;
+      --muted: #7a7368;
+      --line: #e4dccf;
+      --sage: #2f6f5e;
+      --sage-2: #1f4d41;
+      --mist: #e7efe9;
+      --shadow: 0 18px 50px rgba(40, 32, 22, 0.08);
+      --radius: 28px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--sand); color: var(--ink); }
+    body {
+      font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: -0.01em;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell { max-width: 1120px; margin: 0 auto; padding: 28px 24px 80px; }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+    .brand img { width: 44px; height: 44px; border-radius: 14px; background: var(--paper); }
+    .wordmark { font-family: Fraunces, Georgia, serif; font-size: 28px; font-weight: 640; }
+    .card-on-file {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--paper); border: 1px solid var(--line);
+      padding: 8px 14px; border-radius: 999px; color: var(--muted); font-size: 14px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 99px; background: var(--sage); }
+    h1 {
+      font-family: Fraunces, Georgia, serif;
+      font-weight: 500;
+      font-size: clamp(40px, 6vw, 72px);
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+      margin: 8px 0 12px;
+    }
+    .lede { color: var(--muted); font-size: 18px; max-width: 42ch; margin: 0 0 28px; }
+    .stage {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 22px;
+      align-items: start;
+    }
+    @media (max-width: 920px) { .stage { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+    .origin-row { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; color: var(--muted); font-size: 14px; }
+    .pill {
+      background: var(--mist); color: var(--sage-2);
+      border-radius: 999px; padding: 6px 12px; font-weight: 560;
+    }
+    .where {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      background: #fff;
+      border-radius: 22px;
+      padding: 18px 20px;
+      font-size: 22px;
+      outline: none;
+    }
+    .where:focus { border-color: var(--sage); }
+    .cities { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+    .city {
+      text-align: left;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 18px;
+      padding: 14px 16px;
+      transition: transform .2s ease, border-color .2s ease;
+    }
+    .city:hover, .city[aria-selected="true"] { border-color: var(--sage); transform: translateY(-1px); }
+    .city b { display: block; font-size: 16px; }
+    .city span { color: var(--muted); font-size: 13px; }
+    .dates { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+    .date {
+      border: 1px solid var(--line); background: #fff; border-radius: 16px;
+      padding: 12px 14px; min-width: 92px;
+    }
+    .date small { display: block; color: var(--muted); font-size: 12px; }
+    .date[aria-selected="true"] { background: var(--sage); color: #fff; border-color: var(--sage); }
+    .date[aria-selected="true"] small { color: #d7efe6; }
+    .rides { display: grid; gap: 12px; margin-top: 18px; }
+    .ride {
+      display: grid; grid-template-columns: 1fr auto; gap: 8px 16px;
+      text-align: left; border: 1px solid var(--line); background: #fff;
+      border-radius: 22px; padding: 16px 18px;
+    }
+    .ride[aria-selected="true"] { border-color: var(--sage); box-shadow: 0 0 0 3px var(--mist); }
+    .when { font-family: Fraunces, serif; font-size: 28px; letter-spacing: -0.03em; }
+    .meta { color: var(--muted); font-size: 14px; }
+    .price { font-size: 26px; font-weight: 600; align-self: center; }
+    .price small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+    .request {
+      width: 100%; margin-top: 16px; border: 0; background: var(--sage); color: #fff;
+      border-radius: 18px; padding: 16px; font-size: 18px; font-weight: 600;
+    }
+    .request:disabled { background: #cfc6b8; }
+    .map {
+      height: 420px; border-radius: 24px; overflow: hidden;
+      background: linear-gradient(#d7e4dc, #c3d2c8);
+      position: relative;
+    }
+    .map svg { width: 100%; height: 100%; display: block; }
+    .map-caption {
+      position: absolute; left: 16px; bottom: 16px;
+      background: rgba(255,250,243,.92); border-radius: 14px; padding: 10px 12px;
+      font-size: 13px; color: var(--muted);
+    }
+    .ticket {
+      margin-top: 16px; border-radius: 24px; border: 1px dashed var(--line);
+      padding: 18px; background: #fff;
+    }
+    .ticket h2 { font-family: Fraunces, serif; margin: 0 0 8px; font-size: 28px; }
+    .code { font-variant-numeric: tabular-nums; letter-spacing: .12em; color: var(--sage-2); }
+    .fine { margin-top: 22px; color: var(--muted); font-size: 12px; line-height: 1.5; max-width: 70ch; }
+    .hidden { display: none !important; }
+    .confirm-overlay {
+      position: fixed; inset: 0; background: rgba(29,25,21,.28);
+      display: grid; place-items: end center; padding: 20px;
+    }
+    .sheet {
+      width: min(520px, 100%); background: var(--paper); border-radius: 28px 28px 18px 18px;
+      padding: 22px; box-shadow: var(--shadow);
+    }
+    .sheet h3 { font-family: Fraunces, serif; font-size: 28px; margin: 0 0 8px; }
+    .ghost { background: transparent; border: 0; color: var(--muted); padding: 10px; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="brand" href="./">
+        <img src="./mark.png" alt="Booked mark" />
+        <span class="wordmark">Booked</span>
+      </a>
+      <div class="card-on-file" title="Payment is simulated. No card is collected.">
+        <span class="dot"></span>
+        Card on file · Visa ••4242
+      </div>
+    </header>
+
+    <p class="lede">Book a flight the way you’d request a car. One destination. A few quiet options. No countdown clocks.</p>
+    <h1 id="headline">Where to?</h1>
+
+    <div class="stage">
+      <section class="panel">
+        <div class="origin-row">
+          Picking up from
+          <span class="pill" data-testid="origin">San Francisco · SFO</span>
+        </div>
+        <input class="where" data-testid="destination-search" id="search" placeholder="City or airport" autocomplete="off" />
+        <div class="cities" id="cities"></div>
+        <div class="dates hidden" id="dates"></div>
+        <div class="rides hidden" id="rides"></div>
+        <button class="request hidden" id="request" data-testid="request" disabled>Request this flight</button>
+      </section>
+
+      <aside>
+        <div class="map" id="map">
+          <svg viewBox="0 0 640 420" aria-hidden="true">
+            <defs>
+              <linearGradient id="arc" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#2f6f5e" />
+                <stop offset="1" stop-color="#1d1915" />
+              </linearGradient>
+            </defs>
+            <rect width="640" height="420" fill="#d5e3db" />
+            <path id="route" fill="none" stroke="url(#arc)" stroke-width="3" stroke-linecap="round" d="M80 260 C 240 40, 420 40, 560 170" />
+            <circle id="fromDot" cx="80" cy="260" r="8" fill="#1d1915" />
+            <circle id="toDot" cx="560" cy="170" r="8" fill="#2f6f5e" />
+            <g id="plane" transform="translate(80 260)">
+              <polygon points="0,-7 16,0 0,7 -4,0" fill="#1d1915" />
+            </g>
+          </svg>
+          <div class="map-caption" id="mapCaption">San Francisco is waiting for a destination.</div>
+        </div>
+        <div class="ticket hidden" id="ticket" data-testid="ticket"></div>
+      </aside>
+    </div>
+    <p class="fine">
+      Schedules are published 2026 airline times (FlightMapper / airline FIDS).
+      One-way fares are recent public quotes (Google Flights, Priceline, Trip.com, Southwest) — not a live GDS ticket.
+      Payment is simulated. Booked never collects a card number and does not issue a real reservation.
+    </p>
+  </div>
+
+  <div class="confirm-overlay hidden" id="overlay">
+    <div class="sheet">
+      <h3>Request this flight?</h3>
+      <p id="sheetCopy" style="color:var(--muted);margin:0 0 18px"></p>
+      <button class="request" data-testid="confirm" id="confirm">Yes, book it</button>
+      <button class="ghost" id="cancel" type="button">Not now</button>
+    </div>
+  </div>
+
+<script>
+const AIRPORTS = {
+  SFO: { city: "San Francisco", name: "San Francisco International", iata: "SFO", lat: 37.6213, lon: -122.3790, tz: "America/Los_Angeles" },
+  JFK: { city: "New York", name: "John F. Kennedy International", iata: "JFK", lat: 40.6413, lon: -73.7781, tz: "America/New_York" },
+  LAX: { city: "Los Angeles", name: "Los Angeles International", iata: "LAX", lat: 33.9425, lon: -118.4081, tz: "America/Los_Angeles" },
+  HNL: { city: "Honolulu", name: "Daniel K. Inouye International", iata: "HNL", lat: 21.3245, lon: -157.9251, tz: "Pacific/Honolulu" },
+  LHR: { city: "London", name: "London Heathrow", iata: "LHR", lat: 51.4700, lon: -0.4543, tz: "Europe/London" },
+  SEA: { city: "Seattle", name: "Seattle–Tacoma International", iata: "SEA", lat: 47.4502, lon: -122.3088, tz: "America/Los_Angeles" },
+};
+
+const DESTINATIONS = [
+  { iata: "JFK", blurb: "Nonstop to the East Coast" },
+  { iata: "LAX", blurb: "The short hop south" },
+  { iata: "HNL", blurb: "Morning light over the Pacific" },
+  { iata: "LHR", blurb: "Overnight to Heathrow" },
+  { iata: "SEA", blurb: "Up the coast" },
+];
+
+// Published summer 2026 schedules. days: 0=Sun .. 6=Sat, or "daily".
+const FLIGHTS = [
+  { id: "DL405", from: "SFO", to: "JFK", airline: "Delta", number: "DL 405", dep: "07:00", arr: "15:34", plusDays: 0, hours: 5, minutes: 34, aircraft: "Boeing 767", terminal: "1", fare: 357, cabin: "Main Cabin", days: "daily", source: "FlightMapper DL405, effective 13 Apr–5 Oct 2026. Fare: Google Flights Delta SFO–NYC from $357." },
+  { id: "AA16", from: "SFO", to: "JFK", airline: "American", number: "AA 16", dep: "10:14", arr: "18:59", plusDays: 0, hours: 5, minutes: 45, aircraft: "Airbus A321", terminal: "1", fare: 366, cabin: "Main Cabin", days: "daily", source: "FlightMapper AA16, 2 Jul–8 Sep 2026. Fare: Priceline SFO–JFK from $366." },
+  { id: "B616", from: "SFO", to: "JFK", airline: "JetBlue", number: "B6 16", dep: "20:30", arr: "05:01", plusDays: 1, hours: 5, minutes: 31, aircraft: "Airbus A320 family", terminal: "1", fare: 337, cabin: "Core", days: "daily", source: "FlightMapper B616, 29 Apr–8 Sep 2026. Fare: Google Flights JetBlue from $337." },
+  { id: "AA1097", from: "SFO", to: "LAX", airline: "American", number: "AA 1097", dep: "06:30", arr: "07:54", plusDays: 0, hours: 1, minutes: 24, aircraft: "Boeing 737-800", terminal: "1", fare: 89, cabin: "Main Cabin", days: "daily", source: "FlightMapper AA1097, 5 Aug–8 Sep 2026. Fare: typical SFO–LAX mainline quote in the $79–149 published band." },
+  { id: "AS173", from: "SFO", to: "LAX", airline: "Alaska", number: "AS 173", dep: "08:00", arr: "09:38", plusDays: 0, hours: 1, minutes: 38, aircraft: "Boeing 737", terminal: "1", fare: 79, cabin: "Main Cabin", days: "daily", source: "FlightMapper AS173, effective from 10 Jun 2026." },
+  { id: "WN699", from: "SFO", to: "LAX", airline: "Southwest", number: "WN 699", dep: "12:05", arr: "13:35", plusDays: 0, hours: 1, minutes: 30, aircraft: "Boeing 737 MAX 8", terminal: "2", fare: 149, cabin: "Wanna Get Away", days: [2], source: "FlightMapper WN699 Tue, 4 Aug–29 Sep 2026. Fare: Southwest Aug 2026 SFO–LAX from $149." },
+  { id: "AS175", from: "SFO", to: "LAX", airline: "Alaska", number: "AS 175", dep: "16:55", arr: "18:29", plusDays: 0, hours: 1, minutes: 34, aircraft: "Boeing 737", terminal: "1", fare: 79, cabin: "Main Cabin", days: "daily", source: "FlightMapper AS175, effective from 10 Jun 2026." },
+  { id: "AS811", from: "SFO", to: "HNL", airline: "Alaska", number: "AS 811", dep: "07:35", arr: "10:15", plusDays: 0, hours: 5, minutes: 40, aircraft: "Airbus A330-200", terminal: "1", fare: 318, cabin: "Main Cabin", days: "daily", source: "FlightMapper AS811, 19 Aug–24 Oct 2026 (Hawaiian metal). Tomorrow’s default date." },
+  { id: "UA1175", from: "SFO", to: "HNL", airline: "United", number: "UA 1175", dep: "09:20", arr: "11:50", plusDays: 0, hours: 5, minutes: 30, aircraft: "Boeing 777-300ER", terminal: "3", fare: 342, cabin: "Economy", days: "daily", source: "FlightMapper UA1175, 21 May–24 Oct 2026." },
+  { id: "UA300", from: "SFO", to: "HNL", airline: "United", number: "UA 300", dep: "13:55", arr: "16:20", plusDays: 0, hours: 5, minutes: 25, aircraft: "Boeing 777", terminal: "3", fare: 329, cabin: "Economy", days: "daily", source: "FlightMapper UA300, 21 May–7 Sep 2026." },
+  { id: "BA286", from: "SFO", to: "LHR", airline: "British Airways", number: "BA 286", dep: "19:30", arr: "13:55", plusDays: 1, hours: 10, minutes: 25, aircraft: "Boeing 777-300ER", terminal: "I", fare: 784, cabin: "World Traveller", days: "daily", source: "FlightMapper BA286, 28 Mar–23 Oct 2026. Aug 2026 FIDS shows 19:30 SFO." },
+  { id: "AS421", from: "SFO", to: "SEA", airline: "Alaska", number: "AS 421", dep: "06:00", arr: "08:06", plusDays: 0, hours: 2, minutes: 6, aircraft: "Boeing 737", terminal: "1", fare: 98, cabin: "Main Cabin", days: "daily", source: "FlightMapper AS421, 10 Jun–2 Oct 2026." },
+  { id: "AS515", from: "SFO", to: "SEA", airline: "Alaska", number: "AS 515", dep: "11:25", arr: "13:38", plusDays: 0, hours: 2, minutes: 13, aircraft: "Boeing 737", terminal: "1", fare: 118, cabin: "Main Cabin", days: "daily", source: "FlightMapper AS515, effective from 10 Jun 2026." },
+  { id: "AS316", from: "SFO", to: "SEA", airline: "Alaska", number: "AS 316", dep: "20:49", arr: "23:03", plusDays: 0, hours: 2, minutes: 14, aircraft: "Boeing 737", terminal: "1", fare: 108, cabin: "Main Cabin", days: "daily", source: "FlightMapper AS316, 10 Jun–2 Oct 2026." },
+];
+
+const ORIGIN = "SFO";
+const TODAY = new Date("2026-08-18T12:00:00-07:00");
+
+const state = { dest: null, date: addDays(TODAY, 1), flight: null };
+
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function ymd(d) { return d.toISOString().slice(0, 10); }
+function weekday(d) { return d.getDay(); }
+function money(n) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n); }
+function fmtDate(d) {
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+function operatesOn(flight, date) {
+  if (flight.days === "daily") return true;
+  return flight.days.includes(weekday(date));
+}
+
+function project(lat, lon) {
+  const x = (lon + 160) / 230 * 640;
+  const y = (62 - lat) / 55 * 420;
+  return [x, y];
+}
+
+function drawMap() {
+  const from = AIRPORTS[ORIGIN];
+  const to = state.dest ? AIRPORTS[state.dest] : null;
+  const [x1, y1] = project(from.lat, from.lon);
+  const fromDot = document.getElementById("fromDot");
+  fromDot.setAttribute("cx", x1); fromDot.setAttribute("cy", y1);
+  const toDot = document.getElementById("toDot");
+  const route = document.getElementById("route");
+  if (!to) {
+    toDot.setAttribute("opacity", "0");
+    route.setAttribute("d", `M${x1} ${y1} C ${x1} ${y1}, ${x1} ${y1}, ${x1} ${y1}`);
+    document.getElementById("mapCaption").textContent = "San Francisco is waiting for a destination.";
+    return;
+  }
+  const [x2, y2] = project(to.lat, to.lon);
+  toDot.setAttribute("opacity", "1");
+  toDot.setAttribute("cx", x2); toDot.setAttribute("cy", y2);
+  const mx = (x1 + x2) / 2;
+  const my = Math.min(x1, x2) === x1 ? Math.min(y1, y2) - 80 : Math.min(y1, y2) - 60;
+  route.setAttribute("d", `M${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`);
+  document.getElementById("mapCaption").textContent = `${from.city} → ${to.city} · ${from.iata}–${to.iata}`;
+  animatePlane(x1, y1, mx, my, x2, y2);
+}
+
+function animatePlane(x1, y1, cx, cy, x2, y2) {
+  const plane = document.getElementById("plane");
+  const start = performance.now();
+  const dur = 2400;
+  function bez(t, a, b, c) { return (1-t)*(1-t)*a + 2*(1-t)*t*b + t*t*c; }
+  function frame(now) {
+    const t = Math.min(1, (now - start) / dur);
+    const x = bez(t, x1, cx, x2);
+    const y = bez(t, y1, cy, y2);
+    const x2p = bez(Math.min(1, t + 0.02), x1, cx, x2);
+    const y2p = bez(Math.min(1, t + 0.02), y1, cy, y2);
+    const ang = Math.atan2(y2p - y, x2p - x) * 180 / Math.PI;
+    plane.setAttribute("transform", `translate(${x} ${y}) rotate(${ang})`);
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+function renderCities(filter = "") {
+  const q = filter.trim().toLowerCase();
+  const el = document.getElementById("cities");
+  el.innerHTML = DESTINATIONS.filter(d => {
+    const a = AIRPORTS[d.iata];
+    const hay = `${a.city} ${a.name} ${a.iata}`.toLowerCase();
+    return !q || hay.includes(q);
+  }).map(d => {
+    const a = AIRPORTS[d.iata];
+    const selected = state.dest === d.iata;
+    return `<button class="city" type="button" data-testid="dest-${d.iata}" aria-selected="${selected}" data-iata="${d.iata}">
+      <b>${a.city}</b><span>${a.iata} · ${d.blurb}</span></button>`;
+  }).join("");
+}
+
+function renderDates() {
+  const wrap = document.getElementById("dates");
+  wrap.classList.remove("hidden");
+  const labels = ["Today", "Tomorrow", "Thu", "Fri", "Sat", "Sun", "Mon"];
+  wrap.innerHTML = labels.map((label, i) => {
+    const d = addDays(TODAY, i);
+    const selected = ymd(d) === ymd(state.date);
+    return `<button class="date" type="button" data-testid="date-${i}" aria-selected="${selected}" data-iso="${ymd(d)}">
+      ${label}<small>${fmtDate(d)}</small></button>`;
+  }).join("");
+}
+
+function renderRides() {
+  const wrap = document.getElementById("rides");
+  wrap.classList.remove("hidden");
+  const rides = FLIGHTS.filter(f => f.from === ORIGIN && f.to === state.dest && operatesOn(f, state.date));
+  if (!rides.length) {
+    wrap.innerHTML = `<p class="meta">Nothing quiet on that day. Try another date.</p>`;
+    document.getElementById("request").classList.add("hidden");
+    return;
+  }
+  wrap.innerHTML = rides.map(f => {
+    const selected = state.flight?.id === f.id;
+    const arrNote = f.plusDays ? " +1" : "";
+    return `<button class="ride" type="button" data-testid="flight-${f.id}" aria-selected="${selected}" data-id="${f.id}">
+      <div>
+        <div class="when">${f.dep.replace(":", ":" )} → ${f.arr}${arrNote}</div>
+        <div class="meta">${f.airline} ${f.number} · ${f.hours}h ${f.minutes}m · ${f.aircraft} · ${f.cabin}</div>
+      </div>
+      <div class="price">${money(f.fare)}<small>one way</small></div>
+    </button>`;
+  }).join("");
+  const req = document.getElementById("request");
+  req.classList.remove("hidden");
+  req.disabled = !state.flight;
+}
+
+function selectDest(iata) {
+  state.dest = iata;
+  state.flight = null;
+  document.getElementById("headline").textContent = `When to ${AIRPORTS[iata].city}?`;
+  renderCities(document.getElementById("search").value);
+  renderDates();
+  renderRides();
+  drawMap();
+}
+
+function selectDate(iso) {
+  state.date = new Date(iso + "T12:00:00");
+  state.flight = null;
+  renderDates();
+  renderRides();
+}
+
+function selectFlight(id) {
+  state.flight = FLIGHTS.find(f => f.id === id);
+  renderRides();
+}
+
+document.getElementById("cities").addEventListener("click", e => {
+  const btn = e.target.closest("[data-iata]");
+  if (btn) selectDest(btn.dataset.iata);
+});
+document.getElementById("dates").addEventListener("click", e => {
+  const btn = e.target.closest("[data-iso]");
+  if (btn) selectDate(btn.dataset.iso);
+});
+document.getElementById("rides").addEventListener("click", e => {
+  const btn = e.target.closest("[data-id]");
+  if (btn) selectFlight(btn.dataset.id);
+});
+document.getElementById("search").addEventListener("input", e => renderCities(e.target.value));
+
+document.getElementById("request").addEventListener("click", () => {
+  if (!state.flight) return;
+  const f = state.flight;
+  const to = AIRPORTS[f.to];
+  document.getElementById("sheetCopy").textContent =
+    `${f.airline} ${f.number}  ·  ${fmtDate(state.date)}  ·  ${f.dep} from SFO to ${to.city}. We’ll charge ${money(f.fare)} to the card on file. This demo never asks for a number.`;
+  document.getElementById("overlay").classList.remove("hidden");
+});
+document.getElementById("cancel").addEventListener("click", () => {
+  document.getElementById("overlay").classList.add("hidden");
+});
+document.getElementById("confirm").addEventListener("click", () => {
+  const f = state.flight;
+  if (!f) return;
+  const code = "BK" + Math.random().toString(36).slice(2, 8).toUpperCase();
+  document.getElementById("overlay").classList.add("hidden");
+  document.getElementById("headline").textContent = "You’re booked.";
+  const ticket = document.getElementById("ticket");
+  ticket.classList.remove("hidden");
+  ticket.innerHTML = `
+    <h2>See you at SFO.</h2>
+    <p class="code" data-testid="pnr">${code}</p>
+    <p>${f.airline} ${f.number} · ${fmtDate(state.date)} · ${f.dep}–${f.arr}${f.plusDays ? " +1" : ""}</p>
+    <p class="meta">${AIRPORTS[f.from].name} → ${AIRPORTS[f.to].name}<br>${f.aircraft} · Terminal ${f.terminal} · ${f.cabin}<br>${money(f.fare)} charged to Visa ••4242 (simulated)</p>
+    <p class="meta">${f.source}</p>`;
+});
+
+renderCities();
+drawMap();
+</script>
+</body>
+</html>
