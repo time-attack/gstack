@@ -28,6 +28,7 @@ This package is self-contained. Route every retired invocation to the exact repl
 | `/setup-browser-cookies` | `$qa --mode Report --module setup-browser-cookies` | install `qa` |
 | `/pair-agent` | `$qa --mode Report --module pair-agent` | install `qa` |
 | `/scrape` | `$qa --mode Report --module scrape` | install `qa` |
+| `/recording` | `$qa --mode Report --module recording` | install `qa` |
 | `/investigate` | `$debug --mode Diagnose-only --module investigate` | `legacy/investigate.md` |
 | `/ios-fix` | `$debug --mode Fix --module ios-fix` | `legacy/ios-fix.md` |
 | `/careful` | `$debug --mode Diagnose-only --module careful` | `legacy/careful.md` |

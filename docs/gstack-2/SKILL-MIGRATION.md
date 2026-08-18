@@ -2,7 +2,7 @@
 
 Pinned baseline: `bb57306d98c97011b0919c6132705a15b1579781`.
 
-GStack 2 exposes exactly five judgment dispatchers: `plan`, `qa`, `debug`, `review`, and `ship`, plus the `make-pdf` tool skill that installs with the same canonical tree (six discoverable skills total). The specialist bodies from 39 legacy templates remain provenance-pinned internal reference modules (42 at the 2026-08-04 unfreeze; the 2026-08-09 evidence-backed cut wave removed `plan/gstack.md`, `debug/guard.md`, and `debug/unfreeze.md` — routing, composition, and clear-the-boundary judgment now live in the dispatcher tables, the careful+freeze pair, and investigate.md's Scope Lock respectively, each with a named loss-check). The retired 1.x shared onboarding wrapper is excluded from canonical execution, and every carved specialist section is a package-local lazy reference loaded only at its original workflow point. Twenty-three primary modules are mandatory specialist inputs, and 19 supporting modules remain reachable through compatibility routing.
+GStack 2 exposes exactly five judgment dispatchers: `plan`, `qa`, `debug`, `review`, and `ship`, plus the `make-pdf` tool skill that installs with the same canonical tree (six discoverable skills total). The specialist bodies from 39 legacy templates remain provenance-pinned internal reference modules (42 at the 2026-08-04 unfreeze; the 2026-08-09 evidence-backed cut wave removed `plan/gstack.md`, `debug/guard.md`, and `debug/unfreeze.md` — routing, composition, and clear-the-boundary judgment now live in the dispatcher tables, the careful+freeze pair, and investigate.md's Scope Lock respectively, each with a named loss-check). The retired 1.x shared onboarding wrapper is excluded from canonical execution, and every carved specialist section is a package-local lazy reference loaded only at its original workflow point. Twenty-three primary modules are mandatory specialist inputs, and 20 supporting modules remain reachable through compatibility routing.
 
 The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; Review = `Normal | Security | Performance | Deep`; Ship = `Prepare | Land | Deploy | Monitor | Resume`. Richer legacy modes are internal aliases only.
 
@@ -34,6 +34,7 @@ The fixed public modes are: QA = `Report | Fix`; Debug = `Diagnose-only | Fix`; 
 | `/setup-browser-cookies` | `$qa --mode Report --module setup-browser-cookies` | internal (internal) | no | #679, #879 |
 | `/pair-agent` | `$qa --mode Report --module pair-agent` | internal (internal) | no | #679, #879 |
 | `/scrape` | `$qa --mode Report --module scrape` | internal (internal) | no | #679, #2030, #879 |
+| `/recording` | `$qa --mode Report --module recording` | internal (internal) | no | — |
 | `/investigate` | `$debug --mode Diagnose-only --module investigate` | internal (primary) | yes | #679, #2030, #2186, #879 |
 | `/ios-fix` | `$debug --mode Fix --module ios-fix` | internal (primary) | yes | #679, #879 |
 | `/careful` | `$debug --mode Diagnose-only --module careful` | internal (internal) | no | #679, #879 |

@@ -11,7 +11,7 @@ installs six discoverable skills: the five judgment dispatchers plus make-pdf.
 | Skill | Primary responsibility |
 |---|---|
 | `/plan` | Product framing, CEO scope, engineering architecture, DX, autoplan, executable specs, and planning preferences. |
-| `/qa` | Report-only or fix-and-verify web QA, physical-iOS QA, DX journeys, performance, and canaries. |
+| `/qa` | Report-only or fix-and-verify web QA, physical-iOS QA, DX journeys, performance, canaries, and recorded agent walkthroughs. |
 | `/debug` | Root-cause investigation, physical-iOS fixes, and internal safety controls. |
 | `/review` | Diff, security, repository-health, and independent outside-voice review. |
 | `/ship` | PR preparation, landing/deployment, queue inspection, release docs, upgrade, and internal iOS release operations. |
@@ -39,7 +39,7 @@ Its question order, pressure, smart skips, STOP/approval gates, evidence,
 artifacts, mutation boundary, exit behavior, and voice are binding. Preserve
 report-only versus fix behavior. List skipped primary modules and why.
 
-The exhaustive 55-command compatibility map is in
+The exhaustive 56-command compatibility map is in
 [`docs/gstack-2/SKILL-MIGRATION.md`](docs/gstack-2/SKILL-MIGRATION.md). Old
 names are opt-in routing aliases and must print their replacement invocation;
 they contain no copied judgment. Representative mappings:
@@ -50,6 +50,7 @@ they contain no copied judgment. Representative mappings:
 | `/plan-ceo-review` | `/plan --mode ceo` |
 | `/plan-eng-review` | `/plan --mode eng` |
 | `/qa-only` | `/qa --mode report` |
+| `/recording` | `/qa --mode Report --module recording` |
 | `/investigate` | `/debug --mode investigate` |
 | `/cso` | `/review --mode security` |
 | `/land-and-deploy` | `/ship --mode land` |

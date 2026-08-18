@@ -1537,6 +1537,121 @@ const iosBuild: Scenario = {
   },
 };
 
+// --- 13. recording walkthrough (recording.md: start before QA, open after) ----
+
+const RECORDING_WEB: Record<string, string> = {
+  'qa/walkthrough.sh': `#!/usr/bin/env bash
+set -euo pipefail
+# User asked: "record an agent using the app and open the video when you're done."
+B="\${GSTACK_BIN:-$HOME/.gstack}/bin/browse"
+"$B" goto http://127.0.0.1:3000
+"$B" snapshot -i -a -o .gstack/qa-reports/screenshots/initial.png
+"$B" click @e3
+"$B" screenshot .gstack/qa-reports/screenshots/after-click.png
+# A zero-byte file is left where the video should be. Nothing ever ran
+# \`record start\`, and nothing opens a recording at the end.
+: > .gstack/qa-reports/recordings/qa-walkthrough.mp4
+echo "QA complete. Video is at .gstack/qa-reports/recordings/qa-walkthrough.mp4"
+`,
+  'qa/note.md': `SEEDED FALSE POSITIVE. Per-finding screenshots are still required during a
+recorded run. The walkthrough camera does not replace the evidence map, so
+flagging \`snapshot -a\` / \`screenshot\` as the defect would punish the arm
+that kept them. The defect is that capture never started and the file was
+never opened.
+`,
+};
+
+const recordingWeb: Scenario = {
+  id: 'qa-plus-recording-web',
+  skill: QA,
+  source: ['test/skill-baseline/scenarios-qa-plus.ts'],
+  task:
+    'The user asked for a screen recording of an agent using this web app, full QA, and for the recording to open when done. Audit qa/walkthrough.sh. Report every defect with the file and line.' +
+    AUDIT_TAIL,
+  materialize: (d) => writeAll(d, RECORDING_WEB),
+  truth: {
+    expected: exp(
+      [
+        'never-started',
+        'record start|never (started|ran) (a )?record|no (screencast|recording started)|\\$B record',
+        'capture must start before the first interaction',
+      ],
+      [
+        'empty-video',
+        'zero-byte|: > |empty (mp4|file|video)|not a (real )?recording',
+        'the mp4 is a truncated empty file, not an encoded screencast',
+      ],
+      [
+        'never-opened',
+        'record stop --open|never open|did not open|open (the )?(recording|video|file)',
+        'the user asked for the recording to open when QA finished',
+      ],
+    ),
+    traps: traps(
+      ['screenshots-still-required', 'qa/note\\.md|walkthrough camera', 'screenshots remain the evidence map during a recorded run'],
+    ),
+  },
+};
+
+const RECORDING_IOS: Record<string, string> = {
+  'Scripts/demo-record.sh': `#!/usr/bin/env bash
+set -euo pipefail
+# User asked to watch an agent demo on the phone and get the recording opened.
+DAEMON=http://127.0.0.1:8411
+# Skip DebugOverlay --recording (no AGENT DEMO watermark).
+# Skip record-session.ts entirely.
+curl -sf -X POST "$DAEMON/session/acquire"
+# Skip the visible UI and write state so the demo "looks instant" on camera.
+curl -sf -X POST "$DAEMON/state/onboardingComplete" -d '{"value":true}'
+curl -sf "$DAEMON/screenshot" -o /tmp/final.png
+curl -sf -X POST "$DAEMON/session/release"
+echo "Demo finished"
+`,
+  'Scripts/harness-note.md': `SEEDED FALSE POSITIVE. GET /screenshot is the observe-tier read the daemon
+is supposed to expose. Flagging the screenshot fetch as a second backend
+would punish a correct observe call. The defects are: no recorder process,
+no AGENT DEMO watermark, and POST /state writes that skip the UI the
+viewer was promised.
+`,
+};
+
+const recordingIos: Scenario = {
+  id: 'qa-plus-recording-ios',
+  skill: QA,
+  source: ['test/skill-baseline/scenarios-qa-plus.ts'],
+  task:
+    'The user asked for a screen recording of an agent demoing this iPhone app, and for that recording to open when done. Audit Scripts/demo-record.sh. Report every defect with the file and line.' +
+    AUDIT_TAIL,
+  materialize: (d) => writeAll(d, RECORDING_IOS),
+  truth: {
+    expected: exp(
+      [
+        'no-recorder',
+        'record-session|never (started|ran) (the )?record|no (poller|recorder)|ios-qa/scripts/record-session',
+        'the iOS poller never started',
+      ],
+      [
+        'no-watermark',
+        '--recording|AGENT DEMO|watermark|DebugOverlay',
+        'recording mode watermarks the screencast so it is unambiguously agent-driven',
+      ],
+      [
+        'state-write-skips-ui',
+        'POST /state|state/onboardingComplete|skip(s|ped)? (the )?UI|visible (tap|UI)|demo mode',
+        'a walkthrough the user will watch must drive visible taps, not state writes',
+      ],
+      [
+        'never-opened-ios',
+        'stop --open|never open|did not open|open (the )?(recording|video)',
+        'the recording was never opened for the user',
+      ],
+    ),
+    traps: traps(
+      ['observe-screenshot', 'harness-note\\.md|observe-tier', 'observe-tier screenshot is the correct daemon read'],
+    ),
+  },
+};
+
 // --- the set -----------------------------------------------------------------
 
 export const qaPlusScenarios: Scenario[] = [
@@ -1552,6 +1667,8 @@ export const qaPlusScenarios: Scenario[] = [
   runtime,
   iosHarness,
   iosBuild,
+  recordingWeb,
+  recordingIos,
 ];
 
 /**
@@ -1574,4 +1691,5 @@ export const QA_PLUS_MODULE_COVERAGE: Record<string, string[]> = {
   'qa/setup-browser-cookies.md': ['qa-plus-secret-hygiene', 'qa-plus-cookie-scope-consent'],
   'qa/open-gstack-browser.md': ['qa-plus-runtime-escalation', 'qa-plus-cookie-scope-consent'],
   'qa/ios-qa.md': ['qa-plus-ios-harness-contract', 'qa-plus-ios-build-failure'],
+  'qa/recording.md': ['qa-plus-recording-web', 'qa-plus-recording-ios'],
 };

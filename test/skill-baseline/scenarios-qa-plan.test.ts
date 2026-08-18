@@ -252,7 +252,7 @@ describe('module coverage', () => {
     }
     const uncovered = onDisk.filter((m) => !coverage[m]);
     expect(uncovered).toEqual([]);
-    expect(onDisk.length).toBe(22);
+    expect(onDisk.length).toBe(23);
   });
 
   test('every module names at least one scenario, and every named scenario exists', () => {
