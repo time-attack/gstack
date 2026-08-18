@@ -120,3 +120,43 @@ matrix is **Verified — installer**; host UI/process execution is still pending
 Native means a necessary host API is covered while consuming the same canonical
 judgment. These labels require evidence; see
 [`docs/gstack-2/HOST-COMPATIBILITY.md`](docs/gstack-2/HOST-COMPATIBILITY.md).
+
+## Cursor Cloud specific instructions
+
+Runtime: **Bun 1.3.14** (installed at `~/.bun/bin/bun`, symlinked to
+`/usr/local/bin/bun` so it is on the default `PATH`) plus system Node.js. Project
+deps come from `bun install --frozen-lockfile` (the startup update script already
+runs this). Chromium for `browse`/`make-pdf` is a Playwright build in
+`~/.cache/ms-playwright` (installed once into the VM snapshot); if it is ever
+missing, reinstall with `bunx playwright@1.62.1 install --with-deps chromium`
+(match the version of `node_modules/playwright`).
+
+Commands are already documented in `package.json` scripts and `CONTRIBUTING.md`;
+the authoritative ones here are: build with `bun run build` (compiles the
+gitignored `browse/dist`, `make-pdf/dist`, and `bin/gstack-global-discover`
+binaries — rebuild after editing `browse/src/*` or `make-pdf/src/*`), free test
+suite with `bun run test`, and the AI-code-quality scan (this repo's "lint") with
+`bun run slop`. Ignore the stale `gen:gstack2` / `test:gstack2` / `skill:check`
+references in the AGENTS.md build block above — those scripts were deleted;
+`package.json` is authoritative (see `CLAUDE.md`, "skills/ is the STATIC source").
+
+Running the app: `browse` and `make-pdf` are CLI daemons, not web servers — no
+long-running service needs to be started. The `browse` binary auto-starts and
+auto-idles its own headless Chromium daemon on demand (e.g.
+`./browse/dist/browse goto <url>` then `./browse/dist/browse text` /
+`screenshot <path>`). `screenshot`/`pdf` output paths are restricted to `/tmp`
+or `/workspace`. `make-pdf` shells out to the `browse` daemon to rasterize.
+
+Non-obvious gotcha — git-spawning tests and the injected commit-signing config:
+Cursor's cloud VM sets a global `~/.gitconfig` with `commit.gpgsign=true` +
+`gpg.format=ssh` (via `~/.cursor/bin/cursor-git-ssh-keygen`) and
+`core.fsmonitor=true`. Tests that create temp git repos and commit (e.g.
+`test/diff-scope.test.ts`) inherit this, so every `git commit` invokes the SSH
+signer and intermittently stalls for seconds, blowing the tests' short
+`spawnSync` timeouts and producing flaky failures that are NOT repo bugs. Run the
+free suite with the global/system git config neutralized to get clean signal:
+`GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null bun run test`. Separately,
+`bun run test` uses a strict wrapper that aborts at the first failing file, and a
+few tests (e.g. `test/gstack-memory-ingest.test.ts` "#2105") are pre-existing
+flakes that pass on re-run — re-run an individual file with
+`bun test <file>` to confirm before treating a failure as real.
