@@ -43,8 +43,9 @@ describe('canDispatchOverTunnel — daemon-config + bootstrap commands rejected'
     'launch', 'launch-browser', 'connect', 'disconnect',
     'restart', 'stop', 'tunnel-start', 'tunnel-stop',
     'token-mint', 'token-revoke', 'cookie-picker', 'cookie-import',
-    'inspector-pick', 'extension-inspect',
-    'invalid-command-xyz', 'totally-made-up',
+      'inspector-pick', 'extension-inspect',
+      'record',
+      'invalid-command-xyz', 'totally-made-up',
   ];
   for (const cmd of blocked) {
     test(`rejects '${cmd}'`, () => {

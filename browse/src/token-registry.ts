@@ -39,7 +39,7 @@ import { READ_COMMANDS, WRITE_COMMANDS, META_COMMANDS } from './commands';
 export const SCOPE_READ = new Set([
   'snapshot', 'text', 'html', 'links', 'forms', 'accessibility',
   'console', 'network', 'perf', 'dialog', 'is', 'inspect',
-  'url', 'tabs', 'status', 'screenshot', 'pdf', 'css', 'attrs',
+  'url', 'tabs', 'status', 'screenshot', 'pdf', 'record', 'css', 'attrs',
   'media', 'data',
 ]);
 

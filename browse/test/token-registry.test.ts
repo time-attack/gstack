@@ -190,6 +190,8 @@ describe('token-registry', () => {
       expect(checkScope(info, 'snapshot')).toBe(true);
       expect(checkScope(info, 'text')).toBe(true);
       expect(checkScope(info, 'html')).toBe(true);
+      expect(checkScope(info, 'screenshot')).toBe(true);
+      expect(checkScope(info, 'record')).toBe(true);
     });
 
     it('denies write commands with read-only scope', () => {

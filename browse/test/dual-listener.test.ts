@@ -110,6 +110,7 @@ describe('Tunnel command allowlist', () => {
       'restart', 'stop', 'tunnel-start', 'tunnel-stop',
       'token-mint', 'token-revoke', 'cookie-picker', 'cookie-import',
       'inspector-pick', 'pair', 'unpair', 'cookies', 'setup',
+      'record',
     ];
     for (const c of forbidden) {
       expect(cmds.has(c)).toBe(false);
